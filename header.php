@@ -30,13 +30,13 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
         body {
             font-family: 'Vazirmatn', sans-serif;
             background-color: #1a202c;
-            padding-left: 250px; /* فضای منوی سمت چپ */
+            padding-right: 250px; /* فضای منوی سمت راست */
             margin: 0;
         }
         .sidebar {
             position: fixed;
             top: 0;
-            left: 0;
+            right: 0;
             bottom: 0;
             width: 250px;
             background-color: #2d3748;
@@ -57,7 +57,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
             background-color: #4a5568;
         }
         .sidebar .nav-link i {
-            margin-right: 10px; /* برای راست‌چین بودن */
+            margin-left: 10px; /* برای راست‌چین بودن */
         }
         .sidebar.collapsed .nav-link span {
             display: none;
@@ -86,7 +86,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
         }
         @media (max-width: 768px) {
             body {
-                padding-left: 0;
+                padding-right: 0;
             }
             .sidebar {
                 width: 0;
@@ -100,18 +100,6 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 </head>
 <body>
     <!-- [BLOCK-HEADER-002] -->
-    <!-- منوی سمت چپ -->
-    <div class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
-        <ul class="nav flex-column pt-5">
-            <li class="nav-item">
-                <a class="nav-link" href="dashboard.php">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>داشبورد</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-
     <!-- منوی بالا -->
     <nav class="navbar navbar-expand navbar-dark fixed-top">
         <div class="container-fluid">
@@ -134,6 +122,18 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
         </div>
     </nav>
 
+    <!-- منوی راست -->
+    <div class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+        <ul class="nav flex-column pt-5">
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.php">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>داشبورد</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
     <!-- اسکریپت‌ها -->
     <script>
         // [BLOCK-HEADER-003]
@@ -142,7 +142,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
             const sidebar = document.querySelector('.sidebar');
 
             sidebarToggle.addEventListener('click', () => {
-                if (window.innerWidth <= 768px) {
+                if (window.innerWidth <= 768) { // حذف 'px' از شرط
                     sidebar.classList.toggle('open');
                 } else {
                     sidebar.classList.toggle('collapsed');
