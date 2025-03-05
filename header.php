@@ -12,6 +12,9 @@ $full_name = $_SESSION['full_name'];
 $role = $_SESSION['role'] === 'admin' ? 'ادمین' : 'فروشنده';
 $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
+
+// نام صفحه فعلی (برای این مثال، "داشبورد" فرض می‌کنیم)
+$page_name = "داشبورد";
 ?>
 
 <!DOCTYPE html>
@@ -29,7 +32,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
     <style>
         body {
             font-family: 'Vazirmatn', sans-serif;
-            background-color: #1a202c;
+            background-color: #f8f9fa;
             padding-right: 250px; /* فضای منوی سمت راست */
             margin: 0;
         }
@@ -39,22 +42,23 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
             right: 0;
             bottom: 0;
             width: 250px;
-            background-color: #2d3748;
-            z-index: 1000;
+            background-color: #f8f9fa;
+            z-index: 900; /* زیر منوی بالا */
             transition: width 0.3s;
+            border-left: 1px solid #dee2e6;
         }
         .sidebar.collapsed {
             width: 70px;
         }
         .sidebar .nav-link {
-            color: #a0aec0;
+            color: #212529;
             padding: 15px 20px;
             display: flex;
             align-items: center;
         }
         .sidebar .nav-link:hover {
-            color: white;
-            background-color: #4a5568;
+            color: #007bff;
+            background-color: #e9ecef;
         }
         .sidebar .nav-link i {
             margin-left: 10px; /* برای راست‌چین بودن */
@@ -63,26 +67,26 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
             display: none;
         }
         .navbar {
-            background-color: #2d3748;
-            border-bottom: 1px solid #4a5568;
-            z-index: 1100;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            z-index: 1000;
         }
         .navbar-brand, .navbar-text {
-            color: #a0aec0;
+            color: #212529;
         }
         .dropdown-menu {
-            background-color: #2d3748;
-            border: 1px solid #4a5568;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
         }
         .dropdown-item {
-            color: #a0aec0;
+            color: #212529;
         }
         .dropdown-item:hover, .dropdown-item:focus {
-            background-color: #4a5568;
-            color: white;
+            background-color: #e9ecef;
+            color: #007bff;
         }
         .dropdown-divider {
-            border-top: 1px solid #4a5568;
+            border-top: 1px solid #dee2e6;
         }
         @media (max-width: 768px) {
             body {
@@ -101,14 +105,17 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 <body>
     <!-- [BLOCK-HEADER-002] -->
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-dark fixed-top">
+    <nav class="navbar navbar-expand navbar-light fixed-top">
         <div class="container-fluid">
-            <button class="btn btn-outline-light ms-3" type="button" id="sidebarToggle">
-                <i class="fas fa-bars"></i>
-            </button>
+            <div class="d-flex align-items-center">
+                <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <span class="navbar-text">صفحه <?php echo $page_name; ?></span>
+            </div>
             <span class="navbar-text mx-auto">تاریخ: <?php echo $jalali_date; ?></span>
             <div class="dropdown ms-3">
-                <a href="#" class="text-light" data-bs-toggle="dropdown">
+                <a href="#" class="text-dark" data-bs-toggle="dropdown">
                     <i class="fas fa-user-circle fa-2x"></i>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
@@ -116,7 +123,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                     <li class="dropdown-item"><?php echo $role; ?></li>
                     <li><hr class="dropdown-divider"></li>
                     <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
-                    <li class="dropdown-item"><a href="logout.php" class="text-decoration-none text-light"><i class="fas fa-sign-out-alt me-2"></i> خروج</a></li>
+                    <li class="dropdown-item"><a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a></li>
                 </ul>
             </div>
         </div>
@@ -142,7 +149,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
             const sidebar = document.querySelector('.sidebar');
 
             sidebarToggle.addEventListener('click', () => {
-                if (window.innerWidth <= 768) { // حذف 'px' از شرط
+                if (window.innerWidth <= 768) {
                     sidebar.classList.toggle('open');
                 } else {
                     sidebar.classList.toggle('collapsed');

@@ -14,19 +14,19 @@ $orders = [
 ?>
 
 <!-- [BLOCK-DASHBOARD-002] -->
-<div class="container-fluid mt-4">
-    <div class="card bg-dark text-white">
+<div class="container-fluid mt-5"> <!-- افزایش فاصله با mt-5 برای زیر منوی بالا -->
+    <div class="card bg-light text-dark">
         <div class="card-body">
             <h5 class="card-title">لیست فاکتورها</h5>
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <select class="form-select w-auto bg-dark text-white border-secondary">
+                <select class="form-select w-auto bg-light text-dark border-secondary">
                     <option>10</option>
                     <option>25</option>
                     <option>50</option>
                 </select>
-                <input type="text" class="form-control w-auto bg-dark text-white border-secondary" placeholder="جستجو...">
+                <input type="text" class="form-control w-auto bg-light text-dark border-secondary" placeholder="جستجو...">
             </div>
-            <table class="table table-dark table-hover">
+            <table class="table table-light table-hover">
                 <thead>
                     <tr>
                         <th><input type="checkbox" class="form-check-input"></th>
