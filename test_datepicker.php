@@ -2,10 +2,10 @@
 // [BLOCK-TEST-DATEPICKER-001]
 session_start();
 // اتصال به دیتابیس تست
-$host = 'localhost';
-$dbname = 'ukvojota_hiasm';
-$username = 'ukvojota_hiasmadmin'; // نام کاربری دیتابیس خود را وارد کنید
-$password = 'H72j51300!'; // رمز عبور دیتابیس خود را وارد کنید
+$host = 'localhost'; // یا هاست دیتابیست
+$dbname = 'test_datepicker'; // نام دیتابیس تست
+$username = 'your_username'; // نام کاربری دیتابیس
+$password = 'your_password'; // رمز عبور دیتابیس
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
@@ -14,8 +14,9 @@ try {
     die("خطا در اتصال به دیتابیس: " . $e->getMessage());
 }
 
-// بارگذاری jdf.php برای تبدیل تاریخ
-require_once 'jdf.php';
+// بارگذاری DateConverter برای تبدیل تاریخ
+require_once 'date_converter.php';
+$dateConverter = new DateConverter();
 ?>
 
 <!DOCTYPE html>
@@ -65,17 +66,9 @@ require_once 'jdf.php';
             $start_date = $_POST['start_date'];
             $end_date = $_POST['end_date'];
 
-            // تبدیل تاریخ شمسی به میلادی با jdf.php
-            // فرمت ورودی باید YYYY/MM/DD باشد (مثلاً 1403/12/15)
-            $start_parts = explode('/', $start_date);
-            $end_parts = explode('/', $end_date);
-            if (count($start_parts) === 3 && count($end_parts) === 3) {
-                $start_gregorian = jdate('Y-m-d', '', '', '', $start_date, 'gregorian');
-                $end_gregorian = jdate('Y-m-d', '', '', '', $end_date, 'gregorian');
-            } else {
-                $start_gregorian = '0000-00-00';
-                $end_gregorian = '0000-00-00';
-            }
+            // تبدیل تاریخ شمسی به میلادی با DateConverter
+            $start_gregorian = $dateConverter->convertJalaliToGregorian($start_date);
+            $end_gregorian = $dateConverter->convertJalaliToGregorian($end_date);
 
             try {
                 $stmt = $pdo->prepare("INSERT INTO test_dates (date_value) VALUES (?)");
