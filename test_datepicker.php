@@ -66,8 +66,16 @@ require_once 'jdf.php';
             $end_date = $_POST['end_date'];
 
             // تبدیل تاریخ شمسی به میلادی با jdf.php
-            $start_gregorian = jdate('Y-m-d', '', '', '', $start_date, 'gregorian');
-            $end_gregorian = jdate('Y-m-d', '', '', '', $end_date, 'gregorian');
+            // فرمت ورودی باید YYYY/MM/DD باشد (مثلاً 1403/12/15)
+            $start_parts = explode('/', $start_date);
+            $end_parts = explode('/', $end_date);
+            if (count($start_parts) === 3 && count($end_parts) === 3) {
+                $start_gregorian = jdate('Y-m-d', '', '', '', $start_date, 'gregorian');
+                $end_gregorian = jdate('Y-m-d', '', '', '', $end_date, 'gregorian');
+            } else {
+                $start_gregorian = '0000-00-00';
+                $end_gregorian = '0000-00-00';
+            }
 
             try {
                 $stmt = $pdo->prepare("INSERT INTO test_dates (date_value) VALUES (?)");
