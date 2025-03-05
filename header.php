@@ -33,9 +33,9 @@ $page_name = "داشبورد";
     <link
         href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+    <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
+    <!-- Persian Datepicker -->
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
@@ -112,6 +112,9 @@ $page_name = "داشبورد";
             <?php endif; ?>
         </ul>
     </div>
+
+    <!-- مشکل بالای صفحات -->
+    <br>
 
     <!-- اسکریپت‌ها -->
     <script>
