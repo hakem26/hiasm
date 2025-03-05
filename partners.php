@@ -12,12 +12,15 @@ require_once 'jdf.php';
 $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
-// کوئری برای دریافت همکاران (از Partners و Users)
-$stmt = $pdo->query("SELECT p.partner_id, u.username, u.full_name FROM Partners p JOIN Users u ON p.user_id = u.user_id");
+// کوئری برای دریافت گروه‌های همکار (از Partners و Users)
+$stmt = $pdo->query("SELECT p.partner_id, u1.username AS username1, u1.full_name AS full_name1, u2.username AS username2, u2.full_name AS full_name2 
+                    FROM Partners p 
+                    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
+                    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id");
 $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // کوئری برای دریافت کاربران موجود (برای افزودن همکار)
-$users_stmt = $pdo->query("SELECT user_id, username, full_name FROM Users WHERE user_id NOT IN (SELECT user_id FROM Partners)");
+$users_stmt = $pdo->query("SELECT user_id, username, full_name FROM Users");
 $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -29,14 +32,13 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <?php if (empty($partners)): ?>
-    <div class="alert alert-warning text-center">همکاری تعریف نشده است.</div>
+    <div class="alert alert-warning text-center">گروه همکاری تعریف نشده است.</div>
     <?php else: ?>
     <table class="table table-light table-hover">
         <thead>
             <tr>
                 <th>شناسه</th>
-                <th>نام کاربری</th>
-                <th>نام کامل</th>
+                <th>همکاران</th>
                 <th>عملیات</th>
             </tr>
         </thead>
@@ -44,10 +46,9 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php foreach ($partners as $partner): ?>
             <tr>
                 <td><?php echo $partner['partner_id']; ?></td>
-                <td><?php echo htmlspecialchars($partner['username']); ?></td>
-                <td><?php echo htmlspecialchars($partner['full_name']); ?></td>
+                <td><?php echo htmlspecialchars($partner['full_name1'] . ' - ' . $partner['full_name2']); ?></td>
                 <td>
-                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user-id="<?php echo $partner['user_id']; ?>">
+                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user-id1="<?php echo $partner['user_id1']; ?>" data-user-id2="<?php echo $partner['user_id2']; ?>">
                         <i class="fas fa-edit"></i>
                     </a>
                     <a href="#" class="text-danger" onclick="confirmDeletePartner(<?php echo $partner['partner_id']; ?>)">
@@ -66,14 +67,14 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-light">
             <div class="modal-header">
-                <h5 class="modal-title" id="addPartnerModalLabel">افزودن همکار جدید</h5>
+                <h5 class="modal-title" id="addPartnerModalLabel">افزودن گروه همکار جدید</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="addPartnerForm" method="POST" action="add_partner.php">
                     <div class="mb-3">
-                        <label for="user_id" class="form-label">کاربر (همکار)</label>
-                        <select class="form-select" id="user_id" name="user_id" required>
+                        <label for="user_id1" class="form-label">همکار اول</label>
+                        <select class="form-select" id="user_id1" name="user_id1" required>
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($available_users as $user): ?>
                             <option value="<?php echo $user['user_id']; ?>">
@@ -82,7 +83,18 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary">ثبت همکار</button>
+                    <div class="mb-3">
+                        <label for="user_id2" class="form-label">همکار دوم</label>
+                        <select class="form-select" id="user_id2" name="user_id2" required>
+                            <option value="">انتخاب کنید</option>
+                            <?php foreach ($available_users as $user): ?>
+                            <option value="<?php echo $user['user_id']; ?>">
+                                <?php echo htmlspecialchars($user['username']) . ' - ' . htmlspecialchars($user['full_name']); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">ثبت گروه همکار</button>
                 </form>
             </div>
         </div>
@@ -94,15 +106,15 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-light">
             <div class="modal-header">
-                <h5 class="modal-title" id="editPartnerModalLabel">ویرایش همکار</h5>
+                <h5 class="modal-title" id="editPartnerModalLabel">ویرایش گروه همکار</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="editPartnerForm" method="POST" action="edit_partner.php">
                     <input type="hidden" id="edit_partner_id" name="partner_id">
                     <div class="mb-3">
-                        <label for="edit_user_id" class="form-label">کاربر (همکار)</label>
-                        <select class="form-select" id="edit_user_id" name="user_id" required>
+                        <label for="edit_user_id1" class="form-label">همکار اول</label>
+                        <select class="form-select" id="edit_user_id1" name="user_id1" required>
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($available_users as $user): ?>
                             <option value="<?php echo $user['user_id']; ?>">
@@ -111,7 +123,18 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary">بروزرسانی همکار</button>
+                    <div class="mb-3">
+                        <label for="edit_user_id2" class="form-label">همکار دوم</label>
+                        <select class="form-select" id="edit_user_id2" name="user_id2" required>
+                            <option value="">انتخاب کنید</option>
+                            <?php foreach ($available_users as $user): ?>
+                            <option value="<?php echo $user['user_id']; ?>">
+                                <?php echo htmlspecialchars($user['username']) . ' - ' . htmlspecialchars($user['full_name']); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">بروزرسانی گروه همکار</button>
                 </form>
             </div>
         </div>
@@ -127,16 +150,18 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 const partnerId = e.target.getAttribute('data-partner-id');
-                const userId = e.target.getAttribute('data-user-id');
+                const userId1 = e.target.getAttribute('data-user-id1');
+                const userId2 = e.target.getAttribute('data-user-id2');
 
                 document.getElementById('edit_partner_id').value = partnerId;
-                document.getElementById('edit_user_id').value = userId;
+                document.getElementById('edit_user_id1').value = userId1 || '';
+                document.getElementById('edit_user_id2').value = userId2 || '';
             });
         });
 
-        // حذف همکار
+        // حذف گروه همکار
         window.confirmDeletePartner = function(partnerId) {
-            if (confirm('آیا مطمئن هستید که می‌خواهید این همکار را حذف کنید؟')) {
+            if (confirm('آیا مطمئن هستید که می‌خواهید این گروه همکار را حذف کنید؟')) {
                 fetch('delete_partner.php?partner_id=' + partnerId, {
                     method: 'GET'
                 })
@@ -144,7 +169,7 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                     if (response.ok) {
                         window.location.reload(); // رفرش صفحه پس از حذف
                     } else {
-                        alert('خطا در حذف همکار!');
+                        alert('خطا در حذف گروه همکار!');
                     }
                 })
                 .catch(error => {

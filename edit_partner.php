@@ -9,10 +9,11 @@ require_once 'db.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $partner_id = $_POST['partner_id'];
-    $user_id = $_POST['user_id'];
+    $user_id1 = $_POST['user_id1'];
+    $user_id2 = $_POST['user_id2'];
 
-    $stmt = $pdo->prepare("UPDATE Partners SET user_id = ? WHERE partner_id = ?");
-    $stmt->execute([$user_id, $partner_id]);
+    $stmt = $pdo->prepare("UPDATE Partners SET user_id1 = ?, user_id2 = ? WHERE partner_id = ?");
+    $stmt->execute([$user_id1, $user_id2, $partner_id]);
 
     header("Location: partners.php");
     exit;

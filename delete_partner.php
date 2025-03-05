@@ -17,8 +17,6 @@ if (isset($_GET['partner_id'])) {
     $stmt->execute([$partner_id]);
     $stmt = $pdo->prepare("UPDATE Work_Details SET partner2_id = NULL WHERE partner2_id = ?");
     $stmt->execute([$partner_id]);
-    $stmt = $pdo->prepare("UPDATE Work_Details SET agency_partner_id = NULL WHERE agency_partner_id = ?");
-    $stmt->execute([$partner_id]);
 
     header("Location: partners.php");
     exit;
