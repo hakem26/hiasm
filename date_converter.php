@@ -32,7 +32,9 @@ class DateConverter {
     public function convertJalaliToGregorian($jalali_date) {
         $date_parts = explode('/', $jalali_date);
         if (count($date_parts) === 3) {
-            list($year, $month, $day) = $date_parts;
+            $year = (int)$date_parts[0];  // تبدیل سال به عدد صحیح
+            $month = (int)$date_parts[1]; // تبدیل ماه به عدد صحیح
+            $day = (int)$date_parts[2];   // تبدیل روز به عدد صحیح
             $gregorian = $this->jalali_to_gregorian($year, $month, $day, '-');
             return $gregorian;
         }
