@@ -9,13 +9,18 @@ require_once 'db.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $partner_id = $_POST['partner_id'];
-    $user_id1 = $_POST['user_id1'];
-    $user_id2 = $_POST['user_id2'];
+    $user_id1 = $_POST['user_id1'] ?? null;
+    $user_id2 = $_POST['user_id2'] ?? null;
 
-    $stmt = $pdo->prepare("UPDATE Partners SET user_id1 = ?, user_id2 = ? WHERE partner_id = ?");
-    $stmt->execute([$user_id1, $user_id2, $partner_id]);
+    // بررسی وجود داده‌ها
+    if ($user_id1 && $user_id2) {
+        $stmt = $pdo->prepare("UPDATE Partners SET user_id1 = ?, user_id2 = ? WHERE partner_id = ?");
+        $stmt->execute([$user_id1, $user_id2, $partner_id]);
 
-    header("Location: partners.php");
-    exit;
+        header("Location: partners.php");
+        exit;
+    } else {
+        die("خطا: اطلاعات همکار کامل نیست!");
+    }
 }
 ?>

@@ -5,7 +5,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: index.php");
     exit;
 }
-require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
@@ -46,9 +45,9 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php foreach ($partners as $partner): ?>
             <tr>
                 <td><?php echo $partner['partner_id']; ?></td>
-                <td><?php echo htmlspecialchars($partner['full_name1'] . ' - ' . $partner['full_name2']); ?></td>
+                <td><?php echo htmlspecialchars(($partner['full_name1'] ?: '-') . ' - ' . ($partner['full_name2'] ?: '-')); ?></td>
                 <td>
-                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user-id1="<?php echo $partner['user_id1']; ?>" data-user-id2="<?php echo $partner['user_id2']; ?>">
+                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user-id1="<?php echo $partner['user_id1'] ?: ''; ?>" data-user-id2="<?php echo $partner['user_id2'] ?: ''; ?>">
                         <i class="fas fa-edit"></i>
                     </a>
                     <a href="#" class="text-danger" onclick="confirmDeletePartner(<?php echo $partner['partner_id']; ?>)">
