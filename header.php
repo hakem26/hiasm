@@ -47,7 +47,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
             width: 70px;
         }
         .sidebar .nav-link {
-            color: white;
+            color: #212529;
         }
         .sidebar .nav-link i {
             margin-left: 10px;
@@ -69,14 +69,14 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 <body>
     <!-- [BLOCK-HEADER-002] -->
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-dark bg-dark fixed-top">
+    <nav class="navbar navbar-expand navbar-light bg-light fixed-top">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
-                <a href="#" class="text-white me-3" data-bs-toggle="dropdown">
+                <a href="#" class="text-dark me-3" data-bs-toggle="dropdown">
                     <i class="fas fa-user-circle fa-2x"></i>
                 </a>
                 <span class="navbar-text"><?php echo $jalali_date; ?></span>
-                <ul class="dropdown-menu mt-2">
+                <ul class="dropdown-menu mt-2 dropdown-menu-end">
                     <li class="dropdown-item"><?php echo htmlspecialchars($full_name); ?></li>
                     <li class="dropdown-item"><?php echo $role; ?></li>
                     <li><hr class="dropdown-divider"></li>
@@ -85,14 +85,14 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                 </ul>
             </div>
             <div class="navbar-text mx-auto">داشبورد</div>
-            <button class="navbar-toggler me-3" type="button" id="sidebarToggle">
-                <span class="navbar-toggler-icon"></span>
+            <button class="btn btn-outline-secondary ms-3" type="button" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
             </button>
         </div>
     </nav>
 
     <!-- منوی راست -->
-    <div class="sidebar bg-dark <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+    <div class="sidebar bg-light <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
         <ul class="nav flex-column mt-5">
             <li class="nav-item">
                 <a class="nav-link" href="dashboard.php">

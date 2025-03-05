@@ -2,17 +2,13 @@
 // [BLOCK-DASHBOARD-001]
 require_once 'header.php';
 require_once 'jdf.php';
-
-$gregorian_date = date('Y-m-d');
-$jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 ?>
 
 <!-- [BLOCK-DASHBOARD-002] -->
 <div class="container mt-4">
     <div class="card mx-auto" style="max-width: 600px;">
         <div class="card-body text-center">
-            <h1 class="card-title">تست برای داشبورد</h1>
-            <h2>اطلاعات بروز خواهد شد</h2>
+            <h1 class="card-title">داشبورد</h1>
         </div>
     </div>
 </div>
