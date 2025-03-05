@@ -1,3 +1,7 @@
+<?php
+// [BLOCK-LOGIN-001]
+session_start(); // این خط باید در ابتدای فایل باشد
+?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -30,11 +34,10 @@
     </style>
 </head>
 <body>
-    <!-- [BLOCK-LOGIN-001] -->
+    <!-- [BLOCK-LOGIN-002] -->
     <div class="login-box">
         <h2 class="text-center mb-4">ورود به سیستم</h2>
         <?php
-        session_start();
         if (isset($_SESSION['error'])) {
             echo '<div class="alert alert-danger">' . $_SESSION['error'] . '</div>';
             unset($_SESSION['error']);
@@ -43,11 +46,15 @@
         <form action="login_process.php" method="POST">
             <div class="mb-3">
                 <label for="username" class="form-label">نام کاربری</label>
-                <input type="text" class="form-control" id="username" name="username" required>
+                <input type="text" class="form-control" id="username" name="username" value="<?php echo isset($_COOKIE['username']) ? htmlspecialchars($_COOKIE['username']) : ''; ?>" required>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">رمز عبور</label>
                 <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="remember" name="remember" <?php echo isset($_COOKIE['username']) ? 'checked' : ''; ?>>
+                <label class="form-check-label" for="remember">ذخیره ورود</label>
             </div>
             <button type="submit" class="btn btn-primary w-100">
                 <i class="fas fa-sign-in-alt"></i> ورود

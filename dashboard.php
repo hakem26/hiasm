@@ -7,13 +7,12 @@ if (!isset($_SESSION['user_id'])) {
 }
 require_once 'db.php';
 
-// استفاده از کتابخانه php-jalali برای تبدیل تاریخ
-// دانلود دستی از: https://github.com/jalalhosseini/php-jalali
-require_once 'jdf.php'; // فرض بر این است که فایل jdf.php در پروژه اضافه شده
+// استفاده از jdf.php از منبع درست
+require_once 'jdf.php'; // فایل از https://jdf.scr.ir/jdf/php
 
 $full_name = $_SESSION['full_name'];
-$gregorian_date = date('Y-m-d H:i:s'); // تاریخ میلادی فعلی
-$jalali_date = jdate('Y/m/d H:i:s', strtotime($gregorian_date)); // تبدیل به شمسی
+$gregorian_date = date('Y-m-d'); // فقط تاریخ بدون ساعت
+$jalali_date = jdate('Y/m/d', strtotime($gregorian_date)); // فقط تاریخ شمسی
 ?>
 
 <!DOCTYPE html>
