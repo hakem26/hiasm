@@ -14,8 +14,63 @@ try {
     die("خطا در اتصال به دیتابیس: " . $e->getMessage());
 }
 
-// بارگذاری jdf.php برای تبدیل تاریخ
-require_once 'jdf.php';
+// تابع کمکی برای تبدیل کاراکترهای فارسی به انگلیسی
+function convertPersianToEnglishNumbers($string) {
+    $persian_numbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    $english_numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    return str_replace($persian_numbers, $english_numbers, $string);
+}
+
+// تابع سفارشی برای تبدیل تاریخ شمسی به میلادی
+function jalaliToGregorian($jalali_date) {
+    $date_parts = explode('/', convertPersianToEnglishNumbers($jalali_date));
+    if (count($date_parts) !== 3) {
+        return '0000-00-00';
+    }
+
+    $year = (int)$date_parts[0];  // سال شمسی (مثلاً 1403)
+    $month = (int)$date_parts[1]; // ماه شمسی (مثلاً 12)
+    $day = (int)$date_parts[2];   // روز شمسی (مثلاً 15)
+
+    if ($year < 1000 || $year > 1499 || $month < 1 || $month > 12 || $day < 1 || $day > 31) {
+        return '0000-00-00';
+    }
+
+    // تنظیمات پایه برای تبدیل (بر اساس الگوریتم استاندارد)
+    $gy = 621; // پایه سال میلادی
+    $jalali_epoch = 226894; // روزهای پایه از 1 Farvardin 1 (شمسی) تا 1 January 1 (میلادی)
+
+    // محاسبه روزهای کل از سال 1 شمسی
+    $days = 0;
+    for ($i = 1; $i < $year; $i++) {
+        $days += (($i % 4 == 3) ? 366 : 365); // سال کبیسه شمسی (هر 4 سال یک‌بار)
+    }
+
+    // اضافه کردن روزهای ماه‌های سال جاری
+    $jalali_month_days = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+    for ($i = 1; $i < $month; $i++) {
+        $days += $jalali_month_days[$i];
+    }
+    $days += $day;
+
+    // اضافه کردن روزهای پایه و تبدیل به میلادی
+    $days += $jalali_epoch;
+    $gy += floor($days / 365.2425); // سال میلادی تقریبی
+    $days = floor($days % 365.2425);
+
+    // محاسبه ماه و روز میلادی
+    $leap = (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0)) ? 29 : 28;
+    $gregorian_month_days = [0, 31, $leap, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+    $gm = 1;
+    while ($days > $gregorian_month_days[$gm]) {
+        $days -= $gregorian_month_days[$gm];
+        $gm++;
+    }
+    $gd = $days;
+
+    return sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+}
 ?>
 
 <!DOCTYPE html>
@@ -65,9 +120,9 @@ require_once 'jdf.php';
             $start_date = $_POST['start_date'];
             $end_date = $_POST['end_date'];
 
-            // تبدیل تاریخ شمسی به میلادی با jdf.php
-            $start_gregorian = jdate('Y-m-d', '', '', '', $start_date, 'gregorian');
-            $end_gregorian = jdate('Y-m-d', '', '', '', $end_date, 'gregorian');
+            // تبدیل تاریخ شمسی به میلادی با تابع سفارشی
+            $start_gregorian = jalaliToGregorian($start_date);
+            $end_gregorian = jalaliToGregorian($end_date);
 
             try {
                 $stmt = $pdo->prepare("INSERT INTO test_dates (date_value) VALUES (?)");
