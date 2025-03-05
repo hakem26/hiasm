@@ -25,35 +25,39 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <?php if (empty($users)): ?>
-    <div class="alert alert-warning text-center">کاربری ساخته نشده است.</div>
+        <div class="alert alert-warning text-center">کاربری ساخته نشده است.</div>
     <?php else: ?>
-    <table class="table table-light table-hover">
-        <thead>
-            <tr>
-                <th>نام کاربری</th>
-                <th>نام کامل</th>
-                <th>نقش</th>
-                <th>عملیات</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($users as $user): ?>
-            <tr>
-                <td><?php echo htmlspecialchars($user['username']); ?></td>
-                <td><?php echo htmlspecialchars($user['full_name']); ?></td>
-                <td><?php echo $user['role'] === 'seller' ? 'فروشنده' : 'کاربر'; ?></td>
-                <td>
-                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editUserModal" data-user-id="<?php echo $user['user_id']; ?>" data-username="<?php echo htmlspecialchars($user['username']); ?>" data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>" data-role="<?php echo $user['role']; ?>">
-                        <i class="fas fa-edit"></i>
-                    </a>
-                    <a href="#" class="text-danger" onclick="confirmDelete(<?php echo $user['user_id']; ?>)">
-                        <i class="fas fa-trash"></i>
-                    </a>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+        <table class="table table-light table-hover">
+            <thead>
+                <tr>
+                    <th>نام کاربری</th>
+                    <th>نام کامل</th>
+                    <th>نقش</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($users as $user): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($user['username']); ?></td>
+                        <td><?php echo htmlspecialchars($user['full_name']); ?></td>
+                        <td><?php echo $user['role'] === 'seller' ? 'فروشنده' : 'کاربر'; ?></td>
+                        <td>
+                            <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editUserModal"
+                                data-user-id="<?php echo $user['user_id']; ?>"
+                                data-username="<?php echo htmlspecialchars($user['username']); ?>"
+                                data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>"
+                                data-role="<?php echo $user['role']; ?>">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="#" class="text-danger" onclick="confirmDelete(<?php echo $user['user_id']; ?>)">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     <?php endif; ?>
 </div>
 
@@ -106,7 +110,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <input type="hidden" id="edit_user_id" name="user_id">
                     <div class="mb-3">
                         <label for="edit_username" class="form-label">نام کاربری</label>
-                        <input type="text" class="form-control" id="edit_username" name="username" required>
+                        <input type="text" class="form-control" id="edit_username" name="username" required readonly>
                     </div>
                     <div class="mb-3">
                         <label for="edit_password" class="form-label">رمز عبور (خالی بگذارید برای عدم تغییر)</label>
@@ -143,32 +147,35 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 const fullName = e.target.getAttribute('data-fullname');
                 const role = e.target.getAttribute('data-role');
 
+                // پر کردن فیلدها
                 document.getElementById('edit_user_id').value = userId;
                 document.getElementById('edit_username').value = username;
-                document.getElementById('edit_username').setAttribute('readonly', 'readonly'); // غیرقابل تغییر
                 document.getElementById('edit_full_name').value = fullName;
                 document.getElementById('edit_role').value = role;
                 document.getElementById('edit_password').value = ''; // خالی برای عدم تغییر پیش‌فرض
+
+                // اطمینان از غیرفعال بودن نام کاربری
+                document.getElementById('edit_username').setAttribute('readonly', 'readonly');
             });
         });
 
-        // حذف کاربر
-        window.confirmDelete = function(userId) { // تعریف تابع در پنجره جهانی
+        // حذف کاربر (بدون تغییر، چون درست کار می‌کنه)
+        window.confirmDelete = function (userId) {
             if (confirm('آیا مطمئن هستید که می‌خواهید این کاربر را حذف کنید؟')) {
                 fetch('delete_user.php?user_id=' + userId, {
                     method: 'GET'
                 })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.reload(); // رفرش صفحه پس از حذف
-                    } else {
-                        alert('خطا در حذف کاربر!');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('خطا در اتصال به سرور!');
-                });
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.reload(); // رفرش صفحه پس از حذف
+                        } else {
+                            alert('خطا در حذف کاربر!');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('خطا در اتصال به سرور!');
+                    });
             }
             return false;
         }
