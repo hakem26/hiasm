@@ -36,11 +36,11 @@ $page_name = "داشبورد";
     <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="assets/css/persian.datepicker.css" />
+    <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-    <script src="assets/js/persian.date.js"></script>
-    <script src="assets/js/persian.datepicker.js"></script>
+    <script src="assets/js/persian-date.min.js"></script>
+    <script src="assets/js/persian-datepicker.min.js"></script>
 
 </head>
 
