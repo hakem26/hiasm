@@ -6,9 +6,12 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 require_once 'db.php';
+require_once 'jdf.php';
 
 $full_name = $_SESSION['full_name'];
 $role = $_SESSION['role'] === 'admin' ? 'ادمین' : 'فروشنده';
+$gregorian_date = date('Y-m-d');
+$jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 ?>
 
 <!DOCTYPE html>
@@ -26,18 +29,18 @@ $role = $_SESSION['role'] === 'admin' ? 'ادمین' : 'فروشنده';
     <style>
         body {
             font-family: 'Vazirmatn', sans-serif;
-            padding-top: 56px; /* فضای منوی بالا */
+            padding-top: 56px;
         }
         .navbar {
             z-index: 1000;
         }
         .sidebar {
             position: fixed;
-            top: 56px;
+            top: 0;
             right: 0;
             bottom: 0;
             width: 250px;
-            z-index: 1100;
+            z-index: 900; /* زیر منوی بالا */
             transition: width 0.3s;
         }
         .sidebar.collapsed {
@@ -68,11 +71,12 @@ $role = $_SESSION['role'] === 'admin' ? 'ادمین' : 'فروشنده';
     <!-- منوی بالا -->
     <nav class="navbar navbar-expand navbar-dark bg-dark fixed-top">
         <div class="container-fluid">
-            <div class="navbar-brand ms-3 dropdown">
-                <a href="#" class="text-white" data-bs-toggle="dropdown">
+            <div class="d-flex align-items-center">
+                <a href="#" class="text-white me-3" data-bs-toggle="dropdown">
                     <i class="fas fa-user-circle fa-2x"></i>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-end mt-2">
+                <span class="navbar-text"><?php echo $jalali_date; ?></span>
+                <ul class="dropdown-menu mt-2">
                     <li class="dropdown-item"><?php echo htmlspecialchars($full_name); ?></li>
                     <li class="dropdown-item"><?php echo $role; ?></li>
                     <li><hr class="dropdown-divider"></li>
@@ -80,7 +84,7 @@ $role = $_SESSION['role'] === 'admin' ? 'ادمین' : 'فروشنده';
                     <li class="dropdown-item"><a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a></li>
                 </ul>
             </div>
-            <div class="navbar-text mx-auto">تست برای داشبورد. اطلاعات بروز خواهد شد!</div>
+            <div class="navbar-text mx-auto">داشبورد</div>
             <button class="navbar-toggler me-3" type="button" id="sidebarToggle">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -89,11 +93,11 @@ $role = $_SESSION['role'] === 'admin' ? 'ادمین' : 'فروشنده';
 
     <!-- منوی راست -->
     <div class="sidebar bg-dark <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
-        <ul class="nav flex-column">
+        <ul class="nav flex-column mt-5">
             <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link" href="dashboard.php">
                     <i class="fas fa-tachometer-alt"></i>
-                    <span>تست برای داشبورد. اطلاعات بروز خواهد شد!</span>
+                    <span>داشبورد</span>
                 </a>
             </li>
         </ul>
