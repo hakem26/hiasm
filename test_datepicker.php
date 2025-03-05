@@ -13,6 +13,9 @@ try {
 } catch (PDOException $e) {
     die("خطا در اتصال به دیتابیس: " . $e->getMessage());
 }
+
+// بارگذاری jdf.php برای تبدیل تاریخ
+require_once 'jdf.php';
 ?>
 
 <!DOCTYPE html>
@@ -27,7 +30,7 @@ try {
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-    <!-- Persian Date JS -->
+    <!-- Persian Date JS (فقط برای جاوااسکریپت) -->
     <script src="assets/js/persian-date.min.js"></script>
     <!-- Persian Datepicker JS -->
     <script src="assets/js/persian-datepicker.min.js"></script>
@@ -62,9 +65,9 @@ try {
             $start_date = $_POST['start_date'];
             $end_date = $_POST['end_date'];
 
-            // تبدیل تاریخ شمسی به میلادی با persianDate
-            $start_gregorian = persianDate($start_date, 'YYYY/MM/DD')->toDate('YYYY-MM-DD');
-            $end_gregorian = persianDate($end_date, 'YYYY/MM/DD')->toDate('YYYY-MM-DD');
+            // تبدیل تاریخ شمسی به میلادی با jdf.php
+            $start_gregorian = jdate('Y-m-d', '', '', '', $start_date, 'gregorian');
+            $end_gregorian = jdate('Y-m-d', '', '', '', $end_date, 'gregorian');
 
             try {
                 $stmt = $pdo->prepare("INSERT INTO test_dates (date_value) VALUES (?)");
