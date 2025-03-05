@@ -2,10 +2,10 @@
 // [BLOCK-TEST-DATEPICKER-001]
 session_start();
 // اتصال به دیتابیس تست
-$host = 'localhost';
-$dbname = 'ukvojota_hiasm';
-$username = 'ukvojota_hiasmadmin'; // نام کاربری دیتابیس خود را وارد کنید
-$password = 'H72j51300!'; // رمز عبور دیتابیس خود را وارد کنید
+$host = 'localhost'; // یا هاست دیتابیست
+$dbname = 'test_datepicker'; // نام دیتابیس تست
+$username = 'your_username'; // نام کاربری دیتابیس
+$password = 'your_password'; // رمز عبور دیتابیس
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
