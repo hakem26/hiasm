@@ -43,7 +43,7 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?php echo jdate('Y/m/d', strtotime($month['start_date'])); ?></td>
                 <td><?php echo jdate('Y/m/d', strtotime($month['end_date'])); ?></td>
                 <td>
-                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editWorkMonthModal" data-month-id="<?php echo $month['work_month_id']; ?>" data-start-date="<?php echo $month['start_date']; ?>" data-end-date="<?php echo $month['end_date']; ?>">
+                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editWorkMonthModal" data-month-id="<?php echo $month['work_month_id']; ?>" data-start-date="<?php echo jdate('Y/m/d', strtotime($month['start_date'])); ?>" data-end-date="<?php echo jdate('Y/m/d', strtotime($month['end_date'])); ?>">
                         <i class="fas fa-edit"></i>
                     </a>
                     <a href="#" class="text-danger" onclick="confirmDeleteMonth(<?php echo $month['work_month_id']; ?>)">
@@ -121,8 +121,8 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 const endDate = e.target.getAttribute('data-end-date');
 
                 document.getElementById('edit_month_id').value = monthId;
-                document.getElementById('edit_start_date').value = jdate('Y/m/d', strtotime(startDate));
-                document.getElementById('edit_end_date').value = jdate('Y/m/d', strtotime(endDate));
+                document.getElementById('edit_start_date').value = startDate;
+                document.getElementById('edit_end_date').value = endDate;
             });
         });
 

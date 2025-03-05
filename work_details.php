@@ -20,7 +20,7 @@ $work_months = $work_months_stmt->fetchAll(PDO::FETCH_ASSOC);
 $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work_months[0]['work_month_id']) ? $work_months[0]['work_month_id'] : null);
 $work_details = [];
 if ($selected_month_id) {
-    $stmt = $pdo->prepare("SELECT wd.*, p1.user_id as partner1_user_id, u1.username as partner1_name, p2.user_id as partner2_user_id, u2.username as partner2_name, p3.user_id as agency_partner_user_id, u3.username as agency_partner_name 
+    $stmt = $pdo->prepare("SELECT wd.*, p1.user_id AS partner1_user_id, u1.username AS partner1_name, p2.user_id AS partner2_user_id, u2.username AS partner2_name, p3.user_id AS agency_partner_user_id, u3.username AS agency_partner_name 
                           FROM Work_Details wd 
                           LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id 
                           LEFT JOIN Users u1 ON p1.user_id = u1.user_id 
@@ -238,6 +238,18 @@ if ($selected_month_id && empty($work_details)) {
                 alert('خطا در اتصال به سرور!');
             });
         }
+
+        // Datepicker برای فیلد تاریخ در مودال (در صورت نیاز، اگر بخوای تاریخ رو هم قابل ویرایش کنی)
+        $('#edit_work_date').persianDatepicker({
+            format: 'YYYY/MM/DD',
+            observer: true,
+            calendar: {
+                persian: {
+                    locale: 'fa'
+                }
+            },
+            readonly: true // اگر تاریخ فقط برای نمایش باشه (read-only)
+        });
     });
 </script>
 
