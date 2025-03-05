@@ -7,7 +7,6 @@ $dbname = 'ukvojota_hiasm';
 $username = 'ukvojota_hiasmadmin'; // نام کاربری دیتابیس خود را وارد کنید
 $password = 'H72j51300!'; // رمز عبور دیتابیس خود را وارد کنید
 
-
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -15,9 +14,8 @@ try {
     die("خطا در اتصال به دیتابیس: " . $e->getMessage());
 }
 
-// بارگذاری DateConverter برای تبدیل تاریخ
-require_once 'date_converter.php';
-$dateConverter = new DateConverter();
+// بارگذاری jdf.php برای تبدیل تاریخ
+require_once 'jdf.php';
 ?>
 
 <!DOCTYPE html>
@@ -67,9 +65,9 @@ $dateConverter = new DateConverter();
             $start_date = $_POST['start_date'];
             $end_date = $_POST['end_date'];
 
-            // تبدیل تاریخ شمسی به میلادی با DateConverter
-            $start_gregorian = $dateConverter->convertJalaliToGregorian($start_date);
-            $end_gregorian = $dateConverter->convertJalaliToGregorian($end_date);
+            // تبدیل تاریخ شمسی به میلادی با jdf.php
+            $start_gregorian = jdate('Y-m-d', '', '', '', $start_date, 'gregorian');
+            $end_gregorian = jdate('Y-m-d', '', '', '', $end_date, 'gregorian');
 
             try {
                 $stmt = $pdo->prepare("INSERT INTO test_dates (date_value) VALUES (?)");
