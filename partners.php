@@ -5,7 +5,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: index.php");
     exit;
 }
-require_once 'header.php';
+require_once 'header.php'; // اضافه کردن هدر برای استایل‌ها و منو
 require_once 'db.php';
 require_once 'jdf.php';
 
@@ -13,7 +13,7 @@ $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
 // کوئری برای دریافت گروه‌های همکار (از Partners و Users)
-$stmt = $pdo->query("SELECT p.partner_id, u1.username AS username1, u1.full_name AS full_name1, u2.username AS username2, u2.full_name AS full_name2 
+$stmt = $pdo->query("SELECT p.partner_id, u1.username AS username1, u1.full_name AS full_name1, u2.username AS username2, u2.full_name AS full_name2, p.user_id1, p.user_id2 
                     FROM Partners p 
                     LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
                     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id");
