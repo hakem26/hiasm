@@ -19,89 +19,23 @@ $page_name = "داشبورد";
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سیستم مدیریت فروش</title>
     <!-- Bootstrap RTL CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
+        integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Vazir Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Vazirmatn', sans-serif;
-            background-color: #f8f9fa;
-            padding-right: 250px; /* فضای منوی سمت راست */
-            margin: 0;
-        }
-        .sidebar {
-            position: fixed;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 250px;
-            background-color: #f8f9fa;
-            z-index: 900; /* زیر منوی بالا */
-            transition: width 0.3s;
-            border-left: 1px solid #dee2e6;
-        }
-        .sidebar.collapsed {
-            width: 70px;
-        }
-        .sidebar .nav-link {
-            color: #212529;
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-        }
-        .sidebar .nav-link:hover {
-            color: #007bff;
-            background-color: #e9ecef;
-        }
-        .sidebar .nav-link i {
-            margin-left: 10px; /* برای راست‌چین بودن */
-        }
-        .sidebar.collapsed .nav-link span {
-            display: none;
-        }
-        .navbar {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            z-index: 1000;
-        }
-        .navbar-brand, .navbar-text {
-            color: #212529;
-        }
-        .dropdown-menu {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-        }
-        .dropdown-item {
-            color: #212529;
-        }
-        .dropdown-item:hover, .dropdown-item:focus {
-            background-color: #e9ecef;
-            color: #007bff;
-        }
-        .dropdown-divider {
-            border-top: 1px solid #dee2e6;
-        }
-        @media (max-width: 768px) {
-            body {
-                padding-right: 0;
-            }
-            .sidebar {
-                width: 0;
-                overflow: hidden;
-            }
-            .sidebar.open {
-                width: 250px;
-            }
-        }
-    </style>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- [BLOCK-HEADER-002] -->
     <!-- منوی بالا -->
@@ -121,16 +55,20 @@ $page_name = "داشبورد";
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li class="dropdown-item"><?php echo htmlspecialchars($full_name); ?></li>
                     <li class="dropdown-item"><?php echo $role; ?></li>
-                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
                     <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
-                    <li class="dropdown-item"><a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a></li>
+                    <li class="dropdown-item"><a href="logout.php" class="text-decoration-none text-dark"><i
+                                class="fas fa-sign-out-alt me-2"></i> خروج</a></li>
                 </ul>
             </div>
         </div>
     </nav>
 
     <!-- منوی راست -->
-    <div class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+    <div
+        class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
         <ul class="nav flex-column pt-5">
             <li class="nav-item">
                 <a class="nav-link" href="dashboard.php">
@@ -138,6 +76,14 @@ $page_name = "داشبورد";
                     <span>داشبورد</span>
                 </a>
             </li>
+            <?php if ($_SESSION['role'] === 'admin'): ?>
+                <li class="nav-item">
+                    <a class="nav-link" href="users.php">
+                        <i class="fas fa-users"></i>
+                        <span>کاربران</span>
+                    </a>
+                </li>
+            <?php endif; ?>
         </ul>
     </div>
 
