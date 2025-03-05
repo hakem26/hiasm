@@ -48,7 +48,7 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?php echo $partner['partner_id']; ?></td>
                 <td><?php echo htmlspecialchars(($partner['full_name1'] ?: '-') . ' - ' . ($partner['full_name2'] ?: '-')); ?></td>
                 <td>
-                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user-id1="<?php echo $partner['user_id1'] ?: ''; ?>" data-user-id2="<?php echo $partner['user_id2'] ?: ''; ?>">
+                    <a href="#" class="text-primary me-2 edit-partner-btn" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user-id1="<?php echo $partner['user_id1'] ?: ''; ?>" data-user-id2="<?php echo $partner['user_id2'] ?: ''; ?>">
                         <i class="fas fa-edit"></i>
                     </a>
                     <a href="#" class="text-danger" onclick="confirmDeletePartner(<?php echo $partner['partner_id']; ?>)">
@@ -146,12 +146,12 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
     // [BLOCK-PARTNERS-003]
     document.addEventListener('DOMContentLoaded', () => {
         // پر کردن اطلاعات در مودال ویرایش
-        document.querySelectorAll('[data-bs-target="#editPartnerModal"]').forEach(button => {
+        document.querySelectorAll('.edit-partner-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
-                const partnerId = e.target.getAttribute('data-partner-id');
-                const userId1 = e.target.getAttribute('data-user-id1');
-                const userId2 = e.target.getAttribute('data-user-id2');
+                const partnerId = button.getAttribute('data-partner-id');
+                const userId1 = button.getAttribute('data-user-id1');
+                const userId2 = button.getAttribute('data-user-id2');
 
                 document.getElementById('edit_partner_id').value = partnerId;
                 document.getElementById('edit_user_id1').value = userId1 || '';
@@ -159,7 +159,7 @@ $available_users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
             });
         });
 
-        // حذف گروه همکار
+        // حذف گروه همکار (بدون تغییر)
         window.confirmDeletePartner = function(partnerId) {
             if (confirm('آیا مطمئن هستید که می‌خواهید این گروه همکار را حذف کنید؟')) {
                 fetch('delete_partner.php?partner_id=' + partnerId, {

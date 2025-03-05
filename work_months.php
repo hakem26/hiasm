@@ -147,28 +147,17 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
             return false;
         }
 
-        // Datepicker برای فیلدهای تاریخ (شمسی)
-        const jalaliDatepicker = (selector, options = {}) => {
-            $(selector).persianDatepicker({
-                format: 'YYYY/MM/DD',
-                observer: true,
-                calendar: {
-                    persian: {
-                        locale: 'fa'
-                    }
-                },
-                ...options
-            });
-        };
-
-        jalaliDatepicker('#start_date');
-        jalaliDatepicker('#end_date');
-        jalaliDatepicker('#edit_start_date');
-        jalaliDatepicker('#edit_end_date');
+        // Datepicker برای فیلدهای تاریخ (شمسی) با jQuery
+        $('#start_date, #end_date, #edit_start_date, #edit_end_date').persianDatepicker({
+            format: 'YYYY/MM/DD',
+            observer: true,
+            calendar: {
+                persian: {
+                    locale: 'fa'
+                }
+            }
+        });
     });
-
-    // اضافه کردن کتابخانه Persian Datepicker (دستی دانلود و در پروژه قرار بده)
-    
 </script>
 
 <?php
