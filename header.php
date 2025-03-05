@@ -83,6 +83,24 @@ $page_name = "داشبورد";
                         <span>کاربران</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="partners.php">
+                        <i class="fas fa-handshake"></i>
+                        <span>همکاران</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="work_months.php">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>ماه کاری</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="work_details.php">
+                        <i class="fas fa-list"></i>
+                        <span>اطلاعات کار</span>
+                    </a>
+                </li>
             <?php endif; ?>
         </ul>
     </div>
