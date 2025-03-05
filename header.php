@@ -93,7 +93,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
     <!-- منوی راست -->
     <div class="sidebar bg-light <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
-        <ul class="nav flex-column mt-5">
+        <ul class="nav flex-column pt-5">
             <li class="nav-item">
                 <a class="nav-link" href="dashboard.php">
                     <i class="fas fa-tachometer-alt"></i>
@@ -106,15 +106,17 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
     <!-- اسکریپت‌ها -->
     <script>
         // [BLOCK-HEADER-003]
-        const sidebarToggle = document.querySelector('#sidebarToggle');
-        const sidebar = document.querySelector('.sidebar');
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebarToggle = document.querySelector('#sidebarToggle');
+            const sidebar = document.querySelector('.sidebar');
 
-        sidebarToggle.addEventListener('click', () => {
-            if (window.innerWidth <= 768px) {
-                sidebar.classList.toggle('open');
-            } else {
-                sidebar.classList.toggle('collapsed');
-                document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
-            }
+            sidebarToggle.addEventListener('click', () => {
+                if (window.innerWidth <= 768px) {
+                    sidebar.classList.toggle('open');
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                    document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
+                }
+            });
         });
     </script>
