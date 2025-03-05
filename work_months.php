@@ -168,8 +168,7 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
     });
 
     // اضافه کردن کتابخانه Persian Datepicker (دستی دانلود و در پروژه قرار بده)
-    <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+    
 </script>
 
 <?php
