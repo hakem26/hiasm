@@ -16,6 +16,13 @@ try {
 
 // بارگذاری jdf.php برای تبدیل تاریخ
 require_once 'jdf.php';
+
+// تابع کمکی برای تبدیل کاراکترهای فارسی به انگلیسی
+function convertPersianToEnglishNumbers($string) {
+    $persian_numbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    $english_numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    return str_replace($persian_numbers, $english_numbers, $string);
+}
 ?>
 
 <!DOCTYPE html>
@@ -65,9 +72,13 @@ require_once 'jdf.php';
             $start_date = $_POST['start_date'];
             $end_date = $_POST['end_date'];
 
+            // تبدیل کاراکترهای فارسی به انگلیسی
+            $start_date_english = convertPersianToEnglishNumbers($start_date);
+            $end_date_english = convertPersianToEnglishNumbers($end_date);
+
             // تبدیل تاریخ شمسی به میلادی با jdf.php
-            $start_gregorian = jdate('Y-m-d', '', '', '', $start_date, 'gregorian');
-            $end_gregorian = jdate('Y-m-d', '', '', '', $end_date, 'gregorian');
+            $start_gregorian = jdate('Y-m-d', '', '', '', $start_date_english, 'gregorian');
+            $end_gregorian = jdate('Y-m-d', '', '', '', $end_date_english, 'gregorian');
 
             try {
                 $stmt = $pdo->prepare("INSERT INTO test_dates (date_value) VALUES (?)");
