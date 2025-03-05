@@ -14,15 +14,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $role = $_POST['role'];
     $password = $_POST['password'] ? password_hash($_POST['password'], PASSWORD_DEFAULT) : null;
 
-    if ($password) {
-        $stmt = $pdo->prepare("UPDATE Users SET username = ?, full_name = ?, role = ?, password = ? WHERE user_id = ?");
-        $stmt->execute([$username, $full_name, $role, $password, $user_id]);
-    } else {
-        $stmt = $pdo->prepare("UPDATE Users SET username = ?, full_name = ?, role = ? WHERE user_id = ?");
-        $stmt->execute([$username, $full_name, $role, $user_id]);
+    try {
+        if ($password) {
+            $stmt = $pdo->prepare("UPDATE Users SET username = ?, full_name = ?, role = ?, password = ? WHERE user_id = ?");
+            $stmt->execute([$username, $full_name, $role, $password, $user_id]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE Users SET username = ?, full_name = ?, role = ? WHERE user_id = ?");
+            $stmt->execute([$username, $full_name, $role, $user_id]);
+        }
+        header("Location: users.php");
+        exit;
+    } catch (PDOException $e) {
+        die("خطا در ویرایش کاربر: " . $e->getMessage());
     }
-
-    header("Location: users.php");
-    exit;
 }
 ?>

@@ -20,6 +20,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <!-- [BLOCK-USERS-002] -->
 <div class="container-fluid mt-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
+        <br>
         <h5 class="card-title">لیست کاربران</h5>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">افزودن کاربر</button>
     </div>
@@ -145,16 +146,30 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 document.getElementById('edit_user_id').value = userId;
                 document.getElementById('edit_username').value = username;
+                document.getElementById('edit_username').setAttribute('readonly', 'readonly'); // غیرقابل تغییر
                 document.getElementById('edit_full_name').value = fullName;
                 document.getElementById('edit_role').value = role;
-                document.getElementById('edit_password').value = '';
+                document.getElementById('edit_password').value = ''; // خالی برای عدم تغییر پیش‌فرض
             });
         });
 
         // حذف کاربر
         function confirmDelete(userId) {
             if (confirm('آیا مطمئن هستید که می‌خواهید این کاربر را حذف کنید؟')) {
-                window.location.href = 'delete_user.php?user_id=' + userId;
+                fetch('delete_user.php?user_id=' + userId, {
+                    method: 'GET'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload(); // رفرش صفحه پس از حذف
+                    } else {
+                        alert('خطا در حذف کاربر!');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('خطا در اتصال به سرور!');
+                });
             }
             return false;
         }
