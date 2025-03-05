@@ -15,21 +15,21 @@ $orders = [
 
 <!-- [BLOCK-DASHBOARD-002] -->
 <div class="container-fluid mt-4">
-    <div class="card">
+    <div class="card bg-dark text-white">
         <div class="card-body">
             <h5 class="card-title">لیست فاکتورها</h5>
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <select class="form-select w-auto">
+                <select class="form-select w-auto bg-dark text-white border-secondary">
                     <option>10</option>
                     <option>25</option>
                     <option>50</option>
                 </select>
-                <input type="text" class="form-control w-auto" placeholder="جستجو...">
+                <input type="text" class="form-control w-auto bg-dark text-white border-secondary" placeholder="جستجو...">
             </div>
             <table class="table table-dark table-hover">
                 <thead>
                     <tr>
-                        <th><input type="checkbox"></th>
+                        <th><input type="checkbox" class="form-check-input"></th>
                         <th>شماره</th>
                         <th>فاکتور</th>
                         <th>نام</th>
@@ -41,7 +41,7 @@ $orders = [
                 <tbody>
                     <?php foreach ($orders as $order): ?>
                     <tr>
-                        <td><input type="checkbox"></td>
+                        <td><input type="checkbox" class="form-check-input"></td>
                         <td><?php echo $order['id']; ?></td>
                         <td><?php echo $order['invoice']; ?></td>
                         <td><?php echo $order['name']; ?></td>
