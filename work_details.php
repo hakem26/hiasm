@@ -39,6 +39,8 @@ $all_partners = $all_partners_stmt->fetchAll(PDO::FETCH_ASSOC);
 $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work_months[0]['work_month_id']) ? $work_months[0]['work_month_id'] : null);
 $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $work_details = [];
+
+// نمایش اطلاعات فقط اگه ماه انتخاب شده باشه
 if ($selected_month_id) {
     $query = "SELECT wd.work_detail_id, wd.work_date, wd.work_day, wd.partner1_id, wd.partner2_id, wd.agency_partner_id,
                      u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name,
@@ -65,8 +67,8 @@ if ($selected_month_id) {
     }
 }
 
-// پر کردن خودکار اطلاعات برای ماه انتخابی (فقط اگه وجود نداشته باشه)
-if ($selected_month_id) {
+// پر کردن اطلاعات برای ماه انتخابی فقط با دکمه
+if ($selected_month_id && isset($_POST['generate_work_details'])) {
     $month = $pdo->prepare("SELECT * FROM Work_Months WHERE work_month_id = ?");
     $month->execute([$selected_month_id]);
     $month_data = $month->fetch(PDO::FETCH_ASSOC);
@@ -85,11 +87,12 @@ if ($selected_month_id) {
             $check_stmt->execute([$selected_month_id, $current_date]);
             $existing_record = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
+            // فقط اگه این روز توی Partners تعریف شده باشه، ثبت کن
             $day_partners = array_filter($all_partners, function ($partner) use ($work_day) {
                 return $partner['work_day'] === $work_day;
             });
 
-            if (!empty($day_partners)) {
+            if (!empty($day_partners) && !$existing_record) { // فقط اگه داده‌ای توی Partners هست و رکوردی ثبت نشده
                 $partner1_info = $day_partners[array_rand($day_partners)];
                 $partner1_id = $partner1_info['partner_id'];
 
@@ -102,7 +105,6 @@ if ($selected_month_id) {
                     }
                 }
                 if ($partner2_id == $partner1_id) {
-                    // اگه جفت دیگه‌ای نبود، یه همکار تصادفی از کل همکارها انتخاب می‌کنم
                     $random_partner_stmt = $pdo->query("SELECT partner_id FROM Partners WHERE partner_id != $partner1_id LIMIT 1");
                     $random_partner = $random_partner_stmt->fetchColumn();
                     if ($random_partner) {
@@ -112,18 +114,15 @@ if ($selected_month_id) {
 
                 $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار 1
 
-                if ($existing_record) {
-                    // اگه وجود داره، فقط به‌روزرسانی کن
-                    $update_stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ?, work_day = ? WHERE work_detail_id = ?");
-                    $update_stmt->execute([$partner1_id, $partner2_id, $agency_partner_id, $work_day, $existing_record['work_detail_id']]);
-                } else {
-                    // اگه وجود نداره، ثبت جدید
-                    $insert_stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
-                    $insert_stmt->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
-                }
+                // ثبت جدید
+                $insert_stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
+                $insert_stmt->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
             }
             $start_date->modify('+1 day');
         }
+        // رفرش صفحه بعد از پر کردن
+        header("Location: work_details.php?month_id=" . $selected_month_id);
+        exit;
     }
 }
 ?>
@@ -153,7 +152,14 @@ if ($selected_month_id) {
         </select>
     </div>
 
-    <?php if ($selected_month_id && !empty($work_details)): ?>
+    <?php if ($selected_month_id): ?>
+    <div class="mb-3">
+        <form method="POST">
+            <button type="submit" name="generate_work_details" class="btn btn-success">ساخت اطلاعات کار</button>
+        </form>
+    </div>
+
+    <?php if (!empty($work_details)): ?>
     <table class="table table-light table-hover">
         <thead>
             <tr>
@@ -187,8 +193,9 @@ if ($selected_month_id) {
             <?php endforeach; ?>
         </tbody>
     </table>
-    <?php elseif ($selected_month_id): ?>
-    <div class="alert alert-warning text-center">اطلاعاتی برای این ماه کاری وجود ندارد.</div>
+    <?php else: ?>
+    <div class="alert alert-warning text-center">اطلاعاتی برای این ماه کاری وجود ندارد. لطفاً اطلاعات کار را با دکمه "ساخت اطلاعات کار" ایجاد کنید.</div>
+    <?php endif; ?>
     <?php endif; ?>
 </div>
 
