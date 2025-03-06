@@ -33,7 +33,8 @@ $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work
 $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $work_details = [];
 if ($selected_month_id) {
-    $query = "SELECT DISTINCT wd.work_detail_id, wd.work_date, wd.work_day, u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name 
+    $query = "SELECT DISTINCT wd.work_detail_id, wd.work_date, wd.work_day, wd.partner1_id, wd.partner2_id, wd.agency_partner_id, 
+                     u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name 
               FROM Work_Details wd 
               LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id 
               LEFT JOIN Users u1 ON p1.user_id1 = u1.user_id 
@@ -143,9 +144,9 @@ if ($selected_month_id && empty($work_details)) {
                     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editWorkDetailModal" 
                             data-detail-id="<?php echo $detail['work_detail_id']; ?>" 
                             data-date="<?php echo gregorian_to_jalali_format($detail['work_date']); ?>" 
-                            data-partner1-id="<?php echo $detail['partner1_id'] ?: ''; ?>" 
-                            data-partner2-id="<?php echo $detail['partner2_id'] ?: ''; ?>" 
-                            data-agency-id="<?php echo $detail['agency_partner_id'] ?: ''; ?>">
+                            data-partner1-id="<?php echo $detail['partner1_id'] ?? ''; ?>" 
+                            data-partner2-id="<?php echo $detail['partner2_id'] ?? ''; ?>" 
+                            data-agency-id="<?php echo $detail['agency_partner_id'] ?? ''; ?>">
                         ویرایش
                     </button>
                 </td>
@@ -218,13 +219,14 @@ if ($selected_month_id && empty($work_details)) {
                 const partner1Id = button.getAttribute('data-partner1-id');
                 const partner2Id = button.getAttribute('data-partner2-id');
                 const agencyId = button.getAttribute('data-agency-id');
-                const agencyName = agencyId ? <?php echo json_encode($pdo->query("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)", [$agencyId])->fetchColumn()); ?> : '';
+                const agencyName = agencyId ? <?php echo json_encode($pdo->query("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)", [$agencyId])->fetchColumn() ?? ''); ?> : '';
 
                 document.getElementById('edit_detail_id').value = detailId;
                 document.getElementById('edit_work_date').value = workDate;
                 document.getElementById('edit_partner1').value = partner1Id || '';
                 document.getElementById('edit_partner2').value = partner2Id || '';
                 document.getElementById('edit_agency').value = agencyName || '';
+                console.log('Modal filled:', { detailId, workDate, partner1Id, partner2Id, agencyId, agencyName }); // برای دیباگ
             });
         });
 
