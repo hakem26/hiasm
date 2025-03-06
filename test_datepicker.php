@@ -1,5 +1,5 @@
 <?php
-require 'libs/jdf.php'; // فایل تبدیل تاریخ شمسی به میلادی
+require 'libs/jdf.php'; // تبدیل تاریخ
 
 $host = 'localhost';
 $dbname = 'ukvojota_hiasm';
@@ -14,17 +14,17 @@ try {
         $jalaliDate = $_POST["jalali_date"];
 
         // تبدیل تاریخ شمسی به میلادی
-        list($jy, $jm, $jd) = explode('/', $jalaliDate); // فرمت خروجی datepicker به‌صورت 1402/12/15 است
-        $miladiDate = jalali_to_gregorian($jy, $jm, $jd, '-'); // تبدیل به YYYY-MM-DD
+        list($jy, $jm, $jd) = explode('/', $jalaliDate);
+        $miladiDate = jalali_to_gregorian($jy, $jm, $jd, '-'); 
 
         // ذخیره در دیتابیس
         $stmt = $pdo->prepare("INSERT INTO dates (date_column) VALUES (:date_column)");
         $stmt->execute(['date_column' => $miladiDate]);
 
-        echo "<p style='color:green;'>✅ تاریخ با موفقیت ذخیره شد!</p>";
+        echo "<p style='color:green;'>✅ تاریخ ذخیره شد!</p>";
     }
 } catch (PDOException $e) {
-    echo "خطا در اتصال به دیتابیس: " . $e->getMessage();
+    echo "خطا در اتصال: " . $e->getMessage();
 }
 ?>
 
@@ -33,13 +33,20 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ثبت تاریخ شمسی</title>
+    <title>انتخاب تاریخ شمسی</title>
     
-    <!-- استایل و اسکریپت‌های Persian Datepicker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker/dist/css/persian-datepicker.min.css">
+    <!-- اضافه کردن jQuery قبل از Persian Datepicker -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/persian-datepicker/dist/js/persian-datepicker.min.js"></script>
 
+    <!-- Persian Datepicker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        input { padding: 8px; font-size: 16px; width: 200px; text-align: center; }
+        button { padding: 8px 15px; font-size: 16px; }
+    </style>
 </head>
 <body>
     <h2>ورود تاریخ شمسی</h2>
@@ -51,9 +58,9 @@ try {
     <script>
         $(document).ready(function() {
             $("#jalali_date").persianDatepicker({
-                format: 'YYYY/MM/DD', // فرمت تاریخ شمسی
+                format: 'YYYY/MM/DD',
                 autoClose: true,
-                initialValue: false, // مقدار پیش‌فرض خالی باشد
+                initialValue: false
             });
         });
     </script>
