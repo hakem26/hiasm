@@ -33,26 +33,28 @@ $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work
 $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $work_details = [];
 if ($selected_month_id) {
-    $query = "SELECT DISTINCT wd.work_detail_id, wd.work_date, wd.work_day, wd.partner1_id, wd.partner2_id, wd.agency_partner_id, 
-                     u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name 
-              FROM Work_Details wd 
-              LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id 
-              LEFT JOIN Users u1 ON p1.user_id1 = u1.user_id 
-              LEFT JOIN Partners p2 ON wd.partner2_id = p2.partner_id 
-              LEFT JOIN Users u2 ON p2.user_id2 = u2.user_id 
-              LEFT JOIN Partners p3 ON wd.agency_partner_id = p3.partner_id 
-              LEFT JOIN Users u3 ON p3.user_id1 = u3.user_id 
-              WHERE wd.work_month_id = ? ";
-    if ($selected_user_id) {
-        $query .= "AND (p1.user_id1 = ? OR p2.user_id2 = ?)";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$selected_month_id, $selected_user_id, $selected_user_id]);
-    } else {
-        $query .= "ORDER BY wd.work_date";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$selected_month_id]);
-    }
+    $query = "SELECT wd.work_detail_id, wd.work_date, wd.work_day, wd.partner1_id, wd.partner2_id, wd.agency_partner_id,
+                     u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name
+              FROM Work_Details wd
+              LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id
+              LEFT JOIN Users u1 ON p1.user_id1 = u1.user_id
+              LEFT JOIN Partners p2 ON wd.partner2_id = p2.partner_id
+              LEFT JOIN Users u2 ON p2.user_id2 = u2.user_id
+              LEFT JOIN Partners p3 ON wd.agency_partner_id = p3.partner_id
+              LEFT JOIN Users u3 ON p3.user_id1 = u3.user_id
+              WHERE wd.work_month_id = ?
+              GROUP BY wd.work_detail_id
+              ORDER BY wd.work_date";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute([$selected_month_id]);
     $work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if ($selected_user_id) {
+        $work_details = array_filter($work_details, function ($detail) use ($selected_user_id) {
+            return ($detail['partner1_name'] && strpos($detail['partner1_name'], $selected_user_id) !== false) ||
+                   ($detail['partner2_name'] && strpos($detail['partner2_name'], $selected_user_id) !== false);
+        });
+    }
 }
 
 // پر کردن خودکار اطلاعات برای ماه انتخابی
@@ -68,21 +70,19 @@ if ($selected_month_id && empty($work_details)) {
         $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
         $partner_map = [];
         foreach ($partners as $partner) {
-            $partner_map[$partner['work_day']] = [
-                'partner1_id' => $partner['partner_id'],
-                'user_id1' => $partner['user_id1'],
-                'user_id2' => $partner['user_id2']
-            ];
+            if (!isset($partner_map[$partner['work_day']])) {
+                $partner_map[$partner['work_day']] = $partner;
+            }
         }
 
         while ($start_date <= $end_date) {
             $jalali_date = gregorian_to_jalali_format($start_date->format('Y-m-d'));
             $work_day = jdate('l', strtotime($start_date->format('Y-m-d')), '', '', 'gregorian', 'persian');
             $partner_info = $partner_map[$work_day] ?? null;
-            $partner1_id = $partner_info['partner1_id'] ?? null;
-            $partner2_id = $partner_info['partner1_id'] ?? null; // همکار 2 هم از همان partner_id می‌تونه باشد
-            $agency_partner_id = $partner1_id; // آژانس پیش‌فرض = همکار 1
-            if ($partner1_id) {
+            if ($partner_info) {
+                $partner1_id = $partner_info['partner_id'];
+                $partner2_id = $partner_info['partner_id']; // می‌تونی به‌عنوان پیش‌فرض همون رو بذاری
+                $agency_partner_id = $partner1_id; // آژانس پیش‌فرض = همکار 1
                 $stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$selected_month_id, $start_date->format('Y-m-d'), $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
             }
