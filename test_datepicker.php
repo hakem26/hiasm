@@ -1,87 +1,67 @@
-<?php
-require 'libs/jdf.php'; // تبدیل تاریخ
-
-$host = 'localhost';
-$dbname = 'ukvojota_hiasm';
-$username = 'ukvojota_hiasmadmin';
-$password = 'H72j51300!';
-
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    if ($_SERVER["REQUEST_METHOD"] == "POST") {
-        $jalaliDate = $_POST["jalali_date"];
-
-        // تبدیل تاریخ شمسی به میلادی
-        list($jy, $jm, $jd) = explode('/', $jalaliDate);
-        $miladiDate = jalali_to_gregorian($jy, $jm, $jd, '-');
-
-        // ذخیره در دیتابیس
-        $stmt = $pdo->prepare("INSERT INTO dates (date_column) VALUES (:date_column)");
-        $stmt->execute(['date_column' => $miladiDate]);
-
-        echo "<p style='color:green;'>✅ تاریخ ذخیره شد!</p>";
-    }
-} catch (PDOException $e) {
-    echo "خطا در اتصال: " . $e->getMessage();
-}
-?>
-
 <!DOCTYPE html>
 <html lang="fa">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>انتخاب تاریخ شمسی</title>
+    <title>ورود تاریخ شمسی</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/persian-datepicker@latest/dist/css/persian-datepicker.min.css">
     <!-- لود jQuery -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <!-- لود persianDate (قبل از persian-datepicker) -->
-    <script src="https://unpkg.com/persian-date@latest/dist/persian-date.min.js"></script>
-
-    <!-- لود persian-datepicker -->
-    <script src="https://unpkg.com/persian-datepicker@latest/dist/css/persian-datepicker.min.css"></script>
+    <!-- استایل و اسکریپت pwt.datepicker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pwt.datepicker/dist/css/persian-datepicker.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/pwt.datepicker/dist/js/persian-datepicker.min.js"></script>
 
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-        }
-
-        input {
-            padding: 8px;
-            font-size: 16px;
-            width: 200px;
-            text-align: center;
-        }
-
-        button {
-            padding: 8px 15px;
-            font-size: 16px;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        input { padding: 8px; font-size: 16px; width: 200px; text-align: center; }
+        button { padding: 8px 15px; font-size: 16px; }
     </style>
 </head>
-
 <body>
-    <script>
-        $(document).ready(function () {
-            $("#jalali_date").persianDatepicker({
-                format: 'YYYY/MM/DD',
-                autoClose: true,
-                initialValue: false
-            });
-        });
-    </script>
     <h2>ورود تاریخ شمسی</h2>
     <form method="post">
         <input type="text" id="jalali_date" name="jalali_date" required>
+        <input type="hidden" id="gregorian_date" name="gregorian_date">
         <button type="submit">ذخیره</button>
     </form>
-</body>
 
+    <script>
+        $(document).ready(function() {
+            let datepicker = $("#jalali_date").persianDatepicker({
+                format: 'YYYY/MM/DD',
+                autoClose: true,
+                initialValue: false,
+                onSelect: function(unix) {
+                    let selectedDate = new persianDate(unix).toGregorian().format('YYYY-MM-DD');
+                    $("#gregorian_date").val(selectedDate);
+                }
+            });
+        });
+    </script>
+
+    <?php
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        $host = 'localhost';
+        $dbname = 'ukvojota_hiasm';
+        $username = 'ukvojota_hiasmadmin';
+        $password = 'H72j51300!';
+        
+        try {
+            $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+            $jalali_date = $_POST['jalali_date'];
+            $gregorian_date = $_POST['gregorian_date'];
+
+            $stmt = $pdo->prepare("INSERT INTO dates_table (jalali_date, gregorian_date) VALUES (:jalali, :gregorian)");
+            $stmt->execute(['jalali' => $jalali_date, 'gregorian' => $gregorian_date]);
+
+            echo "<p>تاریخ ذخیره شد: $jalali_date ($gregorian_date)</p>";
+        } catch (PDOException $e) {
+            echo "خطا: " . $e->getMessage();
+        }
+    }
+    ?>
+</body>
 </html>
