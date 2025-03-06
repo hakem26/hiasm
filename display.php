@@ -1,5 +1,5 @@
 <?php
-require 'libs/jdf.php'; // کتابخانه تبدیل تاریخ
+require 'libs/jdf.php'; // فایل تبدیل تاریخ
 
 $host = 'localhost';
 $dbname = 'ukvojota_hiasm';
@@ -13,15 +13,15 @@ try {
     $stmt = $pdo->query("SELECT * FROM dates ORDER BY id DESC");
     $dates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    echo "<h2>تاریخ‌های ذخیره شده</h2>";
-    echo "<table border='1'>";
+    echo "<h2>📅 تاریخ‌های ذخیره‌شده</h2>";
+    echo "<table border='1' cellpadding='10' cellspacing='0'>";
     echo "<tr><th>شناسه</th><th>تاریخ میلادی</th><th>تاریخ شمسی</th></tr>";
 
     foreach ($dates as $row) {
         $miladi_date = $row["date_column"];
         list($gy, $gm, $gd) = explode('-', $miladi_date);
-        $jalali_date = gregorian_to_jalali($gy, $gm, $gd, '-'); // تبدیل به شمسی
-        
+        $jalali_date = gregorian_to_jalali($gy, $gm, $gd, '/'); // تبدیل به شمسی
+
         echo "<tr>
                 <td>{$row['id']}</td>
                 <td>{$miladi_date}</td>
@@ -32,8 +32,8 @@ try {
     echo "</table>";
 
 } catch (PDOException $e) {
-    echo "خطا در دریافت اطلاعات: " . $e->getMessage();
+    echo "⚠️ خطا در دریافت اطلاعات: " . $e->getMessage();
 }
 ?>
 <br>
-<a href="index.php">برگشت به صفحه ورود تاریخ</a>
+<a href="index.php">🔙 برگشت به صفحه ورود تاریخ</a>
