@@ -40,7 +40,7 @@ function gregorian_to_jalali($gregorian_date) {
     <meta charset="UTF-8">
     <title>Persian Datepicker</title>
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css">
-    <script src="assets/js/jquery.min.js"></script>
+    <script src="assets/js/jquery-3.6.0.min.js"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
 </head>
