@@ -33,7 +33,7 @@ $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work
 $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $work_details = [];
 if ($selected_month_id) {
-    $query = "SELECT DISTINCT wd.*, u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name, p.work_day 
+    $query = "SELECT DISTINCT wd.work_detail_id, wd.work_date, wd.work_day, u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name 
               FROM Work_Details wd 
               LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id 
               LEFT JOIN Users u1 ON p1.user_id1 = u1.user_id 
@@ -41,10 +41,9 @@ if ($selected_month_id) {
               LEFT JOIN Users u2 ON p2.user_id2 = u2.user_id 
               LEFT JOIN Partners p3 ON wd.agency_partner_id = p3.partner_id 
               LEFT JOIN Users u3 ON p3.user_id1 = u3.user_id 
-              LEFT JOIN Partners p ON (wd.partner1_id = p.partner_id OR wd.partner2_id = p.partner_id) 
               WHERE wd.work_month_id = ? ";
     if ($selected_user_id) {
-        $query .= "AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $query .= "AND (p1.user_id1 = ? OR p2.user_id2 = ?)";
         $stmt = $pdo->prepare($query);
         $stmt->execute([$selected_month_id, $selected_user_id, $selected_user_id]);
     } else {
@@ -68,26 +67,24 @@ if ($selected_month_id && empty($work_details)) {
         $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
         $partner_map = [];
         foreach ($partners as $partner) {
-            $partner_map[$partner['user_id1']] = $partner['partner_id'];
-            $partner_map[$partner['user_id2']] = $partner['partner_id'];
+            $partner_map[$partner['work_day']] = [
+                'partner1_id' => $partner['partner_id'],
+                'user_id1' => $partner['user_id1'],
+                'user_id2' => $partner['user_id2']
+            ];
         }
 
         while ($start_date <= $end_date) {
             $jalali_date = gregorian_to_jalali_format($start_date->format('Y-m-d'));
             $work_day = jdate('l', strtotime($start_date->format('Y-m-d')), '', '', 'gregorian', 'persian');
-            $partner1_id = null;
-            $partner2_id = null;
-            $agency_partner_id = null;
-            foreach ($partners as $partner) {
-                if ($partner['work_day'] === $work_day) {
-                    $partner1_id = $partner_map[$partner['user_id1']] ?? null;
-                    $partner2_id = $partner_map[$partner['user_id2']] ?? null;
-                    $agency_partner_id = $partner1_id; // آژانس پیش‌فرض = همکار 1
-                    break;
-                }
+            $partner_info = $partner_map[$work_day] ?? null;
+            $partner1_id = $partner_info['partner1_id'] ?? null;
+            $partner2_id = $partner_info['partner1_id'] ?? null; // همکار 2 هم از همان partner_id می‌تونه باشد
+            $agency_partner_id = $partner1_id; // آژانس پیش‌فرض = همکار 1
+            if ($partner1_id) {
+                $stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$selected_month_id, $start_date->format('Y-m-d'), $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
             }
-            $stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$selected_month_id, $start_date->format('Y-m-d'), $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
             $start_date->modify('+1 day');
         }
         ob_end_clean(); // پاک کردن بافر قبل از رفرش
@@ -148,7 +145,7 @@ if ($selected_month_id && empty($work_details)) {
                             data-date="<?php echo gregorian_to_jalali_format($detail['work_date']); ?>" 
                             data-partner1-id="<?php echo $detail['partner1_id'] ?: ''; ?>" 
                             data-partner2-id="<?php echo $detail['partner2_id'] ?: ''; ?>" 
-                            data-agency-name="<?php echo $detail['agency_partner_name'] ?: ''; ?>">
+                            data-agency-id="<?php echo $detail['agency_partner_id'] ?: ''; ?>">
                         ویرایش
                     </button>
                 </td>
@@ -180,8 +177,11 @@ if ($selected_month_id && empty($work_details)) {
                         <label for="edit_partner1" class="form-label">همکار 1</label>
                         <select class="form-select" id="edit_partner1" name="partner1_id">
                             <option value="">انتخاب کنید</option>
-                            <?php foreach ($users as $user): ?>
-                            <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
+                            <?php 
+                            $partners_stmt = $pdo->query("SELECT p.partner_id, u.full_name FROM Partners p JOIN Users u ON p.user_id1 = u.user_id WHERE u.role = 'seller'");
+                            $partners = $partners_stmt->fetchAll(PDO::FETCH_ASSOC);
+                            foreach ($partners as $partner): ?>
+                            <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['full_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -189,8 +189,8 @@ if ($selected_month_id && empty($work_details)) {
                         <label for="edit_partner2" class="form-label">همکار 2</label>
                         <select class="form-select" id="edit_partner2" name="partner2_id">
                             <option value="">انتخاب کنید</option>
-                            <?php foreach ($users as $user): ?>
-                            <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
+                            <?php foreach ($partners as $partner): ?>
+                            <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['full_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -217,7 +217,8 @@ if ($selected_month_id && empty($work_details)) {
                 const workDate = button.getAttribute('data-date');
                 const partner1Id = button.getAttribute('data-partner1-id');
                 const partner2Id = button.getAttribute('data-partner2-id');
-                const agencyName = button.getAttribute('data-agency-name');
+                const agencyId = button.getAttribute('data-agency-id');
+                const agencyName = agencyId ? <?php echo json_encode($pdo->query("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)", [$agencyId])->fetchColumn()); ?> : '';
 
                 document.getElementById('edit_detail_id').value = detailId;
                 document.getElementById('edit_work_date').value = workDate;
