@@ -66,14 +66,14 @@ if ($selected_month_id && !empty($all_partners)) {
 
                 // پیدا کردن همکار دوم از جفت‌های دیگه برای همون روز
                 $partner2_id = null;
-                foreach ($day_partners as $partner) {
-                    if ($partner['partner_id'] != $partner1_id) {
-                        $partner2_id = $partner['partner_id'];
-                        break;
-                    }
-                }
-                if (!$partner2_id) {
-                    // اگه همکار دومی پیدا نشد، یه همکار تصادفی انتخاب کن
+                $available_partners = array_filter($day_partners, function ($partner) use ($partner1_id) {
+                    return $partner['partner_id'] != $partner1_id;
+                });
+                if (!empty($available_partners)) {
+                    $partner2_info = $available_partners[array_rand(array_keys($available_partners))];
+                    $partner2_id = $partner2_info['partner_id'];
+                } else {
+                    // اگه همکار دومی برای همون روز نبود، از کل همکارها یه نفر متفاوت انتخاب کن
                     $random_partner_stmt = $pdo->query("SELECT partner_id FROM Partners WHERE partner_id != $partner1_id LIMIT 1");
                     $partner2_id = $random_partner_stmt->fetchColumn() ?: $partner1_id;
                 }
@@ -352,10 +352,9 @@ if ($selected_month_id) {
 
             // اضافه کردن همه گزینه‌ها به جز همکار 1
             <?php foreach ($all_partners as $partner): ?>
-                const partnerId = '<?php echo $partner['partner_id']; ?>';
-                if (partnerId !== partner1Value) {
+                if ('<?php echo $partner['partner_id']; ?>' !== partner1Value) {
                     const option = document.createElement('option');
-                    option.value = partnerId;
+                    option.value = '<?php echo $partner['partner_id']; ?>';
                     option.text = '<?php echo $partner['user2_name'] ?: $partner['user1_name']; ?>';
                     partner2Select.appendChild(option);
                 }
