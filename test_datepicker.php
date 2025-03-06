@@ -1,5 +1,5 @@
 <?php
-$conn = new PDO("mysql:host=localhost;dbname=your_dbname;charset=utf8", "root", "");
+$conn = new PDO("mysql:host=localhost;dbname=ukvojota_hiasm;charset=utf8", "ukvojota_hiasmadmin", "H72j51300!");
 
 // ذخیره تاریخ در دیتابیس
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
