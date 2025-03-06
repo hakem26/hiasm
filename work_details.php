@@ -29,7 +29,7 @@ $users_stmt = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'se
 $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // دریافت همه همکارها برای لیست‌های انتخاب
-$all_partners_stmt = $pdo->query("SELECT p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name, p.work_day
+$all_partners_stmt = $pdo->query("SELECT p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name, p.work_day, p.user_id1 AS partner1_user_id, p.user_id2 AS partner2_user_id
                                   FROM Partners p 
                                   LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
                                   LEFT JOIN Users u2 ON p.user_id2 = u2.user_id");
@@ -68,6 +68,7 @@ if ($selected_month_id && !empty($all_partners)) {
                     return $partner['partner_id'] != $partner1_id;
                 });
 
+                $partner2_id = $partner1_id; // پیش‌فرض برای مواقع بدون جفت
                 if (!empty($available_partners)) {
                     $partner2_info = $available_partners[array_rand(array_keys($available_partners))];
                     $partner2_id = $partner2_info['partner_id'];
@@ -76,8 +77,10 @@ if ($selected_month_id && !empty($all_partners)) {
                     $other_partners = array_filter($all_partners, function ($partner) use ($partner1_id) {
                         return $partner['partner_id'] != $partner1_id;
                     });
-                    $partner2_info = $other_partners[array_rand(array_keys($other_partners))];
-                    $partner2_id = $partner2_info['partner_id'];
+                    if (!empty($other_partners)) {
+                        $partner2_info = $other_partners[array_rand(array_keys($other_partners))];
+                        $partner2_id = $partner2_info['partner_id'];
+                    }
                 }
 
                 $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار ۱
@@ -111,7 +114,9 @@ if ($selected_month_id) {
         wd.agency_partner_id,
         u1.full_name AS partner1_name, 
         u2.full_name AS partner2_name, 
-        u3.full_name AS agency_partner_name
+        u3.full_name AS agency_partner_name,
+        p1.user_id1 AS partner1_user_id,
+        p2.user_id2 AS partner2_user_id
     FROM Work_Details wd
     LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id
     LEFT JOIN Users u1 ON p1.user_id1 = u1.user_id
@@ -127,8 +132,7 @@ if ($selected_month_id) {
 
     if ($selected_user_id) {
         $work_details = array_filter($work_details, function ($detail) use ($selected_user_id) {
-            return isset($detail['partner1_user_id']) && $detail['partner1_user_id'] == $selected_user_id ||
-                   isset($detail['partner2_user_id']) && $detail['partner2_user_id'] == $selected_user_id;
+            return ($detail['partner1_user_id'] == $selected_user_id) || ($detail['partner2_user_id'] == $selected_user_id);
         });
     }
 }
@@ -314,7 +318,7 @@ if ($selected_month_id) {
     document.addEventListener('DOMContentLoaded', () => {
         // داده‌های همکارها از PHP
         const allPartners = <?php echo json_encode($all_partners); ?>;
-        console.log('allPartners loaded:', allPartners); // لاگ برای دیباگ
+        console.log('allPartners loaded:', allPartners);
 
         // رویداد برای دکمه‌های ویرایش
         document.querySelectorAll('.edit-work-detail').forEach(button => {
@@ -367,7 +371,6 @@ if ($selected_month_id) {
                 }
             });
 
-            // بازگرداندن مقدار قبلی اگر هنوز معتبر باشد
             partner2Select.value = (currentPartner2Value && partner2Select.querySelector(`option[value="${currentPartner2Value}"]`)) ? currentPartner2Value : '';
             updateAgencyOptions();
         }
