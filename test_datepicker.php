@@ -44,7 +44,7 @@ try {
 <body>
     <h2>ورود تاریخ شمسی</h2>
     <form method="post">
-        <input type="text" id="jalali_date" name="jalali_date" required readonly>
+        <input type="text" id="jalali_date" name="jalali_date" required>
         <button type="submit">ذخیره</button>
     </form>
 
