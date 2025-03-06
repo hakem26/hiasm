@@ -1,23 +1,37 @@
 <!DOCTYPE html>
 <html lang="fa">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ورود تاریخ شمسی</title>
 
-    <!-- لود jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- استایل و اسکریپت pwt.datepicker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pwt.datepicker/dist/css/persian-datepicker.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/pwt.datepicker/dist/js/persian-datepicker.min.js"></script>
+    <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
+    <script src="assets/js/jquery-3.6.0.min.js"></script>
+    <script src="assets/js/persian-date.min.js"></script>
+    <script src="assets/js/persian-datepicker.min.js"></script>
 
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        input { padding: 8px; font-size: 16px; width: 200px; text-align: center; }
-        button { padding: 8px 15px; font-size: 16px; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        input {
+            padding: 8px;
+            font-size: 16px;
+            width: 200px;
+            text-align: center;
+        }
+
+        button {
+            padding: 8px 15px;
+            font-size: 16px;
+        }
     </style>
 </head>
+
 <body>
     <h2>ورود تاریخ شمسی</h2>
     <form method="post">
@@ -27,12 +41,12 @@
     </form>
 
     <script>
-        $(document).ready(function() {
+        $(document).ready(function () {
             let datepicker = $("#jalali_date").persianDatepicker({
                 format: 'YYYY/MM/DD',
                 autoClose: true,
                 initialValue: false,
-                onSelect: function(unix) {
+                onSelect: function (unix) {
                     let selectedDate = new persianDate(unix).toGregorian().format('YYYY-MM-DD');
                     $("#gregorian_date").val(selectedDate);
                 }
@@ -46,7 +60,7 @@
         $dbname = 'ukvojota_hiasm';
         $username = 'ukvojota_hiasmadmin';
         $password = 'H72j51300!';
-        
+
         try {
             $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -64,4 +78,5 @@
     }
     ?>
 </body>
+
 </html>
