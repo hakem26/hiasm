@@ -27,6 +27,10 @@ $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day
 
 // پر کردن خودکار Work_Details
 if ($selected_month_id) {
+    // پاک کردن همه ردیف‌های مربوط به این ماه از Work_Details
+    $pdo->prepare("DELETE FROM Work_Details WHERE work_month_id = ?")->execute([$selected_month_id]);
+
+    // بازسازی Work_Details بر اساس Partners
     $month = $pdo->query("SELECT * FROM Work_Months WHERE work_month_id = $selected_month_id")->fetch(PDO::FETCH_ASSOC);
     $start_date = new DateTime($month['start_date']);
     $end_date = new DateTime($month['end_date']);
@@ -48,17 +52,9 @@ if ($selected_month_id) {
             }
             $agency_partner_id = $partner1_id;
 
-            $check = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
-            $check->execute([$selected_month_id, $current_date]);
-            if ($check->fetch()) {
-                $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ?, work_day = ? 
-                               WHERE work_month_id = ? AND work_date = ?")
-                    ->execute([$partner1_id, $partner2_id, $agency_partner_id, $work_day, $selected_month_id, $current_date]);
-            } else {
-                $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
-                               VALUES (?, ?, ?, ?, ?, ?)")
-                    ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
-            }
+            $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
+                           VALUES (?, ?, ?, ?, ?, ?)")
+                 ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
         }
         $start_date->modify('+1 day');
     }
@@ -129,7 +125,9 @@ if ($selected_month_id) {
                             <button class="btn btn-primary btn-sm edit-btn" 
                                     data-id="<?= $d['work_detail_id'] ?>" 
                                     data-partner1="<?= $d['partner1_id'] ?? '' ?>" 
+                                    data-partner1-name="<?= $d['partner1_name'] ?? '' ?>" 
                                     data-partner2="<?= $d['partner2_id'] ?? '' ?>" 
+                                    data-partner2-name="<?= $d['partner2_name'] ?? '' ?>" 
                                     data-agency="<?= $d['agency_partner_id'] ?? '' ?>">
                                 ویرایش
                             </button>
@@ -148,7 +146,7 @@ if ($selected_month_id) {
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5>ویرایش</h5>
+                <h5>ویرایش آژانس</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -156,21 +154,11 @@ if ($selected_month_id) {
                     <input type="hidden" name="detail_id" id="edit_id">
                     <div class="mb-3">
                         <label>همکار 1</label>
-                        <select class="form-select" name="partner1_id" id="edit_partner1" onchange="updateOptions()">
-                            <option value="">انتخاب</option>
-                            <?php foreach ($users as $u): ?>
-                                <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input type="text" class="form-control" id="edit_partner1" readonly>
                     </div>
                     <div class="mb-3">
                         <label>همکار 2</label>
-                        <select class="form-select" name="partner2_id" id="edit_partner2" onchange="updateOptions()">
-                            <option value="">انتخاب</option>
-                            <?php foreach ($users as $u): ?>
-                                <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input type="text" class="form-control" id="edit_partner2" readonly>
                     </div>
                     <div class="mb-3">
                         <label>آژانس</label>
@@ -190,32 +178,24 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const modal = new bootstrap.Modal(document.getElementById('editModal'));
         document.getElementById('edit_id').value = btn.dataset.id;
-        document.getElementById('edit_partner1').value = btn.dataset.partner1;
-        document.getElementById('edit_partner2').value = btn.dataset.partner2;
-        document.getElementById('edit_agency').value = btn.dataset.agency;
-        updateOptions(); // به‌روزرسانی گزینه‌های آژانس
+        document.getElementById('edit_partner1').value = btn.dataset.partner1Name;
+        document.getElementById('edit_partner2').value = btn.dataset.partner2Name;
+        const agencySelect = document.getElementById('edit_agency');
+        agencySelect.innerHTML = '<option value="">انتخاب</option>';
+        const partners = [
+            { id: btn.dataset.partner1, name: btn.dataset.partner1Name },
+            { id: btn.dataset.partner2, name: btn.dataset.partner2Name }
+        ].filter(p => p.id);
+        partners.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.text = p.name;
+            agencySelect.appendChild(option);
+        });
+        agencySelect.value = btn.dataset.agency;
         modal.show();
     });
 });
-
-function updateOptions() {
-    const partner1 = document.getElementById('edit_partner1').value;
-    const partner2 = document.getElementById('edit_partner2').value;
-    const agencySelect = document.getElementById('edit_agency');
-    const currentAgency = agencySelect.value;
-
-    agencySelect.innerHTML = '<option value="">انتخاب</option>';
-    const partners = [partner1, partner2].filter(p => p); // فقط مقادیر معتبر
-    partners.forEach(p => {
-        const option = document.createElement('option');
-        option.value = p;
-        option.text = Array.from(document.querySelectorAll('#edit_partner1 option, #edit_partner2 option'))
-            .find(opt => opt.value === p)?.text || '';
-        agencySelect.appendChild(option);
-    });
-
-    agencySelect.value = currentAgency && agencySelect.querySelector(`option[value="${currentAgency}"]`) ? currentAgency : partner1 || '';
-}
 </script>
 
 <?php require_once 'footer.php'; ?>
