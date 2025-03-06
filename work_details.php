@@ -8,9 +8,9 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی
+// تابع تبدیل تاریخ (فرض می‌کنم خودت درست کردی)
 function gregorian_to_jalali_format($date) {
-    return jdate('Y/m/d', strtotime($date));
+    return jdate('Y/m/d', strtotime($date)); // یا هر متدی که خودت استفاده می‌کنی
 }
 
 // دریافت ماه‌های کاری
@@ -41,14 +41,15 @@ if ($selected_month_id) {
         
         $day_partners = array_filter($partners, fn($p) => $p['work_day'] === $work_day);
         if (!empty($day_partners)) {
-            $partner = $day_partners[array_rand($day_partners)];
-            $partner1_id = $partner['user_id1'];
-            $partner2_id = $partner['user_id2'] ?? $partner['user_id1']; // اگه user_id2 خالی باشه، همون user_id1
-            $agency_partner_id = $partner1_id;
+            foreach ($day_partners as $partner) {
+                $partner1_id = $partner['user_id1'];
+                $partner2_id = $partner['user_id2'] ?? $partner['user_id1']; // اگه خالی باشه، همون همکار اول
+                $agency_partner_id = $partner1_id;
 
-            $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
-                           VALUES (?, ?, ?, ?, ?, ?)")
-                 ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
+                $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
+                               VALUES (?, ?, ?, ?, ?, ?)")
+                     ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
+            }
         }
         $start_date->modify('+1 day');
     }
