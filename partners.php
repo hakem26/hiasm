@@ -16,6 +16,10 @@ $stmt = $pdo->query("SELECT p.*, u1.full_name AS full_name1, u2.full_name AS ful
                     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id 
                     ORDER BY p.partner_id DESC");
 $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// دریافت کاربران (فقط فروشندگان)
+$users_stmt = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'");
+$users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!-- [BLOCK-PARTNERS-002] -->
@@ -74,10 +78,7 @@ $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <label for="add_user_id1" class="form-label">همکار 1</label>
                         <select class="form-select" id="add_user_id1" name="user_id1" required>
                             <option value="">انتخاب کنید</option>
-                            <?php
-                            $users_stmt = $pdo->query("SELECT user_id, full_name FROM Users");
-                            $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
-                            foreach ($users as $user): ?>
+                            <?php foreach ($users as $user): ?>
                             <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
