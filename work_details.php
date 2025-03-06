@@ -40,13 +40,13 @@ $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work
 $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $work_details = [];
 
-// پر کردن خودکار Work_Details بعد از ساخت ماه کاری
+// پر کردن خودکار Work_Details بعد از ساخت ماه کاری یا تغییر در Partners
 if ($selected_month_id && !empty($all_partners)) {
     $month = $pdo->prepare("SELECT * FROM Work_Months WHERE work_month_id = ?");
     $month->execute([$selected_month_id]);
     $month_data = $month->fetch(PDO::FETCH_ASSOC);
 
-    if ($month_data && $pdo->query("SELECT COUNT(*) FROM Work_Details WHERE work_month_id = $selected_month_id")->fetchColumn() == 0) {
+    if ($month_data) {
         $start_date = new DateTime($month_data['start_date']);
         $end_date = new DateTime($month_data['end_date']);
         
@@ -65,27 +65,32 @@ if ($selected_month_id && !empty($all_partners)) {
                 $partner1_id = $partner1_info['partner_id'];
 
                 // پیدا کردن همکار دوم از جفت‌های دیگه برای همون روز
-                $partner2_id = $partner1_id;
+                $partner2_id = null;
                 foreach ($day_partners as $partner) {
                     if ($partner['partner_id'] != $partner1_id) {
                         $partner2_id = $partner['partner_id'];
                         break;
                     }
                 }
-                if ($partner2_id == $partner1_id) {
+                if (!$partner2_id) {
+                    // اگه همکار دومی پیدا نشد، یه همکار تصادفی انتخاب کن
                     $random_partner_stmt = $pdo->query("SELECT partner_id FROM Partners WHERE partner_id != $partner1_id LIMIT 1");
-                    $random_partner = $random_partner_stmt->fetchColumn();
-                    if ($random_partner) {
-                        $partner2_id = $random_partner;
-                    }
+                    $partner2_id = $random_partner_stmt->fetchColumn() ?: $partner1_id;
                 }
 
                 $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار 1
 
-                // ثبت جدید اگه قبلاً ثبت نشده
+                // ثبت جدید اگه قبلاً ثبت نشده، یا به‌روزرسانی اگه تغییر کرده
                 $check_stmt = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
                 $check_stmt->execute([$selected_month_id, $current_date]);
-                if (!$check_stmt->fetch(PDO::FETCH_ASSOC)) {
+                $existing_record = $check_stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($existing_record) {
+                    // به‌روزرسانی
+                    $update_stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ?, work_day = ? WHERE work_detail_id = ?");
+                    $update_stmt->execute([$partner1_id, $partner2_id, $agency_partner_id, $work_day, $existing_record['work_detail_id']]);
+                } else {
+                    // ثبت جدید
                     $insert_stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
                     $insert_stmt->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
                 }
@@ -222,7 +227,9 @@ if ($selected_month_id) {
                         <select class="form-select" id="edit_partner2" name="partner2_id" onchange="updateAgencyOptions()">
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($all_partners as $partner): ?>
-                                <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['user2_name'] ?: $partner['user1_name']; ?></option>
+                                <option value="<?php echo $partner['partner_id']; ?>" data-user2-name="<?php echo $partner['user2_name'] ?: $partner['user1_name']; ?>">
+                                    <?php echo $partner['user2_name'] ?: $partner['user1_name']; ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
