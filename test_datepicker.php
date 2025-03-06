@@ -34,11 +34,14 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>انتخاب تاریخ شمسی</title>
-    
-    <!-- اضافه کردن jQuery قبل از Persian Datepicker -->
+
+    <!-- لود jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <!-- Persian Datepicker -->
+    <!-- لود persianDate (قبل از persian-datepicker) -->
+    <script src="https://cdn.jsdelivr.net/npm/persian-date@0.1.8/dist/persian-date.min.js"></script>
+
+    <!-- لود persian-datepicker -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
     <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
 
@@ -64,8 +67,6 @@ try {
             });
         });
     </script>
-
-    <br>
-    <a href="display.php">📅 مشاهده تاریخ‌های ذخیره‌شده</a>
 </body>
 </html>
+
