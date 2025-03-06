@@ -28,6 +28,13 @@ $work_months = $work_months_stmt->fetchAll(PDO::FETCH_ASSOC);
 $users_stmt = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'");
 $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// دریافت همه همکارها برای لیست‌های انتخاب
+$all_partners_stmt = $pdo->query("SELECT p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name 
+                                  FROM Partners p 
+                                  LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
+                                  LEFT JOIN Users u2 ON p.user_id2 = u2.user_id");
+$all_partners = $all_partners_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // انتخاب ماه کاری و کاربر پیش‌فرض
 $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work_months[0]['work_month_id']) ? $work_months[0]['work_month_id'] : null);
 $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
@@ -72,8 +79,9 @@ if ($selected_month_id) {
         $partner_map = [];
         foreach ($partners as $partner) {
             if (!isset($partner_map[$partner['work_day']])) {
-                $partner_map[$partner['work_day']] = $partner;
+                $partner_map[$partner['work_day']] = [];
             }
+            $partner_map[$partner['work_day']][] = $partner;
         }
 
         while ($start_date <= $end_date) {
@@ -86,13 +94,25 @@ if ($selected_month_id) {
             $check_stmt->execute([$selected_month_id, $current_date]);
             $existing_record = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
-            $partner_info = $partner_map[$work_day] ?? null;
-            if ($partner_info) {
-                $partner1_id = $partner_info['partner_id'];
-                // پیدا کردن partner_id برای یه جفت دیگه با همون work_day
-                $partner2_stmt = $pdo->prepare("SELECT partner_id FROM Partners WHERE work_day = ? AND partner_id != ? LIMIT 1");
-                $partner2_stmt->execute([$work_day, $partner1_id]);
-                $partner2_id = $partner2_stmt->fetchColumn() ?? $partner1_id; // اگه پیدا نشد، همون partner1_id
+            $day_partners = $partner_map[$work_day] ?? [];
+            if (!empty($day_partners)) {
+                // همکار 1 رو از اولین جفت می‌گیرم
+                $partner1_info = $day_partners[0];
+                $partner1_id = $partner1_info['partner_id'];
+
+                // همکار 2 رو از جفت دوم می‌گیرم (اگه وجود داشته باشه)
+                $partner2_id = $partner1_id; // پیش‌فرض
+                if (count($day_partners) > 1) {
+                    $partner2_id = $day_partners[1]['partner_id'];
+                } else {
+                    // اگه جفت دوم نبود، یه همکار تصادفی از کل همکارها انتخاب می‌کنم
+                    $random_partner_stmt = $pdo->query("SELECT partner_id FROM Partners WHERE partner_id != $partner1_id LIMIT 1");
+                    $random_partner = $random_partner_stmt->fetchColumn();
+                    if ($random_partner) {
+                        $partner2_id = $random_partner;
+                    }
+                }
+
                 $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار 1
 
                 if ($existing_record) {
@@ -194,11 +214,8 @@ if ($selected_month_id) {
                         <label for="edit_partner1" class="form-label">همکار 1</label>
                         <select class="form-select" id="edit_partner1" name="partner1_id">
                             <option value="">انتخاب کنید</option>
-                            <?php 
-                            $partners_stmt = $pdo->query("SELECT p.partner_id, u.full_name FROM Partners p JOIN Users u ON p.user_id1 = u.user_id WHERE u.role = 'seller'");
-                            $partners = $partners_stmt->fetchAll(PDO::FETCH_ASSOC);
-                            foreach ($partners as $partner): ?>
-                            <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['full_name']; ?></option>
+                            <?php foreach ($all_partners as $partner): ?>
+                                <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['user1_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -206,43 +223,18 @@ if ($selected_month_id) {
                         <label for="edit_partner2" class="form-label">همکار 2</label>
                         <select class="form-select" id="edit_partner2" name="partner2_id">
                             <option value="">انتخاب کنید</option>
-                            <?php 
-                            foreach ($work_details as $detail) {
-                                $partner1_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)");
-                                $partner1_stmt->execute([$detail['partner1_id']]);
-                                $partner1_name = $partner1_stmt->fetchColumn();
-                                $partner2_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id2 FROM Partners WHERE partner_id = ?)");
-                                $partner2_stmt->execute([$detail['partner2_id']]);
-                                $partner2_name = $partner2_stmt->fetchColumn();
-                                if ($partner1_name && $partner2_name && $partner1_name !== $partner2_name) {
-                                    echo "<option value='{$detail['partner2_id']}'>{$partner2_name}</option>";
-                                }
-                            }
-                            ?>
+                            <?php foreach ($all_partners as $partner): ?>
+                                <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['user2_name'] ?: $partner['user1_name']; ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="edit_agency" class="form-label">آژانس</label>
                         <select class="form-select" id="edit_agency" name="agency_partner_id">
                             <option value="">انتخاب کنید</option>
-                            <?php 
-                            if (!empty($work_details)) {
-                                foreach ($work_details as $detail) {
-                                    $partner1_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)");
-                                    $partner1_stmt->execute([$detail['partner1_id']]);
-                                    $partner1_name = $partner1_stmt->fetchColumn();
-                                    $partner2_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id2 FROM Partners WHERE partner_id = ?)");
-                                    $partner2_stmt->execute([$detail['partner2_id']]);
-                                    $partner2_name = $partner2_stmt->fetchColumn();
-                                    if ($partner1_name) {
-                                        echo "<option value='{$detail['partner1_id']}'>{$partner1_name}</option>";
-                                    }
-                                    if ($partner2_name && $partner2_name !== $partner1_name) {
-                                        echo "<option value='{$detail['partner2_id']}'>{$partner2_name}</option>";
-                                    }
-                                }
-                            }
-                            ?>
+                            <?php foreach ($all_partners as $partner): ?>
+                                <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['user1_name']; ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary">بروزرسانی اطلاعات</button>
@@ -278,7 +270,7 @@ if ($selected_month_id) {
                 document.getElementById('edit_work_date').value = workDate || '';
                 document.getElementById('edit_partner1').value = partner1Id || '';
                 document.getElementById('edit_partner2').value = partner2Id || '';
-                document.getElementById('edit_agency').value = agencyId || '';
+                document.getElementById('edit_agency').value = agencyId || partner1Id || ''; // پیش‌فرض آژانس همکار 1
             });
         });
 
