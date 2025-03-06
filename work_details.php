@@ -1,6 +1,7 @@
 <?php
 // [BLOCK-WORK-DETAILS-001]
 session_start();
+ob_start(); // شروع بافر خروجی برای جلوگیری از ارور header
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit;
@@ -85,6 +86,7 @@ if ($selected_month_id && empty($work_details)) {
             $start_date->modify('+1 day');
         }
         // رفرش برای نمایش داده‌های جدید
+        ob_end_clean(); // پاک کردن بافر قبل از رفرش
         header("Location: work_details.php?month_id=$selected_month_id");
         exit;
     }

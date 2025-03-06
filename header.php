@@ -16,7 +16,6 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 // نام صفحه فعلی (برای این مثال، "داشبورد" فرض می‌کنیم)
 $page_name = "داشبورد";
 ?>
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 
