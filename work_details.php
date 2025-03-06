@@ -39,7 +39,13 @@ if ($selected_month_id) {
         if (!empty($day_partners)) {
             $partner = $day_partners[array_rand($day_partners)];
             $partner1_id = $partner['user_id1'];
-            $partner2_id = $partner['user_id2'] ?? $partner['user_id1']; // اگه user_id2 خالی بود، همون user_id1
+            $partner2_id = $partner['user_id2'] ?? null;
+            if (!$partner2_id) {
+                // اگه همکار دوم نداشت، از یه کاربر دیگه انتخاب کن
+                $other_users = array_filter($users, fn($u) => $u['user_id'] != $partner1_id);
+                $other_user = $other_users[array_rand(array_keys($other_users))];
+                $partner2_id = $other_user['user_id'];
+            }
             $agency_partner_id = $partner1_id;
 
             $check = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
@@ -150,7 +156,7 @@ if ($selected_month_id) {
                     <input type="hidden" name="detail_id" id="edit_id">
                     <div class="mb-3">
                         <label>همکار 1</label>
-                        <select class="form-select" name="partner1_id" id="edit_partner1">
+                        <select class="form-select" name="partner1_id" id="edit_partner1" onchange="updateOptions()">
                             <option value="">انتخاب</option>
                             <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
@@ -159,7 +165,7 @@ if ($selected_month_id) {
                     </div>
                     <div class="mb-3">
                         <label>همکار 2</label>
-                        <select class="form-select" name="partner2_id" id="edit_partner2">
+                        <select class="form-select" name="partner2_id" id="edit_partner2" onchange="updateOptions()">
                             <option value="">انتخاب</option>
                             <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
@@ -170,9 +176,6 @@ if ($selected_month_id) {
                         <label>آژانس</label>
                         <select class="form-select" name="agency_partner_id" id="edit_agency">
                             <option value="">انتخاب</option>
-                            <?php foreach ($users as $u): ?>
-                                <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
-                            <?php endforeach; ?>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary">ذخیره</button>
@@ -190,9 +193,29 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
         document.getElementById('edit_partner1').value = btn.dataset.partner1;
         document.getElementById('edit_partner2').value = btn.dataset.partner2;
         document.getElementById('edit_agency').value = btn.dataset.agency;
+        updateOptions(); // به‌روزرسانی گزینه‌های آژانس
         modal.show();
     });
 });
+
+function updateOptions() {
+    const partner1 = document.getElementById('edit_partner1').value;
+    const partner2 = document.getElementById('edit_partner2').value;
+    const agencySelect = document.getElementById('edit_agency');
+    const currentAgency = agencySelect.value;
+
+    agencySelect.innerHTML = '<option value="">انتخاب</option>';
+    const partners = [partner1, partner2].filter(p => p); // فقط مقادیر معتبر
+    partners.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p;
+        option.text = Array.from(document.querySelectorAll('#edit_partner1 option, #edit_partner2 option'))
+            .find(opt => opt.value === p)?.text || '';
+        agencySelect.appendChild(option);
+    });
+
+    agencySelect.value = currentAgency && agencySelect.querySelector(`option[value="${currentAgency}"]`) ? currentAgency : partner1 || '';
+}
 </script>
 
 <?php require_once 'footer.php'; ?>
