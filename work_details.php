@@ -152,7 +152,7 @@ if ($selected_month_id) {
                 <td><?php echo $detail['partner2_name'] ?: '-'; ?></td>
                 <td><?php echo $detail['agency_partner_name'] ?: '-'; ?></td>
                 <td>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editWorkDetailModal" 
+                    <button class="btn btn-primary btn-sm edit-work-detail" 
                             data-detail-id="<?php echo $detail['work_detail_id']; ?>" 
                             data-date="<?php echo gregorian_to_jalali_format($detail['work_date']); ?>" 
                             data-partner1-id="<?php echo $detail['partner1_id'] ?? ''; ?>" 
@@ -222,7 +222,7 @@ if ($selected_month_id) {
     // [BLOCK-WORK-DETAILS-003]
     document.addEventListener('DOMContentLoaded', () => {
         // پر کردن اطلاعات در مودال ویرایش
-        document.querySelectorAll('[data-bs-target="#editWorkDetailModal"]').forEach(button => {
+        document.querySelectorAll('.edit-work-detail').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 const detailId = button.getAttribute('data-detail-id');
@@ -231,15 +231,35 @@ if ($selected_month_id) {
                 const partner2Id = button.getAttribute('data-partner2-id');
                 const agencyId = button.getAttribute('data-agency-id');
 
-                // برای دیباگ، مقادیر رو لاگ کنیم
-                console.log('Button clicked:', { detailId, workDate, partner1Id, partner2Id, agencyId });
+                // لاگ برای دیباگ
+                console.log('Edit button clicked:', { detailId, workDate, partner1Id, partner2Id, agencyId });
+
+                // باز کردن مودال با Bootstrap
+                const modal = new bootstrap.Modal(document.getElementById('editWorkDetailModal'));
+                modal.show();
 
                 // پر کردن فیلدهای مودال
                 document.getElementById('edit_detail_id').value = detailId || '';
                 document.getElementById('edit_work_date').value = workDate || '';
                 document.getElementById('edit_partner1').value = partner1Id || '';
                 document.getElementById('edit_partner2').value = partner2Id || '';
-                document.getElementById('edit_agency').value = agencyId ? '<?php echo $pdo->query("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)", [agencyId])->fetchColumn() ?? ""; ?>' : '';
+                
+                // دریافت نام آژانس به صورت دستی
+                let agencyName = '';
+                if (agencyId) {
+                    fetch('get_agency_name.php?agency_id=' + agencyId)
+                        .then(response => response.text())
+                        .then(data => {
+                            agencyName = data;
+                            document.getElementById('edit_agency').value = agencyName || '';
+                        })
+                        .catch(error => {
+                            console.error('Error fetching agency name:', error);
+                            document.getElementById('edit_agency').value = '';
+                        });
+                } else {
+                    document.getElementById('edit_agency').value = '';
+                }
             });
         });
 
