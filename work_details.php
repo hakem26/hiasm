@@ -21,6 +21,10 @@ $selected_month_id = $_GET['month_id'] ?? $work_months[0]['work_month_id'] ?? nu
 $users = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'")->fetchAll(PDO::FETCH_ASSOC);
 $selected_user_id = $_GET['user_id'] ?? null;
 
+// دریافت جفت‌های کاری
+$partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day 
+                        FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
+
 // پر کردن خودکار Work_Details
 if ($selected_month_id) {
     // پاک کردن همه ردیف‌های مربوط به این ماه
@@ -28,36 +32,34 @@ if ($selected_month_id) {
 
     // بازسازی Work_Details با کوئری SQL
     $month = $pdo->query("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = $selected_month_id")->fetch(PDO::FETCH_ASSOC);
-    $start_date = $month['start_date'];
-    $end_date = $month['end_date'];
+    $start_date = new DateTime($month['start_date']);
+    $end_date = new DateTime($month['end_date']);
 
-    $query = "
-        INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day)
-        SELECT 
-            :month_id AS work_month_id,
-            d.work_date,
-            p.user_id1 AS partner1_id,
-            COALESCE(p.user_id2, p.user_id1) AS partner2_id,
-            p.user_id1 AS agency_partner_id,
-            jdate('l', UNIX_TIMESTAMP(d.work_date), '', '', 'gregorian', 'persian') AS work_day
-        FROM (
-            SELECT DATE_ADD(:start_date, INTERVAL (t4.i*10000 + t3.i*1000 + t2.i*100 + t1.i*10 + t0.i) DAY) AS work_date
-            FROM 
-                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t0,
-                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t1,
-                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t2,
-                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t3,
-                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t4
-            HAVING work_date BETWEEN :start_date AND :end_date
-        ) d
-        JOIN Partners p ON jdate('l', UNIX_TIMESTAMP(d.work_date), '', '', 'gregorian', 'persian') = p.work_day
-    ";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        'month_id' => $selected_month_id,
-        'start_date' => $start_date,
-        'end_date' => $end_date
-    ]);
+    $days = [];
+    while ($start_date <= $end_date) {
+        $current_date = $start_date->format('Y-m-d');
+        $work_day = jdate('l', strtotime($current_date), '', '', 'gregorian', 'persian');
+        $days[] = ['date' => $current_date, 'work_day' => $work_day];
+        $start_date->modify('+1 day');
+    }
+
+    foreach ($days as $day) {
+        $current_date = $day['date'];
+        $work_day = $day['work_day'];
+
+        $day_partners = array_filter($partners, fn($p) => $p['work_day'] === $work_day);
+        if (!empty($day_partners)) {
+            foreach ($day_partners as $partner) {
+                $partner1_id = $partner['user_id1'];
+                $partner2_id = $partner['user_id2'] ?? $partner['user_id1'];
+                $agency_partner_id = $partner1_id;
+
+                $stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
+                                       VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
+            }
+        }
+    }
 }
 
 // نمایش اطلاعات
