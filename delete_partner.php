@@ -9,16 +9,12 @@ require_once 'db.php';
 
 if (isset($_GET['partner_id'])) {
     $partner_id = $_GET['partner_id'];
-    $stmt = $pdo->prepare("DELETE FROM Partners WHERE partner_id = ?");
-    $stmt->execute([$partner_id]);
-
-    // حذف اطلاعات مرتبط در Work_Details
-    $stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = NULL WHERE partner1_id = ?");
-    $stmt->execute([$partner_id]);
-    $stmt = $pdo->prepare("UPDATE Work_Details SET partner2_id = NULL WHERE partner2_id = ?");
-    $stmt->execute([$partner_id]);
-
-    header("Location: partners.php");
-    exit;
+    try {
+        $stmt = $pdo->prepare("DELETE FROM Partners WHERE partner_id = ?");
+        $stmt->execute([$partner_id]);
+        echo "success";
+    } catch (PDOException $e) {
+        echo "error: " . $e->getMessage();
+    }
 }
 ?>
