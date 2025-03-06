@@ -43,13 +43,7 @@ if ($selected_month_id) {
         if (!empty($day_partners)) {
             $partner = $day_partners[array_rand($day_partners)];
             $partner1_id = $partner['user_id1'];
-            $partner2_id = $partner['user_id2'] ?? null;
-            if (!$partner2_id) {
-                // اگه همکار دوم نداشت، از یه کاربر دیگه انتخاب کن
-                $other_users = array_filter($users, fn($u) => $u['user_id'] != $partner1_id);
-                $other_user = $other_users[array_rand(array_keys($other_users))];
-                $partner2_id = $other_user['user_id'];
-            }
+            $partner2_id = $partner['user_id2'] ?? $partner['user_id1']; // اگه user_id2 خالی باشه، همون user_id1
             $agency_partner_id = $partner1_id;
 
             $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
