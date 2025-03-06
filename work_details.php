@@ -68,10 +68,12 @@ if ($selected_month_id) {
         $start_date = new DateTime($month_data['start_date']);
         $end_date = new DateTime($month_data['end_date']);
         
-        $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day FROM Partners GROUP BY work_day")->fetchAll(PDO::FETCH_ASSOC);
+        $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
         $partner_map = [];
         foreach ($partners as $partner) {
-            $partner_map[$partner['work_day']] = $partner;
+            if (!isset($partner_map[$partner['work_day']])) {
+                $partner_map[$partner['work_day']] = $partner;
+            }
         }
 
         while ($start_date <= $end_date) {
@@ -87,9 +89,9 @@ if ($selected_month_id) {
             $partner_info = $partner_map[$work_day] ?? null;
             if ($partner_info) {
                 $partner1_id = $partner_info['partner_id'];
-                // پیدا کردن partner_id برای user_id2
-                $partner2_stmt = $pdo->prepare("SELECT partner_id FROM Partners WHERE user_id2 = ? AND work_day = ? LIMIT 1");
-                $partner2_stmt->execute([$partner_info['user_id2'], $work_day]);
+                // پیدا کردن partner_id برای یه جفت دیگه با همون work_day
+                $partner2_stmt = $pdo->prepare("SELECT partner_id FROM Partners WHERE work_day = ? AND partner_id != ? LIMIT 1");
+                $partner2_stmt->execute([$work_day, $partner1_id]);
                 $partner2_id = $partner2_stmt->fetchColumn() ?? $partner1_id; // اگه پیدا نشد، همون partner1_id
                 $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار 1
 
@@ -204,18 +206,43 @@ if ($selected_month_id) {
                         <label for="edit_partner2" class="form-label">همکار 2</label>
                         <select class="form-select" id="edit_partner2" name="partner2_id">
                             <option value="">انتخاب کنید</option>
-                            <?php foreach ($partners as $partner): ?>
-                            <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['full_name']; ?></option>
-                            <?php endforeach; ?>
+                            <?php 
+                            foreach ($work_details as $detail) {
+                                $partner1_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)");
+                                $partner1_stmt->execute([$detail['partner1_id']]);
+                                $partner1_name = $partner1_stmt->fetchColumn();
+                                $partner2_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id2 FROM Partners WHERE partner_id = ?)");
+                                $partner2_stmt->execute([$detail['partner2_id']]);
+                                $partner2_name = $partner2_stmt->fetchColumn();
+                                if ($partner1_name && $partner2_name && $partner1_name !== $partner2_name) {
+                                    echo "<option value='{$detail['partner2_id']}'>{$partner2_name}</option>";
+                                }
+                            }
+                            ?>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="edit_agency" class="form-label">آژانس</label>
                         <select class="form-select" id="edit_agency" name="agency_partner_id">
                             <option value="">انتخاب کنید</option>
-                            <?php foreach ($partners as $partner): ?>
-                            <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['full_name']; ?></option>
-                            <?php endforeach; ?>
+                            <?php 
+                            if (!empty($work_details)) {
+                                foreach ($work_details as $detail) {
+                                    $partner1_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)");
+                                    $partner1_stmt->execute([$detail['partner1_id']]);
+                                    $partner1_name = $partner1_stmt->fetchColumn();
+                                    $partner2_stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id2 FROM Partners WHERE partner_id = ?)");
+                                    $partner2_stmt->execute([$detail['partner2_id']]);
+                                    $partner2_name = $partner2_stmt->fetchColumn();
+                                    if ($partner1_name) {
+                                        echo "<option value='{$detail['partner1_id']}'>{$partner1_name}</option>";
+                                    }
+                                    if ($partner2_name && $partner2_name !== $partner1_name) {
+                                        echo "<option value='{$detail['partner2_id']}'>{$partner2_name}</option>";
+                                    }
+                                }
+                            }
+                            ?>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary">بروزرسانی اطلاعات</button>
