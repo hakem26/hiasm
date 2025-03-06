@@ -23,5 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } catch (PDOException $e) {
         die("خطا در ویرایش اطلاعات کار: " . $e->getMessage());
     }
+} else {
+    header("Location: work_details.php");
+    exit;
 }
 ?>

@@ -34,7 +34,8 @@ $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $work_details = [];
 if ($selected_month_id) {
     $query = "SELECT wd.work_detail_id, wd.work_date, wd.work_day, wd.partner1_id, wd.partner2_id, wd.agency_partner_id,
-                     u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name
+                     u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name,
+                     p1.user_id1 AS partner1_user_id, p2.user_id2 AS partner2_user_id
               FROM Work_Details wd
               LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id
               LEFT JOIN Users u1 ON p1.user_id1 = u1.user_id
@@ -51,8 +52,8 @@ if ($selected_month_id) {
 
     if ($selected_user_id) {
         $work_details = array_filter($work_details, function ($detail) use ($selected_user_id) {
-            return ($detail['partner1_name'] && strpos($detail['partner1_name'], $selected_user_id) !== false) ||
-                   ($detail['partner2_name'] && strpos($detail['partner2_name'], $selected_user_id) !== false);
+            return isset($detail['partner1_user_id']) && $detail['partner1_user_id'] == $selected_user_id ||
+                   isset($detail['partner2_user_id']) && $detail['partner2_user_id'] == $selected_user_id;
         });
     }
 }
@@ -67,12 +68,10 @@ if ($selected_month_id && empty($work_details)) {
         $start_date = new DateTime($month_data['start_date']);
         $end_date = new DateTime($month_data['end_date']);
         
-        $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
+        $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day FROM Partners GROUP BY work_day")->fetchAll(PDO::FETCH_ASSOC);
         $partner_map = [];
         foreach ($partners as $partner) {
-            if (!isset($partner_map[$partner['work_day']])) {
-                $partner_map[$partner['work_day']] = $partner;
-            }
+            $partner_map[$partner['work_day']] = $partner;
         }
 
         while ($start_date <= $end_date) {
@@ -81,7 +80,7 @@ if ($selected_month_id && empty($work_details)) {
             $partner_info = $partner_map[$work_day] ?? null;
             if ($partner_info) {
                 $partner1_id = $partner_info['partner_id'];
-                $partner2_id = $partner_info['partner_id']; // می‌تونی به‌عنوان پیش‌فرض همون رو بذاری
+                $partner2_id = $partner_info['partner_id']; // برای تست، می‌تونی بعداً تغییرش بدی
                 $agency_partner_id = $partner1_id; // آژانس پیش‌فرض = همکار 1
                 $stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$selected_month_id, $start_date->format('Y-m-d'), $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
