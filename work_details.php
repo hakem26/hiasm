@@ -12,6 +12,13 @@ require_once 'jdf.php';
 $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
+// تابع تبدیل میلادی به شمسی
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
+}
+
 // کوئری برای دریافت ماه‌های کاری
 $work_months_stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
 $work_months = $work_months_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -20,14 +27,14 @@ $work_months = $work_months_stmt->fetchAll(PDO::FETCH_ASSOC);
 $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work_months[0]['work_month_id']) ? $work_months[0]['work_month_id'] : null);
 $work_details = [];
 if ($selected_month_id) {
-    $stmt = $pdo->prepare("SELECT wd.*, p1.user_id AS partner1_user_id, u1.username AS partner1_name, p2.user_id AS partner2_user_id, u2.username AS partner2_name, p3.user_id AS agency_partner_user_id, u3.username AS agency_partner_name 
+    $stmt = $pdo->prepare("SELECT wd.*, u1.full_name AS partner1_name, u2.full_name AS partner2_name, u3.full_name AS agency_partner_name 
                           FROM Work_Details wd 
                           LEFT JOIN Partners p1 ON wd.partner1_id = p1.partner_id 
-                          LEFT JOIN Users u1 ON p1.user_id = u1.user_id 
+                          LEFT JOIN Users u1 ON p1.user_id1 = u1.user_id 
                           LEFT JOIN Partners p2 ON wd.partner2_id = p2.partner_id 
-                          LEFT JOIN Users u2 ON p2.user_id = u2.user_id 
+                          LEFT JOIN Users u2 ON p2.user_id2 = u2.user_id 
                           LEFT JOIN Partners p3 ON wd.agency_partner_id = p3.partner_id 
-                          LEFT JOIN Users u3 ON p3.user_id = u3.user_id 
+                          LEFT JOIN Users u3 ON p3.user_id1 = u3.user_id 
                           WHERE wd.work_month_id = ? 
                           ORDER BY wd.work_date");
     $stmt->execute([$selected_month_id]);
@@ -45,25 +52,29 @@ if ($selected_month_id && empty($work_details)) {
         $end_date = new DateTime($month_data['end_date']);
         
         // دریافت ID همکاران از جدول Partners
-        $partners = $pdo->query("SELECT partner_id, user_id FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
-        $partner_map = array_column($partners, 'partner_id', 'user_id');
+        $partners = $pdo->query("SELECT partner_id, user_id1, user_id2 FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
+        $partner_map = [];
+        foreach ($partners as $partner) {
+            $partner_map[$partner['user_id1']] = $partner['partner_id'];
+            $partner_map[$partner['user_id2']] = $partner['partner_id'];
+        }
 
         while ($start_date <= $end_date) {
-            $jalali_date = jdate('Y/m/d', strtotime($start_date->format('Y-m-d')));
+            $jalali_date = gregorian_to_jalali_format($start_date->format('Y-m-d'));
             $partner1_id = null;
             $partner2_id = null;
             switch (jdate('l', strtotime($start_date->format('Y-m-d')), '', '', 'gregorian', 'persian')) {
                 case 'شنبه':
-                    $partner1_id = $partner_map[array_search('sheyda_johari', array_column($partners, 'user_id'))] ?? null;
-                    $partner2_id = $partner_map[array_search('mehri_taremi', array_column($partners, 'user_id'))] ?? null;
+                    $partner1_id = $partner_map[array_search('sheyda_johari', array_column($partners, 'user_id1'))] ?? null;
+                    $partner2_id = $partner_map[array_search('mehri_taremi', array_column($partners, 'user_id2'))] ?? null;
                     break;
                 case 'دوشنبه':
-                    $partner1_id = $partner_map[array_search('mehri_taremi', array_column($partners, 'user_id'))] ?? null;
-                    $partner2_id = $partner_map[array_search('marzieh_ebadi', array_column($partners, 'user_id'))] ?? null;
+                    $partner1_id = $partner_map[array_search('mehri_taremi', array_column($partners, 'user_id1'))] ?? null;
+                    $partner2_id = $partner_map[array_search('marzieh_ebadi', array_column($partners, 'user_id2'))] ?? null;
                     break;
                 case 'سه‌شنبه':
-                    $partner1_id = $partner_map[array_search('marzieh_ebadi', array_column($partners, 'user_id'))] ?? null;
-                    $partner2_id = $partner_map[array_search('sheyda_johari', array_column($partners, 'user_id'))] ?? null;
+                    $partner1_id = $partner_map[array_search('marzieh_ebadi', array_column($partners, 'user_id1'))] ?? null;
+                    $partner2_id = $partner_map[array_search('sheyda_johari', array_column($partners, 'user_id2'))] ?? null;
                     break;
                 default:
                     $partner1_id = null;
@@ -88,7 +99,7 @@ if ($selected_month_id && empty($work_details)) {
             <option value="">ماه کاری را انتخاب کنید</option>
             <?php foreach ($work_months as $month): ?>
             <option value="<?php echo $month['work_month_id']; ?>" <?php echo $selected_month_id == $month['work_month_id'] ? 'selected' : ''; ?>>
-                <?php echo jdate('Y/m', strtotime($month['start_date'])); ?>
+                <?php echo gregorian_to_jalali_format($month['start_date']); ?>
             </option>
             <?php endforeach; ?>
         </select>
@@ -108,24 +119,24 @@ if ($selected_month_id && empty($work_details)) {
         <tbody>
             <?php foreach ($work_details as $detail): ?>
             <tr>
-                <td><?php echo jdate('Y/m/d', strtotime($detail['work_date'])); ?></td>
+                <td><?php echo gregorian_to_jalali_format($detail['work_date']); ?></td>
                 <td><?php echo $detail['partner1_name'] ?: '-'; ?></td>
                 <td><?php echo $detail['partner2_name'] ?: '-'; ?></td>
                 <td>
                     <select class="form-select" data-detail-id="<?php echo $detail['work_detail_id']; ?>" onchange="updateAgency(this)">
                         <option value="">انتخاب آژانس</option>
                         <?php
-                        $partners_stmt = $pdo->query("SELECT p.partner_id, u.username FROM Partners p JOIN Users u ON p.user_id = u.user_id");
+                        $partners_stmt = $pdo->query("SELECT p.partner_id, u.full_name FROM Partners p JOIN Users u ON p.user_id1 = u.user_id");
                         $partners = $partners_stmt->fetchAll(PDO::FETCH_ASSOC);
                         foreach ($partners as $partner): ?>
-                        <option value="<?php echo $partner['partner_id']; ?>" <?php echo $detail['agency_partner_user_id'] == $partner['user_id'] ? 'selected' : ''; ?>>
-                            <?php echo $partner['username']; ?>
+                        <option value="<?php echo $partner['partner_id']; ?>" <?php echo $detail['agency_partner_user_id'] == $partner['user_id1'] ? 'selected' : ''; ?>>
+                            <?php echo $partner['full_name']; ?>
                         </option>
                         <?php endforeach; ?>
                     </select>
                 </td>
                 <td>
-                    <a href="#" class="text-primary" data-bs-toggle="modal" data-bs-target="#editWorkDetailModal" data-detail-id="<?php echo $detail['work_detail_id']; ?>" data-date="<?php echo $detail['work_date']; ?>" data-partner1="<?php echo $detail['partner1_user_id']; ?>" data-partner2="<?php echo $detail['partner2_user_id']; ?>" data-agency="<?php echo $detail['agency_partner_user_id']; ?>">
+                    <a href="#" class="text-primary" data-bs-toggle="modal" data-bs-target="#editWorkDetailModal" data-detail-id="<?php echo $detail['work_detail_id']; ?>" data-date="<?php echo gregorian_to_jalali_format($detail['work_date']); ?>" data-partner1="<?php echo $detail['partner1_user_id']; ?>" data-partner2="<?php echo $detail['partner2_user_id']; ?>" data-agency="<?php echo $detail['agency_partner_user_id']; ?>">
                         <i class="fas fa-edit"></i>
                     </a>
                 </td>
@@ -159,7 +170,7 @@ if ($selected_month_id && empty($work_details)) {
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($partners as $partner): ?>
                             <option value="<?php echo $partner['partner_id']; ?>">
-                                <?php echo $partner['username']; ?>
+                                <?php echo $partner['full_name']; ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -170,7 +181,7 @@ if ($selected_month_id && empty($work_details)) {
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($partners as $partner): ?>
                             <option value="<?php echo $partner['partner_id']; ?>">
-                                <?php echo $partner['username']; ?>
+                                <?php echo $partner['full_name']; ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -181,7 +192,7 @@ if ($selected_month_id && empty($work_details)) {
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($partners as $partner): ?>
                             <option value="<?php echo $partner['partner_id']; ?>">
-                                <?php echo $partner['username']; ?>
+                                <?php echo $partner['full_name']; ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -208,7 +219,7 @@ if ($selected_month_id && empty($work_details)) {
                 const agency = e.target.getAttribute('data-agency');
 
                 document.getElementById('edit_detail_id').value = detailId;
-                document.getElementById('edit_work_date').value = jdate('Y/m/d', strtotime(workDate));
+                document.getElementById('edit_work_date').value = workDate;
                 document.getElementById('edit_partner1').value = partner1 || '';
                 document.getElementById('edit_partner2').value = partner2 || '';
                 document.getElementById('edit_agency').value = agency || '';
@@ -242,7 +253,7 @@ if ($selected_month_id && empty($work_details)) {
         // Datepicker برای فیلد تاریخ در مودال (در صورت نیاز، اگر بخوای تاریخ رو هم قابل ویرایش کنی)
         $('#edit_work_date').persianDatepicker({
             format: 'YYYY/MM/DD',
-            observer: true,
+            autoClose: true,
             calendar: {
                 persian: {
                     locale: 'fa'

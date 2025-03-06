@@ -12,6 +12,13 @@ require_once 'jdf.php';
 $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
+// تابع تبدیل میلادی به شمسی
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
+}
+
 // کوئری برای دریافت ماه‌های کاری
 $stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
 $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -40,10 +47,10 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php $row = 1; foreach ($work_months as $month): ?>
             <tr>
                 <td><?php echo $row++; ?></td>
-                <td><?php echo jdate('Y/m/d', strtotime($month['start_date'])); ?></td>
-                <td><?php echo jdate('Y/m/d', strtotime($month['end_date'])); ?></td>
+                <td><?php echo gregorian_to_jalali_format($month['start_date']); ?></td>
+                <td><?php echo gregorian_to_jalali_format($month['end_date']); ?></td>
                 <td>
-                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editWorkMonthModal" data-month-id="<?php echo $month['work_month_id']; ?>" data-start-date="<?php echo jdate('Y/m/d', strtotime($month['start_date'])); ?>" data-end-date="<?php echo jdate('Y/m/d', strtotime($month['end_date'])); ?>">
+                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editWorkMonthModal" data-month-id="<?php echo $month['work_month_id']; ?>" data-start-date="<?php echo gregorian_to_jalali_format($month['start_date']); ?>" data-end-date="<?php echo gregorian_to_jalali_format($month['end_date']); ?>">
                         <i class="fas fa-edit"></i>
                     </a>
                     <a href="#" class="text-danger" onclick="confirmDeleteMonth(<?php echo $month['work_month_id']; ?>)">
@@ -147,10 +154,10 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
             return false;
         }
 
-        // Datepicker برای فیلدهای تاریخ (شمسی) با jQuery
+        // Datepicker برای فیلدهای تاریخ (شمسی)
         $('#start_date, #end_date, #edit_start_date, #edit_end_date').persianDatepicker({
             format: 'YYYY/MM/DD',
-            observer: true,
+            autoClose: true,
             calendar: {
                 persian: {
                     locale: 'fa'
