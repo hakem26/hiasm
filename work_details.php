@@ -40,7 +40,7 @@ $selected_month_id = isset($_GET['month_id']) ? $_GET['month_id'] : (isset($work
 $selected_user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
 $work_details = [];
 
-// پر کردن خودکار Work_Details بعد از ساخت ماه کاری یا تغییر در Partners
+// پر کردن خودکار Work_Details بر اساس آخرین داده‌های Partners
 if ($selected_month_id && !empty($all_partners)) {
     $month = $pdo->prepare("SELECT * FROM Work_Months WHERE work_month_id = ?");
     $month->execute([$selected_month_id]);
@@ -55,7 +55,7 @@ if ($selected_month_id && !empty($all_partners)) {
             $jalali_date = gregorian_to_jalali_format($current_date);
             $work_day = jdate('l', strtotime($current_date), '', '', 'gregorian', 'persian');
 
-            // فقط اگه این روز توی Partners تعریف شده باشه، ثبت کن
+            // فقط اگه این روز توی Partners تعریف شده باشه، ثبت یا به‌روزرسانی کن
             $day_partners = array_filter($all_partners, function ($partner) use ($work_day) {
                 return $partner['work_day'] === $work_day;
             });
@@ -80,17 +80,15 @@ if ($selected_month_id && !empty($all_partners)) {
 
                 $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار 1
 
-                // ثبت جدید اگه قبلاً ثبت نشده، یا به‌روزرسانی اگه تغییر کرده
+                // ثبت یا به‌روزرسانی
                 $check_stmt = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
                 $check_stmt->execute([$selected_month_id, $current_date]);
                 $existing_record = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existing_record) {
-                    // به‌روزرسانی
                     $update_stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ?, work_day = ? WHERE work_detail_id = ?");
                     $update_stmt->execute([$partner1_id, $partner2_id, $agency_partner_id, $work_day, $existing_record['work_detail_id']]);
                 } else {
-                    // ثبت جدید
                     $insert_stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
                     $insert_stmt->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
                 }
@@ -352,21 +350,22 @@ if ($selected_month_id) {
             // حذف همه گزینه‌ها
             partner2Select.innerHTML = '<option value="">انتخاب کنید</option>';
 
-            // اضافه کردن گزینه‌های جدید (به جز همکار 1)
+            // اضافه کردن همه گزینه‌ها به جز همکار 1
             <?php foreach ($all_partners as $partner): ?>
-                if ('<?php echo $partner['partner_id']; ?>' !== partner1Value) {
+                const partnerId = '<?php echo $partner['partner_id']; ?>';
+                if (partnerId !== partner1Value) {
                     const option = document.createElement('option');
-                    option.value = '<?php echo $partner['partner_id']; ?>';
+                    option.value = partnerId;
                     option.text = '<?php echo $partner['user2_name'] ?: $partner['user1_name']; ?>';
                     partner2Select.appendChild(option);
                 }
             <?php endforeach; ?>
 
             // بازگرداندن مقدار قبلی اگه هنوز معتبر باشه
-            if (currentPartner2Value && !partner2Select.querySelector(`option[value="${currentPartner2Value}"]`)) {
-                partner2Select.value = '';
+            if (currentPartner2Value && partner2Select.querySelector(`option[value="${currentPartner2Value}"]`)) {
+                partner2Select.value = currentPartner2Value;
             } else {
-                partner2Select.value = currentPartner2Value || '';
+                partner2Select.value = ''; // اگه مقدار قبلی معتبر نبود، خالی بذار
             }
             updateAgencyOptions(); // به‌روزرسانی آژانس بعد از تغییر همکار 2
         }
@@ -408,10 +407,10 @@ if ($selected_month_id) {
             }
 
             // بازگرداندن مقدار قبلی اگه هنوز معتبر باشه
-            if (currentAgencyValue && !agencySelect.querySelector(`option[value="${currentAgencyValue}"]`)) {
-                agencySelect.value = partner1Value || '';
+            if (currentAgencyValue && agencySelect.querySelector(`option[value="${currentAgencyValue}"]`)) {
+                agencySelect.value = currentAgencyValue;
             } else {
-                agencySelect.value = currentAgencyValue || partner1Value || '';
+                agencySelect.value = partner1Value || '';
             }
         }
     });
