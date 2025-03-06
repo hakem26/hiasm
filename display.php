@@ -1,5 +1,5 @@
 <?php
-require 'libs/Jalalian.php'; // کتابخانه تبدیل تاریخ
+require 'libs/jdf.php'; // کتابخانه تبدیل تاریخ
 
 $host = 'localhost';
 $dbname = 'ukvojota_hiasm';
@@ -19,7 +19,8 @@ try {
 
     foreach ($dates as $row) {
         $miladi_date = $row["date_column"];
-        $jalali_date = Jalalian::fromDateTime($miladi_date)->format('Y-m-d'); // تبدیل به شمسی
+        list($gy, $gm, $gd) = explode('-', $miladi_date);
+        $jalali_date = gregorian_to_jalali($gy, $gm, $gd, '-'); // تبدیل به شمسی
         
         echo "<tr>
                 <td>{$row['id']}</td>

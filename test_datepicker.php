@@ -1,5 +1,5 @@
 <?php
-require 'libs/Jalalian.php'; // کتابخانه تبدیل تاریخ
+require 'libs/jdf.php'; // کتابخانه تبدیل تاریخ
 
 $host = 'localhost';
 $dbname = 'ukvojota_hiasm';
@@ -15,12 +15,11 @@ try {
         
         // تبدیل تاریخ شمسی به میلادی
         list($jy, $jm, $jd) = explode('-', $jalaliDate);
-        $miladiDate = Jalalian::toGregorian($jy, $jm, $jd);
-        $miladiDateStr = sprintf("%04d-%02d-%02d", $miladiDate[0], $miladiDate[1], $miladiDate[2]);
+        $miladiDate = jalali_to_gregorian($jy, $jm, $jd, '-'); // تبدیل به میلادی
 
         // ذخیره در دیتابیس
         $stmt = $pdo->prepare("INSERT INTO dates (date_column) VALUES (:date_column)");
-        $stmt->execute(['date_column' => $miladiDateStr]);
+        $stmt->execute(['date_column' => $miladiDate]);
 
         echo "<p style='color:green;'>تاریخ با موفقیت ذخیره شد!</p>";
     }
