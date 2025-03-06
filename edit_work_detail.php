@@ -22,7 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ? WHERE work_detail_id = ?");
         $stmt->execute([$partner1_id, $partner2_id, $agency_partner_id, $detail_id]);
 
-        $month_id = $pdo->query("SELECT work_month_id FROM Work_Details WHERE work_detail_id = ?", [$detail_id])->fetchColumn();
+        $stmt_month = $pdo->prepare("SELECT work_month_id FROM Work_Details WHERE work_detail_id = ?");
+        $stmt_month->execute([$detail_id]);
+        $month_id = $stmt_month->fetchColumn();
         header("Location: work_details.php?month_id=" . $month_id);
         exit;
     } catch (PDOException $e) {

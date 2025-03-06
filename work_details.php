@@ -87,10 +87,10 @@ if ($selected_month_id) {
             $partner_info = $partner_map[$work_day] ?? null;
             if ($partner_info) {
                 $partner1_id = $partner_info['partner_id'];
-                // برای partner2_id از user_id2 استفاده می‌کنیم تا متفاوت باشه
-                $partner2_stmt = $pdo->prepare("SELECT partner_id FROM Partners WHERE user_id2 = ? AND work_day = ?");
+                // پیدا کردن partner_id برای user_id2
+                $partner2_stmt = $pdo->prepare("SELECT partner_id FROM Partners WHERE user_id2 = ? AND work_day = ? LIMIT 1");
                 $partner2_stmt->execute([$partner_info['user_id2'], $work_day]);
-                $partner2_id = $partner2_stmt->fetchColumn() ?? $partner1_id; // اگه پیدا نشد، همون partner1_id رو نگه دار
+                $partner2_id = $partner2_stmt->fetchColumn() ?? $partner1_id; // اگه پیدا نشد، همون partner1_id
                 $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار 1
 
                 if ($existing_record) {
