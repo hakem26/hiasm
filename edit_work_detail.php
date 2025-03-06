@@ -11,14 +11,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $agency_partner_id = $_POST['agency_partner_id'];
 
     $stmt = $pdo->prepare("UPDATE Work_Details SET agency_partner_id = ? WHERE work_detail_id = ?");
-    if ($stmt->execute([$agency_partner_id, $detail_id])) {
-        $month_id = $pdo->query("SELECT work_month_id FROM Work_Details WHERE work_detail_id = $detail_id")->fetchColumn();
-        header("Location: work_details.php?month_id=$month_id");
-        exit;
-    } else {
-        echo "خطا در آپدیت: " . print_r($stmt->errorInfo(), true);
-        exit;
-    }
+    $stmt->execute([$agency_partner_id, $detail_id]);
+
+    $month_id = $pdo->prepare("SELECT work_month_id FROM Work_Details WHERE work_detail_id = ?");
+    $month_id->execute([$detail_id]);
+    $month_id = $month_id->fetchColumn();
+
+    header("Location: work_details.php?month_id=$month_id");
+    exit;
 }
 header("Location: work_details.php");
 ?>

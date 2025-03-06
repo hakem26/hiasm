@@ -8,9 +8,9 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ (فرض می‌کنم خودت درست کردی)
+// تابع تبدیل تاریخ
 function gregorian_to_jalali_format($date) {
-    return jdate('Y/m/d', strtotime($date)); // یا هر متدی که خودت استفاده می‌کنی
+    return jdate('Y/m/d', strtotime($date));
 }
 
 // دریافت ماه‌های کاری
@@ -21,59 +21,69 @@ $selected_month_id = $_GET['month_id'] ?? $work_months[0]['work_month_id'] ?? nu
 $users = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'")->fetchAll(PDO::FETCH_ASSOC);
 $selected_user_id = $_GET['user_id'] ?? null;
 
-// دریافت جفت‌های کاری
-$partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day 
-                        FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
-
 // پر کردن خودکار Work_Details
 if ($selected_month_id) {
-    // پاک کردن همه ردیف‌های مربوط به این ماه از Work_Details
+    // پاک کردن همه ردیف‌های مربوط به این ماه
     $pdo->prepare("DELETE FROM Work_Details WHERE work_month_id = ?")->execute([$selected_month_id]);
 
-    // بازسازی Work_Details بر اساس Partners
-    $month = $pdo->query("SELECT * FROM Work_Months WHERE work_month_id = $selected_month_id")->fetch(PDO::FETCH_ASSOC);
-    $start_date = new DateTime($month['start_date']);
-    $end_date = new DateTime($month['end_date']);
-    
-    while ($start_date <= $end_date) {
-        $current_date = $start_date->format('Y-m-d');
-        $work_day = jdate('l', strtotime($current_date), '', '', 'gregorian', 'persian');
-        
-        $day_partners = array_filter($partners, fn($p) => $p['work_day'] === $work_day);
-        if (!empty($day_partners)) {
-            foreach ($day_partners as $partner) {
-                $partner1_id = $partner['user_id1'];
-                $partner2_id = $partner['user_id2'] ?? $partner['user_id1']; // اگه خالی باشه، همون همکار اول
-                $agency_partner_id = $partner1_id;
+    // بازسازی Work_Details با کوئری SQL
+    $month = $pdo->query("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = $selected_month_id")->fetch(PDO::FETCH_ASSOC);
+    $start_date = $month['start_date'];
+    $end_date = $month['end_date'];
 
-                $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
-                               VALUES (?, ?, ?, ?, ?, ?)")
-                     ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
-            }
-        }
-        $start_date->modify('+1 day');
-    }
+    $query = "
+        INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day)
+        SELECT 
+            :month_id AS work_month_id,
+            d.work_date,
+            p.user_id1 AS partner1_id,
+            COALESCE(p.user_id2, p.user_id1) AS partner2_id,
+            p.user_id1 AS agency_partner_id,
+            jdate('l', UNIX_TIMESTAMP(d.work_date), '', '', 'gregorian', 'persian') AS work_day
+        FROM (
+            SELECT DATE_ADD(:start_date, INTERVAL (t4.i*10000 + t3.i*1000 + t2.i*100 + t1.i*10 + t0.i) DAY) AS work_date
+            FROM 
+                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t0,
+                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t1,
+                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t2,
+                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t3,
+                (SELECT 0 i UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) t4
+            HAVING work_date BETWEEN :start_date AND :end_date
+        ) d
+        JOIN Partners p ON jdate('l', UNIX_TIMESTAMP(d.work_date), '', '', 'gregorian', 'persian') = p.work_day
+    ";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute([
+        'month_id' => $selected_month_id,
+        'start_date' => $start_date,
+        'end_date' => $end_date
+    ]);
 }
 
 // نمایش اطلاعات
 $work_details = [];
 if ($selected_month_id) {
-    $query = "SELECT wd.*, 
-                     u1.full_name AS partner1_name, 
-                     u2.full_name AS partner2_name, 
-                     u3.full_name AS agency_name 
-              FROM Work_Details wd 
-              LEFT JOIN Users u1 ON wd.partner1_id = u1.user_id 
-              LEFT JOIN Users u2 ON wd.partner2_id = u2.user_id 
-              LEFT JOIN Users u3 ON wd.agency_partner_id = u3.user_id 
-              WHERE wd.work_month_id = ? ORDER BY wd.work_date";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([$selected_month_id]);
-    $work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    $query = "
+        SELECT wd.*, 
+               u1.full_name AS partner1_name, 
+               u2.full_name AS partner2_name, 
+               u3.full_name AS agency_name 
+        FROM Work_Details wd 
+        LEFT JOIN Users u1 ON wd.partner1_id = u1.user_id 
+        LEFT JOIN Users u2 ON wd.partner2_id = u2.user_id 
+        LEFT JOIN Users u3 ON wd.agency_partner_id = u3.user_id 
+        WHERE wd.work_month_id = ? 
+    ";
     if ($selected_user_id) {
-        $work_details = array_filter($work_details, fn($d) => $d['partner1_id'] == $selected_user_id || $d['partner2_id'] == $selected_user_id);
+        $query .= " AND (wd.partner1_id = ? OR wd.partner2_id = ?)";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$selected_month_id, $selected_user_id, $selected_user_id]);
+    } else {
+        $query .= " ORDER BY wd.work_date";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$selected_month_id]);
     }
+    $work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
