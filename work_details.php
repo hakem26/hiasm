@@ -58,8 +58,8 @@ if ($selected_month_id) {
     }
 }
 
-// پر کردن خودکار اطلاعات برای ماه انتخابی
-if ($selected_month_id && empty($work_details)) {
+// پر کردن خودکار اطلاعات برای ماه انتخابی (فقط اگه وجود نداشته باشه)
+if ($selected_month_id) {
     $month = $pdo->prepare("SELECT * FROM Work_Months WHERE work_month_id = ?");
     $month->execute([$selected_month_id]);
     $month_data = $month->fetch(PDO::FETCH_ASSOC);
@@ -75,21 +75,33 @@ if ($selected_month_id && empty($work_details)) {
         }
 
         while ($start_date <= $end_date) {
-            $jalali_date = gregorian_to_jalali_format($start_date->format('Y-m-d'));
-            $work_day = jdate('l', strtotime($start_date->format('Y-m-d')), '', '', 'gregorian', 'persian');
+            $current_date = $start_date->format('Y-m-d');
+            $jalali_date = gregorian_to_jalali_format($current_date);
+            $work_day = jdate('l', strtotime($current_date), '', '', 'gregorian', 'persian');
+
+            // چک کن اگه برای این تاریخ و ماه قبلاً رکوردی ثبت شده
+            $check_stmt = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
+            $check_stmt->execute([$selected_month_id, $current_date]);
+            $existing_record = $check_stmt->fetch(PDO::FETCH_ASSOC);
+
             $partner_info = $partner_map[$work_day] ?? null;
             if ($partner_info) {
                 $partner1_id = $partner_info['partner_id'];
-                $partner2_id = $partner_info['partner_id']; // برای تست، می‌تونی بعداً تغییرش بدی
+                $partner2_id = $partner_info['partner_id'];
                 $agency_partner_id = $partner1_id; // آژانس پیش‌فرض = همکار 1
-                $stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$selected_month_id, $start_date->format('Y-m-d'), $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
+
+                if ($existing_record) {
+                    // اگه وجود داره، فقط به‌روزرسانی کن
+                    $update_stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ?, work_day = ? WHERE work_detail_id = ?");
+                    $update_stmt->execute([$partner1_id, $partner2_id, $agency_partner_id, $work_day, $existing_record['work_detail_id']]);
+                } else {
+                    // اگه وجود نداره، ثبت جدید
+                    $insert_stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) VALUES (?, ?, ?, ?, ?, ?)");
+                    $insert_stmt->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
+                }
             }
             $start_date->modify('+1 day');
         }
-        ob_end_clean(); // پاک کردن بافر قبل از رفرش
-        header("Location: work_details.php?month_id=$selected_month_id");
-        exit;
     }
 }
 ?>
@@ -218,14 +230,16 @@ if ($selected_month_id && empty($work_details)) {
                 const partner1Id = button.getAttribute('data-partner1-id');
                 const partner2Id = button.getAttribute('data-partner2-id');
                 const agencyId = button.getAttribute('data-agency-id');
-                const agencyName = agencyId ? <?php echo json_encode($pdo->query("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)", [$agencyId])->fetchColumn() ?? ''); ?> : '';
 
-                document.getElementById('edit_detail_id').value = detailId;
-                document.getElementById('edit_work_date').value = workDate;
+                // برای دیباگ، مقادیر رو لاگ کنیم
+                console.log('Button clicked:', { detailId, workDate, partner1Id, partner2Id, agencyId });
+
+                // پر کردن فیلدهای مودال
+                document.getElementById('edit_detail_id').value = detailId || '';
+                document.getElementById('edit_work_date').value = workDate || '';
                 document.getElementById('edit_partner1').value = partner1Id || '';
                 document.getElementById('edit_partner2').value = partner2Id || '';
-                document.getElementById('edit_agency').value = agencyName || '';
-                console.log('Modal filled:', { detailId, workDate, partner1Id, partner2Id, agencyId, agencyName }); // برای دیباگ
+                document.getElementById('edit_agency').value = agencyId ? '<?php echo $pdo->query("SELECT full_name FROM Users WHERE user_id IN (SELECT user_id1 FROM Partners WHERE partner_id = ?)", [agencyId])->fetchColumn() ?? ""; ?>' : '';
             });
         });
 
