@@ -40,18 +40,18 @@ if ($selected_month_id) {
             $partner = $day_partners[array_rand($day_partners)];
             $partner1_id = $partner['user_id1'];
             $partner2_id = $partner['user_id2'] ?? $partner['user_id1']; // اگه user_id2 خالی بود، همون user_id1
-            $agency_id = $partner1_id;
+            $agency_partner_id = $partner1_id;
 
             $check = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
             $check->execute([$selected_month_id, $current_date]);
             if ($check->fetch()) {
-                $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_id = ?, work_day = ? 
+                $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ?, work_day = ? 
                                WHERE work_month_id = ? AND work_date = ?")
-                    ->execute([$partner1_id, $partner2_id, $agency_id, $work_day, $selected_month_id, $current_date]);
+                    ->execute([$partner1_id, $partner2_id, $agency_partner_id, $work_day, $selected_month_id, $current_date]);
             } else {
-                $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_id, work_day) 
+                $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
                                VALUES (?, ?, ?, ?, ?, ?)")
-                    ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_id, $work_day]);
+                    ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
             }
         }
         $start_date->modify('+1 day');
@@ -68,7 +68,7 @@ if ($selected_month_id) {
               FROM Work_Details wd 
               LEFT JOIN Users u1 ON wd.partner1_id = u1.user_id 
               LEFT JOIN Users u2 ON wd.partner2_id = u2.user_id 
-              LEFT JOIN Users u3 ON wd.agency_id = u3.user_id 
+              LEFT JOIN Users u3 ON wd.agency_partner_id = u3.user_id 
               WHERE wd.work_month_id = ? ORDER BY wd.work_date";
     $stmt = $pdo->prepare($query);
     $stmt->execute([$selected_month_id]);
@@ -124,7 +124,7 @@ if ($selected_month_id) {
                                     data-id="<?= $d['work_detail_id'] ?>" 
                                     data-partner1="<?= $d['partner1_id'] ?? '' ?>" 
                                     data-partner2="<?= $d['partner2_id'] ?? '' ?>" 
-                                    data-agency="<?= $d['agency_id'] ?? '' ?>">
+                                    data-agency="<?= $d['agency_partner_id'] ?? '' ?>">
                                 ویرایش
                             </button>
                         </td>
@@ -168,7 +168,7 @@ if ($selected_month_id) {
                     </div>
                     <div class="mb-3">
                         <label>آژانس</label>
-                        <select class="form-select" name="agency_id" id="edit_agency">
+                        <select class="form-select" name="agency_partner_id" id="edit_agency">
                             <option value="">انتخاب</option>
                             <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= $u['full_name'] ?></option>
