@@ -34,13 +34,20 @@
 
 <body>
     <h2>ورود تاریخ شمسی</h2>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $(".example1").pDatepicker();
+        });
+    </script>
+    
     <form method="post">
-        <input type="text" id="jalali_date" name="jalali_date" required>
-        <input type="hidden" id="gregorian_date" name="gregorian_date">
+        <input type="text" id="jalali_date" class="example1" required>
+        <!-- <input type="hidden" id="gregorian_date" name="gregorian_date"> -->
         <button type="submit">ذخیره</button>
     </form>
 
-    <script>
+    <!-- <script>
         $(document).ready(function () {
             let datepicker = $("#jalali_date").persianDatepicker({
                 format: 'YYYY/MM/DD',
@@ -52,7 +59,7 @@
                 }
             });
         });
-    </script>
+    </script> -->
 
     <?php
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
