@@ -1,4 +1,6 @@
 <?php
+include "jdf.php"; // اضافه کردن کتابخانه jdf
+
 $conn = new PDO("mysql:host=localhost;dbname=ukvojota_hiasm;charset=utf8", "ukvojota_hiasmadmin", "H72j51300!");
 
 // ذخیره تاریخ در دیتابیس
@@ -6,8 +8,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $shamsi_date = $_POST["date_input"];
     
     // تبدیل شمسی به میلادی
-    $shamsi_to_miladi = new DateTime(jalali_to_gregorian($shamsi_date));
-    $miladi_date = $shamsi_to_miladi->format('Y-m-d'); 
+    list($jy, $jm, $jd) = explode('/', $shamsi_date);
+    list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
+    $miladi_date = "$gy-$gm-$gd"; // فرمت خروجی: YYYY-MM-DD
 
     $stmt = $conn->prepare("INSERT INTO dates_table (date_value) VALUES (:date_value)");
     $stmt->execute(["date_value" => $miladi_date]);
@@ -18,19 +21,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 // دریافت تاریخ برای نمایش
 $stmt = $conn->query("SELECT * FROM dates_table ORDER BY id DESC LIMIT 1");
 $row = $stmt->fetch();
-$saved_date = $row ? gregorian_to_jalali($row["date_value"]) : "تاریخی ثبت نشده";
-
-// تابع تبدیل شمسی به میلادی
-function jalali_to_gregorian($jalali_date) {
-    list($y, $m, $d) = explode('/', $jalali_date);
-    $g_date = jdtogregorian(persian_to_jd($y, $m, $d));
-    return date('Y-m-d', strtotime($g_date));
-}
+$saved_date = $row ? gregorian_to_jalali_format($row["date_value"]) : "تاریخی ثبت نشده";
 
 // تابع تبدیل میلادی به شمسی
-function gregorian_to_jalali($gregorian_date) {
-    list($y, $m, $d) = explode('-', $gregorian_date);
-    return jalali_date("Y/m/d", strtotime("$y-$m-$d"));
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
 }
 ?>
 
