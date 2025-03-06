@@ -21,10 +21,9 @@ $selected_month_id = $_GET['month_id'] ?? $work_months[0]['work_month_id'] ?? nu
 $users = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'")->fetchAll(PDO::FETCH_ASSOC);
 $selected_user_id = $_GET['user_id'] ?? null;
 
-// دریافت روزهای کاری
-$work_days = $pdo->query("SELECT wd.work_day, u.user_id 
-                          FROM Work_Days wd 
-                          LEFT JOIN Users u ON wd.user_id = u.user_id")->fetchAll(PDO::FETCH_ASSOC);
+// دریافت جفت‌های کاری
+$partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day 
+                        FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
 
 // پر کردن خودکار Work_Details
 if ($selected_month_id) {
@@ -36,24 +35,24 @@ if ($selected_month_id) {
         $current_date = $start_date->format('Y-m-d');
         $work_day = jdate('l', strtotime($current_date), '', '', 'gregorian', 'persian');
         
-        $day_users = array_filter($work_days, fn($wd) => $wd['work_day'] === $work_day);
-        $day_user_ids = array_column($day_users, 'user_id');
-        shuffle($day_user_ids);
+        $day_partners = array_filter($partners, fn($p) => $p['work_day'] === $work_day);
+        if (!empty($day_partners)) {
+            $partner = $day_partners[array_rand($day_partners)];
+            $partner1_id = $partner['user_id1'];
+            $partner2_id = $partner['user_id2'] ?? $partner['user_id1']; // اگه user_id2 خالی بود، همون user_id1
+            $agency_id = $partner1_id;
 
-        $partner1_id = $day_user_ids[0] ?? null;
-        $partner2_id = $day_user_ids[1] ?? null;
-        $agency_id = $partner1_id;
-
-        $check = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
-        $check->execute([$selected_month_id, $current_date]);
-        if ($check->fetch()) {
-            $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_id = ?, work_day = ? 
-                           WHERE work_month_id = ? AND work_date = ?")
-                ->execute([$partner1_id, $partner2_id, $agency_id, $work_day, $selected_month_id, $current_date]);
-        } else {
-            $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_id, work_day) 
-                           VALUES (?, ?, ?, ?, ?, ?)")
-                ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_id, $work_day]);
+            $check = $pdo->prepare("SELECT work_detail_id FROM Work_Details WHERE work_month_id = ? AND work_date = ?");
+            $check->execute([$selected_month_id, $current_date]);
+            if ($check->fetch()) {
+                $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_id = ?, work_day = ? 
+                               WHERE work_month_id = ? AND work_date = ?")
+                    ->execute([$partner1_id, $partner2_id, $agency_id, $work_day, $selected_month_id, $current_date]);
+            } else {
+                $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_id, work_day) 
+                               VALUES (?, ?, ?, ?, ?, ?)")
+                    ->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_id, $work_day]);
+            }
         }
         $start_date->modify('+1 day');
     }
