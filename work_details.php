@@ -29,7 +29,7 @@ $users_stmt = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'se
 $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // دریافت همه همکارها برای لیست‌های انتخاب
-$all_partners_stmt = $pdo->query("SELECT p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name 
+$all_partners_stmt = $pdo->query("SELECT p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name, p.work_day
                                   FROM Partners p 
                                   LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
                                   LEFT JOIN Users u2 ON p.user_id2 = u2.user_id");
@@ -75,15 +75,6 @@ if ($selected_month_id) {
         $start_date = new DateTime($month_data['start_date']);
         $end_date = new DateTime($month_data['end_date']);
         
-        $partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
-        $partner_map = [];
-        foreach ($partners as $partner) {
-            if (!isset($partner_map[$partner['work_day']])) {
-                $partner_map[$partner['work_day']] = [];
-            }
-            $partner_map[$partner['work_day']][] = $partner;
-        }
-
         while ($start_date <= $end_date) {
             $current_date = $start_date->format('Y-m-d');
             $jalali_date = gregorian_to_jalali_format($current_date);
@@ -94,18 +85,24 @@ if ($selected_month_id) {
             $check_stmt->execute([$selected_month_id, $current_date]);
             $existing_record = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
-            $day_partners = $partner_map[$work_day] ?? [];
+            $day_partners = array_filter($all_partners, function ($partner) use ($work_day) {
+                return $partner['work_day'] === $work_day;
+            });
+
             if (!empty($day_partners)) {
-                // همکار 1 رو از اولین جفت می‌گیرم
-                $partner1_info = $day_partners[0];
+                $partner1_info = $day_partners[array_rand($day_partners)];
                 $partner1_id = $partner1_info['partner_id'];
 
-                // همکار 2 رو از جفت دوم می‌گیرم (اگه وجود داشته باشه)
-                $partner2_id = $partner1_id; // پیش‌فرض
-                if (count($day_partners) > 1) {
-                    $partner2_id = $day_partners[1]['partner_id'];
-                } else {
-                    // اگه جفت دوم نبود، یه همکار تصادفی از کل همکارها انتخاب می‌کنم
+                // پیدا کردن همکار دوم از جفت‌های دیگه برای همون روز
+                $partner2_id = $partner1_id;
+                foreach ($day_partners as $partner) {
+                    if ($partner['partner_id'] != $partner1_id) {
+                        $partner2_id = $partner['partner_id'];
+                        break;
+                    }
+                }
+                if ($partner2_id == $partner1_id) {
+                    // اگه جفت دیگه‌ای نبود، یه همکار تصادفی از کل همکارها انتخاب می‌کنم
                     $random_partner_stmt = $pdo->query("SELECT partner_id FROM Partners WHERE partner_id != $partner1_id LIMIT 1");
                     $random_partner = $random_partner_stmt->fetchColumn();
                     if ($random_partner) {
@@ -212,7 +209,7 @@ if ($selected_month_id) {
                     </div>
                     <div class="mb-3">
                         <label for="edit_partner1" class="form-label">همکار 1</label>
-                        <select class="form-select" id="edit_partner1" name="partner1_id">
+                        <select class="form-select" id="edit_partner1" name="partner1_id" onchange="updatePartnerOptions()">
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($all_partners as $partner): ?>
                                 <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['user1_name']; ?></option>
@@ -221,7 +218,7 @@ if ($selected_month_id) {
                     </div>
                     <div class="mb-3">
                         <label for="edit_partner2" class="form-label">همکار 2</label>
-                        <select class="form-select" id="edit_partner2" name="partner2_id">
+                        <select class="form-select" id="edit_partner2" name="partner2_id" onchange="updateAgencyOptions()">
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($all_partners as $partner): ?>
                                 <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['user2_name'] ?: $partner['user1_name']; ?></option>
@@ -271,6 +268,10 @@ if ($selected_month_id) {
                 document.getElementById('edit_partner1').value = partner1Id || '';
                 document.getElementById('edit_partner2').value = partner2Id || '';
                 document.getElementById('edit_agency').value = agencyId || partner1Id || ''; // پیش‌فرض آژانس همکار 1
+
+                // به‌روزرسانی اولیه گزینه‌ها
+                updatePartnerOptions();
+                updateAgencyOptions();
             });
         });
 
@@ -279,6 +280,81 @@ if ($selected_month_id) {
             const monthId = document.getElementById('month_select').value;
             if (monthId) {
                 window.location.href = 'work_details.php?month_id=' + monthId;
+            }
+        }
+
+        // به‌روزرسانی گزینه‌های همکار 2 بر اساس همکار 1
+        function updatePartnerOptions() {
+            const partner1Select = document.getElementById('edit_partner1');
+            const partner2Select = document.getElementById('edit_partner2');
+            const partner1Value = partner1Select.value;
+
+            // ذخیره گزینه‌های فعلی
+            const currentPartner2Value = partner2Select.value;
+
+            // حذف همه گزینه‌ها
+            partner2Select.innerHTML = '<option value="">انتخاب کنید</option>';
+
+            // اضافه کردن گزینه‌های جدید (به جز همکار 1)
+            <?php foreach ($all_partners as $partner): ?>
+                if ('<?php echo $partner['partner_id']; ?>' !== partner1Value) {
+                    const option = document.createElement('option');
+                    option.value = '<?php echo $partner['partner_id']; ?>';
+                    option.text = '<?php echo $partner['user2_name'] ?: $partner['user1_name']; ?>';
+                    partner2Select.appendChild(option);
+                }
+            <?php endforeach; ?>
+
+            // بازگرداندن مقدار قبلی اگه هنوز معتبر باشه
+            if (currentPartner2Value && !partner2Select.querySelector(`option[value="${currentPartner2Value}"]`)) {
+                partner2Select.value = '';
+            } else {
+                partner2Select.value = currentPartner2Value || '';
+            }
+            updateAgencyOptions(); // به‌روزرسانی آژانس بعد از تغییر همکار 2
+        }
+
+        // به‌روزرسانی گزینه‌های آژانس بر اساس همکار 1 و همکار 2
+        function updateAgencyOptions() {
+            const partner1Select = document.getElementById('edit_partner1');
+            const partner2Select = document.getElementById('edit_partner2');
+            const agencySelect = document.getElementById('edit_agency');
+            const partner1Value = partner1Select.value;
+            const partner2Value = partner2Select.value;
+
+            // ذخیره گزینه‌های فعلی
+            const currentAgencyValue = agencySelect.value;
+
+            // حذف همه گزینه‌ها
+            agencySelect.innerHTML = '<option value="">انتخاب کنید</option>';
+
+            // اضافه کردن گزینه‌های جدید (فقط همکار 1 و همکار 2)
+            if (partner1Value) {
+                <?php foreach ($all_partners as $partner): ?>
+                    if ('<?php echo $partner['partner_id']; ?>' === partner1Value) {
+                        const option = document.createElement('option');
+                        option.value = '<?php echo $partner['partner_id']; ?>';
+                        option.text = '<?php echo $partner['user1_name']; ?>';
+                        agencySelect.appendChild(option);
+                    }
+                <?php endforeach; ?>
+            }
+            if (partner2Value && partner2Value !== partner1Value) {
+                <?php foreach ($all_partners as $partner): ?>
+                    if ('<?php echo $partner['partner_id']; ?>' === partner2Value) {
+                        const option = document.createElement('option');
+                        option.value = '<?php echo $partner['partner_id']; ?>';
+                        option.text = '<?php echo $partner['user2_name'] ?: $partner['user1_name']; ?>';
+                        agencySelect.appendChild(option);
+                    }
+                <?php endforeach; ?>
+            }
+
+            // بازگرداندن مقدار قبلی اگه هنوز معتبر باشه
+            if (currentAgencyValue && !agencySelect.querySelector(`option[value="${currentAgencyValue}"]`)) {
+                agencySelect.value = partner1Value || '';
+            } else {
+                agencySelect.value = currentAgencyValue || partner1Value || '';
             }
         }
     });
