@@ -87,8 +87,11 @@ if ($selected_month_id) {
             $partner_info = $partner_map[$work_day] ?? null;
             if ($partner_info) {
                 $partner1_id = $partner_info['partner_id'];
-                $partner2_id = $partner_info['partner_id'];
-                $agency_partner_id = $partner1_id; // آژانس پیش‌فرض = همکار 1
+                // برای partner2_id از user_id2 استفاده می‌کنیم تا متفاوت باشه
+                $partner2_stmt = $pdo->prepare("SELECT partner_id FROM Partners WHERE user_id2 = ? AND work_day = ?");
+                $partner2_stmt->execute([$partner_info['user_id2'], $work_day]);
+                $partner2_id = $partner2_stmt->fetchColumn() ?? $partner1_id; // اگه پیدا نشد، همون partner1_id رو نگه دار
+                $agency_partner_id = $partner1_id; // پیش‌فرض آژانس همکار 1
 
                 if ($existing_record) {
                     // اگه وجود داره، فقط به‌روزرسانی کن
@@ -208,7 +211,12 @@ if ($selected_month_id) {
                     </div>
                     <div class="mb-3">
                         <label for="edit_agency" class="form-label">آژانس</label>
-                        <input type="text" class="form-control" id="edit_agency" name="agency_partner_name" readonly>
+                        <select class="form-select" id="edit_agency" name="agency_partner_id">
+                            <option value="">انتخاب کنید</option>
+                            <?php foreach ($partners as $partner): ?>
+                            <option value="<?php echo $partner['partner_id']; ?>"><?php echo $partner['full_name']; ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <button type="submit" class="btn btn-primary">بروزرسانی اطلاعات</button>
                 </form>
@@ -243,23 +251,7 @@ if ($selected_month_id) {
                 document.getElementById('edit_work_date').value = workDate || '';
                 document.getElementById('edit_partner1').value = partner1Id || '';
                 document.getElementById('edit_partner2').value = partner2Id || '';
-                
-                // دریافت نام آژانس به صورت دستی
-                let agencyName = '';
-                if (agencyId) {
-                    fetch('get_agency_name.php?agency_id=' + agencyId)
-                        .then(response => response.text())
-                        .then(data => {
-                            agencyName = data;
-                            document.getElementById('edit_agency').value = agencyName || '';
-                        })
-                        .catch(error => {
-                            console.error('Error fetching agency name:', error);
-                            document.getElementById('edit_agency').value = '';
-                        });
-                } else {
-                    document.getElementById('edit_agency').value = '';
-                }
+                document.getElementById('edit_agency').value = agencyId || '';
             });
         });
 

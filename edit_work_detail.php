@@ -11,19 +11,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $detail_id = $_POST['detail_id'] ?? null;
     $partner1_id = $_POST['partner1_id'] ?? null;
     $partner2_id = $_POST['partner2_id'] ?? null;
+    $agency_partner_id = $_POST['agency_partner_id'] ?? null;
 
-    if (!$detail_id || !$partner1_id || !$partner2_id) {
+    if (!$detail_id || !$partner1_id || !$partner2_id || !$agency_partner_id) {
         die("خطا: اطلاعات ارسالی ناقص است.");
     }
 
     try {
-        $stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ? WHERE work_detail_id = ?");
-        $stmt->execute([$partner1_id, $partner2_id, $detail_id]);
+        error_log("Updating record: detail_id=$detail_id, partner1_id=$partner1_id, partner2_id=$partner2_id, agency_id=$agency_partner_id"); // دیباگ
+        $stmt = $pdo->prepare("UPDATE Work_Details SET partner1_id = ?, partner2_id = ?, agency_partner_id = ? WHERE work_detail_id = ?");
+        $stmt->execute([$partner1_id, $partner2_id, $agency_partner_id, $detail_id]);
 
-        $month_id = $pdo->query("SELECT work_month_id FROM Work_Details WHERE work_detail_id = ?")->fetchColumn();
+        $month_id = $pdo->query("SELECT work_month_id FROM Work_Details WHERE work_detail_id = ?", [$detail_id])->fetchColumn();
         header("Location: work_details.php?month_id=" . $month_id);
         exit;
     } catch (PDOException $e) {
+        error_log("SQL Error: " . $e->getMessage()); // لاگ خطا
         die("خطا در ویرایش اطلاعات کار: " . $e->getMessage());
     }
 } else {
