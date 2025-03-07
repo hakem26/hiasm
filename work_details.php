@@ -42,7 +42,7 @@ if (isset($_GET['work_month_id'])) {
         foreach ($date_range as $date) {
             $work_date = $date->format('Y-m-d');
             $work_day = jdate('l', strtotime($work_date), '', '', 'persian'); // روز به فارسی با نیم‌فاصله
-            error_log("Checking date: $work_date - Day: $work_day");
+            error_log("Checking date: $work_date - Calculated Day: $work_day - Unix Timestamp: " . strtotime($work_date));
 
             // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
             $partner_query = $pdo->prepare("
