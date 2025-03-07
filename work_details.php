@@ -102,6 +102,9 @@ if (isset($_GET['user_id']) && $selected_user_id !== null) {
     });
 } else {
     $filtered_work_details = $work_details; // همه همکاران
+    if (empty($filtered_work_details) && isset($_GET['work_month_id'])) {
+        error_log("No work details loaded for work_month_id: $work_month_id");
+    }
 }
 ?>
 

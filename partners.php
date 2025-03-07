@@ -97,9 +97,9 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <select class="form-select" id="add_work_day" name="work_day" required>
                             <option value="">انتخاب کنید</option>
                             <option value="شنبه">شنبه</option>
-                            <option value="یکشنبه">یک‌شنبه</option>
+                            <option value="یکشنبه">یکشنبه</option>
                             <option value="دوشنبه">دوشنبه</option>
-                            <option value="سهشنبه">سهشنبه</option>
+                            <option value="سه‌شنبه">سه‌شنبه</option>
                             <option value="چهارشنبه">چهارشنبه</option>
                             <option value="پنجشنبه">پنجشنبه</option>
                             <option value="جمعه">جمعه</option>
