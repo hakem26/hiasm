@@ -58,20 +58,22 @@ if (isset($_GET['work_month_id'])) {
             foreach ($partners as $partner) {
                 // بررسی اینکه آیا اطلاعات قبلاً ثبت شده است؟
                 $detail_query = $pdo->prepare("
-                    SELECT * FROM Work_Details WHERE work_date = ? AND work_month_id = ?
+                    SELECT * FROM Work_Details 
+                    WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
                 ");
-                $detail_query->execute([$work_date, $work_month_id]);
+                $detail_query->execute([$work_date, $work_month_id, $partner['partner_id']]);
                 $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
 
                 if (!$existing_detail) {
                     $insert_query = $pdo->prepare("
-                        INSERT INTO Work_Details (work_month_id, work_date, work_day, agency_owner_id) 
-                        VALUES (?, ?, ?, ?)
+                        INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
+                        VALUES (?, ?, ?, ?, ?)
                     ");
-                    $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['user_id1']]);
+                    $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['partner_id'], $partner['user_id1']]);
                 }
 
                 // دریافت اطلاعات نهایی برای نمایش
+                $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
                 $work_details[] = [
                     'work_date' => $work_date,
                     'work_day' => $work_day,
@@ -80,7 +82,7 @@ if (isset($_GET['work_month_id'])) {
                     'user2' => $partner['user2'],
                     'user_id1' => $partner['user_id1'],
                     'user_id2' => $partner['user_id2'],
-                    'agency_owner_id' => $existing_detail ? $existing_detail['agency_owner_id'] : $partner['user_id1']
+                    'agency_owner_id' => $agency_owner_id
                 ];
             }
         }
