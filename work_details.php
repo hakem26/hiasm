@@ -50,9 +50,9 @@ if (isset($_GET['work_month_id'])) {
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE p.work_day = ? OR p.work_day = ? -- تطبیق با "سشنبه" هم
+                WHERE p.work_day = ?
             ");
-            $partner_query->execute([$work_day, str_replace('ش', 'س', $work_day)]); // تطبیق "سه‌شنبه" و "سشنبه"
+            $partner_query->execute([$work_day]); // فقط با $work_day اصلی
             $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($partners)) {
