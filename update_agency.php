@@ -1,5 +1,5 @@
 <?php
-require_once 'db.php'; // فایل اتصال به دیتابیس (فرض می‌کنم $pdo اینجاست)
+require_once 'db.php'; // فایل اتصال به دیتابیس
 
 if (isset($_POST['work_date']) && isset($_POST['partner_id']) && isset($_POST['agency_owner_id'])) {
     $work_date = $_POST['work_date'];

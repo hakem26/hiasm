@@ -1,18 +1,23 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: index.php");
     exit;
 }
-require_once 'db.php'; // فایل اتصال به دیتابیس (فرض می‌کنم $pdo اینجاست)
-require_once 'jdf.php'; // برای تبدیل تاریخ
+require_once 'header.php';
+require_once 'db.php';
+require_once 'jdf.php';
 
-function gregorian_to_jalali_format($date) {
-    return jdate('Y/m/d', strtotime($date));
+// تابع تبدیل میلادی به شمسی
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd";
 }
 
 // دریافت لیست ماه‌های کاری
-$months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+$stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+$work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // دریافت کاربران برای فیلتر
 $users = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'")->fetchAll(PDO::FETCH_ASSOC);
@@ -53,17 +58,17 @@ if (isset($_GET['work_month_id'])) {
             foreach ($partners as $partner) {
                 // بررسی اینکه آیا اطلاعات قبلاً ثبت شده است؟
                 $detail_query = $pdo->prepare("
-                    SELECT * FROM Work_Details WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
+                    SELECT * FROM Work_Details WHERE work_date = ? AND work_month_id = ?
                 ");
-                $detail_query->execute([$work_date, $work_month_id, $partner['partner_id']]);
+                $detail_query->execute([$work_date, $work_month_id]);
                 $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
 
                 if (!$existing_detail) {
                     $insert_query = $pdo->prepare("
-                        INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO Work_Details (work_month_id, work_date, work_day, agency_owner_id) 
+                        VALUES (?, ?, ?, ?)
                     ");
-                    $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['partner_id'], $partner['user_id1']]);
+                    $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['user_id1']]);
                 }
 
                 // دریافت اطلاعات نهایی برای نمایش
@@ -82,7 +87,7 @@ if (isset($_GET['work_month_id'])) {
     }
 }
 
-// فیلتر بر اساس همکار (اگه انتخاب شده باشه)
+// فیلتر بر اساس همکار
 $filtered_work_details = $work_details;
 if (isset($_GET['user_id'])) {
     $user_id = (int)$_GET['user_id'];
@@ -92,28 +97,20 @@ if (isset($_GET['user_id'])) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="fa">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اطلاعات کاری</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-</head>
-<body dir="rtl">
+<div class="container-fluid mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="card-title">اطلاعات کاری</h5>
+    </div>
 
-<div class="container mt-3">
-    <h2>انتخاب ماه کاری</h2>
-    <form method="GET" class="row g-3">
+    <form method="GET" class="row g-3 mb-3">
         <div class="col-auto">
             <select name="work_month_id" class="form-select" onchange="this.form.submit()">
-                <option value="">انتخاب کنید</option>
-                <?php while ($month = $months->fetch(PDO::FETCH_ASSOC)): ?>
+                <option value="">انتخاب ماه</option>
+                <?php foreach ($work_months as $month): ?>
                     <option value="<?= $month['work_month_id'] ?>" <?= isset($_GET['work_month_id']) && $_GET['work_month_id'] == $month['work_month_id'] ? 'selected' : '' ?>>
                         <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
                     </option>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             </select>
         </div>
         <div class="col-auto">
@@ -129,8 +126,7 @@ if (isset($_GET['user_id'])) {
     </form>
 
     <?php if (!empty($filtered_work_details)): ?>
-        <h2 class="mt-4">جدول اطلاعات کاری</h2>
-        <table class="table table-striped">
+        <table class="table table-light table-hover">
             <thead>
                 <tr>
                     <th>تاریخ</th>
@@ -160,10 +156,12 @@ if (isset($_GET['user_id'])) {
             </tbody>
         </table>
     <?php elseif (isset($_GET['work_month_id'])): ?>
-        <div class="alert alert-warning mt-3">اطلاعاتی وجود ندارد.</div>
+        <div class="alert alert-warning text-center">اطلاعاتی وجود ندارد.</div>
     <?php endif; ?>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
     $(".agency-select").change(function() {
@@ -182,5 +180,4 @@ $(document).ready(function() {
 });
 </script>
 
-</body>
-</html>
+<?php require_once 'footer.php'; ?>
