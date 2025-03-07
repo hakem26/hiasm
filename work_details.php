@@ -42,6 +42,7 @@ if (isset($_GET['work_month_id'])) {
         foreach ($date_range as $date) {
             $work_date = $date->format('Y-m-d');
             $work_day = jdate('l', strtotime($work_date), '', '', 'persian'); // روز به فارسی با نیم‌فاصله
+            error_log("Checking date: $work_date - Day: $work_day");
 
             // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
             $partner_query = $pdo->prepare("
@@ -58,7 +59,7 @@ if (isset($_GET['work_month_id'])) {
             if (empty($partners)) {
                 error_log("No partners found for work_day: $work_day on date: $work_date");
             } else {
-                error_log("Partners found for work_day: $work_day on date: $work_date - Count: " . count($partners));
+                error_log("Partners found for work_day: $work_day on date: $work_date - Count: " . count($partners) . " - Partner IDs: " . implode(', ', array_column($partners, 'partner_id')));
             }
 
             foreach ($partners as $partner) {
@@ -76,6 +77,7 @@ if (isset($_GET['work_month_id'])) {
                         VALUES (?, ?, ?, ?, ?)
                     ");
                     $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['partner_id'], $partner['user_id1']]);
+                    error_log("Inserted new Work_Detail for date: $work_date, work_day: $work_day, partner_id: {$partner['partner_id']}");
                 }
 
                 // دریافت اطلاعات نهایی برای نمایش
