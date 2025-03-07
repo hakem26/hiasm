@@ -15,10 +15,26 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
+// تابع محاسبه روز هفته با PHP خالص (برای مقایسه)
+function get_day_of_week($date) {
+    $day_of_week = date('l', strtotime($date));
+    $persian_days = [
+        'Monday' => 'دوشنبه',
+        'Tuesday' => 'سه‌شنبه',
+        'Wednesday' => 'چهارشنبه',
+        'Thursday' => 'پنجشنبه',
+        'Friday' => 'جمعه',
+        'Saturday' => 'شنبه',
+        'Sunday' => 'یکشنبه'
+    ];
+    return $persian_days[$day_of_week];
+}
+
 // تست دستی jdate برای یه تاریخ مشخص
 $test_date = '2025-03-04'; // این تاریخ سه‌شنبه است
-$test_day = jdate('l', strtotime($test_date), '', '', 'persian');
-error_log("Test jdate for date: $test_date - Calculated Day: $test_day");
+$test_day_jdate = jdate('l', strtotime($test_date), '', '', 'persian');
+$test_day_php = get_day_of_week($test_date);
+error_log("Test jdate for date: $test_date - jdate Day: $test_day_jdate - PHP Day: $test_day_php");
 
 // دریافت لیست ماه‌های کاری
 $stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
@@ -46,8 +62,9 @@ if (isset($_GET['work_month_id'])) {
 
         foreach ($date_range as $date) {
             $work_date = $date->format('Y-m-d');
-            $work_day = jdate('l', strtotime($work_date), '', '', 'persian'); // روز به فارسی با نیم‌فاصله
-            error_log("Checking date: $work_date - Calculated Day: $work_day");
+            $work_day_jdate = jdate('l', strtotime($work_date), '', '', 'persian'); // روز با jdate
+            $work_day_php = get_day_of_week($work_date); // روز با PHP خالص
+            error_log("Checking date: $work_date - jdate Day: $work_day_jdate - PHP Day: $work_day_php");
 
             // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
             $partner_query = $pdo->prepare("
@@ -58,13 +75,13 @@ if (isset($_GET['work_month_id'])) {
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
                 WHERE p.work_day = ?
             ");
-            $partner_query->execute([$work_day]);
+            $partner_query->execute([$work_day_jdate]);
             $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($partners)) {
-                error_log("No partners found for work_day: $work_day on date: $work_date");
+                error_log("No partners found for work_day: $work_day_jdate on date: $work_date");
             } else {
-                error_log("Partners found for work_day: $work_day on date: $work_date - Count: " . count($partners) . " - Partner IDs: " . implode(', ', array_column($partners, 'partner_id')) . " - Stored Work Days: " . implode(', ', array_column($partners, 'stored_work_day')));
+                error_log("Partners found for work_day: $work_day_jdate on date: $work_date - Count: " . count($partners) . " - Partner IDs: " . implode(', ', array_column($partners, 'partner_id')) . " - Stored Work Days: " . implode(', ', array_column($partners, 'stored_work_day')));
             }
 
             foreach ($partners as $partner) {
@@ -81,15 +98,15 @@ if (isset($_GET['work_month_id'])) {
                         INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
                         VALUES (?, ?, ?, ?, ?)
                     ");
-                    $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['partner_id'], $partner['user_id1']]);
-                    error_log("Inserted new Work_Detail for date: $work_date, work_day: $work_day, partner_id: {$partner['partner_id']}");
+                    $insert_query->execute([$work_month_id, $work_date, $work_day_jdate, $partner['partner_id'], $partner['user_id1']]);
+                    error_log("Inserted new Work_Detail for date: $work_date, work_day: $work_day_jdate, partner_id: {$partner['partner_id']}");
                 }
 
                 // دریافت اطلاعات نهایی برای نمایش
                 $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
                 $work_details[] = [
                     'work_date' => $work_date,
-                    'work_day' => $work_day,
+                    'work_day' => $work_day_jdate,
                     'partner_id' => $partner['partner_id'],
                     'user1' => $partner['user1'],
                     'user2' => $partner['user2'],
@@ -119,7 +136,7 @@ if (isset($_GET['user_id']) && !empty($_GET['user_id'])) {
 
 <div class="container-fluid mt-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title">اطلاعات کاری</h5>
+        <h5 card-title">اطلاعات کاری</h5>
     </div>
 
     <form method="GET" class="row g-3 mb-3">
