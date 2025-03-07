@@ -1,208 +1,137 @@
 <?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
-    exit;
-}
-require_once 'header.php';
-require_once 'db.php';
-require_once 'jdf.php';
+require 'db.php'; // فایل اتصال به دیتابیس
 
-// تابع تبدیل تاریخ
-function gregorian_to_jalali_format($date) {
-    return jdate('Y/m/d', strtotime($date));
-}
+// دریافت لیست ماه‌های کاری
+$months = $conn->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
 
-// دریافت ماه‌های کاری
-$work_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC")->fetchAll(PDO::FETCH_ASSOC);
-$selected_month_id = $_GET['month_id'] ?? $work_months[0]['work_month_id'] ?? null;
+// دریافت اطلاعات بر اساس ماه کاری انتخاب شده
+$work_details = [];
+if (isset($_GET['work_month_id'])) {
+    $work_month_id = (int)$_GET['work_month_id'];
 
-// دریافت کاربران
-$users = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'")->fetchAll(PDO::FETCH_ASSOC);
-$selected_user_id = $_GET['user_id'] ?? null;
+    // دریافت تاریخ شروع و پایان ماه کاری
+    $month_query = $conn->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
+    $month_query->execute([$work_month_id]);
+    $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
-// دریافت جفت‌های کاری
-$partners = $pdo->query("SELECT partner_id, user_id1, user_id2, work_day 
-                        FROM Partners")->fetchAll(PDO::FETCH_ASSOC);
+    if ($month) {
+        $start_date = new DateTime($month['start_date']);
+        $end_date = new DateTime($month['end_date']);
+        $interval = new DateInterval('P1D'); // افزایش یک روزه
+        $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
-// پر کردن خودکار Work_Details
-if ($selected_month_id) {
-    // پاک کردن همه ردیف‌های مربوط به این ماه
-    $pdo->prepare("DELETE FROM Work_Details WHERE work_month_id = ?")->execute([$selected_month_id]);
+        foreach ($date_range as $date) {
+            $work_date = $date->format('Y-m-d');
+            $work_day = $date->format('l'); // دریافت نام روز هفته
 
-    // بازسازی Work_Details با کوئری SQL
-    $month = $pdo->query("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = $selected_month_id")->fetch(PDO::FETCH_ASSOC);
-    $start_date = new DateTime($month['start_date']);
-    $end_date = new DateTime($month['end_date']);
+            // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
+            $partner_query = $conn->prepare("
+                SELECT p.partner_id, u1.full_name AS user1, u2.full_name AS user2, p.user_id1, p.user_id2
+                FROM Partners p
+                JOIN Users u1 ON p.user_id1 = u1.user_id
+                JOIN Users u2 ON p.user_id2 = u2.user_id
+                WHERE p.work_day = ?
+            ");
+            $partner_query->execute([$work_day]);
+            $partner = $partner_query->fetch(PDO::FETCH_ASSOC);
 
-    $days = [];
-    while ($start_date <= $end_date) {
-        $current_date = $start_date->format('Y-m-d');
-        $work_day = jdate('l', strtotime($current_date), '', '', 'gregorian', 'persian');
-        $days[] = ['date' => $current_date, 'work_day' => $work_day];
-        $start_date->modify('+1 day');
-    }
+            if ($partner) {
+                // بررسی اینکه آیا اطلاعات قبلاً ثبت شده است؟
+                $detail_query = $conn->prepare("
+                    SELECT * FROM Work_Details WHERE work_date = ? AND work_month_id = ?
+                ");
+                $detail_query->execute([$work_date, $work_month_id]);
+                $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
 
-    foreach ($days as $day) {
-        $current_date = $day['date'];
-        $work_day = $day['work_day'];
+                if (!$existing_detail) {
+                    // ثبت اطلاعات جدید در صورت عدم وجود
+                    $insert_query = $conn->prepare("
+                        INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
+                        VALUES (?, ?, ?, ?, ?)
+                    ");
+                    $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['partner_id'], $partner['user_id1']]);
+                }
 
-        $day_partners = array_filter($partners, fn($p) => $p['work_day'] === $work_day);
-        if (!empty($day_partners)) {
-            foreach ($day_partners as $partner) {
-                $partner1_id = $partner['user_id1'];
-                $partner2_id = $partner['user_id2'] ?? $partner['user_id1'];
-                $agency_partner_id = $partner1_id;
-
-                $stmt = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner1_id, partner2_id, agency_partner_id, work_day) 
-                                       VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$selected_month_id, $current_date, $partner1_id, $partner2_id, $agency_partner_id, $work_day]);
+                // دریافت اطلاعات نهایی برای نمایش
+                $work_details[] = [
+                    'work_date' => $work_date,
+                    'work_day' => $work_day,
+                    'partner_id' => $partner['partner_id'],
+                    'user1' => $partner['user1'],
+                    'user2' => $partner['user2'],
+                    'user_id1' => $partner['user_id1'],
+                    'user_id2' => $partner['user_id2'],
+                    'agency_owner_id' => $existing_detail ? $existing_detail['agency_owner_id'] : $partner['user_id1']
+                ];
             }
         }
     }
 }
-
-// نمایش اطلاعات
-$work_details = [];
-if ($selected_month_id) {
-    $query = "
-        SELECT wd.*, 
-               u1.full_name AS partner1_name, 
-               u2.full_name AS partner2_name, 
-               u3.full_name AS agency_name 
-        FROM Work_Details wd 
-        LEFT JOIN Users u1 ON wd.partner1_id = u1.user_id 
-        LEFT JOIN Users u2 ON wd.partner2_id = u2.user_id 
-        LEFT JOIN Users u3 ON wd.agency_partner_id = u3.user_id 
-        WHERE wd.work_month_id = ? 
-    ";
-    if ($selected_user_id) {
-        $query .= " AND (wd.partner1_id = ? OR wd.partner2_id = ?)";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$selected_month_id, $selected_user_id, $selected_user_id]);
-    } else {
-        $query .= " ORDER BY wd.work_date";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$selected_month_id]);
-    }
-    $work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
 ?>
 
-<div class="container mt-3">
-    <select class="form-select mb-3" onchange="location.href='work_details.php?month_id='+this.value">
-        <option value="">انتخاب ماه</option>
-        <?php foreach ($work_months as $m): ?>
-            <option value="<?= $m['work_month_id'] ?>" <?= $selected_month_id == $m['work_month_id'] ? 'selected' : '' ?>>
-                <?= gregorian_to_jalali_format($m['start_date']) ?>
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اطلاعات کاری</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+
+<h2>انتخاب ماه کاری</h2>
+<form method="GET">
+    <select name="work_month_id" onchange="this.form.submit()">
+        <option value="">انتخاب کنید</option>
+        <?php foreach ($months as $month): ?>
+            <option value="<?= $month['work_month_id'] ?>" <?= isset($_GET['work_month_id']) && $_GET['work_month_id'] == $month['work_month_id'] ? 'selected' : '' ?>>
+                <?= $month['start_date'] ?> تا <?= $month['end_date'] ?>
             </option>
         <?php endforeach; ?>
     </select>
+</form>
 
-    <select class="form-select mb-3" onchange="location.href='work_details.php?month_id=<?= $selected_month_id ?>&user_id='+this.value">
-        <option value="">همه همکاران</option>
-        <?php foreach ($users as $u): ?>
-            <option value="<?= $u['user_id'] ?>" <?= $selected_user_id == $u['user_id'] ? 'selected' : '' ?>>
-                <?= $u['full_name'] ?>
-            </option>
+<?php if (!empty($work_details)): ?>
+    <h2>جدول اطلاعات کاری</h2>
+    <table border="1">
+        <tr>
+            <th>تاریخ</th>
+            <th>روز هفته</th>
+            <th>همکاران</th>
+            <th>آژانس</th>
+        </tr>
+        <?php foreach ($work_details as $work): ?>
+            <tr>
+                <td><?= $work['work_date'] ?></td>
+                <td><?= $work['work_day'] ?></td>
+                <td><?= $work['user1'] ?> - <?= $work['user2'] ?></td>
+                <td>
+                    <select class="agency-select" data-id="<?= $work['work_date'] ?>">
+                        <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
+                            <?= $work['user1'] ?>
+                        </option>
+                        <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $work['user_id2'] ? 'selected' : '' ?>>
+                            <?= $work['user2'] ?>
+                        </option>
+                    </select>
+                </td>
+            </tr>
         <?php endforeach; ?>
-    </select>
-
-    <?php if ($selected_month_id && $work_details): ?>
-        <table class="table table-light">
-            <thead>
-                <tr>
-                    <th>تاریخ</th>
-                    <th>روز</th>
-                    <th>همکار 1</th>
-                    <th>همکار 2</th>
-                    <th>آژانس</th>
-                    <th>عملیات</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($work_details as $d): ?>
-                    <tr>
-                        <td><?= gregorian_to_jalali_format($d['work_date']) ?></td>
-                        <td><?= $d['work_day'] ?></td>
-                        <td><?= $d['partner1_name'] ?? '-' ?></td>
-                        <td><?= $d['partner2_name'] ?? '-' ?></td>
-                        <td><?= $d['agency_name'] ?? '-' ?></td>
-                        <td>
-                            <button class="btn btn-primary btn-sm edit-btn" 
-                                    data-id="<?= $d['work_detail_id'] ?>" 
-                                    data-partner1="<?= $d['partner1_id'] ?? '' ?>" 
-                                    data-partner1-name="<?= $d['partner1_name'] ?? '' ?>" 
-                                    data-partner2="<?= $d['partner2_id'] ?? '' ?>" 
-                                    data-partner2-name="<?= $d['partner2_name'] ?? '' ?>" 
-                                    data-agency="<?= $d['agency_partner_id'] ?? '' ?>">
-                                ویرایش
-                            </button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    <?php elseif ($selected_month_id): ?>
-        <div class="alert alert-warning">اطلاعاتی وجود ندارد.</div>
-    <?php endif; ?>
-</div>
-
-<!-- مودال ویرایش -->
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5>ویرایش آژانس</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editForm" method="POST" action="edit_work_detail.php">
-                    <input type="hidden" name="detail_id" id="edit_id">
-                    <div class="mb-3">
-                        <label>همکار 1</label>
-                        <input type="text" class="form-control" id="edit_partner1" readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label>همکار 2</label>
-                        <input type="text" class="form-control" id="edit_partner2" readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label>آژانس</label>
-                        <select class="form-select" name="agency_partner_id" id="edit_agency">
-                            <option value="">انتخاب</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">ذخیره</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+    </table>
+<?php endif; ?>
 
 <script>
-document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const modal = new bootstrap.Modal(document.getElementById('editModal'));
-        document.getElementById('edit_id').value = btn.dataset.id;
-        document.getElementById('edit_partner1').value = btn.dataset.partner1Name;
-        document.getElementById('edit_partner2').value = btn.dataset.partner2Name;
-        const agencySelect = document.getElementById('edit_agency');
-        agencySelect.innerHTML = '<option value="">انتخاب</option>';
-        const partners = [
-            { id: btn.dataset.partner1, name: btn.dataset.partner1Name },
-            { id: btn.dataset.partner2, name: btn.dataset.partner2Name }
-        ].filter(p => p.id);
-        partners.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p.id;
-            option.text = p.name;
-            agencySelect.appendChild(option);
+$(document).ready(function () {
+    $(".agency-select").change(function () {
+        var work_date = $(this).data("id");
+        var agency_owner_id = $(this).val();
+
+        $.post("update_agency.php", { work_date: work_date, agency_owner_id: agency_owner_id }, function (response) {
+            alert(response);
         });
-        agencySelect.value = btn.dataset.agency;
-        modal.show();
     });
 });
 </script>
 
-<?php require_once 'footer.php'; ?>
+</body>
+</html>
