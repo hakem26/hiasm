@@ -15,6 +15,20 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
+// تبدیل روز انگلیسی به فارسی بدون فاصله
+function english_to_persian_day($english_day) {
+    $days = [
+        'Saturday' => 'شنبه',
+        'Sunday' => 'یکشنبه',
+        'Monday' => 'دوشنبه',
+        'Tuesday' => 'سهشنبه',
+        'Wednesday' => 'چهارشنبه',
+        'Thursday' => 'پنجشنبه',
+        'Friday' => 'جمعه'
+    ];
+    return $days[$english_day] ?? $english_day;
+}
+
 // دریافت لیست ماه‌های کاری
 $stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
 $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -41,7 +55,8 @@ if (isset($_GET['work_month_id'])) {
 
         foreach ($date_range as $date) {
             $work_date = $date->format('Y-m-d');
-            $work_day = jdate('l', strtotime($work_date), '', '', 'gregorian', 'persian');
+            $work_day_english = $date->format('l'); // روز به انگلیسی
+            $work_day_persian = english_to_persian_day($work_day_english); // تبدیل به فارسی بدون فاصله
 
             // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
             $partner_query = $pdo->prepare("
@@ -52,8 +67,13 @@ if (isset($_GET['work_month_id'])) {
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
                 WHERE p.work_day = ?
             ");
-            $partner_query->execute([$work_day]);
+            $partner_query->execute([$work_day_persian]);
             $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($partners)) {
+                // اگر جفتی پیدا نشد، برای دیباگ چاپ کن
+                error_log("No partners found for work_day: $work_day_persian on date: $work_date");
+            }
 
             foreach ($partners as $partner) {
                 // بررسی اینکه آیا اطلاعات قبلاً ثبت شده است؟
@@ -69,14 +89,14 @@ if (isset($_GET['work_month_id'])) {
                         INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
                         VALUES (?, ?, ?, ?, ?)
                     ");
-                    $insert_query->execute([$work_month_id, $work_date, $work_day, $partner['partner_id'], $partner['user_id1']]);
+                    $insert_query->execute([$work_month_id, $work_date, $work_day_persian, $partner['partner_id'], $partner['user_id1']]);
                 }
 
                 // دریافت اطلاعات نهایی برای نمایش
                 $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
                 $work_details[] = [
                     'work_date' => $work_date,
-                    'work_day' => $work_day,
+                    'work_day' => $work_day_persian,
                     'partner_id' => $partner['partner_id'],
                     'user1' => $partner['user1'],
                     'user2' => $partner['user2'],
@@ -91,11 +111,14 @@ if (isset($_GET['work_month_id'])) {
 
 // فیلتر بر اساس همکار
 $filtered_work_details = $work_details;
-if (isset($_GET['user_id'])) {
+if (isset($_GET['user_id']) && $selected_user_id !== null) {
     $user_id = (int)$_GET['user_id'];
     $filtered_work_details = array_filter($work_details, function($detail) use ($user_id) {
         return $detail['user_id1'] == $user_id || $detail['user_id2'] == $user_id;
     });
+} else {
+    // اگه "همه همکاران" انتخاب شده، همه داده‌ها رو نشون بده
+    $filtered_work_details = $work_details;
 }
 ?>
 
@@ -117,7 +140,7 @@ if (isset($_GET['user_id'])) {
         </div>
         <div class="col-auto">
             <select name="user_id" class="form-select" onchange="this.form.submit()">
-                <option value="">همه همکاران</option>
+                <option value="" <?= !isset($_GET['user_id']) ? 'selected' : '' ?>>همه همکاران</option>
                 <?php foreach ($users as $user): ?>
                     <option value="<?= $user['user_id'] ?>" <?= isset($_GET['user_id']) && $_GET['user_id'] == $user['user_id'] ? 'selected' : '' ?>>
                         <?= $user['full_name'] ?>
