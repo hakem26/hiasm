@@ -15,6 +15,11 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
+// تست دستی jdate برای یه تاریخ مشخص
+$test_date = '2025-03-04'; // این تاریخ سه‌شنبه است
+$test_day = jdate('l', strtotime($test_date), '', '', 'persian');
+error_log("Test jdate for date: $test_date - Calculated Day: $test_day");
+
 // دریافت لیست ماه‌های کاری
 $stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
 $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -42,11 +47,11 @@ if (isset($_GET['work_month_id'])) {
         foreach ($date_range as $date) {
             $work_date = $date->format('Y-m-d');
             $work_day = jdate('l', strtotime($work_date), '', '', 'persian'); // روز به فارسی با نیم‌فاصله
-            error_log("Checking date: $work_date - Calculated Day: $work_day - Unix Timestamp: " . strtotime($work_date));
+            error_log("Checking date: $work_date - Calculated Day: $work_day");
 
             // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
             $partner_query = $pdo->prepare("
-                SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
+                SELECT p.partner_id, p.work_day AS stored_work_day, u1.user_id AS user_id1, u1.full_name AS user1, 
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
@@ -59,7 +64,7 @@ if (isset($_GET['work_month_id'])) {
             if (empty($partners)) {
                 error_log("No partners found for work_day: $work_day on date: $work_date");
             } else {
-                error_log("Partners found for work_day: $work_day on date: $work_date - Count: " . count($partners) . " - Partner IDs: " . implode(', ', array_column($partners, 'partner_id')));
+                error_log("Partners found for work_day: $work_day on date: $work_date - Count: " . count($partners) . " - Partner IDs: " . implode(', ', array_column($partners, 'partner_id')) . " - Stored Work Days: " . implode(', ', array_column($partners, 'stored_work_day')));
             }
 
             foreach ($partners as $partner) {
