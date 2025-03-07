@@ -50,13 +50,15 @@ if (isset($_GET['work_month_id'])) {
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE p.work_day = ?
+                WHERE p.work_day = ? OR p.work_day = ? -- تطبیق با "سشنبه" هم
             ");
-            $partner_query->execute([$work_day]);
+            $partner_query->execute([$work_day, str_replace('ش', 'س', $work_day)]); // تطبیق "سه‌شنبه" و "سشنبه"
             $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($partners)) {
                 error_log("No partners found for work_day: $work_day on date: $work_date");
+            } else {
+                error_log("Partners found for work_day: $work_day on date: $work_date - Count: " . count($partners));
             }
 
             foreach ($partners as $partner) {
@@ -95,7 +97,7 @@ if (isset($_GET['work_month_id'])) {
 
 // فیلتر بر اساس همکار
 $filtered_work_details = $work_details;
-if (isset($_GET['user_id']) && $selected_user_id !== null) {
+if (isset($_GET['user_id']) && !empty($_GET['user_id'])) {
     $user_id = (int)$_GET['user_id'];
     $filtered_work_details = array_filter($work_details, function($detail) use ($user_id) {
         return $detail['user_id1'] == $user_id || $detail['user_id2'] == $user_id;
@@ -126,7 +128,7 @@ if (isset($_GET['user_id']) && $selected_user_id !== null) {
         </div>
         <div class="col-auto">
             <select name="user_id" class="form-select" onchange="this.form.submit()">
-                <option value="" <?= !isset($_GET['user_id']) ? 'selected' : '' ?>>همه همکاران</option>
+                <option value="" <?= !isset($_GET['user_id']) || empty($_GET['user_id']) ? 'selected' : '' ?>>همه همکاران</option>
                 <?php foreach ($users as $user): ?>
                     <option value="<?= $user['user_id'] ?>" <?= isset($_GET['user_id']) && $_GET['user_id'] == $user['user_id'] ? 'selected' : '' ?>>
                         <?= $user['full_name'] ?>
