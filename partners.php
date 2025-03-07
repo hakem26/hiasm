@@ -96,13 +96,13 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <label for="add_work_day" class="form-label">روز هفته</label>
                         <select class="form-select" id="add_work_day" name="work_day" required>
                             <option value="">انتخاب کنید</option>
-                            <option value="شنبه">شنبه</option>
-                            <option value="یکشنبه">یکشنبه</option>
-                            <option value="دوشنبه">دوشنبه</option>
-                            <option value="سه‌شنبه">سه‌شنبه</option>
-                            <option value="چهارشنبه">چهارشنبه</option>
-                            <option value="پنجشنبه">پنجشنبه</option>
-                            <option value="جمعه">جمعه</option>
+                            <option value="1">شنبه</option>
+                            <option value="2">یکشنبه</option>
+                            <option value="3">دوشنبه</option>
+                            <option value="4">سه‌شنبه</option>
+                            <option value="5">چهارشنبه</option>
+                            <option value="6">پنجشنبه</option>
+                            <option value="7">جمعه</option>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary">ثبت همکار</button>

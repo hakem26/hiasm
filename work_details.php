@@ -15,26 +15,19 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
-// تابع محاسبه روز هفته با PHP خالص (برای مقایسه)
-function get_day_of_week($date) {
-    $day_of_week = date('l', strtotime($date));
-    $persian_days = [
-        'Monday' => 'دوشنبه',
-        'Tuesday' => 'سه‌شنبه',
-        'Wednesday' => 'چهارشنبه',
-        'Thursday' => 'پنجشنبه',
-        'Friday' => 'جمعه',
-        'Saturday' => 'شنبه',
-        'Sunday' => 'یکشنبه'
+// تابع تبدیل عدد روز به نام روز (کامل با همه روزها)
+function number_to_day($day_number) {
+    $days = [
+        1 => 'شنبه',
+        2 => 'یکشنبه',
+        3 => 'دوشنبه',
+        4 => 'سه‌شنبه',
+        5 => 'چهارشنبه',
+        6 => 'پنجشنبه',
+        7 => 'جمعه'
     ];
-    return $persian_days[$day_of_week];
+    return $days[$day_number] ?? 'نامشخص';
 }
-
-// تست دستی jdate برای یه تاریخ مشخص
-$test_date = '2025-03-04'; // این تاریخ سه‌شنبه است
-$test_day_jdate = jdate('l', strtotime($test_date), '', '', 'persian');
-$test_day_php = get_day_of_week($test_date);
-error_log("Test jdate for date: $test_date - jdate Day: $test_day_jdate - PHP Day: $test_day_php");
 
 // دریافت لیست ماه‌های کاری
 $stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
@@ -62,26 +55,28 @@ if (isset($_GET['work_month_id'])) {
 
         foreach ($date_range as $date) {
             $work_date = $date->format('Y-m-d');
-            $work_day_jdate = jdate('l', strtotime($work_date), '', '', 'persian'); // روز با jdate
-            $work_day_php = get_day_of_week($work_date); // روز با PHP خالص
-            error_log("Checking date: $work_date - jdate Day: $work_day_jdate - PHP Day: $work_day_php");
+            $day_number_php = (int)date('N', strtotime($work_date)); // 1 (دوشنبه) تا 7 (یکشنبه)
+            // تبدیل به سیستم ما: 1=شنبه، 2=یکشنبه، 3=دوشنبه، 4=سه‌شنبه، 5=چهارشنبه، 6=پنجشنبه، 7=جمعه
+            $adjusted_day_number = ($day_number_php + 5) % 7;
+            if ($adjusted_day_number == 0) $adjusted_day_number = 7; // تنظیم برای روز جمعه
+            $work_day_display = number_to_day($adjusted_day_number); // برای نمایش
 
             // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
             $partner_query = $pdo->prepare("
-                SELECT p.partner_id, p.work_day AS stored_work_day, u1.user_id AS user_id1, u1.full_name AS user1, 
+                SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
                 WHERE p.work_day = ?
             ");
-            $partner_query->execute([$work_day_jdate]);
+            $partner_query->execute([$adjusted_day_number]);
             $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($partners)) {
-                error_log("No partners found for work_day: $work_day_jdate on date: $work_date");
+                error_log("No partners found for day_number: $adjusted_day_number (Display: $work_day_display) on date: $work_date");
             } else {
-                error_log("Partners found for work_day: $work_day_jdate on date: $work_date - Count: " . count($partners) . " - Partner IDs: " . implode(', ', array_column($partners, 'partner_id')) . " - Stored Work Days: " . implode(', ', array_column($partners, 'stored_work_day')));
+                error_log("Partners found for day_number: $adjusted_day_number (Display: $work_day_display) on date: $work_date - Count: " . count($partners) . " - Partner IDs: " . implode(', ', array_column($partners, 'partner_id')));
             }
 
             foreach ($partners as $partner) {
@@ -98,15 +93,15 @@ if (isset($_GET['work_month_id'])) {
                         INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
                         VALUES (?, ?, ?, ?, ?)
                     ");
-                    $insert_query->execute([$work_month_id, $work_date, $work_day_jdate, $partner['partner_id'], $partner['user_id1']]);
-                    error_log("Inserted new Work_Detail for date: $work_date, work_day: $work_day_jdate, partner_id: {$partner['partner_id']}");
+                    $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner['partner_id'], $partner['user_id1']]);
+                    error_log("Inserted new Work_Detail for date: $work_date, day_number: $adjusted_day_number, partner_id: {$partner['partner_id']}");
                 }
 
                 // دریافت اطلاعات نهایی برای نمایش
                 $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
                 $work_details[] = [
                     'work_date' => $work_date,
-                    'work_day' => $work_day_jdate,
+                    'work_day' => $work_day_display,
                     'partner_id' => $partner['partner_id'],
                     'user1' => $partner['user1'],
                     'user2' => $partner['user2'],
@@ -136,7 +131,7 @@ if (isset($_GET['user_id']) && !empty($_GET['user_id'])) {
 
 <div class="container-fluid mt-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 card-title">اطلاعات کاری</h5>
+        <h5 class="card-title">اطلاعات کاری</h5>
     </div>
 
     <form method="GET" class="row g-3 mb-3">
