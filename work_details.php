@@ -4,7 +4,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit;
 }
-require_once 'db.php'; // فایل اتصال به دیتابیس
+require_once 'db.php'; // فایل اتصال به دیتابیس (فرض می‌کنم $pdo اینجاست)
 require_once 'jdf.php'; // برای تبدیل تاریخ
 
 function gregorian_to_jalali_format($date) {
@@ -12,7 +12,11 @@ function gregorian_to_jalali_format($date) {
 }
 
 // دریافت لیست ماه‌های کاری
-$months = $conn->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+$months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+
+// دریافت کاربران برای فیلتر
+$users = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'")->fetchAll(PDO::FETCH_ASSOC);
+$selected_user_id = $_GET['user_id'] ?? null;
 
 // دریافت اطلاعات بر اساس ماه کاری انتخاب شده
 $work_details = [];
@@ -20,7 +24,7 @@ if (isset($_GET['work_month_id'])) {
     $work_month_id = (int)$_GET['work_month_id'];
 
     // دریافت تاریخ شروع و پایان ماه کاری
-    $month_query = $conn->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
+    $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
@@ -35,7 +39,7 @@ if (isset($_GET['work_month_id'])) {
             $work_day = jdate('l', strtotime($work_date), '', '', 'gregorian', 'persian');
 
             // پیدا کردن جفت همکارانی که در این روز کار می‌کنند
-            $partner_query = $conn->prepare("
+            $partner_query = $pdo->prepare("
                 SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
                 FROM Partners p
@@ -48,14 +52,14 @@ if (isset($_GET['work_month_id'])) {
 
             foreach ($partners as $partner) {
                 // بررسی اینکه آیا اطلاعات قبلاً ثبت شده است؟
-                $detail_query = $conn->prepare("
+                $detail_query = $pdo->prepare("
                     SELECT * FROM Work_Details WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
                 ");
                 $detail_query->execute([$work_date, $work_month_id, $partner['partner_id']]);
                 $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
 
                 if (!$existing_detail) {
-                    $insert_query = $conn->prepare("
+                    $insert_query = $pdo->prepare("
                         INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
                         VALUES (?, ?, ?, ?, ?)
                     ");
@@ -105,11 +109,11 @@ if (isset($_GET['user_id'])) {
         <div class="col-auto">
             <select name="work_month_id" class="form-select" onchange="this.form.submit()">
                 <option value="">انتخاب کنید</option>
-                <?php foreach ($months as $month): ?>
+                <?php while ($month = $months->fetch(PDO::FETCH_ASSOC)): ?>
                     <option value="<?= $month['work_month_id'] ?>" <?= isset($_GET['work_month_id']) && $_GET['work_month_id'] == $month['work_month_id'] ? 'selected' : '' ?>>
                         <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
                     </option>
-                <?php endforeach; ?>
+                <?php endwhile; ?>
             </select>
         </div>
         <div class="col-auto">
