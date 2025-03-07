@@ -1,18 +1,23 @@
 <?php
-require 'db.php'; // فایل اتصال به دیتابیس
+require_once 'db.php'; // فایل اتصال به دیتابیس
 
-if (isset($_POST['work_date']) && isset($_POST['agency_owner_id'])) {
+if (isset($_POST['work_date']) && isset($_POST['partner_id']) && isset($_POST['agency_owner_id'])) {
     $work_date = $_POST['work_date'];
-    $agency_owner_id = $_POST['agency_owner_id'];
+    $partner_id = (int)$_POST['partner_id'];
+    $agency_owner_id = (int)$_POST['agency_owner_id'];
 
     $update_query = $conn->prepare("
-        UPDATE Work_Details SET agency_owner_id = ? WHERE work_date = ?
+        UPDATE Work_Details 
+        SET agency_owner_id = ? 
+        WHERE work_date = ? AND partner_id = ?
     ");
     
-    if ($update_query->execute([$agency_owner_id, $work_date])) {
+    if ($update_query->execute([$agency_owner_id, $work_date, $partner_id])) {
         echo "تغییرات با موفقیت ذخیره شد!";
     } else {
-        echo "خطا در ذخیره تغییرات!";
+        echo "خطا در ذخیره تغییرات: " . print_r($conn->errorInfo(), true);
     }
+} else {
+    echo "داده‌های ورودی ناقص است!";
 }
 ?>
