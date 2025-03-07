@@ -52,7 +52,7 @@ if (isset($_GET['work_month_id'])) {
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
                 WHERE p.work_day = ?
             ");
-            $partner_query->execute([$work_day]); // فقط با $work_day اصلی
+            $partner_query->execute([$work_day]);
             $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($partners)) {
