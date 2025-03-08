@@ -14,10 +14,10 @@ $stmt = $pdo->prepare("
     SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
     FROM Work_Months wm
     JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
-    WHERE YEAR(wm.start_date) = ? AND wd.user_id = ?
+    WHERE YEAR(wm.start_date) = ? AND (wd.user_id1 = ? OR wd.user_id2 = ?)
     ORDER BY wm.start_date DESC
 ");
-$stmt->execute([$year, $user_id]);
+$stmt->execute([$year, $user_id, $user_id]);
 $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 echo '<option value="">انتخاب ماه</option>';

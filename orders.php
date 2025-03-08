@@ -29,10 +29,10 @@ $current_user_id = $_SESSION['user_id'];
 $stmt_years = $pdo->prepare("
     SELECT DISTINCT YEAR(work_date) AS year 
     FROM Work_Details 
-    WHERE user_id = ? 
+    WHERE user_id1 = ? OR user_id2 = ?
     ORDER BY year DESC
 ");
-$stmt_years->execute([$current_user_id]);
+$stmt_years->execute([$current_user_id, $current_user_id]);
 $years_db = $stmt_years->fetchAll(PDO::FETCH_ASSOC);
 $years = array_column($years_db, 'year');
 
@@ -47,10 +47,10 @@ if ($selected_year) {
         SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
         FROM Work_Months wm
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
-        WHERE YEAR(wm.start_date) = ? AND wd.user_id = ?
+        WHERE YEAR(wm.start_date) = ? AND (wd.user_id1 = ? OR wd.user_id2 = ?)
         ORDER BY wm.start_date DESC
     ");
-    $stmt_months->execute([$selected_year, $current_user_id]);
+    $stmt_months->execute([$selected_year, $current_user_id, $current_user_id]);
     $months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
