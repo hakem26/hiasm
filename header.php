@@ -14,7 +14,14 @@ $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
 // نام صفحه فعلی (برای این مثال، "داشبورد" فرض می‌کنیم)
-$page_name = "داشبورد";
+$page_name = basename($_SERVER['PHP_SELF'], ".php");
+$page_name = $page_name === 'dashboard_admin' || $page_name === 'dashboard_seller' ? 'داشبورد' : $page_name;
+$page_name = $page_name === 'products' ? 'محصولات' : $page_name;
+$page_name = $page_name === 'orders' ? 'سفارشات' : $page_name;
+$page_name = $page_name === 'users' ? 'کاربران' : $page_name;
+$page_name = $page_name === 'partners' ? 'همکاران' : $page_name;
+$page_name = $page_name === 'work_months' ? 'ماه کاری' : $page_name;
+$page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_name;
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
