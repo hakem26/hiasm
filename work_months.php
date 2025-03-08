@@ -25,16 +25,21 @@ $years = array_column($years_db, 'year'); // سال‌ها به‌صورت می�
 $current_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
 
 // دریافت سال انتخاب‌شده (میلادی)
-$selected_year = $_GET['year'] ?? $current_year;
+$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
 
-// کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی
-$stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$stmt->execute([$selected_year]);
-$work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// اگر سال انتخاب‌شده وجود نداشت، اولین سال موجود رو انتخاب کن (اگر سالی وجود داشت)
+if ($selected_year && !in_array($selected_year, $years)) {
+    $selected_year = !empty($years) ? $years[0] : null;
+}
 
-// دیباگ برای تست (حذف بعد از تأیید)
-var_dump($selected_year);
-var_dump($work_months);
+// کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی (اگر سال انتخاب‌شده وجود داشته باشه)
+if ($selected_year) {
+    $stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
+    $stmt->execute([$selected_year]);
+    $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $work_months = []; // اگر هیچ سالی انتخاب نشده یا وجود نداره
+}
 ?>
 
 <!DOCTYPE html>
@@ -62,18 +67,19 @@ var_dump($work_months);
         </div>
 
         <!-- فیلتر سال -->
+        <?php if (!empty($years)): ?>
         <form method="GET" class="row g-3 mb-3">
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
-                    <option value="">انتخاب سال</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= $year ?> (میلادی - برای نمایش شمسی تاریخ‌ها)
+                            <?= $year ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
         </form>
+        <?php endif; ?>
 
         <?php if (empty($work_months)): ?>
         <div class="alert alert-warning text-center">ماه کاری‌ای ساخته نشده است.</div>

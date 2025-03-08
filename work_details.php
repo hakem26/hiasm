@@ -38,12 +38,21 @@ $years = array_column($years_db, 'year'); // سال‌ها به‌صورت می�
 $current_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
 
 // دریافت سال انتخاب‌شده (میلادی)
-$selected_year = $_GET['year'] ?? $current_year;
+$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
 
-// دریافت لیست ماه‌های کاری بر اساس سال میلادی
-$work_months_query = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$work_months_query->execute([$selected_year]);
-$work_months = $work_months_query->fetchAll(PDO::FETCH_ASSOC);
+// اگر سال انتخاب‌شده وجود نداشت، اولین سال موجود رو انتخاب کن (اگر سالی وجود داشت)
+if ($selected_year && !in_array($selected_year, $years)) {
+    $selected_year = !empty($years) ? $years[0] : null;
+}
+
+// دریافت لیست ماه‌های کاری بر اساس سال میلادی (اگر سال انتخاب‌شده وجود داشته باشه)
+if ($selected_year) {
+    $work_months_query = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
+    $work_months_query->execute([$selected_year]);
+    $work_months = $work_months_query->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $work_months = [];
+}
 
 // تعریف متغیرها قبل از استفاده
 $is_admin = ($_SESSION['role'] === 'admin');
@@ -178,17 +187,18 @@ if (!empty($selected_partner_id)) {
         </div>
 
         <form method="GET" class="row g-3 mb-3">
-            <!-- فیلتر سال (برای هر دو نقش) -->
+            <!-- فیلتر سال -->
+            <?php if (!empty($years)): ?>
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
-                    <option value="">انتخاب سال</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= $year ?> (میلادی - برای نمایش شمسی تاریخ‌ها)
+                            <?= $year ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php endif; ?>
 
             <!-- فیلتر ماه -->
             <div class="col-auto">
