@@ -175,6 +175,12 @@ if ($selected_work_day_id) {
             </div>
         </form>
 
+        <?php if (!$is_admin && $selected_work_month_id): ?>
+            <div class="mb-3">
+                <a href="add_order.php?work_details_id=<?php echo !empty($work_days) ? $work_days[0]['work_details_id'] : ''; ?>" class="btn btn-primary">ثبت سفارش جدید</a>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($work_days) && !$is_admin): ?>
             <div class="table-wrapper">
                 <table class="table table-light table-hover">
