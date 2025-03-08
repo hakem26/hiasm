@@ -193,10 +193,12 @@ if ($selected_work_month_id) {
                 JOIN Users u2 ON u2.user_id = wd.agency_owner_id
                 WHERE o.work_details_id = ?
                 GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
-                LIMIT ? OFFSET ?
             ");
-            $stmt_orders->execute([$selected_work_day_id, $per_page, $offset]);
+            $stmt_orders->execute([$selected_work_day_id]);
             $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
+
+            // اعمال پیجینیشن دستی
+            $orders = array_slice($orders, $offset, $per_page);
         }
     }
 }
