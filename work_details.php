@@ -33,8 +33,12 @@ function number_to_day($day_number) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-// دریافت سال‌های موجود از Work_Months
-$current_year = (int)jdate('Y'); // تبدیل به عدد
+// دریافت سال جاری (با بررسی خطا)
+$current_gregorian_year = date('Y');
+list($current_year) = gregorian_to_jalali($current_gregorian_year, 1, 1); // تبدیل سال میلادی به شمسی
+if (!$current_year || $current_year < 1300) {
+    $current_year = 1403; // پیش‌فرض
+}
 $years = range($current_year, $current_year - 40);
 
 // دریافت لیست ماه‌های کاری بر اساس سال انتخاب‌شده
@@ -90,9 +94,9 @@ if (isset($_GET['work_month_id'])) {
                     FROM Partners p
                     JOIN Users u1 ON p.user_id1 = u1.user_id
                     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                    WHERE p.work_day = ?
+                    WHERE p.work_day = ? AND p.work_month_id = ?
                 ");
-                $partner_query->execute([$adjusted_day_number]);
+                $partner_query->execute([$adjusted_day_number, $work_month_id]);
             } else {
                 $partner_query = $pdo->prepare("
                     SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
@@ -100,9 +104,9 @@ if (isset($_GET['work_month_id'])) {
                     FROM Partners p
                     JOIN Users u1 ON p.user_id1 = u1.user_id
                     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                    WHERE p.work_day = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+                    WHERE p.work_day = ? AND p.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
                 ");
-                $partner_query->execute([$adjusted_day_number, $current_user_id, $current_user_id]);
+                $partner_query->execute([$adjusted_day_number, $work_month_id, $current_user_id, $current_user_id]);
             }
             $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
@@ -213,7 +217,7 @@ if (!empty($selected_partner_id)) {
                                 <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($work['user1']) ?>
                                 </option>
-                                <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $user_id2 ? 'selected' : '' ?>>
+                                <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $work['user_id2'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($work['user2']) ?>
                                 </option>
                             </select>
