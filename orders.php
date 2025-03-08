@@ -54,17 +54,18 @@ if ($selected_year) {
     $months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت همکارها بر اساس ماه انتخاب‌شده
+// دریافت همکارها بر اساس ماه انتخاب‌شده (به جز خود کاربر)
 $partners = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? '';
 if ($selected_work_month_id) {
     $stmt_partners = $pdo->prepare("
-        SELECT DISTINCT u.user_id, u.username
+        SELECT DISTINCT u.user_id, u.full_name
         FROM Work_Details wd
         JOIN Users u ON u.user_id = wd.partner_id OR u.user_id = wd.agency_owner_id
         WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
+        AND u.user_id != ?
     ");
-    $stmt_partners->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
+    $stmt_partners->execute([$selected_work_month_id, $current_user_id, $current_user_id, $current_user_id]);
     $partners = $stmt_partners->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -74,8 +75,8 @@ $selected_partner_id = $_GET['partner_id'] ?? '';
 if ($selected_work_month_id && $selected_partner_id) {
     $stmt_days = $pdo->prepare("
         SELECT wd.id AS work_details_id, wd.work_date, 
-               u1.username AS partner_name, 
-               u2.username AS agency_owner_name
+               u1.full_name AS partner_name, 
+               u2.full_name AS agency_owner_name
         FROM Work_Details wd
         JOIN Users u1 ON u1.user_id = wd.partner_id
         JOIN Users u2 ON u2.user_id = wd.agency_owner_id
@@ -96,7 +97,7 @@ if ($selected_work_day_id) {
                SUM(p.amount) AS paid_amount,
                (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
                wd.work_date, 
-               CONCAT(u1.username, ' - ', u2.username) AS partner_names
+               CONCAT(u1.full_name, ' - ', u2.full_name) AS partner_names
         FROM Orders o
         LEFT JOIN Payments p ON o.order_id = p.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
@@ -166,7 +167,7 @@ if ($selected_work_day_id) {
                     <option value="">انتخاب همکار</option>
                     <?php foreach ($partners as $partner): ?>
                         <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                            <?= $partner['username'] ?>
+                            <?= $partner['full_name'] ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
