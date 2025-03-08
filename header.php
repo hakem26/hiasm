@@ -40,7 +40,6 @@ $page_name = "داشبورد";
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
-
 </head>
 
 <body>
@@ -77,12 +76,31 @@ $page_name = "داشبورد";
     <div
         class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
         <ul class="nav flex-column pt-5">
+            <!-- داشبورد بر اساس نقش -->
             <li class="nav-item">
-                <a class="nav-link" href="dashboard.php">
+                <a class="nav-link" href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>داشبورد</span>
                 </a>
             </li>
+
+            <!-- محصولات (برای هر دو نقش) -->
+            <li class="nav-item">
+                <a class="nav-link" href="products.php">
+                    <i class="fas fa-box"></i>
+                    <span>محصولات</span>
+                </a>
+            </li>
+
+            <!-- سفارشات (برای هر دو نقش) -->
+            <li class="nav-item">
+                <a class="nav-link" href="orders.php">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>سفارشات</span>
+                </a>
+            </li>
+
+            <!-- منوهای فقط برای ادمین -->
             <?php if ($_SESSION['role'] === 'admin'): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="users.php">
@@ -106,12 +124,6 @@ $page_name = "داشبورد";
                     <a class="nav-link" href="work_details.php">
                         <i class="fas fa-list"></i>
                         <span>اطلاعات کار</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="products.php">
-                        <i class="fas fa-box"></i>
-                        <span>محصولات</span>
                     </a>
                 </li>
             <?php endif; ?>
@@ -138,3 +150,48 @@ $page_name = "داشبورد";
             });
         });
     </script>
+
+    <!-- استایل‌های جدید برای تنظیم عرض منوی کناری -->
+    <style>
+        .sidebar {
+            width: auto;
+            min-width: 200px; /* حداقل عرض برای متن‌های کوتاه */
+            transition: min-width 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        .sidebar .nav-link span {
+            white-space: nowrap; /* جلوگیری از شکستن متن */
+        }
+
+        .sidebar.collapsed {
+            min-width: 60px; /* عرض کم‌شده موقع جمع شدن */
+        }
+
+        /* تنظیم عرض بر اساس طول متن */
+        .sidebar .nav-item {
+            padding: 0.5rem 1rem;
+        }
+
+        .sidebar .nav-item .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+        }
+
+        .sidebar .nav-item .nav-link span {
+            margin-right: 0.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* افزایش عرض برای متن‌های بلندتر */
+        @media (min-width: 769px) {
+            .sidebar .nav-item:hover {
+                min-width: calc(200px + 1rem); /* 1rem اضافه برای متن‌های بلند */
+            }
+        }
+    </style>
+</body>
+
+</html>
