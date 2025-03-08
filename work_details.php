@@ -172,6 +172,11 @@ if (!empty($selected_partner_id)) {
         return $detail['user_id1'] == $user_id || $detail['user_id2'] == $user_id;
     });
 }
+
+// مرتب‌سازی $filtered_work_details بر اساس work_date (صعودی)
+usort($filtered_work_details, function($a, $b) {
+    return strcmp($a['work_date'], $b['work_date']);
+});
 ?>
 
 <!DOCTYPE html>
