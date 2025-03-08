@@ -21,93 +21,172 @@ function gregorian_year_to_jalali($gregorian_year) {
     return $jy;
 }
 
-// بررسی نقش کاربر
-$is_admin = ($_SESSION['role'] === 'admin');
-$current_user_id = $_SESSION['user_id'];
+// تابع تبدیل عدد روز به نام روز
+function number_to_day($day_number) {
+    $days = [
+        1 => 'شنبه',
+        2 => 'یکشنبه',
+        3 => 'دوشنبه',
+        4 => 'سه‌شنبه',
+        5 => 'چهارشنبه',
+        6 => 'پنجشنبه',
+        7 => 'جمعه'
+    ];
+    return $days[$day_number] ?? 'نامشخص';
+}
 
-// دریافت سال‌های موجود بر اساس Work_Details
-$stmt_years = $pdo->prepare("
-    SELECT DISTINCT YEAR(work_date) AS year 
-    FROM Work_Details 
-    WHERE partner_id = ? OR agency_owner_id = ?
-    ORDER BY year DESC
-");
-$stmt_years->execute([$current_user_id, $current_user_id]);
-$years_db = $stmt_years->fetchAll(PDO::FETCH_ASSOC);
+// دریافت سال‌های موجود از دیتابیس (میلادی)
+$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
+$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = array_column($years_db, 'year');
 
 // دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
 $current_year = date('Y');
+
+// دریافت سال انتخاب‌شده (میلادی)
 $selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
 
 // دریافت ماه‌ها بر اساس سال انتخاب‌شده
-$months = [];
+$work_months = [];
 if ($selected_year) {
-    $stmt_months = $pdo->prepare("
-        SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
-        FROM Work_Months wm
-        JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
-        WHERE YEAR(wm.start_date) = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-        ORDER BY wm.start_date DESC
-    ");
-    $stmt_months->execute([$selected_year, $current_user_id, $current_user_id]);
-    $months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
+    $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
+    $stmt_months->execute([$selected_year]);
+    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت همکارها بر اساس ماه انتخاب‌شده (به جز خود کاربر)
+// بررسی نقش کاربر
+$is_admin = ($_SESSION['role'] === 'admin');
+$current_user_id = $_SESSION['user_id'];
+
+// دریافت لیست همکارها
 $partners = [];
-$selected_work_month_id = $_GET['work_month_id'] ?? '';
-if ($selected_work_month_id) {
-    $stmt_partners = $pdo->prepare("
-        SELECT DISTINCT u.user_id, u.full_name
-        FROM Work_Details wd
-        JOIN Users u ON u.user_id = wd.partner_id OR u.user_id = wd.agency_owner_id
-        WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-        AND u.user_id != ?
+if ($is_admin) {
+    $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
+    $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $partners_query = $pdo->prepare("
+        SELECT DISTINCT u.user_id, u.full_name 
+        FROM Partners p
+        JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
+        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.user_id != ? AND u.role = 'seller'
+        ORDER BY u.full_name
     ");
-    $stmt_partners->execute([$selected_work_month_id, $current_user_id, $current_user_id, $current_user_id]);
-    $partners = $stmt_partners->fetchAll(PDO::FETCH_ASSOC);
+    $partners_query->execute([$current_user_id, $current_user_id, $current_user_id]);
+    $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت روزهای کاری بر اساس همکار انتخاب‌شده
-$work_days = [];
-$selected_partner_id = $_GET['partner_id'] ?? '';
-if ($selected_work_month_id && $selected_partner_id) {
-    $stmt_days = $pdo->prepare("
-        SELECT wd.id AS work_details_id, wd.work_date, 
-               u1.full_name AS partner_name, 
-               u2.full_name AS agency_owner_name
-        FROM Work_Details wd
-        JOIN Users u1 ON u1.user_id = wd.partner_id
-        JOIN Users u2 ON u2.user_id = wd.agency_owner_id
-        WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-        AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-        ORDER BY wd.work_date ASC
-    ");
-    $stmt_days->execute([$selected_work_month_id, $current_user_id, $current_user_id, $selected_partner_id, $selected_partner_id]);
-    $work_days = $stmt_days->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// دریافت سفارشات بر اساس روز انتخاب‌شده
+// دریافت اطلاعات روزها و فاکتورها بر اساس فیلترها
+$work_details = [];
 $orders = [];
+$selected_work_month_id = $_GET['work_month_id'] ?? '';
+$selected_partner_id = $_GET['user_id'] ?? '';
 $selected_work_day_id = $_GET['work_day_id'] ?? '';
-if ($selected_work_day_id) {
-    $stmt_orders = $pdo->prepare("
-        SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
-               SUM(p.amount) AS paid_amount,
-               (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
-               wd.work_date, 
-               CONCAT(u1.full_name, ' - ', u2.full_name) AS partner_names
-        FROM Orders o
-        LEFT JOIN Payments p ON o.order_id = p.order_id
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Users u1 ON u1.user_id = wd.partner_id
-        JOIN Users u2 ON u2.user_id = wd.agency_owner_id
-        WHERE o.work_details_id = ?
-        GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
-    ");
-    $stmt_orders->execute([$selected_work_day_id]);
-    $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
+
+if ($selected_work_month_id) {
+    // دریافت اطلاعات ماه
+    $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
+    $month_query->execute([$selected_work_month_id]);
+    $month = $month_query->fetch(PDO::FETCH_ASSOC);
+
+    if ($month) {
+        $start_date = new DateTime($month['start_date']);
+        $end_date = new DateTime($month['end_date']);
+        $interval = new DateInterval('P1D');
+        $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
+
+        // دریافت جفت‌های همکار
+        if ($is_admin) {
+            $partner_query = $pdo->prepare("
+                SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
+                       COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
+                FROM Partners p
+                JOIN Users u1 ON p.user_id1 = u1.user_id
+                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+                GROUP BY p.partner_id
+            ");
+            $partner_query->execute();
+        } else {
+            $partner_query = $pdo->prepare("
+                SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
+                       COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
+                FROM Partners p
+                JOIN Users u1 ON p.user_id1 = u1.user_id
+                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+                WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u1.role = 'seller'
+                GROUP BY p.partner_id
+            ");
+            $partner_query->execute([$current_user_id, $current_user_id]);
+        }
+        $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
+
+        // همگام‌سازی و ذخیره‌سازی روزها
+        $processed_partners = [];
+        foreach ($partners_in_work as $partner) {
+            $partner_id = $partner['partner_id'];
+            if (!in_array($partner_id, $processed_partners)) {
+                $processed_partners[] = $partner_id;
+
+                foreach ($date_range as $date) {
+                    $work_date = $date->format('Y-m-d');
+                    $day_number_php = (int)date('N', strtotime($work_date));
+                    $adjusted_day_number = ($day_number_php + 5) % 7;
+                    if ($adjusted_day_number == 0) $adjusted_day_number = 7;
+
+                    if ($partner['stored_day_number'] == $adjusted_day_number) {
+                        $detail_query = $pdo->prepare("
+                            SELECT * FROM Work_Details 
+                            WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
+                        ");
+                        $detail_query->execute([$work_date, $selected_work_month_id, $partner_id]);
+                        $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
+
+                        if ($existing_detail) {
+                            $agency_owner_id = $existing_detail['agency_owner_id'];
+                            $work_details[] = [
+                                'work_details_id' => $existing_detail['id'],
+                                'work_date' => $work_date,
+                                'work_day' => number_to_day($adjusted_day_number),
+                                'partner_id' => $partner_id,
+                                'user1' => $partner['user1'],
+                                'user2' => $partner['user2'],
+                                'user_id1' => $partner['user_id1'],
+                                'user_id2' => $partner['user_id2'],
+                                'agency_owner_id' => $agency_owner_id
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        // فیلتر بر اساس همکار
+        if (!empty($selected_partner_id)) {
+            $filtered_work_details = array_filter($work_details, function($detail) use ($selected_partner_id) {
+                return $detail['user_id1'] == $selected_partner_id || $detail['user_id2'] == $selected_partner_id;
+            });
+            $work_details = array_values($filtered_work_details);
+        }
+
+        // دریافت فاکتورها بر اساس روز انتخاب‌شده
+        if ($selected_work_day_id) {
+            $stmt_orders = $pdo->prepare("
+                SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
+                       SUM(p.amount) AS paid_amount,
+                       (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
+                       wd.work_date, 
+                       CONCAT(u1.full_name, ' - ', u2.full_name) AS partner_names
+                FROM Orders o
+                LEFT JOIN Payments p ON o.order_id = p.order_id
+                JOIN Work_Details wd ON o.work_details_id = wd.id
+                JOIN Users u1 ON u1.user_id = wd.partner_id
+                JOIN Users u2 ON u2.user_id = wd.agency_owner_id
+                WHERE o.work_details_id = ?
+                GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
+            ");
+            $stmt_orders->execute([$selected_work_day_id]);
+            $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
+        }
+    }
 }
 ?>
 
@@ -155,7 +234,7 @@ if ($selected_work_day_id) {
             <div class="col-auto">
                 <select name="work_month_id" class="form-select" onchange="this.form.submit()">
                     <option value="">انتخاب ماه</option>
-                    <?php foreach ($months as $month): ?>
+                    <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
                             <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
                         </option>
@@ -163,11 +242,11 @@ if ($selected_work_day_id) {
                 </select>
             </div>
             <div class="col-auto">
-                <select name="partner_id" class="form-select" onchange="this.form.submit()">
+                <select name="user_id" class="form-select" onchange="this.form.submit()">
                     <option value="">انتخاب همکار</option>
                     <?php foreach ($partners as $partner): ?>
-                        <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                            <?= $partner['full_name'] ?>
+                        <option value="<?= htmlspecialchars($partner['user_id']) ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($partner['full_name']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -175,9 +254,9 @@ if ($selected_work_day_id) {
             <div class="col-auto">
                 <select name="work_day_id" class="form-select" onchange="this.form.submit()">
                     <option value="">انتخاب روز</option>
-                    <?php foreach ($work_days as $day): ?>
+                    <?php foreach ($work_details as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['partner_name'] ?> - <?= $day['agency_owner_name'] ?>)
+                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> - <?= $day['user2'] ?>)
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -243,58 +322,19 @@ if ($selected_work_day_id) {
     <script>
         $(document).ready(function() {
             $('select[name="year"]').change(function() {
-                let year = $(this).val();
-                if (year) {
-                    $.ajax({
-                        url: 'get_months.php',
-                        type: 'POST',
-                        data: { year: year, user_id: <?= $current_user_id ?> },
-                        success: function(response) {
-                            $('select[name="work_month_id"]').html(response);
-                            $('select[name="partner_id"]').html('<option value="">انتخاب همکار</option>');
-                            $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
-                        }
-                    });
-                } else {
-                    $('select[name="work_month_id"]').html('<option value="">انتخاب ماه</option>');
-                    $('select[name="partner_id"]').html('<option value="">انتخاب همکار</option>');
-                    $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
-                }
+                this.form.submit();
             });
 
             $('select[name="work_month_id"]').change(function() {
-                let month_id = $(this).val();
-                if (month_id) {
-                    $.ajax({
-                        url: 'get_partners.php',
-                        type: 'POST',
-                        data: { month_id: month_id, user_id: <?= $current_user_id ?> },
-                        success: function(response) {
-                            $('select[name="partner_id"]').html(response);
-                            $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
-                        }
-                    });
-                } else {
-                    $('select[name="partner_id"]').html('<option value="">انتخاب همکار</option>');
-                    $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
-                }
+                this.form.submit();
             });
 
-            $('select[name="partner_id"]').change(function() {
-                let partner_id = $(this).val();
-                let month_id = $('select[name="work_month_id"]').val();
-                if (partner_id && month_id) {
-                    $.ajax({
-                        url: 'get_work_days.php',
-                        type: 'POST',
-                        data: { month_id: month_id, partner_id: partner_id, user_id: <?= $current_user_id ?> },
-                        success: function(response) {
-                            $('select[name="work_day_id"]').html(response);
-                        }
-                    });
-                } else {
-                    $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
-                }
+            $('select[name="user_id"]').change(function() {
+                this.form.submit();
+            });
+
+            $('select[name="work_day_id"]').change(function() {
+                this.form.submit();
             });
         });
     </script>
