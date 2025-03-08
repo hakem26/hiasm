@@ -105,7 +105,8 @@ if (isset($_GET['work_month_id'])) {
                     FROM Partners p
                     JOIN Users u1 ON p.user_id1 = u1.user_id
                     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                    WHERE p.work_day = ? AND p.work_month_id = ?
+                    JOIN Work_Details wd ON wd.partner_id = p.partner_id
+                    WHERE p.work_day = ? AND wd.work_month_id = ?
                 ");
                 $partner_query->execute([$adjusted_day_number, $work_month_id]);
             } else {
@@ -115,7 +116,8 @@ if (isset($_GET['work_month_id'])) {
                     FROM Partners p
                     JOIN Users u1 ON p.user_id1 = u1.user_id
                     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                    WHERE p.work_day = ? AND p.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+                    JOIN Work_Details wd ON wd.partner_id = p.partner_id
+                    WHERE p.work_day = ? AND wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
                 ");
                 $partner_query->execute([$adjusted_day_number, $work_month_id, $current_user_id, $current_user_id]);
             }
