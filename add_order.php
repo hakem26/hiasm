@@ -44,7 +44,6 @@ if ($work_details_id) {
         $partner_access = $stmt_partner->fetch(PDO::FETCH_ASSOC);
 
         if (!$partner_access) {
-            // اگه دسترسی از Partners نبود، حداقل باید agency_owner_id یا partner_id باشه
             if ($work_info['agency_owner_id'] != $current_user_id && $work_info['partner_id'] != $current_user_id) {
                 $work_info = []; // دسترسی رد شد
             }
@@ -58,9 +57,14 @@ if (empty($work_info)) {
     exit;
 }
 
-// دریافت نام‌های همکار و آژانس برای نمایش
-$work_info['partner_name'] = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn();
-$work_info['agency_owner_name'] = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn();
+// دریافت نام‌های همکار و آژانس (بدون نمایش نام خود کاربر)
+$work_info['partner_name'] = $work_info['partner_id'] == $current_user_id ? 
+    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn() : 
+    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn();
+
+$work_info['agency_owner_name'] = $work_info['agency_owner_id'] == $current_user_id ? 
+    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn() : 
+    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn();
 
 // پردازش فرم افزودن محصول
 $items = isset($_SESSION['order_items']) ? $_SESSION['order_items'] : [];
@@ -97,6 +101,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_order'])) {
     $customer_name = $_POST['customer_name'];
     $discount = (float)$_POST['discount'];
     $final_amount = $total_amount - $discount;
+
+    // چک کن که حداقل یک آیتم وجود داشته باشه
+    if (empty($items)) {
+        echo "<script>alert('لطفاً حداقل یک محصول به فاکتور اضافه کنید.'); window.location.href='add_order.php?work_details_id=$work_details_id';</script>";
+        exit;
+    }
 
     // ثبت سفارش
     $stmt_order = $pdo->prepare("INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
@@ -139,15 +149,31 @@ $final_amount = $total_amount - $discount;
             -webkit-overflow-scrolling: touch;
         }
         table {
-            min-width: 600px;
+            min-width: 400px; /* کوچکتر کردن جدول */
             table-layout: auto;
         }
         th, td {
             white-space: nowrap;
-            padding: 8px 12px;
+            padding: 8px 6px; /* کاهش پدینگ برای جمع‌وجورتر شدن */
         }
         .product-input {
-            width: 300px;
+            width: 250px; /* کاهش عرض ورودی محصول */
+        }
+        @media (max-width: 768px) {
+            table {
+                min-width: 300px;
+            }
+            th, td {
+                padding: 4px;
+                font-size: 14px;
+            }
+            .table-wrapper {
+                overflow-x: scroll;
+            }
+            .total-row td {
+                border-top: 2px solid #dee2e6;
+                font-weight: bold;
+            }
         }
     </style>
 </head>
@@ -159,7 +185,7 @@ $final_amount = $total_amount - $discount;
         <div class="card mb-4">
             <div class="card-body">
                 <p><strong>تاریخ:</strong> <?= gregorian_to_jalali_format($work_info['work_date']) ?></p>
-                <p><strong>همکار:</strong> <?= $work_info['partner_name'] ?> - <?= $work_info['agency_owner_name'] ?></p>
+                <p><strong>همکار:</strong> <?= htmlspecialchars($work_info['partner_name']) ?> - <?= htmlspecialchars($work_info['agency_owner_name']) ?></p>
             </div>
         </div>
 
@@ -174,7 +200,7 @@ $final_amount = $total_amount - $discount;
             <div class="mb-3">
                 <label for="product_name" class="form-label">نام محصول</label>
                 <input type="text" class="form-control product-input" id="product_name" name="product_name" placeholder="3 حرف تایپ کنید..." required>
-                <div id="product_suggestions" class="list-group position-absolute" style="display: none; z-index: 1000; width: 300px;"></div>
+                <div id="product_suggestions" class="list-group position-absolute" style="display: none; z-index: 1000; width: 250px;"></div>
                 <input type="hidden" id="product_id" name="product_id">
                 <input type="hidden" id="unit_price" name="unit_price">
             </div>
@@ -209,11 +235,11 @@ $final_amount = $total_amount - $discount;
                                     <td><?= number_format($item['total_price'], 0) ?> تومان</td>
                                 </tr>
                             <?php endforeach; ?>
-                            <tr>
+                            <tr class="total-row">
                                 <td colspan="3"><strong>جمع کل</strong></td>
                                 <td><strong><?= number_format($total_amount, 0) ?> تومان</strong></td>
                             </tr>
-                            <tr>
+                            <tr class="total-row">
                                 <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
                                 <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0" onchange="this.form.submit()"></td>
                                 <td><strong><?= number_format($final_amount, 0) ?> تومان</strong></td>
