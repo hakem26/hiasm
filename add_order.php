@@ -5,9 +5,6 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// بافر خروجی رو شروع می‌کنیم تا از خروجی‌های ناخواسته جلوگیری کنیم
-ob_start();
-
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
@@ -74,120 +71,11 @@ $work_info['agency_owner_name'] = $work_info['agency_owner_id'] == $current_user
     $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn() : 
     $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn();
 
-// پردازش اولیه سشن و مقادیر
+// مقادیر اولیه
 $items = isset($_SESSION['order_items']) ? $_SESSION['order_items'] : [];
-$customer_name = isset($_POST['customer_name']) ? $_POST['customer_name'] : '';
-$total_amount = 0;
-$discount = isset($_POST['discount']) ? (float)$_POST['discount'] : 0;
-
-// پردازش افزودن محصول با AJAX
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_item') {
-    try {
-        ob_end_clean(); // پاک کردن بافر خروجی
-
-        $customer_name = $_POST['customer_name'];
-        $product_id = $_POST['product_id'];
-        $quantity = (int)$_POST['quantity'];
-        $unit_price = (float)$_POST['unit_price'];
-        $total_price = $quantity * $unit_price;
-
-        $stmt_product = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
-        $stmt_product->execute([$product_id]);
-        $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
-
-        if (!$product) {
-            throw new Exception("محصول یافت نشد.");
-        }
-
-        $items[] = [
-            'product_id' => $product_id,
-            'product_name' => $product['product_name'],
-            'quantity' => $quantity,
-            'unit_price' => $unit_price,
-            'total_price' => $total_price
-        ];
-        $_SESSION['order_items'] = $items;
-
-        $total_amount = array_sum(array_column($items, 'total_price'));
-        $final_amount = $total_amount - $discount;
-
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => true,
-            'items' => $items,
-            'total_amount' => $total_amount,
-            'final_amount' => $final_amount
-        ]);
-        exit;
-    } catch (Exception $e) {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
-        exit;
-    }
-}
-
-// پردازش تغییر تخفیف با AJAX
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_discount') {
-    try {
-        ob_end_clean(); // پاک کردن بافر خروجی
-
-        $discount = (float)$_POST['discount'];
-        $total_amount = array_sum(array_column($items, 'total_price'));
-        $final_amount = $total_amount - $discount;
-
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success' => true,
-            'total_amount' => $total_amount,
-            'final_amount' => $final_amount
-        ]);
-        exit;
-    } catch (Exception $e) {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
-        exit;
-    }
-}
-
-// پردازش بستن فاکتور
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'finalize_order') {
-    try {
-        ob_end_clean(); // پاک کردن بافر خروجی
-
-        $customer_name = $_POST['customer_name'];
-        $discount = (float)$_POST['discount'];
-        $total_amount = array_sum(array_column($items, 'total_price'));
-        $final_amount = $total_amount - $discount;
-
-        if (empty($items)) {
-            throw new Exception("لطفاً حداقل یک محصول به فاکتور اضافه کنید.");
-        }
-
-        $stmt_order = $pdo->prepare("INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        $stmt_order->execute([$work_details_id, $customer_name, $total_amount, $discount, $final_amount]);
-
-        $order_id = $pdo->lastInsertId();
-
-        foreach ($items as $item) {
-            $stmt_item = $pdo->prepare("INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
-            $stmt_item->execute([$order_id, $item['product_name'], $item['quantity'], $item['unit_price'], $item['total_price']]);
-        }
-
-        unset($_SESSION['order_items']);
-        $_SESSION['is_order_in_progress'] = false;
-
-        header('Content-Type: application/json');
-        echo json_encode(['success' => true, 'message' => 'فاکتور با موفقیت ثبت گردید', 'redirect' => 'orders.php']);
-        exit;
-    } catch (Exception $e) {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
-        exit;
-    }
-}
-
-// محاسبه اولیه
+$customer_name = '';
 $total_amount = array_sum(array_column($items, 'total_price'));
+$discount = 0;
 $final_amount = $total_amount - $discount;
 ?>
 
@@ -313,8 +201,58 @@ $final_amount = $total_amount - $discount;
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        $(document).ready(function() {
-            // ساجستشن محصولات
+        // تابع برای ارسال درخواست Fetch
+        async function sendRequest(url, data) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(data)
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Error:', error);
+                return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+            }
+        }
+
+        // رندر جدول آیتم‌ها
+        function renderItemsTable(data) {
+            if (!data.items || data.items.length === 0) {
+                document.getElementById('items_table').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('items_table').innerHTML = `
+                <table class="table table-light">
+                    <thead><tr><th>نام محصول</th><th>تعداد</th><th>قیمت واحد</th><th>قیمت کل</th></tr></thead>
+                    <tbody>
+                        ${data.items.map(item => `
+                            <tr>
+                                <td>${item.product_name}</td>
+                                <td>${item.quantity}</td>
+                                <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
+                                <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                            </tr>
+                        `).join('')}
+                        <tr class="total-row">
+                            <td colspan="3"><strong>جمع کل</strong></td>
+                            <td><strong>${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount" value="${document.getElementById('discount')?.value || 0}" min="0"></td>
+                            <td><strong>${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // ساجستشن محصولات با jQuery
             $('#product_name').on('input', function() {
                 let query = $(this).val();
                 if (query.length >= 3) {
@@ -348,125 +286,83 @@ $final_amount = $total_amount - $discount;
                 $('#total_price').val(total.toLocaleString('fa') + ' تومان');
             });
 
-            // افزودن محصول با AJAX
-            $('#add_item_btn').on('click', function() {
-                let customer_name = $('#customer_name').val();
-                let product_id = $('#product_id').val();
-                let quantity = $('#quantity').val();
-                let unit_price = $('#unit_price').val();
+            // افزودن محصول
+            document.getElementById('add_item_btn').addEventListener('click', async () => {
+                const customer_name = document.getElementById('customer_name').value;
+                const product_id = document.getElementById('product_id').value;
+                const quantity = document.getElementById('quantity').value;
+                const unit_price = document.getElementById('unit_price').value;
+                const discount = document.getElementById('discount')?.value || 0;
 
                 if (!customer_name || !product_id || !quantity || !unit_price) {
                     alert('لطفاً همه فیلدها را پر کنید.');
                     return;
                 }
 
-                $.ajax({
-                    url: 'add_order.php',
-                    type: 'POST',
-                    data: {
-                        action: 'add_item',
-                        customer_name: customer_name,
-                        product_id: product_id,
-                        quantity: quantity,
-                        unit_price: unit_price
-                    },
-                    success: function(response) {
-                        let data = JSON.parse(response);
-                        if (data.success) {
-                            $('#items_table').html(`
-                                <table class="table table-light">
-                                    <thead><tr><th>نام محصول</th><th>تعداد</th><th>قیمت واحد</th><th>قیمت کل</th></tr></thead>
-                                    <tbody>
-                                        ${data.items.map(item => `
-                                            <tr>
-                                                <td>${item.product_name}</td>
-                                                <td>${item.quantity}</td>
-                                                <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                                                <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
-                                            </tr>
-                                        `).join('')}
-                                        <tr class="total-row">
-                                            <td colspan="3"><strong>جمع کل</strong></td>
-                                            <td><strong>${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
-                                        </tr>
-                                        <tr class="total-row">
-                                            <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
-                                            <td><input type="number" class="form-control" id="discount" name="discount" value="${$('#discount').val() || 0}" min="0"></td>
-                                            <td><strong>${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            `);
-                            $('#product_name').val('');
-                            $('#quantity').val('1');
-                            $('#total_price').val('');
-                            $('#product_id').val('');
-                            $('#unit_price').val('');
-                        } else {
-                            alert(data.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        alert('خطایی رخ داد: ' + error);
-                    }
-                });
+                const data = {
+                    action: 'add_item',
+                    customer_name,
+                    product_id,
+                    quantity,
+                    unit_price,
+                    discount
+                };
+
+                const response = await sendRequest('ajax_handler.php', data);
+                if (response.success) {
+                    renderItemsTable(response.data);
+                    document.getElementById('product_name').value = '';
+                    document.getElementById('quantity').value = '1';
+                    document.getElementById('total_price').value = '';
+                    document.getElementById('product_id').value = '';
+                    document.getElementById('unit_price').value = '';
+                } else {
+                    alert(response.message);
+                }
             });
 
-            // به‌روزرسانی تخفیف با AJAX
-            $('#discount').on('input', function() {
-                let discount = $(this).val();
-                $.ajax({
-                    url: 'add_order.php',
-                    type: 'POST',
-                    data: {
+            // به‌روزرسانی تخفیف
+            document.getElementById('items_table').addEventListener('input', async (e) => {
+                if (e.target.id === 'discount') {
+                    const discount = e.target.value;
+                    const data = {
                         action: 'update_discount',
-                        discount: discount
-                    },
-                    success: function(response) {
-                        let data = JSON.parse(response);
-                        if (data.success) {
-                            $('#final_amount').text(Number(data.final_amount).toLocaleString('fa') + ' تومان');
-                        } else {
-                            alert(data.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        alert('خطایی رخ داد: ' + error);
+                        discount
+                    };
+
+                    const response = await sendRequest('ajax_handler.php', data);
+                    if (response.success) {
+                        document.getElementById('final_amount').innerText = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    } else {
+                        alert(response.message);
                     }
-                });
+                }
             });
 
-            // بستن فاکتور با AJAX
-            $('#finalize_order_btn').on('click', function() {
-                let customer_name = $('#customer_name').val();
-                let discount = $('#discount').val() || 0;
+            // بستن فاکتور
+            document.getElementById('finalize_order_btn').addEventListener('click', async () => {
+                const customer_name = document.getElementById('customer_name').value;
+                const discount = document.getElementById('discount')?.value || 0;
 
                 if (!customer_name) {
                     alert('لطفاً نام مشتری را وارد کنید.');
                     return;
                 }
 
-                $.ajax({
-                    url: 'add_order.php',
-                    type: 'POST',
-                    data: {
-                        action: 'finalize_order',
-                        customer_name: customer_name,
-                        discount: discount
-                    },
-                    success: function(response) {
-                        let data = JSON.parse(response);
-                        if (data.success) {
-                            alert(data.message);
-                            window.location.href = data.redirect;
-                        } else {
-                            alert(data.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        alert('خطایی رخ داد: ' + error);
-                    }
-                });
+                const data = {
+                    action: 'finalize_order',
+                    work_details_id: '<?= $work_details_id ?>',
+                    customer_name,
+                    discount
+                };
+
+                const response = await sendRequest('ajax_handler.php', data);
+                if (response.success) {
+                    alert(response.message);
+                    window.location.href = response.data.redirect;
+                } else {
+                    alert(response.message);
+                }
             });
         });
     </script>
