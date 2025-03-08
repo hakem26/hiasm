@@ -153,102 +153,123 @@ if (!empty($selected_partner_id)) {
 }
 ?>
 
-<div class="container-fluid mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title">اطلاعات کاری</h5>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اطلاعات کاری</title>
+    <!-- Bootstrap RTL CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
+        integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Persian Datepicker CSS -->
+    <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container-fluid mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title">اطلاعات کاری</h5>
+        </div>
+
+        <form method="GET" class="row g-3 mb-3">
+            <!-- فیلتر سال (برای هر دو نقش) -->
+            <div class="col-auto">
+                <select name="year" class="form-select" onchange="this.form.submit()">
+                    <option value="">انتخاب سال</option>
+                    <?php foreach ($years as $year): ?>
+                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                            <?= $year ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <!-- فیلتر ماه -->
+            <div class="col-auto">
+                <select name="work_month_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">انتخاب ماه</option>
+                    <?php foreach ($work_months as $month): ?>
+                        <option value="<?= $month['work_month_id'] ?>" <?= isset($_GET['work_month_id']) && $_GET['work_month_id'] == $month['work_month_id'] ? 'selected' : '' ?>>
+                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <!-- فیلتر همکار -->
+            <div class="col-auto">
+                <select name="user_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">همه همکاران</option>
+                    <?php foreach ($partners as $partner): ?>
+                        <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($partner['full_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </form>
+
+        <?php if (!empty($filtered_work_details)): ?>
+            <table class="table table-light table-hover">
+                <thead>
+                    <tr>
+                        <th>تاریخ</th>
+                        <th>روز هفته</th>
+                        <th>همکاران</th>
+                        <th>آژانس</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($filtered_work_details as $work): ?>
+                        <tr>
+                            <td><?= gregorian_to_jalali_format($work['work_date']) ?></td>
+                            <td><?= $work['work_day'] ?></td>
+                            <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
+                            <td>
+                                <select class="form-select agency-select" data-id="<?= $work['work_date'] ?>" data-partner-id="<?= $work['partner_id'] ?>">
+                                    <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($work['user1']) ?>
+                                    </option>
+                                    <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $work['user_id2'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($work['user2']) ?>
+                                    </option>
+                                </select>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php elseif (isset($_GET['work_month_id'])): ?>
+            <div class="alert alert-warning text-center">اطلاعاتی وجود ندارد.</div>
+        <?php endif; ?>
     </div>
 
-    <form method="GET" class="row g-3 mb-3">
-        <!-- فیلتر سال (برای هر دو نقش) -->
-        <div class="col-auto">
-            <select name="year" class="form-select" onchange="this.form.submit()">
-                <option value="">انتخاب سال</option>
-                <?php foreach ($years as $year): ?>
-                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                        <?= $year ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="assets/js/persian-date.min.js"></script>
+    <script src="assets/js/persian-datepicker.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Datepicker برای فیلدهای تاریخ (شمسی)
+            $('.agency-select').change(function() {
+                var work_date = $(this).data("id");
+                var partner_id = $(this).data("partner-id");
+                var agency_owner_id = $(this).val();
 
-        <!-- فیلتر ماه -->
-        <div class="col-auto">
-            <select name="work_month_id" class="form-select" onchange="this.form.submit()">
-                <option value="">انتخاب ماه</option>
-                <?php foreach ($work_months as $month): ?>
-                    <option value="<?= $month['work_month_id'] ?>" <?= isset($_GET['work_month_id']) && $_GET['work_month_id'] == $month['work_month_id'] ? 'selected' : '' ?>>
-                        <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <!-- فیلتر همکار -->
-        <div class="col-auto">
-            <select name="user_id" class="form-select" onchange="this.form.submit()">
-                <option value="">همه همکاران</option>
-                <?php foreach ($partners as $partner): ?>
-                    <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($partner['full_name']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-    </form>
-
-    <?php if (!empty($filtered_work_details)): ?>
-        <table class="table table-light table-hover">
-            <thead>
-                <tr>
-                    <th>تاریخ</th>
-                    <th>روز هفته</th>
-                    <th>همکاران</th>
-                    <th>آژانس</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($filtered_work_details as $work): ?>
-                    <tr>
-                        <td><?= gregorian_to_jalali_format($work['work_date']) ?></td>
-                        <td><?= $work['work_day'] ?></td>
-                        <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
-                        <td>
-                            <select class="form-select agency-select" data-id="<?= $work['work_date'] ?>" data-partner-id="<?= $work['partner_id'] ?>">
-                                <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($work['user1']) ?>
-                                </option>
-                                <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $work['user_id2'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($work['user2']) ?>
-                                </option>
-                            </select>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    <?php elseif (isset($_GET['work_month_id'])): ?>
-        <div class="alert alert-warning text-center">اطلاعاتی وجود ندارد.</div>
-    <?php endif; ?>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-$(document).ready(function() {
-    $(".agency-select").change(function() {
-        var work_date = $(this).data("id");
-        var partner_id = $(this).data("partner-id");
-        var agency_owner_id = $(this).val();
-
-        $.post("update_agency.php", {
-            work_date: work_date,
-            partner_id: partner_id,
-            agency_owner_id: agency_owner_id
-        }, function(response) {
-            alert(response);
+                $.post("update_agency.php", {
+                    work_date: work_date,
+                    partner_id: partner_id,
+                    agency_owner_id: agency_owner_id
+                }, function(response) {
+                    alert(response);
+                });
+            });
         });
-    });
-});
-</script>
+    </script>
 
 <?php require_once 'footer.php'; ?>
