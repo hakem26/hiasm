@@ -15,6 +15,12 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
+// تابع تبدیل سال میلادی به سال شمسی
+function gregorian_year_to_jalali($gregorian_year) {
+    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1); // فقط سال رو می‌گیریم
+    return $jy;
+}
+
 // تابع تبدیل عدد روز به نام روز
 function number_to_day($day_number) {
     $days = [
@@ -40,9 +46,13 @@ $current_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
 // دریافت سال انتخاب‌شده (میلادی)
 $selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
 
+// تبدیل سال انتخاب‌شده به شمسی برای نمایش
+$selected_jalali_year = $selected_year ? gregorian_year_to_jalali($selected_year) : null;
+
 // اگر سال انتخاب‌شده وجود نداشت، اولین سال موجود رو انتخاب کن (اگر سالی وجود داشت)
 if ($selected_year && !in_array($selected_year, $years)) {
     $selected_year = !empty($years) ? $years[0] : null;
+    $selected_jalali_year = $selected_year ? gregorian_year_to_jalali($selected_year) : null;
 }
 
 // دریافت لیست ماه‌های کاری بر اساس سال میلادی (اگر سال انتخاب‌شده وجود داشته باشه)
@@ -208,7 +218,7 @@ usort($filtered_work_details, function($a, $b) {
                 <select name="year" class="form-select" onchange="this.form.submit()">
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= $year ?>
+                            <?= gregorian_year_to_jalali($year) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
