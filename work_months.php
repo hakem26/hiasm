@@ -16,40 +16,24 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
 }
 
-// فانکشن سفارشی برای تبدیل سال میلادی به شمسی
-function miladi_to_shamsi_year($miladi_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($miladi_year, 1, 1);
-    return $jy;
-}
-
-// دریافت سال‌های موجود از دیتابیس
+// دریافت سال‌های موجود از دیتابیس (میلادی)
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_map(function($row) {
-    return miladi_to_shamsi_year($row['year']);
-}, $years_db);
+$years = array_column($years_db, 'year'); // سال‌ها به‌صورت میلادی
 
-// دریافت سال جاری (شمسی) به‌عنوان پیش‌فرض
-$current_gregorian_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
-$current_year = miladi_to_shamsi_year($current_gregorian_year);
+// دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
+$current_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
 
-// دریافت سال انتخاب‌شده (شمسی)
+// دریافت سال انتخاب‌شده (میلادی)
 $selected_year = $_GET['year'] ?? $current_year;
-
-// تبدیل سال شمسی انتخاب‌شده به میلادی برای کوئری (با چک برای خالی بودن)
-if (empty($selected_year) || !is_numeric($selected_year)) {
-    $selected_gregorian_year = $current_gregorian_year; // پیش‌فرض سال جاری میلادی
-} else {
-    list($selected_gregorian_year) = jalali_to_gregorian($selected_year, 1, 1);
-}
 
 // کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی
 $stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$stmt->execute([$selected_gregorian_year]);
+$stmt->execute([$selected_year]);
 $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // دیباگ برای تست (حذف بعد از تأیید)
-var_dump($selected_gregorian_year);
+var_dump($selected_year);
 var_dump($work_months);
 ?>
 
@@ -84,7 +68,7 @@ var_dump($work_months);
                     <option value="">انتخاب سال</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= $year ?>
+                            <?= $year ?> (میلادی - برای نمایش شمسی تاریخ‌ها)
                         </option>
                     <?php endforeach; ?>
                 </select>
