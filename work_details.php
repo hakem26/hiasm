@@ -34,8 +34,8 @@ $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
 // دریافت سال جاری (شمسی)
-$current_gregorian_year = date('Y');
-list($current_year) = gregorian_to_jalali($current_gregorian_year, 1, 1); // تبدیل سال میلادی به شمسی
+$current_gregorian_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
+list($current_year) = gregorian_to_jalali($current_gregorian_year, 1, 1); // تبدیل به شمسی
 if (!$current_year || $current_year < 1300) {
     $current_year = 1403; // پیش‌فرض
 }
