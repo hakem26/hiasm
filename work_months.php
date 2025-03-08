@@ -16,18 +16,27 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
 }
 
-// دریافت سال جاری (شمسی)
-$current_gregorian_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
-list($current_year) = gregorian_to_jalali($current_gregorian_year, 1, 1); // تبدیل به شمسی
-if (!$current_year || $current_year < 1300) {
-    $current_year = 1403; // پیش‌فرض
+// فانکشن سفارشی برای تبدیل سال میلادی به شمسی
+function miladi_to_shamsi_year($miladi_year) {
+    list($jy, $jm, $jd) = gregorian_to_jalali($miladi_year, 1, 1);
+    return $jy;
 }
-$years = range($current_year, $current_year - 40);
+
+// دریافت سال‌های موجود از دیتابیس
+$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
+$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$years = array_map(function($row) {
+    return miladi_to_shamsi_year($row['year']);
+}, $years_db);
+
+// دریافت سال جاری (شمسی) به‌عنوان پیش‌فرض
+$current_gregorian_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
+$current_year = miladi_to_shamsi_year($current_gregorian_year);
 
 // دریافت سال انتخاب‌شده (شمسی)
 $selected_year = $_GET['year'] ?? $current_year;
 
-// تبدیل سال شمسی به میلادی برای کوئری
+// تبدیل سال شمسی انتخاب‌شده به میلادی برای کوئری
 list($selected_gregorian_year) = jalali_to_gregorian($selected_year, 1, 1);
 
 // کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی
@@ -64,6 +73,7 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <form method="GET" class="row g-3 mb-3">
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
+                    <option value="">انتخاب سال</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
                             <?= $year ?>
