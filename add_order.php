@@ -4,6 +4,10 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit;
 }
+
+// بافر خروجی رو شروع می‌کنیم تا از خروجی‌های ناخواسته جلوگیری کنیم
+ob_start();
+
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
@@ -22,6 +26,12 @@ if ($is_admin) {
     exit;
 }
 $current_user_id = $_SESSION['user_id'];
+
+// ریست کردن سشن order_items در ابتدای صفحه برای جلوگیری از نمایش فاکتور قبلی
+if (!isset($_SESSION['is_order_in_progress']) || !$_SESSION['is_order_in_progress']) {
+    unset($_SESSION['order_items']);
+}
+$_SESSION['is_order_in_progress'] = true;
 
 // دریافت اطلاعات روز کاری از work_details_id (از GET)
 $work_details_id = $_GET['work_details_id'] ?? '';
@@ -70,84 +80,110 @@ $customer_name = isset($_POST['customer_name']) ? $_POST['customer_name'] : '';
 $total_amount = 0;
 $discount = isset($_POST['discount']) ? (float)$_POST['discount'] : 0;
 
-// پردازش افزودن محصول با AJAX (بدون رفرش)
+// پردازش افزودن محصول با AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_item') {
-    $customer_name = $_POST['customer_name'];
-    $product_id = $_POST['product_id'];
-    $quantity = (int)$_POST['quantity'];
-    $unit_price = (float)$_POST['unit_price'];
-    $total_price = $quantity * $unit_price;
+    try {
+        ob_end_clean(); // پاک کردن بافر خروجی
 
-    $stmt_product = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
-    $stmt_product->execute([$product_id]);
-    $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
+        $customer_name = $_POST['customer_name'];
+        $product_id = $_POST['product_id'];
+        $quantity = (int)$_POST['quantity'];
+        $unit_price = (float)$_POST['unit_price'];
+        $total_price = $quantity * $unit_price;
 
-    $items[] = [
-        'product_id' => $product_id,
-        'product_name' => $product['product_name'],
-        'quantity' => $quantity,
-        'unit_price' => $unit_price,
-        'total_price' => $total_price
-    ];
-    $_SESSION['order_items'] = $items;
+        $stmt_product = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+        $stmt_product->execute([$product_id]);
+        $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
 
-    // محاسبه کل
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $final_amount = $total_amount - $discount;
+        if (!$product) {
+            throw new Exception("محصول یافت نشد.");
+        }
 
-    // پاسخ JSON برای آپدیت جدول
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => true,
-        'items' => $items,
-        'total_amount' => $total_amount,
-        'final_amount' => $final_amount
-    ]);
-    exit;
+        $items[] = [
+            'product_id' => $product_id,
+            'product_name' => $product['product_name'],
+            'quantity' => $quantity,
+            'unit_price' => $unit_price,
+            'total_price' => $total_price
+        ];
+        $_SESSION['order_items'] = $items;
+
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $final_amount = $total_amount - $discount;
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'final_amount' => $final_amount
+        ]);
+        exit;
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        exit;
+    }
 }
 
-// پردازش تغییر تخفیف با AJAX (بدون رفرش)
+// پردازش تغییر تخفیف با AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_discount') {
-    $discount = (float)$_POST['discount'];
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $final_amount = $total_amount - $discount;
+    try {
+        ob_end_clean(); // پاک کردن بافر خروجی
 
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => true,
-        'total_amount' => $total_amount,
-        'final_amount' => $final_amount
-    ]);
-    exit;
+        $discount = (float)$_POST['discount'];
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $final_amount = $total_amount - $discount;
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'total_amount' => $total_amount,
+            'final_amount' => $final_amount
+        ]);
+        exit;
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        exit;
+    }
 }
 
 // پردازش بستن فاکتور
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'finalize_order') {
-    $customer_name = $_POST['customer_name'];
-    $discount = (float)$_POST['discount'];
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $final_amount = $total_amount - $discount;
+    try {
+        ob_end_clean(); // پاک کردن بافر خروجی
 
-    if (empty($items)) {
+        $customer_name = $_POST['customer_name'];
+        $discount = (float)$_POST['discount'];
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $final_amount = $total_amount - $discount;
+
+        if (empty($items)) {
+            throw new Exception("لطفاً حداقل یک محصول به فاکتور اضافه کنید.");
+        }
+
+        $stmt_order = $pdo->prepare("INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+        $stmt_order->execute([$work_details_id, $customer_name, $total_amount, $discount, $final_amount]);
+
+        $order_id = $pdo->lastInsertId();
+
+        foreach ($items as $item) {
+            $stmt_item = $pdo->prepare("INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
+            $stmt_item->execute([$order_id, $item['product_name'], $item['quantity'], $item['unit_price'], $item['total_price']]);
+        }
+
+        unset($_SESSION['order_items']);
+        $_SESSION['is_order_in_progress'] = false;
+
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'لطفاً حداقل یک محصول به فاکتور اضافه کنید.']);
+        echo json_encode(['success' => true, 'message' => 'فاکتور با موفقیت ثبت گردید', 'redirect' => 'orders.php']);
+        exit;
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         exit;
     }
-
-    $stmt_order = $pdo->prepare("INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-    $stmt_order->execute([$work_details_id, $customer_name, $total_amount, $discount, $final_amount]);
-
-    $order_id = $pdo->lastInsertId();
-
-    foreach ($items as $item) {
-        $stmt_item = $pdo->prepare("INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
-        $stmt_item->execute([$order_id, $item['product_name'], $item['quantity'], $item['unit_price'], $item['total_price']]);
-    }
-
-    unset($_SESSION['order_items']);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => true, 'message' => 'فاکتور با موفقیت ثبت گردید', 'redirect' => 'orders.php']);
-    exit;
 }
 
 // محاسبه اولیه
@@ -366,7 +402,12 @@ $final_amount = $total_amount - $discount;
                             $('#total_price').val('');
                             $('#product_id').val('');
                             $('#unit_price').val('');
+                        } else {
+                            alert(data.message);
                         }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('خطایی رخ داد: ' + error);
                     }
                 });
             });
@@ -385,7 +426,12 @@ $final_amount = $total_amount - $discount;
                         let data = JSON.parse(response);
                         if (data.success) {
                             $('#final_amount').text(Number(data.final_amount).toLocaleString('fa') + ' تومان');
+                        } else {
+                            alert(data.message);
                         }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('خطایی رخ داد: ' + error);
                     }
                 });
             });
@@ -416,6 +462,9 @@ $final_amount = $total_amount - $discount;
                         } else {
                             alert(data.message);
                         }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('خطایی رخ داد: ' + error);
                     }
                 });
             });
