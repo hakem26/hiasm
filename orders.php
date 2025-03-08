@@ -165,7 +165,7 @@ if ($selected_work_day_id) {
             </div>
             <div class="col-auto">
                 <select name="work_day_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">همه روزها</option>
+                    <option value="">انتخاب روز</option>
                     <?php foreach ($work_days as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
                             <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['partner_name'] ?> - <?= $day['agency_owner_name'] ?>)
@@ -175,9 +175,9 @@ if ($selected_work_day_id) {
             </div>
         </form>
 
-        <?php if (!$is_admin && $selected_work_month_id): ?>
+        <?php if (!$is_admin && $selected_work_day_id): ?>
             <div class="mb-3">
-                <a href="add_order.php?work_details_id=<?php echo !empty($work_days) ? $work_days[0]['work_details_id'] : ''; ?>" class="btn btn-primary">ثبت سفارش جدید</a>
+                <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش جدید</a>
             </div>
         <?php endif; ?>
 
@@ -284,7 +284,7 @@ if ($selected_work_day_id) {
                         }
                     });
                 } else {
-                    $('select[name="work_day_id"]').html('<option value="">همه روزها</option>');
+                    $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
                 }
             });
         });
