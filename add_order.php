@@ -27,15 +27,29 @@ $current_user_id = $_SESSION['user_id'];
 $work_details_id = $_GET['work_details_id'] ?? '';
 $work_info = [];
 if ($work_details_id) {
-    $stmt_work = $pdo->prepare("
-        SELECT wd.work_date, wd.partner_id, wd.agency_owner_id,
-               (SELECT username FROM Users WHERE id = wd.partner_id) AS partner_name,
-               (SELECT username FROM Users WHERE id = wd.agency_owner_id) AS agency_owner_name
-        FROM Work_Details wd
-        WHERE wd.id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-    ");
-    $stmt_work->execute([$work_details_id, $current_user_id, $current_user_id]);
+    // ابتدا چک کن که work_details_id معتبر هست
+    $stmt_work = $pdo->prepare("SELECT wd.work_date, wd.partner_id, wd.agency_owner_id FROM Work_Details wd WHERE wd.id = ?");
+    $stmt_work->execute([$work_details_id]);
     $work_info = $stmt_work->fetch(PDO::FETCH_ASSOC);
+
+    if ($work_info) {
+        // حالا چک کن که کاربر از طریق Partners به این روز دسترسی داره
+        $stmt_partner = $pdo->prepare("
+            SELECT p.partner_id
+            FROM Partners p
+            WHERE (p.user_id1 = ? OR p.user_id2 = ?) 
+            AND p.partner_id = (SELECT partner_id FROM Work_Details WHERE id = ?)
+        ");
+        $stmt_partner->execute([$current_user_id, $current_user_id, $work_details_id]);
+        $partner_access = $stmt_partner->fetch(PDO::FETCH_ASSOC);
+
+        if (!$partner_access) {
+            // اگه دسترسی از Partners نبود، حداقل باید agency_owner_id یا partner_id باشه
+            if ($work_info['agency_owner_id'] != $current_user_id && $work_info['partner_id'] != $current_user_id) {
+                $work_info = []; // دسترسی رد شد
+            }
+        }
+    }
 }
 
 if (empty($work_info)) {
@@ -43,6 +57,10 @@ if (empty($work_info)) {
     require_once 'footer.php';
     exit;
 }
+
+// دریافت نام‌های همکار و آژانس برای نمایش
+$work_info['partner_name'] = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn();
+$work_info['agency_owner_name'] = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn();
 
 // پردازش فرم افزودن محصول
 $items = isset($_SESSION['order_items']) ? $_SESSION['order_items'] : [];
@@ -112,11 +130,8 @@ $final_amount = $total_amount - $discount;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ثبت فاکتور</title>
-    <!-- Bootstrap RTL CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
     <style>
         .table-wrapper {
@@ -212,7 +227,6 @@ $final_amount = $total_amount - $discount;
         </form>
     </div>
 
-    <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
