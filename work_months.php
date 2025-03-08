@@ -16,7 +16,7 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
 }
 
-// دریافت سال جاری (با بررسی خطا)
+// دریافت سال جاری (شمسی)
 $current_gregorian_year = date('Y');
 list($current_year) = gregorian_to_jalali($current_gregorian_year, 1, 1); // تبدیل سال میلادی به شمسی
 if (!$current_year || $current_year < 1300) {
@@ -24,12 +24,15 @@ if (!$current_year || $current_year < 1300) {
 }
 $years = range($current_year, $current_year - 40);
 
-// دریافت سال انتخاب‌شده (پیش‌فرض سال جاری)
+// دریافت سال انتخاب‌شده (شمسی)
 $selected_year = $_GET['year'] ?? $current_year;
 
-// کوئری برای دریافت ماه‌های کاری بر اساس سال
+// تبدیل سال شمسی به میلادی برای کوئری
+list($selected_gregorian_year) = jalali_to_gregorian($selected_year, 1, 1);
+
+// کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی
 $stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$stmt->execute([$selected_year]);
+$stmt->execute([$selected_gregorian_year]);
 $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -167,9 +170,9 @@ $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
             document.querySelectorAll('[data-bs-target="#editWorkMonthModal"]').forEach(button => {
                 button.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const monthId = e.target.getAttribute('data-month-id');
-                    const startDate = e.target.getAttribute('data-start-date');
-                    const endDate = e.target.getAttribute('data-end-date');
+                    const monthId = button.getAttribute('data-month-id');
+                    const startDate = button.getAttribute('data-start-date');
+                    const endDate = button.getAttribute('data-end-date');
 
                     document.getElementById('edit_month_id').value = monthId;
                     document.getElementById('edit_start_date').value = startDate;

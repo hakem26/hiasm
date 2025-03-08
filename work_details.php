@@ -33,7 +33,7 @@ function number_to_day($day_number) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-// دریافت سال جاری (با بررسی خطا)
+// دریافت سال جاری (شمسی)
 $current_gregorian_year = date('Y');
 list($current_year) = gregorian_to_jalali($current_gregorian_year, 1, 1); // تبدیل سال میلادی به شمسی
 if (!$current_year || $current_year < 1300) {
@@ -41,10 +41,15 @@ if (!$current_year || $current_year < 1300) {
 }
 $years = range($current_year, $current_year - 40);
 
-// دریافت لیست ماه‌های کاری بر اساس سال انتخاب‌شده
+// دریافت سال انتخاب‌شده (شمسی)
 $selected_year = $_GET['year'] ?? $current_year;
+
+// تبدیل سال شمسی به میلادی برای کوئری
+list($selected_gregorian_year) = jalali_to_gregorian($selected_year, 1, 1);
+
+// دریافت لیست ماه‌های کاری بر اساس سال میلادی
 $work_months_query = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$work_months_query->execute([$selected_year]);
+$work_months_query->execute([$selected_gregorian_year]);
 $work_months = $work_months_query->fetchAll(PDO::FETCH_ASSOC);
 
 // دریافت همکاران
@@ -255,7 +260,6 @@ if (!empty($selected_partner_id)) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         $(document).ready(function() {
-            // Datepicker برای فیلدهای تاریخ (شمسی)
             $('.agency-select').change(function() {
                 var work_date = $(this).data("id");
                 var partner_id = $(this).data("partner-id");
