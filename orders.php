@@ -26,12 +26,13 @@ $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
 // دریافت سال‌های موجود بر اساس Work_Details
-$stmt_years = $pdo->query("
+$stmt_years = $pdo->prepare("
     SELECT DISTINCT YEAR(work_date) AS year 
     FROM Work_Details 
     WHERE user_id = ? 
     ORDER BY year DESC
-", [$current_user_id]);
+");
+$stmt_years->execute([$current_user_id]);
 $years_db = $stmt_years->fetchAll(PDO::FETCH_ASSOC);
 $years = array_column($years_db, 'year');
 
@@ -60,7 +61,7 @@ if ($selected_work_month_id) {
     $stmt_days = $pdo->prepare("
         SELECT work_details_id, work_date, user1, user2 
         FROM Work_Details 
-        WHERE work_month_id = ? AND user_id1 = ? OR user_id2 = ?
+        WHERE work_month_id = ? AND (user_id1 = ? OR user_id2 = ?)
         ORDER BY work_date ASC
     ");
     $stmt_days->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
