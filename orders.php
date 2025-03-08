@@ -29,7 +29,7 @@ $current_user_id = $_SESSION['user_id'];
 $stmt_years = $pdo->prepare("
     SELECT DISTINCT YEAR(work_date) AS year 
     FROM Work_Details 
-    WHERE user_id1 = ? OR user_id2 = ?
+    WHERE partner_id = ? OR agency_owner_id = ?
     ORDER BY year DESC
 ");
 $stmt_years->execute([$current_user_id, $current_user_id]);
@@ -47,7 +47,7 @@ if ($selected_year) {
         SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
         FROM Work_Months wm
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
-        WHERE YEAR(wm.start_date) = ? AND (wd.user_id1 = ? OR wd.user_id2 = ?)
+        WHERE YEAR(wm.start_date) = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
         ORDER BY wm.start_date DESC
     ");
     $stmt_months->execute([$selected_year, $current_user_id, $current_user_id]);
@@ -59,9 +59,9 @@ $work_days = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? '';
 if ($selected_work_month_id) {
     $stmt_days = $pdo->prepare("
-        SELECT work_details_id, work_date, user1, user2 
+        SELECT id AS work_details_id, work_date, partner_id, agency_owner_id 
         FROM Work_Details 
-        WHERE work_month_id = ? AND (user_id1 = ? OR user_id2 = ?)
+        WHERE work_month_id = ? AND (partner_id = ? OR agency_owner_id = ?)
         ORDER BY work_date ASC
     ");
     $stmt_days->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
@@ -76,10 +76,14 @@ if ($selected_work_day_id) {
         SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
                SUM(p.amount) AS paid_amount,
                (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
-               wd.work_date, CONCAT(wd.user1, ' - ', wd.user2) AS partner_names
+               wd.work_date, 
+               (SELECT CONCAT(u1.username, ' - ', u2.username) 
+                FROM Users u1 
+                JOIN Users u2 ON u2.id = wd.agency_owner_id 
+                WHERE u1.id = wd.partner_id) AS partner_names
         FROM Orders o
         LEFT JOIN Payments p ON o.order_id = p.order_id
-        JOIN Work_Details wd ON o.work_details_id = wd.work_details_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
         WHERE o.work_details_id = ?
         GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
     ");
@@ -90,11 +94,15 @@ if ($selected_work_day_id) {
         SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
                SUM(p.amount) AS paid_amount,
                (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
-               wd.work_date, CONCAT(wd.user1, ' - ', wd.user2) AS partner_names
+               wd.work_date, 
+               (SELECT CONCAT(u1.username, ' - ', u2.username) 
+                FROM Users u1 
+                JOIN Users u2 ON u2.id = wd.agency_owner_id 
+                WHERE u1.id = wd.partner_id) AS partner_names
         FROM Orders o
         LEFT JOIN Payments p ON o.order_id = p.order_id
-        JOIN Work_Details wd ON o.work_details_id = wd.work_details_id
-        WHERE wd.work_month_id = ? AND (wd.user_id1 = ? OR wd.user_id2 = ?)
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
         GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
     ");
     $stmt_orders->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
@@ -163,7 +171,7 @@ if ($selected_work_day_id) {
                     <option value="">همه روزها</option>
                     <?php foreach ($work_days as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> - <?= $day['user2'] ?>)
+                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['partner_id'] ?> - <?= $day['agency_owner_id'] ?>)
                         </option>
                     <?php endforeach; ?>
                 </select>
