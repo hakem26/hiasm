@@ -17,6 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_SESSION['full_name'] = $user['full_name'];
         $_SESSION['role'] = $user['role'];
 
+        // تعیین صفحه مقصد بر اساس نقش کاربر
+        $redirect_url = ($_SESSION['role'] === 'admin') ? 'dashboard_admin.php' : 'dashboard_seller.php';
+
         // اگر تیک "ذخیره ورود" فعال باشد، کوکی تنظیم می‌شود
         if ($remember) {
             setcookie('username', $username, time() + (30 * 24 * 60 * 60), "/"); // 30 روز اعتبار
@@ -24,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             setcookie('username', '', time() - 3600, "/"); // حذف کوکی اگر تیک غیرفعال باشد
         }
 
-        header("Location: dashboard.php");
+        header("Location: $redirect_url");
         exit;
     } else {
         $_SESSION['error'] = "نام کاربری یا رمز عبور اشتباه است.";
@@ -32,4 +35,3 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         exit;
     }
 }
-?>
