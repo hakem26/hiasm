@@ -91,7 +91,7 @@ if (isset($_GET['work_month_id'])) {
         $interval = new DateInterval('P1D');
         $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
-        // دریافت همه جفت‌های همکار برای این ماه کاری
+        // دریافت همه جفت‌های همکار از Partners برای این ماه کاری
         if ($is_admin) {
             $partner_query = $pdo->prepare("
                 SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
@@ -99,11 +99,9 @@ if (isset($_GET['work_month_id'])) {
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                JOIN Work_Details wd ON wd.partner_id = p.partner_id
-                WHERE wd.work_month_id = ?
                 GROUP BY p.partner_id
             ");
-            $partner_query->execute([$work_month_id]);
+            $partner_query->execute();
         } else {
             $partner_query = $pdo->prepare("
                 SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
@@ -111,50 +109,54 @@ if (isset($_GET['work_month_id'])) {
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                JOIN Work_Details wd ON wd.partner_id = p.partner_id
-                WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+                WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u1.role = 'seller'
                 GROUP BY p.partner_id
             ");
-            $partner_query->execute([$work_month_id, $current_user_id, $current_user_id]);
+            $partner_query->execute([$current_user_id, $current_user_id]);
         }
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
-        // پردازش هر روز و جفت‌های همکار
-        foreach ($date_range as $date) {
-            $work_date = $date->format('Y-m-d');
-            $day_number_php = (int)date('N', strtotime($work_date));
-            $adjusted_day_number = ($day_number_php + 5) % 7;
-            if ($adjusted_day_number == 0) $adjusted_day_number = 7;
-            $work_day_display = number_to_day($adjusted_day_number);
+        // همگام‌سازی و ذخیره‌سازی داده‌ها
+        $processed_partners = []; // برای جلوگیری از تکرار
+        foreach ($partners_in_work as $partner) {
+            $partner_id = $partner['partner_id'];
+            if (!in_array($partner_id, $processed_partners)) {
+                $processed_partners[] = $partner_id;
 
-            foreach ($partners_in_work as $partner) {
-                if ($partner['stored_day_number'] == $adjusted_day_number) {
-                    $detail_query = $pdo->prepare("
-                        SELECT * FROM Work_Details 
-                        WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
-                    ");
-                    $detail_query->execute([$work_date, $work_month_id, $partner['partner_id']]);
-                    $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
+                foreach ($date_range as $date) {
+                    $work_date = $date->format('Y-m-d');
+                    $day_number_php = (int)date('N', strtotime($work_date));
+                    $adjusted_day_number = ($day_number_php + 5) % 7;
+                    if ($adjusted_day_number == 0) $adjusted_day_number = 7;
 
-                    if (!$existing_detail) {
-                        $insert_query = $pdo->prepare("
-                            INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
-                            VALUES (?, ?, ?, ?, ?)
+                    if ($partner['stored_day_number'] == $adjusted_day_number) {
+                        $detail_query = $pdo->prepare("
+                            SELECT * FROM Work_Details 
+                            WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
                         ");
-                        $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner['partner_id'], $partner['user_id1']]);
-                    }
+                        $detail_query->execute([$work_date, $work_month_id, $partner_id]);
+                        $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
 
-                    $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
-                    $work_details[] = [
-                        'work_date' => $work_date,
-                        'work_day' => $work_day_display,
-                        'partner_id' => $partner['partner_id'],
-                        'user1' => $partner['user1'],
-                        'user2' => $partner['user2'],
-                        'user_id1' => $partner['user_id1'],
-                        'user_id2' => $partner['user_id2'],
-                        'agency_owner_id' => $agency_owner_id
-                    ];
+                        if (!$existing_detail) {
+                            $insert_query = $pdo->prepare("
+                                INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
+                                VALUES (?, ?, ?, ?, ?)
+                            ");
+                            $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, $partner['user_id1']]);
+                        }
+
+                        $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
+                        $work_details[] = [
+                            'work_date' => $work_date,
+                            'work_day' => number_to_day($adjusted_day_number),
+                            'partner_id' => $partner_id,
+                            'user1' => $partner['user1'],
+                            'user2' => $partner['user2'],
+                            'user_id1' => $partner['user_id1'],
+                            'user_id2' => $partner['user_id2'],
+                            'agency_owner_id' => $agency_owner_id
+                        ];
+                    }
                 }
             }
         }
