@@ -63,8 +63,8 @@ if ($selected_work_month_id) {
                u1.username AS partner_name, 
                u2.username AS agency_owner_name
         FROM Work_Details wd
-        JOIN Users u1 ON u1.id = wd.partner_id
-        JOIN Users u2 ON u2.id = wd.agency_owner_id
+        JOIN Users u1 ON u1.user_id = wd.partner_id
+        JOIN Users u2 ON u2.user_id = wd.agency_owner_id
         WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
         ORDER BY wd.work_date ASC
     ");
@@ -85,8 +85,8 @@ if ($selected_work_day_id) {
         FROM Orders o
         LEFT JOIN Payments p ON o.order_id = p.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Users u1 ON u1.id = wd.partner_id
-        JOIN Users u2 ON u2.id = wd.agency_owner_id
+        JOIN Users u1 ON u1.user_id = wd.partner_id
+        JOIN Users u2 ON u2.user_id = wd.agency_owner_id
         WHERE o.work_details_id = ?
         GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
     ");
@@ -102,8 +102,8 @@ if ($selected_work_day_id) {
         FROM Orders o
         LEFT JOIN Payments p ON o.order_id = p.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Users u1 ON u1.id = wd.partner_id
-        JOIN Users u2 ON u2.id = wd.agency_owner_id
+        JOIN Users u1 ON u1.user_id = wd.partner_id
+        JOIN Users u2 ON u2.user_id = wd.agency_owner_id
         WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
         GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
     ");
