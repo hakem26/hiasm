@@ -68,6 +68,7 @@ switch ($action) {
             send_response(true, [
                 'items' => $items,
                 'total_amount' => $total_amount,
+                'discount' => $discount,
                 'final_amount' => $final_amount
             ]);
         } catch (Exception $e) {
@@ -84,6 +85,7 @@ switch ($action) {
 
             send_response(true, [
                 'total_amount' => $total_amount,
+                'discount' => $discount,
                 'final_amount' => $final_amount
             ]);
         } catch (Exception $e) {

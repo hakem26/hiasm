@@ -62,14 +62,20 @@ if (empty($work_info)) {
     exit;
 }
 
-// دریافت نام‌های همکار و آژانس (بدون نمایش نام خود کاربر)
-$work_info['partner_name'] = $work_info['partner_id'] == $current_user_id ? 
-    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn() : 
-    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn();
-
-$work_info['agency_owner_name'] = $work_info['agency_owner_id'] == $current_user_id ? 
-    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn() : 
-    $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn();
+// دریافت نام‌های همکار و آژانس با چک اضافی
+$partner_name = '';
+$agency_owner_name = '';
+if ($work_info['partner_id']) {
+    $partner_name = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn() ?: 'نامشخص';
+}
+if ($work_info['agency_owner_id']) {
+    $agency_owner_name = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn() ?: 'نامشخص';
+}
+if ($work_info['partner_id'] == $current_user_id) {
+    $partner_name = $agency_owner_name;
+} elseif ($work_info['agency_owner_id'] == $current_user_id) {
+    $agency_owner_name = $partner_name;
+}
 
 // مقادیر اولیه
 $items = isset($_SESSION['order_items']) ? $_SESSION['order_items'] : [];
@@ -130,7 +136,7 @@ $final_amount = $total_amount - $discount;
         <div class="card mb-4">
             <div class="card-body">
                 <p><strong>تاریخ:</strong> <?= gregorian_to_jalali_format($work_info['work_date']) ?></p>
-                <p><strong>همکار:</strong> <?= htmlspecialchars($work_info['partner_name']) ?> - <?= htmlspecialchars($work_info['agency_owner_name']) ?></p>
+                <p><strong>همکار:</strong> <?= htmlspecialchars($partner_name) ?> - <?= htmlspecialchars($agency_owner_name) ?></p>
             </div>
         </div>
 
@@ -243,7 +249,7 @@ $final_amount = $total_amount - $discount;
                         </tr>
                         <tr class="total-row">
                             <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
-                            <td><input type="number" class="form-control" id="discount" name="discount" value="${document.getElementById('discount')?.value || 0}" min="0"></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
                             <td><strong>${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
                         </tr>
                     </tbody>
@@ -332,6 +338,7 @@ $final_amount = $total_amount - $discount;
 
                     const response = await sendRequest('ajax_handler.php', data);
                     if (response.success) {
+                        document.getElementById('discount').value = response.data.discount; // به‌روزرسانی مقدار تخفیف
                         document.getElementById('final_amount').innerText = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
                     } else {
                         alert(response.message);
