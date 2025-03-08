@@ -54,10 +54,24 @@ if ($selected_year) {
     $months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت روزهای کاری بر اساس ماه انتخاب‌شده
-$work_days = [];
+// دریافت همکارها بر اساس ماه انتخاب‌شده
+$partners = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? '';
 if ($selected_work_month_id) {
+    $stmt_partners = $pdo->prepare("
+        SELECT DISTINCT u.user_id, u.username
+        FROM Work_Details wd
+        JOIN Users u ON u.user_id = wd.partner_id OR u.user_id = wd.agency_owner_id
+        WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
+    ");
+    $stmt_partners->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
+    $partners = $stmt_partners->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// دریافت روزهای کاری بر اساس همکار انتخاب‌شده
+$work_days = [];
+$selected_partner_id = $_GET['partner_id'] ?? '';
+if ($selected_work_month_id && $selected_partner_id) {
     $stmt_days = $pdo->prepare("
         SELECT wd.id AS work_details_id, wd.work_date, 
                u1.username AS partner_name, 
@@ -66,13 +80,14 @@ if ($selected_work_month_id) {
         JOIN Users u1 ON u1.user_id = wd.partner_id
         JOIN Users u2 ON u2.user_id = wd.agency_owner_id
         WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
+        AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
         ORDER BY wd.work_date ASC
     ");
-    $stmt_days->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
+    $stmt_days->execute([$selected_work_month_id, $current_user_id, $current_user_id, $selected_partner_id, $selected_partner_id]);
     $work_days = $stmt_days->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت سفارشات بر اساس فیلترها
+// دریافت سفارشات بر اساس روز انتخاب‌شده
 $orders = [];
 $selected_work_day_id = $_GET['work_day_id'] ?? '';
 if ($selected_work_day_id) {
@@ -91,23 +106,6 @@ if ($selected_work_day_id) {
         GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
     ");
     $stmt_orders->execute([$selected_work_day_id]);
-    $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
-} elseif ($selected_work_month_id) {
-    $stmt_orders = $pdo->prepare("
-        SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
-               SUM(p.amount) AS paid_amount,
-               (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
-               wd.work_date, 
-               CONCAT(u1.username, ' - ', u2.username) AS partner_names
-        FROM Orders o
-        LEFT JOIN Payments p ON o.order_id = p.order_id
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Users u1 ON u1.user_id = wd.partner_id
-        JOIN Users u2 ON u2.user_id = wd.agency_owner_id
-        WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-        GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
-    ");
-    $stmt_orders->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
     $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
@@ -164,6 +162,16 @@ if ($selected_work_day_id) {
                 </select>
             </div>
             <div class="col-auto">
+                <select name="partner_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">انتخاب همکار</option>
+                    <?php foreach ($partners as $partner): ?>
+                        <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                            <?= $partner['username'] ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-auto">
                 <select name="work_day_id" class="form-select" onchange="this.form.submit()">
                     <option value="">انتخاب روز</option>
                     <?php foreach ($work_days as $day): ?>
@@ -181,72 +189,49 @@ if ($selected_work_day_id) {
             </div>
         <?php endif; ?>
 
-        <?php if (!empty($work_days) && !$is_admin): ?>
-            <div class="table-wrapper">
-                <table class="table table-light table-hover">
-                    <thead>
-                        <tr>
-                            <th>تاریخ</th>
-                            <th>همکار</th>
-                            <th>اقدام</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($work_days as $day): ?>
+        <?php if ($selected_work_day_id): ?>
+            <?php if (empty($orders)): ?>
+                <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
+            <?php else: ?>
+                <div class="table-wrapper">
+                    <table class="table table-light table-hover">
+                        <thead>
                             <tr>
-                                <td><?= gregorian_to_jalali_format($day['work_date']) ?></td>
-                                <td><?= $day['partner_name'] ?> - <?= $day['agency_owner_name'] ?></td>
-                                <td>
-                                    <a href="add_order.php?work_details_id=<?= $day['work_details_id'] ?>" class="btn btn-primary btn-sm">ثبت سفارش جدید</a>
-                                </td>
+                                <th>تاریخ</th>
+                                <th>نام همکار</th>
+                                <th>شماره فاکتور</th>
+                                <th>نام مشتری</th>
+                                <th>مبلغ کل فاکتور</th>
+                                <th>مبلغ پرداختی</th>
+                                <th>مانده حساب</th>
+                                <th>فاکتور</th>
+                                <th>اطلاعات پرداخت</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
-
-        <?php if (empty($orders)): ?>
-            <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
-        <?php else: ?>
-            <div class="table-wrapper">
-                <table class="table table-light table-hover">
-                    <thead>
-                        <tr>
-                            <th>تاریخ</th>
-                            <th>نام همکار</th>
-                            <th>شماره فاکتور</th>
-                            <th>نام مشتری</th>
-                            <th>مبلغ کل فاکتور</th>
-                            <th>مبلغ پرداختی</th>
-                            <th>مانده حساب</th>
-                            <th>فاکتور</th>
-                            <th>اطلاعات پرداخت</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($orders as $order): ?>
-                            <tr>
-                                <td><?= gregorian_to_jalali_format($order['work_date']) ?></td>
-                                <td><?= $order['partner_names'] ?></td>
-                                <td><?= $order['order_id'] ?></td>
-                                <td><?= htmlspecialchars($order['customer_name']) ?></td>
-                                <td><?= number_format($order['final_amount'], 0) ?> تومان</td>
-                                <td><?= number_format($order['paid_amount'] ?? 0, 0) ?> تومان</td>
-                                <td><?= number_format($order['remaining_amount'], 0) ?> تومان</td>
-                                <td>
-                                    <a href="edit_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
-                                </td>
-                                <td>
-                                    <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($orders as $order): ?>
+                                <tr>
+                                    <td><?= gregorian_to_jalali_format($order['work_date']) ?></td>
+                                    <td><?= $order['partner_names'] ?></td>
+                                    <td><?= $order['order_id'] ?></td>
+                                    <td><?= htmlspecialchars($order['customer_name']) ?></td>
+                                    <td><?= number_format($order['final_amount'], 0) ?> تومان</td>
+                                    <td><?= number_format($order['paid_amount'] ?? 0, 0) ?> تومان</td>
+                                    <td><?= number_format($order['remaining_amount'], 0) ?> تومان</td>
+                                    <td>
+                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                    </td>
+                                    <td>
+                                        <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
@@ -265,10 +250,14 @@ if ($selected_work_day_id) {
                         data: { year: year, user_id: <?= $current_user_id ?> },
                         success: function(response) {
                             $('select[name="work_month_id"]').html(response);
+                            $('select[name="partner_id"]').html('<option value="">انتخاب همکار</option>');
+                            $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
                         }
                     });
                 } else {
                     $('select[name="work_month_id"]').html('<option value="">انتخاب ماه</option>');
+                    $('select[name="partner_id"]').html('<option value="">انتخاب همکار</option>');
+                    $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
                 }
             });
 
@@ -276,9 +265,28 @@ if ($selected_work_day_id) {
                 let month_id = $(this).val();
                 if (month_id) {
                     $.ajax({
-                        url: 'get_work_days.php',
+                        url: 'get_partners.php',
                         type: 'POST',
                         data: { month_id: month_id, user_id: <?= $current_user_id ?> },
+                        success: function(response) {
+                            $('select[name="partner_id"]').html(response);
+                            $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
+                        }
+                    });
+                } else {
+                    $('select[name="partner_id"]').html('<option value="">انتخاب همکار</option>');
+                    $('select[name="work_day_id"]').html('<option value="">انتخاب روز</option>');
+                }
+            });
+
+            $('select[name="partner_id"]').change(function() {
+                let partner_id = $(this).val();
+                let month_id = $('select[name="work_month_id"]').val();
+                if (partner_id && month_id) {
+                    $.ajax({
+                        url: 'get_work_days.php',
+                        type: 'POST',
+                        data: { month_id: month_id, partner_id: partner_id, user_id: <?= $current_user_id ?> },
                         success: function(response) {
                             $('select[name="work_day_id"]').html(response);
                         }
