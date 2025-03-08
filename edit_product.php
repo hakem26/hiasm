@@ -5,7 +5,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 require_once 'db.php';
-require_once 'header.php';
 
 // دریافت اطلاعات محصول برای ویرایش
 $product = null;
