@@ -36,13 +36,21 @@ $current_year = miladi_to_shamsi_year($current_gregorian_year);
 // دریافت سال انتخاب‌شده (شمسی)
 $selected_year = $_GET['year'] ?? $current_year;
 
-// تبدیل سال شمسی انتخاب‌شده به میلادی برای کوئری
-list($selected_gregorian_year) = jalali_to_gregorian($selected_year, 1, 1);
+// تبدیل سال شمسی انتخاب‌شده به میلادی برای کوئری (با چک برای خالی بودن)
+if (empty($selected_year) || !is_numeric($selected_year)) {
+    $selected_gregorian_year = $current_gregorian_year; // پیش‌فرض سال جاری میلادی
+} else {
+    list($selected_gregorian_year) = jalali_to_gregorian($selected_year, 1, 1);
+}
 
 // کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی
 $stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
 $stmt->execute([$selected_gregorian_year]);
 $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// دیباگ برای تست (حذف بعد از تأیید)
+var_dump($selected_gregorian_year);
+var_dump($work_months);
 ?>
 
 <!DOCTYPE html>
