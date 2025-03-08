@@ -59,10 +59,14 @@ $work_days = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? '';
 if ($selected_work_month_id) {
     $stmt_days = $pdo->prepare("
-        SELECT id AS work_details_id, work_date, partner_id, agency_owner_id 
-        FROM Work_Details 
-        WHERE work_month_id = ? AND (partner_id = ? OR agency_owner_id = ?)
-        ORDER BY work_date ASC
+        SELECT wd.id AS work_details_id, wd.work_date, 
+               u1.username AS partner_name, 
+               u2.username AS agency_owner_name
+        FROM Work_Details wd
+        JOIN Users u1 ON u1.id = wd.partner_id
+        JOIN Users u2 ON u2.id = wd.agency_owner_id
+        WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
+        ORDER BY wd.work_date ASC
     ");
     $stmt_days->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
     $work_days = $stmt_days->fetchAll(PDO::FETCH_ASSOC);
@@ -77,13 +81,12 @@ if ($selected_work_day_id) {
                SUM(p.amount) AS paid_amount,
                (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
                wd.work_date, 
-               (SELECT CONCAT(u1.username, ' - ', u2.username) 
-                FROM Users u1 
-                JOIN Users u2 ON u2.id = wd.agency_owner_id 
-                WHERE u1.id = wd.partner_id) AS partner_names
+               CONCAT(u1.username, ' - ', u2.username) AS partner_names
         FROM Orders o
         LEFT JOIN Payments p ON o.order_id = p.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Users u1 ON u1.id = wd.partner_id
+        JOIN Users u2 ON u2.id = wd.agency_owner_id
         WHERE o.work_details_id = ?
         GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
     ");
@@ -95,13 +98,12 @@ if ($selected_work_day_id) {
                SUM(p.amount) AS paid_amount,
                (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
                wd.work_date, 
-               (SELECT CONCAT(u1.username, ' - ', u2.username) 
-                FROM Users u1 
-                JOIN Users u2 ON u2.id = wd.agency_owner_id 
-                WHERE u1.id = wd.partner_id) AS partner_names
+               CONCAT(u1.username, ' - ', u2.username) AS partner_names
         FROM Orders o
         LEFT JOIN Payments p ON o.order_id = p.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Users u1 ON u1.id = wd.partner_id
+        JOIN Users u2 ON u2.id = wd.agency_owner_id
         WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
         GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
     ");
@@ -116,14 +118,10 @@ if ($selected_work_day_id) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سفارشات</title>
-    <!-- Bootstrap RTL CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
         integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Persian Datepicker CSS -->
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
     <style>
         .table-wrapper {
@@ -144,7 +142,6 @@ if ($selected_work_day_id) {
     <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">لیست سفارشات</h5>
 
-        <!-- فیلترها -->
         <form method="GET" class="row g-3 mb-3">
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
@@ -171,19 +168,38 @@ if ($selected_work_day_id) {
                     <option value="">همه روزها</option>
                     <?php foreach ($work_days as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['partner_id'] ?> - <?= $day['agency_owner_id'] ?>)
+                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['partner_name'] ?> - <?= $day['agency_owner_name'] ?>)
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <?php if (!$is_admin): ?>
-                <div class="col-auto">
-                    <a href="add_order.php" class="btn btn-primary">ثبت سفارش جدید</a>
-                </div>
-            <?php endif; ?>
         </form>
 
-        <!-- لیست سفارشات -->
+        <?php if (!empty($work_days) && !$is_admin): ?>
+            <div class="table-wrapper">
+                <table class="table table-light table-hover">
+                    <thead>
+                        <tr>
+                            <th>تاریخ</th>
+                            <th>همکار</th>
+                            <th>اقدام</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($work_days as $day): ?>
+                            <tr>
+                                <td><?= gregorian_to_jalali_format($day['work_date']) ?></td>
+                                <td><?= $day['partner_name'] ?> - <?= $day['agency_owner_name'] ?></td>
+                                <td>
+                                    <a href="add_order.php?work_details_id=<?= $day['work_details_id'] ?>" class="btn btn-primary btn-sm">ثبت سفارش جدید</a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+
         <?php if (empty($orders)): ?>
             <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
         <?php else: ?>
@@ -228,14 +244,12 @@ if ($selected_work_day_id) {
         <?php endif; ?>
     </div>
 
-    <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         $(document).ready(function() {
-            // AJAX برای به‌روز‌رسانی ماه‌ها بر اساس سال
             $('select[name="year"]').change(function() {
                 let year = $(this).val();
                 if (year) {
@@ -252,7 +266,6 @@ if ($selected_work_day_id) {
                 }
             });
 
-            // AJAX برای به‌روز‌رسانی روزهای کاری بر اساس ماه
             $('select[name="work_month_id"]').change(function() {
                 let month_id = $(this).val();
                 if (month_id) {
