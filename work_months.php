@@ -16,7 +16,7 @@ function gregorian_to_jalali_format($gregorian_date) {
 }
 
 // دریافت سال‌های موجود از Work_Months
-$current_year = jdate('Y');
+$current_year = (int)jdate('Y'); // تبدیل به عدد
 $years = range($current_year, $current_year - 40);
 
 // دریافت سال انتخاب‌شده (پیش‌فرض سال جاری)

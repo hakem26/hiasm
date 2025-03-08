@@ -34,7 +34,7 @@ $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
 // دریافت سال‌های موجود از Work_Months
-$current_year = jdate('Y');
+$current_year = (int)jdate('Y'); // تبدیل به عدد
 $years = range($current_year, $current_year - 40);
 
 // دریافت لیست ماه‌های کاری بر اساس سال انتخاب‌شده
@@ -213,7 +213,7 @@ if (!empty($selected_partner_id)) {
                                 <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($work['user1']) ?>
                                 </option>
-                                <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $work['user_id2'] ? 'selected' : '' ?>>
+                                <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $user_id2 ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($work['user2']) ?>
                                 </option>
                             </select>
