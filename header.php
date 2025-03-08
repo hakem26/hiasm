@@ -108,6 +108,12 @@ $page_name = "داشبورد";
                         <span>اطلاعات کار</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="products.php">
+                        <i class="fas fa-box"></i>
+                        <span>محصولات</span>
+                    </a>
+                </li>
             <?php endif; ?>
         </ul>
     </div>

@@ -1,0 +1,88 @@
+CREATE DATABASE sales_management;
+USE sales_management;
+
+-- جدول کاربران
+CREATE TABLE Users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'seller') NOT NULL,
+    full_name VARCHAR(100) NOT NULL
+);
+
+-- جدول دسته‌بندی محصولات
+CREATE TABLE Categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(50) NOT NULL
+);
+
+-- جدول محصولات
+CREATE TABLE Products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(100) NOT NULL,
+    category_id INT,
+    unit_price DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES Categories(category_id)
+);
+
+-- جدول سفارشات
+CREATE TABLE Orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    order_date DATETIME NOT NULL,
+    user_id INT,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
+
+-- جدول جزئیات سفارشات
+CREATE TABLE Order_Items (
+    order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT NOT NULL,
+    price_at_time DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id),
+    FOREIGN KEY (product_id) REFERENCES Products(product_id)
+);
+
+-- جدول پرداختی‌ها
+CREATE TABLE Payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_date DATETIME NOT NULL,
+    payment_type ENUM('cash', 'card', 'online', 'other') NOT NULL,
+    amount DECIMAL(10,2) NOT NULL
+);
+
+-- جدول اطلاعات پرداخت
+CREATE TABLE Payment_Details (
+    payment_detail_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    payment_id INT,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id),
+    FOREIGN KEY (payment_id) REFERENCES Payments(payment_id)
+);
+
+-- جدول همکاران
+CREATE TABLE Partners (
+    partner_id INT AUTO_INCREMENT PRIMARY KEY,
+    partner_name VARCHAR(100) NOT NULL
+);
+
+-- جدول ماه کاری
+CREATE TABLE Work_Months (
+    work_month_id INT AUTO_INCREMENT PRIMARY KEY,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL
+);
+
+-- جدول اطلاعات کار
+CREATE TABLE Work_Details (
+    work_detail_id INT AUTO_INCREMENT PRIMARY KEY,
+    partner_id INT,
+    work_month_id INT,
+    user_id INT,
+    agency VARCHAR(100),
+    FOREIGN KEY (partner_id) REFERENCES Partners(partner_id),
+    FOREIGN KEY (work_month_id) REFERENCES Work_Months(work_month_id),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
