@@ -37,16 +37,18 @@ if ($work_details_id) {
     $stmt_work->execute([$work_details_id, $current_user_id, $current_user_id]);
     $work_info = $stmt_work->fetch(PDO::FETCH_ASSOC);
 }
+
 if (empty($work_info)) {
-    die("اطلاعات روز کاری یافت نشد یا دسترسی ندارید.");
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>لطفاً ابتدا یک روز کاری انتخاب کنید یا روز کاری معتبر نیست.</div></div>";
+    require_once 'footer.php';
+    exit;
 }
 
 // پردازش فرم افزودن محصول
-$items = [];
-$customer_name = '';
+$items = isset($_SESSION['order_items']) ? $_SESSION['order_items'] : [];
+$customer_name = isset($_POST['customer_name']) ? $_POST['customer_name'] : '';
 $total_amount = 0;
-$discount = 0;
-$final_amount = 0;
+$discount = isset($_POST['discount']) ? (float)$_POST['discount'] : 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     $customer_name = $_POST['customer_name'];
@@ -55,14 +57,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     $unit_price = (float)$_POST['unit_price'];
     $total_price = $quantity * $unit_price;
 
+    $stmt_product = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+    $stmt_product->execute([$product_id]);
+    $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
+
     $items[] = [
         'product_id' => $product_id,
+        'product_name' => $product['product_name'],
         'quantity' => $quantity,
         'unit_price' => $unit_price,
         'total_price' => $total_price
     ];
-    $total_amount += $total_price;
-    $final_amount = $total_amount - $discount;
+    $_SESSION['order_items'] = $items;
+
+    foreach ($items as $item) {
+        $total_amount += $item['total_price'];
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_order'])) {
@@ -79,12 +89,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_order'])) {
     // ثبت آیتم‌ها
     foreach ($items as $item) {
         $stmt_item = $pdo->prepare("INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
-        $stmt_item->execute([$order_id, $item['product_id'], $item['quantity'], $item['unit_price'], $item['total_price']]);
+        $stmt_item->execute([$order_id, $item['product_name'], $item['quantity'], $item['unit_price'], $item['total_price']]);
     }
+
+    // پاک کردن سشن
+    unset($_SESSION['order_items']);
 
     echo "<script>alert('فاکتور با موفقیت ثبت گردید'); window.location.href='orders.php';</script>";
     exit;
+} else {
+    foreach ($items as $item) {
+        $total_amount += $item['total_price'];
+    }
 }
+
+$final_amount = $total_amount - $discount;
 ?>
 
 <!DOCTYPE html>
@@ -169,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_order'])) {
                         <tbody>
                             <?php foreach ($items as $index => $item): ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($item['product_id']) ?></td> <!-- بعداً اسم محصول رو می‌گیریم -->
+                                    <td><?= htmlspecialchars($item['product_name']) ?></td>
                                     <td><?= $item['quantity'] ?></td>
                                     <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
                                     <td><?= number_format($item['total_price'], 0) ?> تومان</td>
@@ -216,10 +235,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_order'])) {
 
             $(document).on('click', '.product-suggestion', function() {
                 let product = $(this).data('product');
-                $('#product_name').val(product.name);
-                $('#product_id').val(product.id);
-                $('#unit_price').val(product.price);
-                $('#total_price').val((1 * product.price).toLocaleString('fa') + ' تومان');
+                $('#product_name').val(product.product_name);
+                $('#product_id').val(product.product_id);
+                $('#unit_price').val(product.unit_price);
+                $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
                 $('#product_suggestions').hide();
                 $('#quantity').focus();
             });
