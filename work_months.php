@@ -1,5 +1,4 @@
 <?php
-// [BLOCK-WORK-MONTHS-001]
 session_start();
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: index.php");
@@ -9,165 +8,176 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-$gregorian_date = date('Y-m-d');
-$jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
-
-// تابع تبدیل میلادی به شمسی
+// تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
+    return "$jy/$jm/$jd";
 }
 
-// کوئری برای دریافت ماه‌های کاری
-$stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+// دریافت سال‌های موجود از Work_Months
+$current_year = jdate('Y');
+$years = range($current_year, $current_year - 40);
+
+// دریافت سال انتخاب‌شده (پیش‌فرض سال جاری)
+$selected_year = $_GET['year'] ?? $current_year;
+
+// دریافت لیست ماه‌های کاری بر اساس سال انتخاب‌شده
+$stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
+$stmt->execute([$selected_year]);
 $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// دریافت لیست کاربران برای انتخاب همکاران
+$users = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'")->fetchAll(PDO::FETCH_ASSOC);
+
+// پردازش فرم افزودن ماه کاری
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_month'])) {
+    $start_date = $_POST['start_date'];
+    $end_date = $_POST['end_date'];
+    $user_id1 = $_POST['user_id1'];
+    $user_id2 = $_POST['user_id2'] ?: null;
+
+    if ($start_date && $end_date && $user_id1) {
+        // بررسی همپوشانی ماه‌های کاری برای کاربر
+        $overlap_check = $pdo->prepare("
+            SELECT * FROM Work_Months wm
+            JOIN Partners p ON wm.work_month_id = p.work_month_id
+            WHERE (p.user_id1 = ? OR p.user_id2 = ? OR p.user_id1 = ? OR p.user_id2 = ?)
+            AND (
+                (start_date <= ? AND end_date >= ?) OR
+                (start_date <= ? AND end_date >= ?) OR
+                (start_date >= ? AND end_date <= ?)
+            )
+        ");
+        $overlap_check->execute([$user_id1, $user_id1, $user_id2, $user_id2, $end_date, $start_date, $end_date, $start_date, $start_date, $end_date]);
+        $overlap = $overlap_check->fetch();
+
+        if ($overlap) {
+            echo "<script>alert('همپوشانی در ماه‌های کاری برای این همکار وجود دارد!');</script>";
+        } else {
+            $pdo->beginTransaction();
+            try {
+                $stmt = $pdo->prepare("INSERT INTO Work_Months (start_date, end_date) VALUES (?, ?)");
+                $stmt->execute([$start_date, $end_date]);
+                $work_month_id = $pdo->lastInsertId();
+
+                $partner_stmt = $pdo->prepare("INSERT INTO Partners (work_month_id, user_id1, user_id2, work_day) VALUES (?, ?, ?, ?)");
+                for ($day = 1; $day <= 7; $day++) {
+                    $partner_stmt->execute([$work_month_id, $user_id1, $user_id2, $day]);
+                }
+
+                $pdo->commit();
+                echo "<script>alert('ماه کاری با موفقیت ثبت شد!'); window.location.href='work_months.php';</script>";
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                echo "<script>alert('خطا در ثبت ماه کاری: " . $e->getMessage() . "');</script>";
+            }
+        }
+    } else {
+        echo "<script>alert('لطفاً همه فیلدها را پر کنید!');</script>";
+    }
+}
 ?>
 
-<!-- [BLOCK-WORK-MONTHS-002] -->
 <div class="container-fluid mt-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title">لیست ماه‌های کاری</h5>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkMonthModal">افزودن ماه کاری</button>
+        <h5 class="card-title">ماه‌های کاری</h5>
     </div>
 
-    <?php if (empty($work_months)): ?>
-    <div class="alert alert-warning text-center">ماه کاری‌ای ساخته نشده است.</div>
+    <!-- فیلتر سال -->
+    <form method="GET" class="row g-3 mb-3">
+        <div class="col-auto">
+            <select name="year" class="form-select" onchange="this.form.submit()">
+                <?php foreach ($years as $year): ?>
+                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                        <?= $year ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </form>
+
+    <!-- فرم افزودن ماه کاری -->
+    <form method="POST" class="row g-3 mb-3">
+        <div class="col-auto">
+            <input type="text" name="start_date" class="form-control persian-date" placeholder="تاریخ شروع (میلادی)" required>
+        </div>
+        <div class="col-auto">
+            <input type="text" name="end_date" class="form-control persian-date" placeholder="تاریخ پایان (میلادی)" required>
+        </div>
+        <div class="col-auto">
+            <select name="user_id1" class="form-select" required>
+                <option value="">انتخاب همکار 1</option>
+                <?php foreach ($users as $user): ?>
+                    <option value="<?= $user['user_id'] ?>"><?= htmlspecialchars($user['full_name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-auto">
+            <select name="user_id2" class="form-select">
+                <option value="">انتخاب همکار 2</option>
+                <?php foreach ($users as $user): ?>
+                    <option value="<?= $user['user_id'] ?>"><?= htmlspecialchars($user['full_name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" name="add_work_month" class="btn btn-primary">افزودن ماه کاری</button>
+        </div>
+    </form>
+
+    <!-- جدول ماه‌های کاری -->
+    <?php if (!empty($work_months)): ?>
+        <table class="table table-light table-hover">
+            <thead>
+                <tr>
+                    <th>شناسه</th>
+                    <th>تاریخ شروع</th>
+                    <th>تاریخ پایان</th>
+                    <th>همکاران</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($work_months as $month): ?>
+                    <?php
+                    $partner_query = $pdo->prepare("
+                        SELECT p.*, u1.full_name AS user1, u2.full_name AS user2
+                        FROM Partners p
+                        JOIN Users u1 ON p.user_id1 = u1.user_id
+                        LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+                        WHERE p.work_month_id = ?
+                        LIMIT 1
+                    ");
+                    $partner_query->execute([$month['work_month_id']]);
+                    $partner = $partner_query->fetch(PDO::FETCH_ASSOC);
+                    ?>
+                    <tr>
+                        <td><?= $month['work_month_id'] ?></td>
+                        <td><?= gregorian_to_jalali_format($month['start_date']) ?></td>
+                        <td><?= gregorian_to_jalali_format($month['end_date']) ?></td>
+                        <td>
+                            <?= htmlspecialchars($partner['user1']) ?>
+                            <?= $partner['user2'] ? ' - ' . htmlspecialchars($partner['user2']) : '' ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     <?php else: ?>
-    <table class="table table-light table-hover">
-        <thead>
-            <tr>
-                <th>ردیف</th>
-                <th>تاریخ شروع</th>
-                <th>تاریخ پایان</th>
-                <th>عملیات</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php $row = 1; foreach ($work_months as $month): ?>
-            <tr>
-                <td><?php echo $row++; ?></td>
-                <td><?php echo gregorian_to_jalali_format($month['start_date']); ?></td>
-                <td><?php echo gregorian_to_jalali_format($month['end_date']); ?></td>
-                <td>
-                    <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editWorkMonthModal" data-month-id="<?php echo $month['work_month_id']; ?>" data-start-date="<?php echo gregorian_to_jalali_format($month['start_date']); ?>" data-end-date="<?php echo gregorian_to_jalali_format($month['end_date']); ?>">
-                        <i class="fas fa-edit"></i>
-                    </a>
-                    <a href="#" class="text-danger" onclick="confirmDeleteMonth(<?php echo $month['work_month_id']; ?>)">
-                        <i class="fas fa-trash"></i>
-                    </a>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+        <div class="alert alert-warning text-center">ماه کاری‌ای وجود ندارد.</div>
     <?php endif; ?>
 </div>
 
-<!-- مودال افزودن ماه کاری -->
-<div class="modal fade" id="addWorkMonthModal" tabindex="-1" aria-labelledby="addWorkMonthModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-light">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addWorkMonthModalLabel">افزودن ماه کاری جدید</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="addWorkMonthForm" method="POST" action="add_work_month.php">
-                    <div class="mb-3">
-                        <label for="start_date" class="form-label">تاریخ شروع (شمسی)</label>
-                        <input type="text" class="form-control" id="start_date" name="start_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="end_date" class="form-label">تاریخ پایان (شمسی)</label>
-                        <input type="text" class="form-control" id="end_date" name="end_date" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">ثبت ماه کاری</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- مودال ویرایش ماه کاری -->
-<div class="modal fade" id="editWorkMonthModal" tabindex="-1" aria-labelledby="editWorkMonthModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-light">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editWorkMonthModalLabel">ویرایش ماه کاری</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editWorkMonthForm" method="POST" action="edit_work_month.php">
-                    <input type="hidden" id="edit_month_id" name="month_id">
-                    <div class="mb-3">
-                        <label for="edit_start_date" class="form-label">تاریخ شروع (شمسی)</label>
-                        <input type="text" class="form-control" id="edit_start_date" name="start_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_end_date" class="form-label">تاریخ پایان (شمسی)</label>
-                        <input type="text" class="form-control" id="edit_end_date" name="end_date" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">بروزرسانی ماه کاری</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- اسکریپت‌ها -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // [BLOCK-WORK-MONTHS-003]
-    document.addEventListener('DOMContentLoaded', () => {
-        // پر کردن اطلاعات در مودال ویرایش
-        document.querySelectorAll('[data-bs-target="#editWorkMonthModal"]').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                const monthId = e.target.getAttribute('data-month-id');
-                const startDate = e.target.getAttribute('data-start-date');
-                const endDate = e.target.getAttribute('data-end-date');
-
-                document.getElementById('edit_month_id').value = monthId;
-                document.getElementById('edit_start_date').value = startDate;
-                document.getElementById('edit_end_date').value = endDate;
-            });
-        });
-
-        // حذف ماه کاری
-        window.confirmDeleteMonth = function(monthId) {
-            if (confirm('آیا مطمئن هستید که می‌خواهید این ماه کاری را حذف کنید؟')) {
-                fetch('delete_work_month.php?month_id=' + monthId, {
-                    method: 'GET'
-                })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.reload(); // رفرش صفحه پس از حذف
-                    } else {
-                        alert('خطا در حذف ماه کاری!');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('خطا در اتصال به سرور!');
-                });
-            }
-            return false;
-        }
-
-        // Datepicker برای فیلدهای تاریخ (شمسی)
-        $('#start_date, #end_date, #edit_start_date, #edit_end_date').persianDatepicker({
-            format: 'YYYY/MM/DD',
-            autoClose: true,
-            calendar: {
-                persian: {
-                    locale: 'fa'
-                }
-            }
-        });
+$(document).ready(function() {
+    $(".persian-date").persianDatepicker({
+        format: 'YYYY-MM-DD',
+        autoClose: true,
+        initialValue: false
     });
+});
 </script>
 
-<?php
-// [BLOCK-WORK-MONTHS-004]
-require_once 'footer.php';
-?>
+<?php require_once 'footer.php'; ?>

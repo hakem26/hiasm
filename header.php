@@ -85,7 +85,8 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         <ul class="nav flex-column pt-5">
             <!-- داشبورد بر اساس نقش -->
             <li class="nav-item">
-                <a class="nav-link" href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
+                <a class="nav-link"
+                    href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>داشبورد</span>
                 </a>
@@ -107,6 +108,14 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                 </a>
             </li>
 
+            <!-- اطلاعات کار (برای هر دو نقش) -->
+            <li class="nav-item">
+                <a class="nav-link" href="work_details.php">
+                    <i class="fas fa-list"></i>
+                    <span>اطلاعات کار</span>
+                </a>
+            </li>
+
             <!-- منوهای فقط برای ادمین -->
             <?php if ($_SESSION['role'] === 'admin'): ?>
                 <li class="nav-item">
@@ -125,12 +134,6 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                     <a class="nav-link" href="work_months.php">
                         <i class="fas fa-calendar-alt"></i>
                         <span>ماه کاری</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="work_details.php">
-                        <i class="fas fa-list"></i>
-                        <span>اطلاعات کار</span>
                     </a>
                 </li>
             <?php endif; ?>
@@ -162,17 +165,20 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     <style>
         .sidebar {
             width: auto;
-            min-width: 200px; /* حداقل عرض برای متن‌های کوتاه */
+            min-width: 200px;
+            /* حداقل عرض برای متن‌های کوتاه */
             transition: min-width 0.3s ease;
             overflow-x: hidden;
         }
 
         .sidebar .nav-link span {
-            white-space: nowrap; /* جلوگیری از شکستن متن */
+            white-space: nowrap;
+            /* جلوگیری از شکستن متن */
         }
 
         .sidebar.collapsed {
-            min-width: 60px; /* عرض کم‌شده موقع جمع شدن */
+            min-width: 60px;
+            /* عرض کم‌شده موقع جمع شدن */
         }
 
         /* تنظیم عرض بر اساس طول متن */
@@ -195,7 +201,8 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         /* افزایش عرض برای متن‌های بلندتر */
         @media (min-width: 769px) {
             .sidebar .nav-item:hover {
-                min-width: calc(200px + 1rem); /* 1rem اضافه برای متن‌های بلند */
+                min-width: calc(200px + 1rem);
+                /* 1rem اضافه برای متن‌های بلند */
             }
         }
     </style>
