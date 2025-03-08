@@ -58,18 +58,19 @@ if ($selected_year) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-// دریافت همکاران
+// دریافت لیست همکاران
 if ($is_admin) {
-    // برای ادمین، همه همکاران
-    $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller'");
+    // برای ادمین، همه فروشنده‌ها
+    $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
     $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 } else {
-    // برای فروشنده، فقط همکارانی که با کاربر لاگین‌شده مرتبط هستن
+    // برای فروشنده، فقط همکارانی که خودش توی اون‌ها هست
     $partners_query = $pdo->prepare("
         SELECT DISTINCT u.user_id, u.full_name 
         FROM Partners p
         JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
-        WHERE p.user_id1 = ? OR p.user_id2 = ?
+        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.role = 'seller'
+        ORDER BY u.full_name
     ");
     $partners_query->execute([$current_user_id, $current_user_id]);
     $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
@@ -121,9 +122,9 @@ if (isset($_GET['work_month_id'])) {
                 ");
                 $partner_query->execute([$adjusted_day_number, $work_month_id, $current_user_id, $current_user_id]);
             }
-            $partners = $partner_query->fetchAll(PDO::FETCH_ASSOC);
+            $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
-            foreach ($partners as $partner) {
+            foreach ($partners_in_work as $partner) {
                 $detail_query = $pdo->prepare("
                     SELECT * FROM Work_Details 
                     WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
@@ -219,7 +220,7 @@ if (!empty($selected_partner_id)) {
                 <select name="user_id" class="form-select" onchange="this.form.submit()">
                     <option value="">همه همکاران</option>
                     <?php foreach ($partners as $partner): ?>
-                        <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars($partner['user_id']) ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($partner['full_name']) ?>
                         </option>
                     <?php endforeach; ?>
