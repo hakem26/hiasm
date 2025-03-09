@@ -183,8 +183,8 @@ $orders_query = "
 
 $conditions = [];
 $params = [];
-$params[] = $current_user_id; // برای user_id1
-$params[] = $current_user_id; // برای user_id2
+$params[] = $current_user_id; // برای user_id1 توی partner_name
+$params[] = $current_user_id; // برای user_id2 توی partner_name
 
 if ($selected_year && $selected_year != 'all') {
     $conditions[] = "YEAR(wd.work_date) = ?";
@@ -197,7 +197,12 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
 }
 
 if ($selected_partner_id && $selected_partner_id != 'all') {
-    $conditions[] = "wd.partner_id = ?";
+    $conditions[] = "EXISTS (
+        SELECT 1 FROM Partners p 
+        WHERE p.partner_id = wd.partner_id 
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
+    )";
+    $params[] = $selected_partner_id;
     $params[] = $selected_partner_id;
 }
 
