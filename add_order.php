@@ -34,7 +34,7 @@ $_SESSION['is_order_in_progress'] = true;
 $work_details_id = $_GET['work_details_id'] ?? '';
 $work_info = [];
 if ($work_details_id) {
-    $stmt_work = $pdo->prepare("SELECT wd.work_date, wd.partner_id, wd.agency_owner_id FROM Work_Details wd WHERE wd.id = ?");
+    $stmt_work = $pdo->prepare("SELECT wd.work_date, wd.partner_id FROM Work_Details wd WHERE wd.id = ?");
     $stmt_work->execute([$work_details_id]);
     $work_info = $stmt_work->fetch(PDO::FETCH_ASSOC);
 
@@ -49,10 +49,25 @@ if ($work_details_id) {
         $partner_access = $stmt_partner->fetch(PDO::FETCH_ASSOC);
 
         if (!$partner_access) {
-            if ($work_info['agency_owner_id'] != $current_user_id && $work_info['partner_id'] != $current_user_id) {
+            if ($work_info['partner_id'] != $current_user_id) {
                 $work_info = [];
             }
         }
+    }
+}
+
+// تنظیم خودکار partner_id اگه هنوز ثبت نشده
+if ($work_details_id && empty($work_info)) {
+    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Work_Details WHERE id = ?");
+    $stmt_check->execute([$work_details_id]);
+    if ($stmt_check->fetchColumn() == 0) {
+        // ثبت خودکار Work_Details با partner_id کاربر فعلی
+        $stmt_insert = $pdo->prepare("
+            INSERT INTO Work_Details (id, work_date, work_month_id, partner_id)
+            VALUES (?, CURDATE(), (SELECT work_month_id FROM Work_Months WHERE CURDATE() BETWEEN start_date AND end_date LIMIT 1), ?)
+        ");
+        $stmt_insert->execute([$work_details_id, $current_user_id]);
+        $work_info = ['work_date' => date('Y-m-d'), 'partner_id' => $current_user_id];
     }
 }
 
@@ -62,19 +77,12 @@ if (empty($work_info)) {
     exit;
 }
 
-// دریافت نام‌های همکار و آژانس با چک اضافی
+// دریافت نام همکار
 $partner_name = '';
-$agency_owner_name = '';
 if ($work_info['partner_id']) {
-    $partner_name = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['partner_id'])->fetchColumn() ?: 'نامشخص';
-}
-if ($work_info['agency_owner_id']) {
-    $agency_owner_name = $pdo->query("SELECT full_name FROM Users WHERE user_id = " . $work_info['agency_owner_id'])->fetchColumn() ?: 'نامشخص';
-}
-if ($work_info['partner_id'] == $current_user_id) {
-    $partner_name = $agency_owner_name;
-} elseif ($work_info['agency_owner_id'] == $current_user_id) {
-    $agency_owner_name = $partner_name;
+    $partner_name = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
+    $partner_name->execute([$work_info['partner_id']]);
+    $partner_name = $partner_name->fetchColumn() ?: 'نامشخص';
 }
 
 // مقادیر اولیه
@@ -136,7 +144,7 @@ $final_amount = $total_amount - $discount;
         <div class="card mb-4">
             <div class="card-body">
                 <p><strong>تاریخ:</strong> <?= gregorian_to_jalali_format($work_info['work_date']) ?></p>
-                <p><strong>همکار:</strong> <?= htmlspecialchars($partner_name) ?> - <?= htmlspecialchars($agency_owner_name) ?></p>
+                <p><strong>همکار:</strong> <?= htmlspecialchars($partner_name) ?></p>
             </div>
         </div>
 
