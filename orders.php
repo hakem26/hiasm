@@ -110,7 +110,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
         }
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
-        // بهینه‌سازی: گرفتن همه Work_Details‌ها با یک کوئری
         $detail_query = $pdo->prepare("
             SELECT wd.id, wd.work_date, wd.work_month_id, wd.partner_id,
                    (WEEKDAY(wd.work_date) + 5) % 7 + 1 AS adjusted_day_number
@@ -152,7 +151,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     }
 }
 
-// بهینه‌سازی کوئری سفارش‌ها با جوین به جای ساب‌کوئری
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
            SUM(p.amount) AS paid_amount,
@@ -160,8 +158,8 @@ $orders_query = "
            wd.work_date, 
            COALESCE(
                CASE 
-                   WHEN pr.user_id1 = ? THEN u2.full_name 
-                   WHEN pr.user_id2 = ? THEN u1.full_name 
+                   WHEN pr.user_id1 = :current_user_id THEN u2.full_name 
+                   WHEN pr.user_id2 = :current_user_id THEN u1.full_name 
                    ELSE 'نامشخص' 
                END,
                'نامشخص'
@@ -175,29 +173,30 @@ $orders_query = "
     LEFT JOIN Users u2 ON pr.user_id2 = u2.user_id";
 
 $conditions = [];
-$params = [];
-$params[] = $current_user_id; // برای user_id1 توی partner_name
-$params[] = $current_user_id; // برای user_id2 توی partner_name
+$params = [
+    ':current_user_id' => $current_user_id,
+    ':current_user_id2' => $current_user_id // برای اطمینان از تطابق
+];
 
 if ($selected_year && $selected_year != 'all') {
-    $conditions[] = "YEAR(wd.work_date) = ?";
-    $params[] = $selected_year;
+    $conditions[] = "YEAR(wd.work_date) = :selected_year";
+    $params[':selected_year'] = $selected_year;
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
-    $conditions[] = "wd.work_month_id = ?";
-    $params[] = $selected_work_month_id;
+    $conditions[] = "wd.work_month_id = :selected_work_month_id";
+    $params[':selected_work_month_id'] = $selected_work_month_id;
 }
 
 if ($selected_partner_id && $selected_partner_id != 'all') {
-    $conditions[] = "(pr.user_id1 = ? OR pr.user_id2 = ?)";
-    $params[] = $selected_partner_id;
-    $params[] = $selected_partner_id;
+    $conditions[] = "(pr.user_id1 = :selected_partner_id OR pr.user_id2 = :selected_partner_id2)";
+    $params[':selected_partner_id'] = $selected_partner_id;
+    $params[':selected_partner_id2'] = $selected_partner_id;
 }
 
 if ($selected_work_day_id && $selected_work_day_id != 'all') {
-    $conditions[] = "wd.id = ?";
-    $params[] = $selected_work_day_id;
+    $conditions[] = "wd.id = :selected_work_day_id";
+    $params[':selected_work_day_id'] = $selected_work_day_id;
 }
 
 if (!empty($conditions)) {
