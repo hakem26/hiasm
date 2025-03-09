@@ -77,12 +77,15 @@ if (empty($work_info)) {
     exit;
 }
 
-// دریافت نام همکار
-$partner_name = '';
+// دریافت نام همکار با روش ساده‌تر
+$partner_name = 'نامشخص';
 if ($work_info['partner_id']) {
-    $partner_name = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
-    $partner_name->execute([$work_info['partner_id']]);
-    $partner_name = $partner_name->fetchColumn() ?: 'نامشخص';
+    $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
+    $stmt_user->execute([$work_info['partner_id']]);
+    $result = $stmt_user->fetch(PDO::FETCH_ASSOC);
+    if ($result && !empty($result['full_name'])) {
+        $partner_name = $result['full_name'];
+    }
 }
 
 // مقادیر اولیه
@@ -208,6 +211,12 @@ $final_amount = $total_amount - $discount;
                 <?php endif; ?>
             </div>
 
+            <!-- نمایش پیش‌فرض برای جمع کل و تخفیف -->
+            <div class="mb-3">
+                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?> تومان</span></p>
+                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?> تومان</span></p>
+            </div>
+
             <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">بستن فاکتور</button>
         </form>
     </div>
@@ -234,12 +243,18 @@ $final_amount = $total_amount - $discount;
 
         // رندر جدول آیتم‌ها
         function renderItemsTable(data) {
+            const itemsTable = document.getElementById('items_table');
+            const totalAmountDisplay = document.getElementById('total_amount_display');
+            const finalAmountDisplay = document.getElementById('final_amount_display');
+
             if (!data.items || data.items.length === 0) {
-                document.getElementById('items_table').innerHTML = '';
+                itemsTable.innerHTML = '';
+                totalAmountDisplay.textContent = '0 تومان';
+                finalAmountDisplay.textContent = '0 تومان';
                 return;
             }
 
-            document.getElementById('items_table').innerHTML = `
+            itemsTable.innerHTML = `
                 <table class="table table-light">
                     <thead><tr><th>نام محصول</th><th>تعداد</th><th>قیمت واحد</th><th>قیمت کل</th></tr></thead>
                     <tbody>
@@ -253,16 +268,19 @@ $final_amount = $total_amount - $discount;
                         `).join('')}
                         <tr class="total-row">
                             <td colspan="3"><strong>جمع کل</strong></td>
-                            <td><strong>${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                            <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
                         </tr>
                         <tr class="total-row">
                             <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
                             <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                            <td><strong>${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                            <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
                         </tr>
                     </tbody>
                 </table>
             `;
+
+            totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
+            finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -346,8 +364,20 @@ $final_amount = $total_amount - $discount;
 
                     const response = await sendRequest('ajax_handler.php', data);
                     if (response.success) {
-                        document.getElementById('discount').value = response.data.discount; // به‌روزرسانی مقدار تخفیف
-                        document.getElementById('final_amount').innerText = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                        // فقط اگه المنت‌ها وجود دارن، مقدار رو به‌روزرسانی کن
+                        const discountInput = document.getElementById('discount');
+                        const finalAmountDisplay = document.getElementById('final_amount');
+                        const finalAmountGlobalDisplay = document.getElementById('final_amount_display');
+
+                        if (discountInput) {
+                            discountInput.value = response.data.discount;
+                        }
+                        if (finalAmountDisplay) {
+                            finalAmountDisplay.innerText = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                        }
+                        if (finalAmountGlobalDisplay) {
+                            finalAmountGlobalDisplay.textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                        }
                     } else {
                         alert(response.message);
                     }
