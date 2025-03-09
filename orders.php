@@ -44,11 +44,11 @@ $years = array_column($years_db, 'year');
 $current_year = date('Y');
 
 // دریافت سال انتخاب‌شده (میلادی)
-$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
+$selected_year = $_GET['year'] ?? 'all';
 
 // دریافت ماه‌ها بر اساس سال انتخاب‌شده
 $work_months = [];
-if ($selected_year) {
+if ($selected_year && $selected_year != 'all') {
     $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
     $stmt_months->execute([$selected_year]);
     $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
@@ -78,15 +78,20 @@ if ($is_admin) {
 // دریافت اطلاعات روزها و فاکتورها بر اساس فیلترها
 $work_details = [];
 $orders = [];
-$selected_work_month_id = $_GET['work_month_id'] ?? '';
-$selected_partner_id = $_GET['user_id'] ?? '';
-$selected_work_day_id = $_GET['work_day_id'] ?? '';
+$selected_work_month_id = $_GET['work_month_id'] ?? 'all';
+$selected_partner_id = $_GET['user_id'] ?? 'all';
+$selected_work_day_id = $_GET['work_day_id'] ?? 'all';
 
 // پیجینیشن
 $page = (int)($_GET['page'] ?? 1);
 $per_page = 10;
 
-if ($selected_work_month_id) {
+if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
+    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
+}
+
+if ($selected_work_month_id && $selected_work_month_id != 'all') {
     // دریافت اطلاعات ماه
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
@@ -164,42 +169,42 @@ if ($selected_work_month_id) {
         }
 
         // فیلتر بر اساس همکار
-        if (!empty($selected_partner_id)) {
+        if ($selected_partner_id && $selected_partner_id != 'all') {
             $filtered_work_details = array_filter($work_details, function($detail) use ($selected_partner_id) {
                 return $detail['user_id1'] == $selected_partner_id || $detail['user_id2'] == $selected_partner_id;
             });
             $work_details = array_values($filtered_work_details);
         }
-
-        // دریافت فاکتورها بر اساس روز انتخاب‌شده با پیجینیشن
-        if ($selected_work_day_id) {
-            // تعداد کل فاکتورها
-            $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM Orders WHERE work_details_id = ?");
-            $stmt_count->execute([$selected_work_day_id]);
-            $total_orders = $stmt_count->fetchColumn();
-            $total_pages = ceil($total_orders / $per_page);
-            $offset = ($page - 1) * $per_page;
-
-            // کوئری با LIMIT و OFFSET مستقیم
-            $query = "
-                SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
-                       SUM(p.amount) AS paid_amount,
-                       (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
-                       wd.work_date, 
-                       CONCAT(u1.full_name, ' - ', u2.full_name) AS partner_names
-                FROM Orders o
-                LEFT JOIN Payments p ON o.order_id = p.order_id
-                JOIN Work_Details wd ON o.work_details_id = wd.id
-                JOIN Users u1 ON u1.user_id = wd.partner_id
-                JOIN Users u2 ON u2.user_id = wd.agency_owner_id
-                WHERE o.work_details_id = ?
-                GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
-                LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
-            $stmt_orders = $pdo->prepare($query);
-            $stmt_orders->execute([$selected_work_day_id]);
-            $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
-        }
     }
+}
+
+// دریافت فاکتورها بر اساس روز انتخاب‌شده با پیجینیشن
+if ($selected_work_day_id && $selected_work_day_id != 'all') {
+    // تعداد کل فاکتورها
+    $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM Orders WHERE work_details_id = ?");
+    $stmt_count->execute([$selected_work_day_id]);
+    $total_orders = $stmt_count->fetchColumn();
+    $total_pages = ceil($total_orders / $per_page);
+    $offset = ($page - 1) * $per_page;
+
+    // کوئری با LIMIT و OFFSET مستقیم
+    $query = "
+        SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
+               SUM(p.amount) AS paid_amount,
+               (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
+               wd.work_date, 
+               CONCAT(u1.full_name, ' - ', u2.full_name) AS partner_names
+        FROM Orders o
+        LEFT JOIN Payments p ON o.order_id = p.order_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Users u1 ON u1.user_id = wd.partner_id
+        JOIN Users u2 ON u2.user_id = wd.agency_owner_id
+        WHERE o.work_details_id = ?
+        GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
+        LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
+    $stmt_orders = $pdo->prepare($query);
+    $stmt_orders->execute([$selected_work_day_id]);
+    $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
@@ -240,7 +245,7 @@ if ($selected_work_month_id) {
         <form method="GET" class="row g-3 mb-3">
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
-                    <option value="">انتخاب سال</option>
+                    <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
                             <?= gregorian_year_to_jalali($year) ?>
@@ -250,7 +255,7 @@ if ($selected_work_month_id) {
             </div>
             <div class="col-auto">
                 <select name="work_month_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">انتخاب ماه</option>
+                    <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
                     <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
                             <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
@@ -260,7 +265,7 @@ if ($selected_work_month_id) {
             </div>
             <div class="col-auto">
                 <select name="user_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">انتخاب همکار</option>
+                    <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
                     <?php foreach ($partners as $partner): ?>
                         <option value="<?= htmlspecialchars($partner['user_id']) ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($partner['full_name']) ?>
@@ -270,7 +275,7 @@ if ($selected_work_month_id) {
             </div>
             <div class="col-auto">
                 <select name="work_day_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">انتخاب روز</option>
+                    <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
                     <?php foreach ($work_details as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
                             <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> - <?= $day['user2'] ?>)
@@ -280,13 +285,13 @@ if ($selected_work_month_id) {
             </div>
         </form>
 
-        <?php if (!$is_admin && $selected_work_day_id): ?>
+        <?php if (!$is_admin && $selected_work_day_id && $selected_work_day_id != 'all'): ?>
             <div class="mb-3">
                 <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش جدید</a>
             </div>
         <?php endif; ?>
 
-        <?php if ($selected_work_day_id): ?>
+        <?php if ($selected_work_day_id && $selected_work_day_id != 'all'): ?>
             <?php if (empty($orders)): ?>
                 <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
             <?php else: ?>
@@ -333,18 +338,18 @@ if ($selected_work_month_id) {
                 <nav aria-label="Page navigation">
                     <ul class="pagination justify-content-center mt-3">
                         <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                            <a class="page-link" href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>">قبلی</a>
+                            <a class="page-link" href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
                         </li>
                         <?php
                         $start_page = max(1, $page - 2);
                         $end_page = min($total_pages, $page + 2);
                         for ($i = $start_page; $i <= $end_page; $i++): ?>
                             <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                                <a class="page-link" href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>"><?= $i ?></a>
+                                <a class="page-link" href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
                             </li>
                         <?php endfor; ?>
                         <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                            <a class="page-link" href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>">بعدی</a>
+                            <a class="page-link" href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
                         </li>
                     </ul>
                 </nav>
@@ -368,7 +373,7 @@ if ($selected_work_month_id) {
         $(document).ready(function() {
             $('#ordersTable').DataTable({
                 "pageLength": <?= $per_page ?>,
-                "paging": false, // چون پیجینیشن دستی داریم، این رو غیرفعال می‌کنیم
+                "paging": false,
                 "ordering": false,
                 "info": true,
                 "searching": false,
@@ -381,7 +386,7 @@ if ($selected_work_month_id) {
 
             $('#loadMoreBtn').on('click', function() {
                 let table = $('#ordersTable').DataTable();
-                table.page.len(50).draw(); // نمایش 50 فاکتور به‌جای 10
+                table.page.len(50).draw();
                 $(this).hide();
             });
 
