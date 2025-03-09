@@ -203,23 +203,29 @@ $final_amount = $total_amount - $discount;
                                 <th>تعداد</th>
                                 <th>قیمت واحد</th>
                                 <th>قیمت کل</th>
+                                <th>عملیات</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($items as $index => $item): ?>
-                                <tr>
+                                <tr id="item_row_<?= $index ?>">
                                     <td><?= htmlspecialchars($item['product_name']) ?></td>
                                     <td><?= $item['quantity'] ?></td>
                                     <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
                                     <td><?= number_format($item['total_price'], 0) ?> تومان</td>
+                                    <td>
+                                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                             <tr class="total-row">
-                                <td colspan="3"><strong>جمع کل</strong></td>
+                                <td colspan="4"><strong>جمع کل</strong></td>
                                 <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
                             </tr>
                             <tr class="total-row">
-                                <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
+                                <td colspan="3"><label for="discount" class="form-label">تخفیف</label></td>
                                 <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
                                 <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
                             </tr>
@@ -273,22 +279,35 @@ $final_amount = $total_amount - $discount;
 
             itemsTable.innerHTML = `
                 <table class="table table-light">
-                    <thead><tr><th>نام محصول</th><th>تعداد</th><th>قیمت واحد</th><th>قیمت کل</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>نام محصول</th>
+                            <th>تعداد</th>
+                            <th>قیمت واحد</th>
+                            <th>قیمت کل</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        ${data.items.map(item => `
-                            <tr>
+                        ${data.items.map((item, index) => `
+                            <tr id="item_row_${index}">
                                 <td>${item.product_name}</td>
                                 <td>${item.quantity}</td>
                                 <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
                                 <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                                <td>
+                                    <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
                             </tr>
                         `).join('')}
                         <tr class="total-row">
-                            <td colspan="3"><strong>جمع کل</strong></td>
+                            <td colspan="4"><strong>جمع کل</strong></td>
                             <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
                         </tr>
                         <tr class="total-row">
-                            <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
+                            <td colspan="3"><label for="discount" class="form-label">تخفیف</label></td>
                             <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
                             <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
                         </tr>
@@ -367,6 +386,26 @@ $final_amount = $total_amount - $discount;
                     document.getElementById('unit_price').value = '';
                 } else {
                     alert(response.message);
+                }
+            });
+
+            // حذف محصول
+            document.getElementById('items_table').addEventListener('click', async (e) => {
+                if (e.target.closest('.delete-item')) {
+                    const index = e.target.closest('.delete-item').getAttribute('data-index');
+                    if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
+                        const data = {
+                            action: 'delete_item',
+                            index: index
+                        };
+
+                        const response = await sendRequest('ajax_handler.php', data);
+                        if (response.success) {
+                            renderItemsTable(response.data);
+                        } else {
+                            alert(response.message);
+                        }
+                    }
                 }
             });
 
