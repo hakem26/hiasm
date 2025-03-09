@@ -164,15 +164,27 @@ $orders_query = "
            SUM(p.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
            wd.work_date, 
-           COALESCE(u1.full_name, 'نامشخص') AS partner_name,
+           COALESCE(
+               (SELECT CASE 
+                   WHEN p.user_id1 = ? THEN u2.full_name 
+                   WHEN p.user_id2 = ? THEN u1.full_name 
+                   ELSE 'نامشخص' 
+               END
+               FROM Partners p
+               LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+               LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+               WHERE p.partner_id = wd.partner_id),
+               'نامشخص'
+           ) AS partner_name,
            wd.id AS work_details_id
     FROM Orders o
     LEFT JOIN Payments p ON o.order_id = p.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    LEFT JOIN Users u1 ON u1.user_id = wd.partner_id";
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
 
 $conditions = [];
 $params = [];
+$params[] = $current_user_id; // برای user_id1
+$params[] = $current_user_id; // برای user_id2
 
 if ($selected_year && $selected_year != 'all') {
     $conditions[] = "YEAR(wd.work_date) = ?";
