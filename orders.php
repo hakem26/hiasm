@@ -1,4 +1,5 @@
 <?php
+// بلوک 1: شروع و بررسی سشن
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
@@ -8,20 +9,18 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل میلادی به شمسی
+// بلوک 2: توابع کمکی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
-// تابع تبدیل سال میلادی به سال شمسی
 function gregorian_year_to_jalali($gregorian_year) {
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
 
-// تابع تبدیل عدد روز به نام روز
 function number_to_day($day_number) {
     $days = [
         1 => 'شنبه',
@@ -35,18 +34,14 @@ function number_to_day($day_number) {
     return $days[$day_number] ?? 'نامشخص';
 }
 
-// دریافت سال‌های موجود از دیتابیس (میلادی)
+// بلوک 3: دریافت سال‌ها و فیلتر سال
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = array_column($years_db, 'year');
-
-// دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
 $current_year = date('Y');
-
-// دریافت سال انتخاب‌شده (میلادی)
 $selected_year = $_GET['year'] ?? 'all';
 
-// دریافت ماه‌ها بر اساس سال انتخاب‌شده
+// بلوک 4: دریافت ماه‌ها بر اساس سال انتخاب‌شده
 $work_months = [];
 if ($selected_year && $selected_year != 'all') {
     $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
@@ -54,11 +49,9 @@ if ($selected_year && $selected_year != 'all') {
     $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// بررسی نقش کاربر
+// بلوک 5: بررسی نقش کاربر و دریافت همکارها
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
-
-// دریافت لیست همکارها
 $partners = [];
 if ($is_admin) {
     $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
@@ -75,14 +68,12 @@ if ($is_admin) {
     $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت اطلاعات روزها و فاکتورها بر اساس فیلترها
+// بلوک 6: دریافت اطلاعات روزها و اعمال فیلترها
 $work_details = [];
 $orders = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['user_id'] ?? 'all';
 $selected_work_day_id = $_GET['work_day_id'] ?? 'all';
-
-// پیجینیشن
 $page = (int)($_GET['page'] ?? 1);
 $per_page = 10;
 
@@ -92,7 +83,6 @@ if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
-    // دریافت اطلاعات ماه
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
@@ -103,7 +93,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
         $interval = new DateInterval('P1D');
         $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
-        // دریافت جفت‌های همکار
         if ($is_admin) {
             $partner_query = $pdo->prepare("
                 SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
@@ -128,7 +117,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
         }
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
-        // همگام‌سازی و ذخیره‌سازی روزها
         $processed_partners = [];
         foreach ($partners_in_work as $partner) {
             $partner_id = $partner['partner_id'];
@@ -168,7 +156,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
             }
         }
 
-        // فیلتر بر اساس همکار
         if ($selected_partner_id && $selected_partner_id != 'all') {
             $filtered_work_details = array_filter($work_details, function($detail) use ($selected_partner_id) {
                 return $detail['user_id1'] == $selected_partner_id || $detail['user_id2'] == $selected_partner_id;
@@ -178,16 +165,14 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     }
 }
 
-// دریافت فاکتورها بر اساس روز انتخاب‌شده با پیجینیشن
+// بلوک 7: دریافت فاکتورها
 if ($selected_work_day_id && $selected_work_day_id != 'all') {
-    // تعداد کل فاکتورها
     $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM Orders WHERE work_details_id = ?");
     $stmt_count->execute([$selected_work_day_id]);
     $total_orders = $stmt_count->fetchColumn();
     $total_pages = ceil($total_orders / $per_page);
     $offset = ($page - 1) * $per_page;
 
-    // کوئری با LIMIT و OFFSET مستقیم
     $query = "
         SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
                SUM(p.amount) AS paid_amount,
@@ -211,6 +196,7 @@ if ($selected_work_day_id && $selected_work_day_id != 'all') {
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
+    <!-- بلوک 8: هدر HTML و استایل‌ها -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سفارشات</title>
@@ -242,6 +228,7 @@ if ($selected_work_day_id && $selected_work_day_id != 'all') {
     <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">لیست سفارشات</h5>
 
+        <!-- بلوک 9: فرم فیلترها -->
         <form method="GET" class="row g-3 mb-3">
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
@@ -285,12 +272,14 @@ if ($selected_work_day_id && $selected_work_day_id != 'all') {
             </div>
         </form>
 
+        <!-- بلوک 10: نمایش دکمه ثبت سفارش -->
         <?php if (!$is_admin && $selected_work_day_id && $selected_work_day_id != 'all'): ?>
             <div class="mb-3">
                 <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش جدید</a>
             </div>
         <?php endif; ?>
 
+        <!-- بلوک 11: نمایش جدول سفارش‌ها -->
         <?php if ($selected_work_day_id && $selected_work_day_id != 'all'): ?>
             <?php if (empty($orders)): ?>
                 <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
@@ -334,7 +323,7 @@ if ($selected_work_day_id && $selected_work_day_id != 'all') {
                     </table>
                 </div>
 
-                <!-- پیجینیشن -->
+                <!-- بلوک 12: پیجینیشن -->
                 <nav aria-label="Page navigation">
                     <ul class="pagination justify-content-center mt-3">
                         <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
@@ -354,6 +343,7 @@ if ($selected_work_day_id && $selected_work_day_id != 'all') {
                     </ul>
                 </nav>
 
+                <!-- بلوک 13: دکمه نمایش بیشتر -->
                 <?php if ($total_orders > $per_page): ?>
                     <div class="text-center mt-3">
                         <button id="loadMoreBtn" class="btn btn-secondary">نمایش فاکتورهای بیشتر</button>
@@ -363,6 +353,7 @@ if ($selected_work_day_id && $selected_work_day_id != 'all') {
         <?php endif; ?>
     </div>
 
+    <!-- بلوک 14: اسکریپت‌ها -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
