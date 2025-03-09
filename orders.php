@@ -83,8 +83,10 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        $start_date = $month['start_date'];
-        $end_date = $month['end_date'];
+        $start_date = new DateTime($month['start_date']);
+        $end_date = new DateTime($month['end_date']);
+        $interval = new DateInterval('P1D');
+        $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
         if ($is_admin) {
             $partner_query = $pdo->prepare("
@@ -110,33 +112,38 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
         }
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
-        $detail_query = $pdo->prepare("
-            SELECT wd.id, wd.work_date, wd.work_month_id, wd.partner_id,
-                   (WEEKDAY(wd.work_date) + 5) % 7 + 1 AS adjusted_day_number
-            FROM Work_Details wd
-            WHERE wd.work_date BETWEEN ? AND ? AND wd.work_month_id = ?
-        ");
-        $detail_query->execute([$start_date, $end_date, $selected_work_month_id]);
-        $existing_details = $detail_query->fetchAll(PDO::FETCH_ASSOC);
-
         $processed_partners = [];
         foreach ($partners_in_work as $partner) {
             $partner_id = $partner['partner_id'];
             if (!in_array($partner_id, $processed_partners)) {
                 $processed_partners[] = $partner_id;
 
-                foreach ($existing_details as $detail) {
-                    if ($detail['partner_id'] == $partner_id && $detail['adjusted_day_number'] == $partner['stored_day_number']) {
-                        $work_details[] = [
-                            'work_details_id' => $detail['id'],
-                            'work_date' => $detail['work_date'],
-                            'work_day' => number_to_day($detail['adjusted_day_number']),
-                            'partner_id' => $partner_id,
-                            'user1' => $partner['user1'],
-                            'user2' => $partner['user2'],
-                            'user_id1' => $partner['user_id1'],
-                            'user_id2' => $partner['user_id2']
-                        ];
+                foreach ($date_range as $date) {
+                    $work_date = $date->format('Y-m-d');
+                    $day_number_php = (int)date('N', strtotime($work_date));
+                    $adjusted_day_number = ($day_number_php + 5) % 7;
+                    if ($adjusted_day_number == 0) $adjusted_day_number = 7;
+
+                    if ($partner['stored_day_number'] == $adjusted_day_number) {
+                        $detail_query = $pdo->prepare("
+                            SELECT * FROM Work_Details 
+                            WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
+                        ");
+                        $detail_query->execute([$work_date, $selected_work_month_id, $partner_id]);
+                        $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
+
+                        if ($existing_detail) {
+                            $work_details[] = [
+                                'work_details_id' => $existing_detail['id'],
+                                'work_date' => $work_date,
+                                'work_day' => number_to_day($adjusted_day_number),
+                                'partner_id' => $partner_id,
+                                'user1' => $partner['user1'],
+                                'user2' => $partner['user2'],
+                                'user_id1' => $partner['user_id1'],
+                                'user_id2' => $partner['user_id2']
+                            ];
+                        }
                     }
                 }
             }
@@ -151,52 +158,57 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     }
 }
 
+// دریافت سفارش‌ها با نام همکار
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
            SUM(p.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
            wd.work_date, 
            COALESCE(
-               CASE 
-                   WHEN pr.user_id1 = :current_user_id THEN u2.full_name 
-                   WHEN pr.user_id2 = :current_user_id THEN u1.full_name 
+               (SELECT CASE 
+                   WHEN p.user_id1 = ? THEN u2.full_name 
+                   WHEN p.user_id2 = ? THEN u1.full_name 
                    ELSE 'نامشخص' 
-               END,
+               END
+               FROM Partners p
+               LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+               LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+               WHERE p.partner_id = wd.partner_id),
                'نامشخص'
            ) AS partner_name,
            wd.id AS work_details_id
     FROM Orders o
     LEFT JOIN Payments p ON o.order_id = p.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    LEFT JOIN Partners pr ON pr.partner_id = wd.partner_id
-    LEFT JOIN Users u1 ON pr.user_id1 = u1.user_id
-    LEFT JOIN Users u2 ON pr.user_id2 = u2.user_id";
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
 
 $conditions = [];
-$params = [
-    ':current_user_id' => $current_user_id,
-    ':current_user_id2' => $current_user_id // برای اطمینان از تطابق
-];
+$params = [];
+$params[] = $current_user_id; // برای user_id1 توی partner_name
+$params[] = $current_user_id; // برای user_id2 توی partner_name
 
 if ($selected_year && $selected_year != 'all') {
-    $conditions[] = "YEAR(wd.work_date) = :selected_year";
-    $params[':selected_year'] = $selected_year;
+    $conditions[] = "YEAR(wd.work_date) = ?";
+    $params[] = $selected_year;
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
-    $conditions[] = "wd.work_month_id = :selected_work_month_id";
-    $params[':selected_work_month_id'] = $selected_work_month_id;
+    $conditions[] = "wd.work_month_id = ?";
+    $params[] = $selected_work_month_id;
 }
 
 if ($selected_partner_id && $selected_partner_id != 'all') {
-    $conditions[] = "(pr.user_id1 = :selected_partner_id OR pr.user_id2 = :selected_partner_id2)";
-    $params[':selected_partner_id'] = $selected_partner_id;
-    $params[':selected_partner_id2'] = $selected_partner_id;
+    $conditions[] = "EXISTS (
+        SELECT 1 FROM Partners p 
+        WHERE p.partner_id = wd.partner_id 
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
+    )";
+    $params[] = $selected_partner_id;
+    $params[] = $selected_partner_id;
 }
 
 if ($selected_work_day_id && $selected_work_day_id != 'all') {
-    $conditions[] = "wd.id = :selected_work_day_id";
-    $params[':selected_work_day_id'] = $selected_work_day_id;
+    $conditions[] = "wd.id = ?";
+    $params[] = $selected_work_day_id;
 }
 
 if (!empty($conditions)) {
@@ -207,10 +219,7 @@ $orders_query .= "
     GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_name";
 
 // تعداد کل فاکتورها
-$stmt_count = $pdo->prepare("SELECT COUNT(DISTINCT o.order_id) FROM Orders o
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    LEFT JOIN Partners pr ON pr.partner_id = wd.partner_id
-    " . (!empty($conditions) ? " WHERE " . implode(" AND ", $conditions) : ""));
+$stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
 $stmt_count->execute($params);
 $total_orders = $stmt_count->fetchColumn();
 $total_pages = ceil($total_orders / $per_page);
