@@ -16,13 +16,6 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
-// تابع تبدیل تاریخ شمسی به میلادی
-function jalali_to_gregorian($jalali_date) {
-    list($jy, $jm, $jd) = explode('/', $jalali_date);
-    list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
-    return "$gy-$gm-$gd";
-}
-
 // بررسی نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
 if ($is_admin) {
@@ -77,8 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($amount <= 0 || empty($jalali_payment_date) || empty($payment_type)) {
         echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>لطفاً تمام فیلدهای الزامی را پر کنید.</div></div>";
     } else {
-        // تبدیل تاریخ شمسی به میلادی
-        $payment_date = jalali_to_gregorian($jalali_payment_date);
+        // تبدیل تاریخ شمسی به میلادی با استفاده از تابع jdf.php
+        list($jy, $jm, $jd) = explode('/', $jalali_payment_date);
+        list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
+        $payment_date = sprintf("%04d-%02d-%02d", $gy, $gm, $gd);
 
         $pdo->beginTransaction();
         try {
