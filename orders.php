@@ -180,7 +180,8 @@ if ($selected_work_month_id) {
             $total_pages = ceil($total_orders / $per_page);
             $offset = ($page - 1) * $per_page;
 
-            $stmt_orders = $pdo->prepare("
+            // کوئری با LIMIT و OFFSET مستقیم
+            $query = "
                 SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
                        SUM(p.amount) AS paid_amount,
                        (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
@@ -193,12 +194,10 @@ if ($selected_work_month_id) {
                 JOIN Users u2 ON u2.user_id = wd.agency_owner_id
                 WHERE o.work_details_id = ?
                 GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names
-            ");
+                LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
+            $stmt_orders = $pdo->prepare($query);
             $stmt_orders->execute([$selected_work_day_id]);
             $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
-
-            // اعمال پیجینیشن دستی
-            $orders = array_slice($orders, $offset, $per_page);
         }
     }
 }
