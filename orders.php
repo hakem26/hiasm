@@ -65,18 +65,6 @@ if ($is_admin) {
 }
 
 $work_details = [];
-$orders = [];
-$selected_work_month_id = $_GET['work_month_id'] ?? 'all';
-$selected_partner_id = $_GET['user_id'] ?? 'all';
-$selected_work_day_id = $_GET['work_day_id'] ?? 'all';
-$page = (int)($_GET['page'] ?? 1);
-$per_page = 10;
-
-if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
-    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
-    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
-}
-
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
@@ -148,87 +136,20 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
                 }
             }
         }
-
-        if ($selected_partner_id && $selected_partner_id != 'all') {
-            $filtered_work_details = array_filter($work_details, function($detail) use ($selected_partner_id) {
-                return $detail['user_id1'] == $selected_partner_id || $detail['user_id2'] == $selected_partner_id;
-            });
-            $work_details = array_values($filtered_work_details);
-        }
     }
 }
 
-// دریافت سفارش‌ها با نام همکار
-$orders_query = "
-    SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
-           SUM(p.amount) AS paid_amount,
-           (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
-           wd.work_date, 
-           COALESCE(
-               (SELECT CASE 
-                   WHEN p.user_id1 = ? THEN u2.full_name 
-                   WHEN p.user_id2 = ? THEN u1.full_name 
-                   ELSE 'نامشخص' 
-               END
-               FROM Partners p
-               LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-               LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-               WHERE p.partner_id = wd.partner_id),
-               'نامشخص'
-           ) AS partner_name,
-           wd.id AS work_details_id
-    FROM Orders o
-    LEFT JOIN Payments p ON o.order_id = p.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
-
-$conditions = [];
-$params = [];
-$params[] = $current_user_id; // برای user_id1 توی partner_name
-$params[] = $current_user_id; // برای user_id2 توی partner_name
-
-if ($selected_year && $selected_year != 'all') {
-    $conditions[] = "YEAR(wd.work_date) = ?";
-    $params[] = $selected_year;
-}
+$selected_work_month_id = $_GET['work_month_id'] ?? 'all';
+$selected_partner_id = $_GET['user_id'] ?? 'all';
+$selected_work_day_id = $_GET['work_day_id'] ?? 'all';
+$page = (int)($_GET['page'] ?? 1);
+$per_page = 10;
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
-    $conditions[] = "wd.work_month_id = ?";
-    $params[] = $selected_work_month_id;
+    $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
+    $month_query->execute([$selected_work_month_id]);
+    $month = $month_query->fetch(PDO::FETCH_ASSOC);
 }
-
-if ($selected_partner_id && $selected_partner_id != 'all') {
-    $conditions[] = "EXISTS (
-        SELECT 1 FROM Partners p 
-        WHERE p.partner_id = wd.partner_id 
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-    )";
-    $params[] = $selected_partner_id;
-    $params[] = $selected_partner_id;
-}
-
-if ($selected_work_day_id && $selected_work_day_id != 'all') {
-    $conditions[] = "wd.id = ?";
-    $params[] = $selected_work_day_id;
-}
-
-if (!empty($conditions)) {
-    $orders_query .= " WHERE " . implode(" AND ", $conditions);
-}
-
-$orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_name";
-
-// تعداد کل فاکتورها
-$stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
-$stmt_count->execute($params);
-$total_orders = $stmt_count->fetchColumn();
-$total_pages = ceil($total_orders / $per_page);
-$offset = ($page - 1) * $per_page;
-
-$orders_query .= " LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
-$stmt_orders = $pdo->prepare($orders_query);
-$stmt_orders->execute($params);
-$orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -259,15 +180,20 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         .pagination {
             justify-content: center;
         }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">لیست سفارشات</h5>
 
-        <form method="GET" class="row g-3 mb-3">
+        <form method="GET" id="filterForm" class="row g-3 mb-3">
             <div class="col-auto">
-                <select name="year" class="form-select" onchange="this.form.submit()">
+                <select name="year" class="form-select" onchange="loadOrders()">
                     <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
@@ -277,7 +203,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 </select>
             </div>
             <div class="col-auto">
-                <select name="work_month_id" class="form-select" onchange="this.form.submit()">
+                <select name="work_month_id" class="form-select" onchange="loadOrders()">
                     <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
                     <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
@@ -287,7 +213,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 </select>
             </div>
             <div class="col-auto">
-                <select name="user_id" class="form-select" onchange="this.form.submit()">
+                <select name="user_id" class="form-select" onchange="loadOrders()">
                     <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
                     <?php foreach ($partners as $partner): ?>
                         <option value="<?= htmlspecialchars($partner['user_id']) ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
@@ -297,7 +223,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 </select>
             </div>
             <div class="col-auto">
-                <select name="work_day_id" class="form-select" onchange="this.form.submit()">
+                <select name="work_day_id" class="form-select" onchange="loadOrders()">
                     <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
                     <?php foreach ($work_details as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
@@ -314,73 +240,33 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             </div>
         <?php endif; ?>
 
-        <?php if (!empty($orders)): ?>
-            <div class="table-wrapper">
-                <table id="ordersTable" class="table table-light table-hover">
-                    <thead>
-                        <tr>
-                            <th>تاریخ</th>
-                            <th>نام همکار</th>
-                            <th>شماره فاکتور</th>
-                            <th>نام مشتری</th>
-                            <th>مبلغ کل فاکتور</th>
-                            <th>مبلغ پرداختی</th>
-                            <th>مانده حساب</th>
-                            <th>فاکتور</th>
-                            <th>اطلاعات پرداخت</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($orders as $order): ?>
-                            <tr>
-                                <td><?= $order['work_date'] ? gregorian_to_jalali_format($order['work_date']) : 'نامشخص' ?></td>
-                                <td><?= htmlspecialchars($order['partner_name']) ?></td>
-                                <td><?= $order['order_id'] ?></td>
-                                <td><?= htmlspecialchars($order['customer_name']) ?></td>
-                                <td><?= number_format($order['final_amount'], 0) ?> تومان</td>
-                                <td><?= number_format($order['paid_amount'] ?? 0, 0) ?> تومان</td>
-                                <td><?= number_format($order['remaining_amount'], 0) ?> تومان</td>
-                                <td>
-                                    <a href="edit_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
-                                </td>
-                                <td>
-                                    <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+        <div class="loading" id="loading">در حال بارگذاری...</div>
+        <div class="table-wrapper" id="ordersTableWrapper">
+            <table id="ordersTable" class="table table-light table-hover">
+                <thead>
+                    <tr>
+                        <th>تاریخ</th>
+                        <th>نام همکار</th>
+                        <th>شماره فاکتور</th>
+                        <th>نام مشتری</th>
+                        <th>مبلغ کل فاکتور</th>
+                        <th>مبلغ پرداختی</th>
+                        <th>مانده حساب</th>
+                        <th>فاکتور</th>
+                        <th>اطلاعات پرداخت</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersBody"></tbody>
+            </table>
+        </div>
 
-            <nav aria-label="Page navigation">
-                <ul class="pagination justify-content-center mt-3">
-                    <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                        <a class="page-link" href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
-                    </li>
-                    <?php
-                    $start_page = max(1, $page - 2);
-                    $end_page = min($total_pages, $page + 2);
-                    for ($i = $start_page; $i <= $end_page; $i++): ?>
-                        <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                            <a class="page-link" href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
-                        </li>
-                    <?php endfor; ?>
-                    <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                        <a class="page-link" href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
-                    </li>
-                </ul>
-            </nav>
+        <nav aria-label="Page navigation" id="pagination" style="display: none;">
+            <ul class="pagination justify-content-center mt-3" id="paginationList"></ul>
+        </nav>
 
-            <?php if ($total_orders > $per_page): ?>
-                <div class="text-center mt-3">
-                    <button id="loadMoreBtn" class="btn btn-secondary">نمایش فاکتورهای بیشتر</button>
-                </div>
-            <?php endif; ?>
-        <?php else: ?>
-            <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
-        <?php endif; ?>
+        <div class="text-center mt-3" id="loadMore" style="display: none;">
+            <button id="loadMoreBtn" class="btn btn-secondary">نمایش فاکتورهای بیشتر</button>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -390,41 +276,86 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        $(document).ready(function() {
-            $('#ordersTable').DataTable({
-                "pageLength": <?= $per_page ?>,
-                "paging": false,
-                "ordering": false,
-                "info": true,
-                "searching": false,
-                "language": {
-                    "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                    "infoEmpty": "هیچ فاکتوری یافت نشد",
-                    "zeroRecords": "هیچ فاکتوری یافت نشد"
+        function loadOrders(page = 1) {
+            const formData = $('#filterForm').serialize() + '&page=' + page;
+            $('#loading').show();
+            $('#ordersBody').html('');
+            $('#pagination').hide();
+            $('#loadMore').hide();
+
+            $.ajax({
+                url: 'fetch_orders.php',
+                type: 'GET',
+                data: formData,
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        const orders = response.data.orders;
+                        let html = '';
+                        orders.forEach(order => {
+                            html += `
+                                <tr>
+                                    <td>${order.work_date ? persianDate.gregorianToJalali(order.work_date.split('-')[0], order.work_date.split('-')[1], order.work_date.split('-')[2]).join('/') : 'نامشخص'}</td>
+                                    <td>${order.partner_name}</td>
+                                    <td>${order.order_id}</td>
+                                    <td>${order.customer_name}</td>
+                                    <td>${parseInt(order.final_amount).toLocaleString()} تومان</td>
+                                    <td>${parseInt(order.paid_amount || 0).toLocaleString()} تومان</td>
+                                    <td>${parseInt(order.remaining_amount).toLocaleString()} تومان</td>
+                                    <td>
+                                        <a href="edit_order.php?order_id=${order.order_id}" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_order.php?order_id=${order.order_id}" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                    </td>
+                                    <td>
+                                        <a href="edit_payment.php?order_id=${order.order_id}" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_payment.php?order_id=${order.order_id}" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        $('#ordersBody').html(html);
+
+                        // صفحه‌بندی
+                        const totalPages = response.data.total_pages;
+                        let paginationHtml = '';
+                        const startPage = Math.max(1, page - 2);
+                        const endPage = Math.min(totalPages, page + 2);
+                        if (page > 1) {
+                            paginationHtml += `<li class="page-item"><a class="page-link" href="#" onclick="loadOrders(${page - 1}); return false;">قبلی</a></li>`;
+                        }
+                        for (let i = startPage; i <= endPage; i++) {
+                            paginationHtml += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" onclick="loadOrders(${i}); return false;">${i}</a></li>`;
+                        }
+                        if (page < totalPages) {
+                            paginationHtml += `<li class="page-item"><a class="page-link" href="#" onclick="loadOrders(${page + 1}); return false;">بعدی</a></li>`;
+                        }
+                        $('#paginationList').html(paginationHtml);
+                        $('#pagination').show();
+
+                        if (totalPages > page) {
+                            $('#loadMore').show();
+                        }
+                    } else {
+                        $('#ordersBody').html('<tr><td colspan="9"><div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div></td></tr>');
+                    }
+                    $('#loading').hide();
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error:', error);
+                    $('#ordersBody').html('<tr><td colspan="9"><div class="alert alert-danger text-center">خطایی رخ داد. لطفاً دوباره تلاش کنید.</div></td></tr>');
+                    $('#loading').hide();
                 }
             });
+        }
 
-            $('#loadMoreBtn').on('click', function() {
-                let table = $('#ordersTable').DataTable();
-                table.page.len(50).draw();
-                $(this).hide();
-            });
+        $('#loadMoreBtn').on('click', function() {
+            const currentPage = parseInt($('#pagination .active a').text()) || 1;
+            loadOrders(currentPage + 1);
+        });
 
-            $('select[name="year"]').change(function() {
-                this.form.submit();
-            });
-
-            $('select[name="work_month_id"]').change(function() {
-                this.form.submit();
-            });
-
-            $('select[name="user_id"]').change(function() {
-                this.form.submit();
-            });
-
-            $('select[name="work_day_id"]').change(function() {
-                this.form.submit();
-            });
+        // لود اولیه
+        $(document).ready(function() {
+            loadOrders(1);
         });
     </script>
 
