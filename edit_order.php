@@ -232,7 +232,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </tr>
                     </thead>
                     <tbody id="productsTable">
-                        <?php foreach ($items as $index => $item): ?>
+                        <?php 
+                        $initial_total = 0;
+                        foreach ($items as $index => $item): 
+                            $initial_total += $item['total_price'];
+                        ?>
                             <tr id="productRow_<?= $index ?>">
                                 <td><?= htmlspecialchars($item['product_name']) ?></td>
                                 <td><?= $item['quantity'] ?></td>
@@ -248,14 +252,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <input type="hidden" name="products[<?= $index ?>][unit_price]" value="<?= $item['unit_price'] ?>">
                             </tr>
                         <?php endforeach; ?>
+                        <tr class="total-row">
+                            <td colspan="3"><strong>جمع کل</strong></td>
+                            <td colspan="2"><strong id="total_amount"><?= number_format($initial_total, 0) ?> تومان</strong></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $order['discount'] ?>" min="0"></td>
+                            <td colspan="2"><strong id="final_amount"><?= number_format($initial_total - $order['discount'], 0) ?> تومان</strong></td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- تخفیف -->
+            <!-- نمایش پیش‌فرض برای جمع کل و تخفیف -->
             <div class="mb-3">
-                <label for="discount" class="form-label">تخفیف (تومان)</label>
-                <input type="number" class="form-control" id="discount" name="discount" value="<?= $order['discount'] ?>" min="0">
+                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($initial_total, 0) ?> تومان</span></p>
+                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($initial_total - $order['discount'], 0) ?> تومان</span></p>
             </div>
 
             <button type="submit" class="btn btn-success mt-3">ذخیره تغییرات</button>
@@ -332,6 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             `;
 
             $('#productsTable').append(row);
+            updateTotals();
             productCount++;
 
             // پاک کردن فرم
@@ -346,7 +360,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function deleteProduct(index) {
             if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
                 $(`#productRow_${index}`).remove();
+                updateTotals();
             }
+        }
+
+        // به‌روزرسانی جمع کل و تخفیف
+        function updateTotals() {
+            let totalAmount = 0;
+            $('#productsTable tr').each(function() {
+                if ($(this).attr('id') && $(this).attr('id').startsWith('productRow_')) {
+                    const unitPrice = parseInt($(this).find('input[name^="products["][name$="[unit_price]"]').val());
+                    const quantity = parseInt($(this).find('input[name^="products["][name$="[quantity]"]').val());
+                    totalAmount += unitPrice * quantity;
+                }
+            });
+
+            const discount = parseInt($('#discount').val()) || 0;
+            const finalAmount = totalAmount - discount;
+
+            $('#total_amount').text(totalAmount.toLocaleString('fa') + ' تومان');
+            $('#final_amount').text(finalAmount.toLocaleString('fa') + ' تومان');
+            $('#total_amount_display').text(totalAmount.toLocaleString('fa') + ' تومان');
+            $('#final_amount_display').text(finalAmount.toLocaleString('fa') + ' تومان');
         }
 
         // رویدادها
@@ -355,6 +390,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $(document).on('click', '.delete-item', function() {
             const index = $(this).data('index');
             deleteProduct(index);
+        });
+
+        $('#discount').on('input', function() {
+            updateTotals();
+        });
+
+        // بارگذاری اولیه
+        $(document).ready(function() {
+            updateTotals();
         });
     </script>
 
