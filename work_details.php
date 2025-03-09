@@ -17,7 +17,7 @@ function gregorian_to_jalali_format($gregorian_date) {
 
 // تابع تبدیل سال میلادی به سال شمسی
 function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1); // فقط سال رو می‌گیریم
+    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
 
@@ -38,10 +38,10 @@ function number_to_day($day_number) {
 // دریافت سال‌های موجود از دیتابیس (میلادی)
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year'); // سال‌ها به‌صورت میلادی
+$years = array_column($years_db, 'year');
 
 // دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
-$current_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
+$current_year = date('Y');
 
 // دریافت سال انتخاب‌شده (میلادی)
 $selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
@@ -49,13 +49,13 @@ $selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_ye
 // تبدیل سال انتخاب‌شده به شمسی برای نمایش
 $selected_jalali_year = $selected_year ? gregorian_year_to_jalali($selected_year) : null;
 
-// اگر سال انتخاب‌شده وجود نداشت، اولین سال موجود رو انتخاب کن (اگر سالی وجود داشت)
+// اگر سال انتخاب‌شده وجود نداشت، اولین سال موجود رو انتخاب کن
 if ($selected_year && !in_array($selected_year, $years)) {
     $selected_year = !empty($years) ? $years[0] : null;
     $selected_jalali_year = $selected_year ? gregorian_year_to_jalali($selected_year) : null;
 }
 
-// دریافت لیست ماه‌های کاری بر اساس سال میلادی (اگر سال انتخاب‌شده وجود داشته باشه)
+// دریافت لیست ماه‌های کاری بر اساس سال میلادی
 if ($selected_year) {
     $work_months_query = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
     $work_months_query->execute([$selected_year]);
@@ -64,17 +64,15 @@ if ($selected_year) {
     $work_months = [];
 }
 
-// تعریف متغیرها قبل از استفاده
+// تعریف متغیرها
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
 // دریافت لیست همکاران
 if ($is_admin) {
-    // برای ادمین، همه فروشنده‌ها
     $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
     $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 } else {
-    // برای فروشنده، فقط همکارانی که خودش توی اون‌ها هست
     $partners_query = $pdo->prepare("
         SELECT DISTINCT u.user_id, u.full_name 
         FROM Partners p
@@ -101,7 +99,7 @@ if (isset($_GET['work_month_id'])) {
         $interval = new DateInterval('P1D');
         $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
-        // دریافت همه جفت‌های همکار از Partners برای این ماه کاری
+        // دریافت همه جفت‌های همکار از Partners
         if ($is_admin) {
             $partner_query = $pdo->prepare("
                 SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
@@ -127,7 +125,7 @@ if (isset($_GET['work_month_id'])) {
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
         // همگام‌سازی و ذخیره‌سازی داده‌ها
-        $processed_partners = []; // برای جلوگیری از تکرار
+        $processed_partners = [];
         foreach ($partners_in_work as $partner) {
             $partner_id = $partner['partner_id'];
             if (!in_array($partner_id, $processed_partners)) {
@@ -153,7 +151,19 @@ if (isset($_GET['work_month_id'])) {
                                 VALUES (?, ?, ?, ?, ?)
                             ");
                             $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, $partner['user_id1']]);
+                            $work_details_id = $pdo->lastInsertId();
+                        } else {
+                            $work_details_id = $existing_detail['id'];
                         }
+
+                        // محاسبه جمع کل فروش برای این روز کاری
+                        $sales_query = $pdo->prepare("
+                            SELECT SUM(total_amount) as total_sales 
+                            FROM Orders 
+                            WHERE work_details_id = ?
+                        ");
+                        $sales_query->execute([$work_details_id]);
+                        $total_sales = $sales_query->fetchColumn() ?: 0;
 
                         $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
                         $work_details[] = [
@@ -164,7 +174,8 @@ if (isset($_GET['work_month_id'])) {
                             'user2' => $partner['user2'],
                             'user_id1' => $partner['user_id1'],
                             'user_id2' => $partner['user_id2'],
-                            'agency_owner_id' => $agency_owner_id
+                            'agency_owner_id' => $agency_owner_id,
+                            'total_sales' => $total_sales // جمع کل فروش
                         ];
                     }
                 }
@@ -183,7 +194,7 @@ if (!empty($selected_partner_id)) {
     });
 }
 
-// مرتب‌سازی $filtered_work_details بر اساس work_date (صعودی)
+// مرتب‌سازی بر اساس work_date
 usort($filtered_work_details, function($a, $b) {
     return strcmp($a['work_date'], $b['work_date']);
 });
@@ -195,14 +206,10 @@ usort($filtered_work_details, function($a, $b) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>اطلاعات کاری</title>
-    <!-- Bootstrap RTL CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
         integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Persian Datepicker CSS -->
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -212,7 +219,6 @@ usort($filtered_work_details, function($a, $b) {
         </div>
 
         <form method="GET" class="row g-3 mb-3">
-            <!-- فیلتر سال -->
             <?php if (!empty($years)): ?>
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
@@ -225,7 +231,6 @@ usort($filtered_work_details, function($a, $b) {
             </div>
             <?php endif; ?>
 
-            <!-- فیلتر ماه -->
             <div class="col-auto">
                 <select name="work_month_id" class="form-select" onchange="this.form.submit()">
                     <option value="">انتخاب ماه</option>
@@ -237,7 +242,6 @@ usort($filtered_work_details, function($a, $b) {
                 </select>
             </div>
 
-            <!-- فیلتر همکار -->
             <div class="col-auto">
                 <select name="user_id" class="form-select" onchange="this.form.submit()">
                     <option value="">همه همکاران</option>
@@ -257,6 +261,7 @@ usort($filtered_work_details, function($a, $b) {
                         <th>تاریخ</th>
                         <th>روز هفته</th>
                         <th>همکاران</th>
+                        <th>جمع کل فروش</th>
                         <th>آژانس</th>
                     </tr>
                 </thead>
@@ -266,6 +271,7 @@ usort($filtered_work_details, function($a, $b) {
                             <td><?= gregorian_to_jalali_format($work['work_date']) ?></td>
                             <td><?= $work['work_day'] ?></td>
                             <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
+                            <td><?= number_format($work['total_sales'], 0) ?> تومان</td>
                             <td>
                                 <select class="form-select agency-select" data-id="<?= $work['work_date'] ?>" data-partner-id="<?= $work['partner_id'] ?>">
                                     <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
