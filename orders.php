@@ -65,6 +65,7 @@ if ($is_admin) {
 }
 
 $work_details = [];
+$selected_work_month_id = $_GET['work_month_id'] ?? 'all'; // تعریف اینجا
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
@@ -139,7 +140,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     }
 }
 
-$selected_work_month_id = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['user_id'] ?? 'all';
 $selected_work_day_id = $_GET['work_day_id'] ?? 'all';
 $page = (int)($_GET['page'] ?? 1);
