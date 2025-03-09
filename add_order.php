@@ -77,14 +77,31 @@ if (empty($work_info)) {
     exit;
 }
 
-// دریافت نام همکار با روش ساده‌تر
+// دریافت نام همکار از جفت همکارها
 $partner_name = 'نامشخص';
 if ($work_info['partner_id']) {
-    $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
-    $stmt_user->execute([$work_info['partner_id']]);
-    $result = $stmt_user->fetch(PDO::FETCH_ASSOC);
-    if ($result && !empty($result['full_name'])) {
-        $partner_name = $result['full_name'];
+    $stmt_partner = $pdo->prepare("
+        SELECT u1.user_id AS user1_id, u1.full_name AS user1_name, u2.user_id AS user2_id, u2.full_name AS user2_name
+        FROM Partners p
+        LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+        LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+        WHERE p.partner_id = ?
+    ");
+    $stmt_partner->execute([$work_info['partner_id']]);
+    $partner_data = $stmt_partner->fetch(PDO::FETCH_ASSOC);
+
+    if ($partner_data) {
+        $user1_id = $partner_data['user1_id'];
+        $user2_id = $partner_data['user2_id'];
+        $user1_name = $partner_data['user1_name'] ?: 'نامشخص';
+        $user2_name = $partner_data['user2_name'] ?: 'نامشخص';
+
+        // اگه کاربر لاگین‌شده user1 باشه، user2 رو نشون بده و برعکس
+        if ($user1_id == $current_user_id && $user2_name != 'نامشخص') {
+            $partner_name = $user2_name;
+        } elseif ($user2_id == $current_user_id && $user1_name != 'نامشخص') {
+            $partner_name = $user1_name;
+        }
     }
 }
 
@@ -364,7 +381,6 @@ $final_amount = $total_amount - $discount;
 
                     const response = await sendRequest('ajax_handler.php', data);
                     if (response.success) {
-                        // فقط اگه المنت‌ها وجود دارن، مقدار رو به‌روزرسانی کن
                         const discountInput = document.getElementById('discount');
                         const finalAmountDisplay = document.getElementById('final_amount');
                         const finalAmountGlobalDisplay = document.getElementById('final_amount_display');
