@@ -17,9 +17,9 @@ function calculate_totals($items, $discount) {
 $action = $_POST['action'] ?? '';
 
 if ($action === 'add_item') {
-    // منطق اضافه کردن محصول (که قبلاً داشتید)
+    // منطق اضافه کردن محصول
     $customer_name = $_POST['customer_name'] ?? '';
-    $product_id = $_POST['product_id'] ?? '';
+    $product_id = $_POST['product_id'] ?? ''; // فقط توی سشن نگه می‌داریم، توی دیتابیس ذخیره نمی‌کنیم
     $quantity = (int)($_POST['quantity'] ?? 1);
     $unit_price = (int)($_POST['unit_price'] ?? 0);
     $discount = (int)($_POST['discount'] ?? 0);
@@ -40,7 +40,7 @@ if ($action === 'add_item') {
 
     $total_price = $quantity * $unit_price;
     $item = [
-        'product_id' => $product_id,
+        'product_id' => $product_id, // فقط توی سشن نگه می‌داریم
         'product_name' => $product['product_name'],
         'quantity' => $quantity,
         'unit_price' => $unit_price,
@@ -74,7 +74,7 @@ if ($action === 'add_item') {
     exit;
 
 } elseif ($action === 'update_discount') {
-    // منطق به‌روزرسانی تخفیف (که قبلاً داشتید)
+    // منطق به‌روزرسانی تخفیف
     $discount = (int)($_POST['discount'] ?? 0);
     $_SESSION['discount'] = $discount;
 
@@ -84,7 +84,7 @@ if ($action === 'add_item') {
     exit;
 
 } elseif ($action === 'finalize_order') {
-    // منطق بستن فاکتور (که قبلاً داشتید)
+    // منطق بستن فاکتور
     $work_details_id = $_POST['work_details_id'] ?? '';
     $customer_name = $_POST['customer_name'] ?? '';
     $discount = (int)($_POST['discount'] ?? 0);
@@ -109,12 +109,11 @@ if ($action === 'add_item') {
 
         foreach ($items as $item) {
             $stmt = $pdo->prepare("
-                INSERT INTO Order_Items (order_id, product_id, product_name, quantity, unit_price, total_price)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price)
+                VALUES (?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $order_id,
-                $item['product_id'],
                 $item['product_name'],
                 $item['quantity'],
                 $item['unit_price'],
