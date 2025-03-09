@@ -261,13 +261,17 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         }
         table {
             min-width: 800px;
-            table-layout: fixed; /* تغییر از auto به fixed */
-            width: 100%; /* اطمینان از پر شدن عرض جدول */
+            table-layout: fixed;
+            width: 100%;
         }
         th, td {
             white-space: nowrap;
-            padding: 8px 12px;
-            text-align: center; /* برای تراز بهتر متن */
+            padding: 8px 5px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        th {
+            padding-bottom: 1rem;
         }
         .pagination {
             justify-content: center;
@@ -350,16 +354,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                 <td><?= htmlspecialchars($order['partner_name']) ?></td>
                                 <td><?= $order['order_id'] ?></td>
                                 <td><?= htmlspecialchars($order['customer_name']) ?></td>
-                                <td><?= number_format($order['final_amount'], 0) ?> تومان</td>
-                                <td><?= number_format($order['paid_amount'] ?? 0, 0) ?> تومان</td>
-                                <td><?= number_format($order['remaining_amount'], 0) ?> تومان</td>
+                                <td><?= number_format($order['total_amount'], 0) ?></td>
+                                <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
+                                <td><?= number_format($order['remaining_amount'], 0) ?></td>
                                 <td>
                                     <a href="edit_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <!-- دکمه حذف حذف شده -->
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -438,6 +441,27 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             $('select[name="work_day_id"]').change(function() {
                 this.form.submit();
             });
+
+            // تنظیم عرض ستون‌ها بر اساس بزرگ‌ترین محتوا
+            function adjustColumnWidths() {
+                const table = $('#ordersTable');
+                const headers = table.find('thead th');
+                const rows = table.find('tbody tr');
+
+                headers.each(function(index) {
+                    let maxWidth = $(this).width();
+                    rows.each(function() {
+                        const cell = $(this).find('td').eq(index);
+                        const cellWidth = cell.width();
+                        if (cellWidth > maxWidth) {
+                            maxWidth = cellWidth;
+                        }
+                    });
+                    headers.eq(index).css('width', (maxWidth + 10) + 'px');
+                });
+            }
+
+            adjustColumnWidths();
         });
     </script>
 
