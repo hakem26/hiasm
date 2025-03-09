@@ -186,6 +186,17 @@ $params = [];
 $params[] = $current_user_id; // برای user_id1 توی partner_name
 $params[] = $current_user_id; // برای user_id2 توی partner_name
 
+if (!$is_admin) {
+    // محدود کردن دسترسی برای کاربران فروشنده
+    $conditions[] = "EXISTS (
+        SELECT 1 FROM Partners p 
+        WHERE p.partner_id = wd.partner_id 
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
+    )";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+}
+
 if ($selected_year && $selected_year != 'all') {
     $conditions[] = "YEAR(wd.work_date) = ?";
     $params[] = $selected_year;
@@ -250,11 +261,13 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         }
         table {
             min-width: 800px;
-            table-layout: auto;
+            table-layout: fixed; /* تغییر از auto به fixed */
+            width: 100%; /* اطمینان از پر شدن عرض جدول */
         }
         th, td {
             white-space: nowrap;
             padding: 8px 12px;
+            text-align: center; /* برای تراز بهتر متن */
         }
         .pagination {
             justify-content: center;
@@ -346,7 +359,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                    <!-- دکمه حذف حذف شده -->
                                 </td>
                             </tr>
                         <?php endforeach; ?>
