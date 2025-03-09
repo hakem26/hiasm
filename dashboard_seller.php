@@ -16,49 +16,6 @@ $orders = [
 <!-- [BLOCK-DASHBOARD-002] -->
 <div class="container-fluid mt-5"> <!-- افزایش فاصله با mt-5 برای زیر منوی بالا -->
     <h2>میز کار فروشندگان</h2>
-    <div class="card bg-light text-dark">
-        <div class="card-body">
-            <h5 class="card-title">لیست فاکتورها</h5>
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <select class="form-select w-auto bg-light text-dark border-secondary">
-                    <option>10</option>
-                    <option>25</option>
-                    <option>50</option>
-                </select>
-                <input type="text" class="form-control w-auto bg-light text-dark border-secondary" placeholder="جستجو...">
-            </div>
-            <table class="table table-light table-hover">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" class="form-check-input"></th>
-                        <th>شماره</th>
-                        <th>فاکتور</th>
-                        <th>نام</th>
-                        <th>تاریخ صدور</th>
-                        <th>مبلغ</th>
-                        <th>وضعیت</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($orders as $order): ?>
-                    <tr>
-                        <td><input type="checkbox" class="form-check-input"></td>
-                        <td><?php echo $order['id']; ?></td>
-                        <td><?php echo $order['invoice']; ?></td>
-                        <td><?php echo $order['name']; ?></td>
-                        <td><?php echo $order['date']; ?></td>
-                        <td><?php echo $order['amount']; ?> تومان</td>
-                        <td>
-                            <span class="badge <?php echo $order['status'] === 'پرداخت‌شده' ? 'bg-success' : 'bg-warning'; ?>">
-                                <?php echo $order['status']; ?>
-                            </span>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
 </div>
 
 <?php
