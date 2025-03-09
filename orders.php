@@ -161,8 +161,8 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
 // دریافت سفارش‌ها با نام همکار
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
-           SUM(p.amount) AS paid_amount,
-           (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
+           SUM(op.amount) AS paid_amount,
+           (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
            wd.work_date, 
            COALESCE(
                (SELECT CASE 
@@ -178,7 +178,7 @@ $orders_query = "
            ) AS partner_name,
            wd.id AS work_details_id
     FROM Orders o
-    LEFT JOIN Payments p ON o.order_id = p.order_id
+    LEFT JOIN Order_Payments op ON o.order_id = op.order_id
     LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
 
 $conditions = [];
