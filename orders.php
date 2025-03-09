@@ -133,7 +133,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
                         $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
 
                         if ($existing_detail) {
-                            $agency_owner_id = $existing_detail['agency_owner_id'];
                             $work_details[] = [
                                 'work_details_id' => $existing_detail['id'],
                                 'work_date' => $work_date,
@@ -142,8 +141,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
                                 'user1' => $partner['user1'],
                                 'user2' => $partner['user2'],
                                 'user_id1' => $partner['user_id1'],
-                                'user_id2' => $partner['user_id2'],
-                                'agency_owner_id' => $agency_owner_id
+                                'user_id2' => $partner['user_id2']
                             ];
                         }
                     }
@@ -160,19 +158,18 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     }
 }
 
-// دریافت سفارش‌ها بدون شرط سخت‌گیرانه
+// دریافت سفارش‌ها با نام همکار
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
            SUM(p.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(p.amount), 0)) AS remaining_amount,
            wd.work_date, 
-           COALESCE(CONCAT(u1.full_name, ' - ', u2.full_name), 'نامشخص') AS partner_names,
+           COALESCE(u1.full_name, 'نامشخص') AS partner_name,
            wd.id AS work_details_id
     FROM Orders o
     LEFT JOIN Payments p ON o.order_id = p.order_id
     LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    LEFT JOIN Users u1 ON u1.user_id = wd.partner_id
-    LEFT JOIN Users u2 ON u2.user_id = wd.agency_owner_id";
+    LEFT JOIN Users u1 ON u1.user_id = wd.partner_id";
 
 $conditions = [];
 $params = [];
@@ -188,8 +185,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
 }
 
 if ($selected_partner_id && $selected_partner_id != 'all') {
-    $conditions[] = "(wd.partner_id = ? OR wd.agency_owner_id = ?)";
-    $params[] = $selected_partner_id;
+    $conditions[] = "wd.partner_id = ?";
     $params[] = $selected_partner_id;
 }
 
@@ -203,7 +199,7 @@ if (!empty($conditions)) {
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_names";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_name";
 
 // تعداد کل فاکتورها
 $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
@@ -321,7 +317,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                         <?php foreach ($orders as $order): ?>
                             <tr>
                                 <td><?= $order['work_date'] ? gregorian_to_jalali_format($order['work_date']) : 'نامشخص' ?></td>
-                                <td><?= $order['partner_names'] ?></td>
+                                <td><?= htmlspecialchars($order['partner_name']) ?></td>
                                 <td><?= $order['order_id'] ?></td>
                                 <td><?= htmlspecialchars($order['customer_name']) ?></td>
                                 <td><?= number_format($order['final_amount'], 0) ?> تومان</td>
