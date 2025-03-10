@@ -280,10 +280,12 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.bootstrap5.min.css">
     <style>
         .table-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            position: relative;
         }
 
         table {
@@ -304,6 +306,9 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
         th {
             background-color: #f8f9fa;
+            position: sticky; /* ثابت نگه داشتن th */
+            top: 0;
+            z-index: 1;
         }
 
         .table-responsive {
@@ -456,9 +461,10 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
     <script>
         $(document).ready(function () {
-            $('#ordersTable').DataTable({
+            var table = $('#ordersTable').DataTable({
                 responsive: false,  // غیرفعال کردن واکنش‌گرایی
                 scrollX: true,     // فعال کردن اسکرول افقی
                 autoWidth: false,  // جلوگیری از تغییر عرض خودکار
@@ -470,13 +476,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
                     "infoEmpty": "هیچ فاکتوری یافت نشد",
                     "zeroRecords": "هیچ فاکتوری یافت نشد",
-                    "lengthMenu": "نمایش _MENU_ ردیف", // فارسی کردن "Show entries"
+                    "lengthMenu": "نمایش _MENU_ ردیف",
                     "paginate": {
                         "previous": "قبلی",
                         "next": "بعدی"
                     }
                 }
             });
+
+            new $.fn.dataTable.FixedHeader(table); // فعال کردن FixedHeader
 
             $('#loadMoreBtn').on('click', function () {
                 let table = $('#ordersTable').DataTable();
