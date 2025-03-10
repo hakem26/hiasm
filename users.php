@@ -43,7 +43,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?php echo htmlspecialchars($user['full_name']); ?></td>
                 <td><?php echo $user['role'] === 'seller' ? 'فروشنده' : 'کاربر'; ?></td>
                 <td>
-                    <a href="#" class="text-primary me-2 edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal" data-user-id="<?php echo $user['user_id']; ?>" data-username="<?php echo htmlspecialchars($user['username']); ?>" data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>" data-role="<?php echo $user['role']; ?>">
+                    <a href="#" class="text-primary me-2 edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal" data-user-id="<?php echo $user['user_id']; ?>" data-username="<?php echo htmlspecialchars($user['username']); ?>" data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>" data-role="<?php echo $user['role']; ?>" data-phone="<?php echo htmlspecialchars($user['phone_number'] ?? ''); ?>">
                         <i class="fas fa-edit"></i>
                     </a>
                     <a href="#" class="text-danger" onclick="confirmDelete(<?php echo $user['user_id']; ?>)">
@@ -78,6 +78,10 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="mb-3">
                         <label for="full_name" class="form-label">نام کامل</label>
                         <input type="text" class="form-control" id="full_name" name="full_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone_number" class="form-label">شماره تلفن (اختیاری)</label>
+                        <input type="text" class="form-control" id="phone_number" name="phone_number">
                     </div>
                     <div class="mb-3">
                         <label for="role" class="form-label">نقش</label>
@@ -117,6 +121,10 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <input type="text" class="form-control" id="edit_full_name" name="full_name" required>
                     </div>
                     <div class="mb-3">
+                        <label for="edit_phone_number" class="form-label">شماره تلفن (اختیاری)</label>
+                        <input type="text" class="form-control" id="edit_phone_number" name="phone_number">
+                    </div>
+                    <div class="mb-3">
                         <label for="edit_role" class="form-label">نقش</label>
                         <select class="form-select" id="edit_role" name="role" required>
                             <option value="seller">فروشنده</option>
@@ -138,20 +146,22 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         document.querySelectorAll('.edit-user-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
-                const userId = button.getAttribute('data-user-id'); // استفاده از button به‌جای e.target
+                const userId = button.getAttribute('data-user-id');
                 const username = button.getAttribute('data-username');
                 const fullName = button.getAttribute('data-fullname');
                 const role = button.getAttribute('data-role');
+                const phone = button.getAttribute('data-phone');
 
-                console.log('Editing user:', userId, username, fullName, role); // برای دیباگ
+                console.log('Editing user:', userId, username, fullName, role, phone); // برای دیباگ
 
                 // پر کردن فیلدها
                 if (userId && username && fullName && role) {
                     document.getElementById('edit_user_id').value = userId;
                     document.getElementById('edit_username').value = username;
-                    document.getElementById('edit_username').setAttribute('readonly', 'readonly'); // غیرقابل تغییر
+                    document.getElementById('edit_username').setAttribute('readonly', 'readonly');
                     document.getElementById('edit_full_name').value = fullName;
                     document.getElementById('edit_role').value = role;
+                    document.getElementById('edit_phone_number').value = phone || ''; // مقدار پیش‌فرض خالی اگه خالی باشه
                     document.getElementById('edit_password').value = ''; // خالی برای عدم تغییر پیش‌فرض
                 } else {
                     console.error('Data attributes missing or invalid');
