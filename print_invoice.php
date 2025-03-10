@@ -65,7 +65,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             width: 148mm; /* عرض A5 */
             height: 210mm; /* ارتفاع A5 */
             margin: 0 auto;
-            padding: 5mm;
+            padding: 0 5mm;
             box-sizing: border-box;
             border: 1px solid #ccc; /* برای نمایش در صفحه */
             position: relative;
@@ -100,7 +100,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         }
         .invoice-footer {
             position: absolute;
-            bottom: 5mm;
+            bottom: 1mm;
             left: 0;
             right: 0;
             font-size: 10pt;
