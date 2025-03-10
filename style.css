@@ -3,22 +3,20 @@ body {
     background-color: #f8f9fa;
     margin: 0;
     padding-top: 60px; /* برای جلوگیری از تداخل با هدر ثابت */
-}
-
-.layout-container {
-    display: flex;
-    width: 100%;
-    min-height: calc(100vh - 60px);
+    padding-right: 200px; /* فاصله پیش‌فرض از منوی کناری */
 }
 
 .sidebar {
-    position: relative; /* به جای fixed برای هماهنگی با flex */
+    position: fixed; /* همیشه سمت راست فیکس */
+    top: 60px; /* زیر هدر */
+    right: 0;
+    bottom: 0;
     background-color: #343a40; /* تم جدید */
     color: white;
     transition: width 0.3s ease;
-    max-width: 160px; /* حداکثر عرض */
-    flex-shrink: 0; /* جلوگیری از کوچک شدن بیش از حد */
+    width: 200px; /* عرض پیش‌فرض (حالت باز) */
     z-index: 900; /* زیر منوی بالا */
+    height: 100vh; /* ارتفاع کل صفحه */
 }
 
 .sidebar.collapsed {
@@ -26,8 +24,7 @@ body {
 }
 
 .sidebar.open {
-    width: auto; /* عرض پویا در موبایل */
-    max-width: 160px; /* حداکثر عرض */
+    width: 200px; /* عرض در حالت باز در موبایل */
 }
 
 .sidebar .nav-link {
@@ -101,9 +98,16 @@ body {
 }
 
 .main-content {
-    flex-grow: 1; /* محتوای اصلی بقیه عرض صفحه رو بگیره */
     padding: 20px;
     transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
+}
+
+.sidebar.collapsed ~ .main-content {
+    margin-right: 60px; /* تنظیم برای حالت بسته */
+}
+
+.sidebar ~ .main-content {
+    margin-right: 200px; /* پیش‌فرض برای حالت باز */
 }
 
 .dropdown-toggle::after {
@@ -121,13 +125,12 @@ body {
         overflow: hidden;
     }
     .sidebar.open {
-        width: auto; /* عرض پویا */
-        max-width: 160px; /* حداکثر عرض */
+        width: 200px; /* عرض در حالت باز در موبایل */
     }
     .main-content {
         margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
     }
     .sidebar.open ~ .main-content {
-        margin-right: 160px; /* تنظیم حاشیه وقتی منو بازه */
+        margin-right: 200px; /* تنظیم حاشیه وقتی منو بازه */
     }
 }

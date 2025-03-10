@@ -27,8 +27,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
 <html lang="fa" dir="rtl">
 
 <head>
-<meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="favicon.png" type="image/x-icon">
     <title>سیستم مدیریت فروش</title>
     <!-- Bootstrap RTL CSS -->
@@ -73,85 +72,83 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                     </li>
                     <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
                     <li class="dropdown-item">
-                        <a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a>
+                        <a href="logout.php" class="text-decoration-none text-dark"><i
+                                class="fas fa-sign-out-alt me-2"></i> خروج</a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- کانتینر اصلی که شامل منوی کناری و محتوا میشه -->
-    <div class="layout-container">
-        <!-- منوی کناری -->
-        <div
-            class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
-            <ul class="nav flex-column">
+    <!-- منوی کناری -->
+    <div
+        class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+        <ul class="nav flex-column pt-5">
+            <li class="nav-item">
+                <a class="nav-link"
+                    href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>داشبورد</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="products.php">
+                    <i class="fas fa-box"></i>
+                    <span>محصولات</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="orders.php">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>سفارشات</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="work_details.php">
+                    <i class="fas fa-list"></i>
+                    <span>اطلاعات کار</span>
+                </a>
+            </li>
+            <?php if ($_SESSION['role'] === 'admin'): ?>
                 <li class="nav-item">
-                    <a class="nav-link"
-                        href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>داشبورد</span>
+                    <a class="nav-link" href="users.php">
+                        <i class="fas fa-users"></i>
+                        <span>کاربران</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="products.php">
-                        <i class="fas fa-box"></i>
-                        <span>محصولات</span>
+                    <a class="nav-link" href="partners.php">
+                        <i class="fas fa-handshake"></i>
+                        <span>همکاران</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="orders.php">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span>سفارشات</span>
+                    <a class="nav-link" href="work_months.php">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>ماه کاری</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="work_details.php">
-                        <i class="fas fa-list"></i>
-                        <span>اطلاعات کار</span>
-                    </a>
-                </li>
-                <?php if ($_SESSION['role'] === 'admin'): ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="users.php">
-                            <i class="fas fa-users"></i>
-                            <span>کاربران</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="partners.php">
-                            <i class="fas fa-handshake"></i>
-                            <span>همکاران</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="work_months.php">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span>ماه کاری</span>
-                        </a>
-                    </li>
-                <?php endif; ?>
-            </ul>
-        </div>
+            <?php endif; ?>
+        </ul>
+    </div>
 
-        <!-- محتوای اصلی -->
-        <div class="main-content">
-            <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
-            <!-- <br> -->
+    <!-- محتوای اصلی -->
+    <div class="main-content">
+        <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
 
-            <script>
-                // مدیریت منوی کناری
-                document.addEventListener('DOMContentLoaded', () => {
-                    const sidebarToggle = document.querySelector('#sidebarToggle');
-                    const sidebar = document.querySelector('.sidebar');
+        <script>
+            // مدیریت منوی کناری
+            document.addEventListener('DOMContentLoaded', () => {
+                const sidebarToggle = document.querySelector('#sidebarToggle');
+                const sidebar = document.querySelector('.sidebar');
 
-                    sidebarToggle.addEventListener('click', () => {
-                        if (window.innerWidth <= 768) {
-                            sidebar.classList.toggle('open');
-                        } else {
-                            sidebar.classList.toggle('collapsed');
-                            document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
-                        }
-                    });
+                sidebarToggle.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.toggle('open');
+                    } else {
+                        sidebar.classList.toggle('collapsed');
+                        document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
+                    }
                 });
-            </script>
+            });
+        </script>
