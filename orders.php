@@ -289,6 +289,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 800px; /* حداقل عرض برای فعال شدن اسکرول افقی */
         }
 
         th,
@@ -296,17 +297,13 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             text-align: center; /* سنتر کردن محتوا */
             vertical-align: middle; /* هم‌تراز عمودی */
             padding: 8px;
-            word-break: break-word; /* اجازه شکستن متن */
+            white-space: nowrap; /* جلوگیری از شکستن متن */
+            word-break: break-word; /* اجازه شکستن متن در صورت نیاز */
             max-width: 150px; /* حداکثر عرض برای موبایل */
         }
 
         th {
             background-color: #f8f9fa;
-            white-space: normal; /* اجازه شکستن متن توی تیترها */
-        }
-
-        td {
-            white-space: normal; /* اجازه شکستن متن توی محتوا */
         }
 
         .table-responsive {
@@ -459,41 +456,24 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
     <script>
         $(document).ready(function () {
             $('#ordersTable').DataTable({
-                responsive: true,  // فعال کردن واکنش‌گرایی
-                scrollX: false,    // غیرفعال کردن اسکرول افقی (چون responsive مدیریت می‌کنه)
+                responsive: false,  // غیرفعال کردن واکنش‌گرایی
+                scrollX: true,     // فعال کردن اسکرول افقی
                 autoWidth: false,  // جلوگیری از تغییر عرض خودکار
-                "paging": true,
-                "ordering": false,
-                "info": true,
-                "searching": false,
+                paging: false,     // غیرفعال کردن دکمه‌های قبلی و بعدی دیتاتیبل
+                ordering: false,
+                info: true,
+                searching: false,
                 "language": {
                     "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
                     "infoEmpty": "هیچ فاکتوری یافت نشد",
                     "zeroRecords": "هیچ فاکتوری یافت نشد",
+                    "lengthMenu": "نمایش _MENU_ ردیف", // فارسی کردن "Show entries"
                     "paginate": {
                         "previous": "قبلی",
                         "next": "بعدی"
-                    }
-                },
-                responsive: {
-                    details: {
-                        display: $.fn.dataTable.Responsive.display.childRowImmediate,
-                        type: 'column',
-                        renderer: function (api, rowIdx, columns) {
-                            var data = $.map(columns, function (col, i) {
-                                return col.hidden ?
-                                    '<tr data-dt-row="' + col.rowIndex + '" data-dt-column="' + col.columnIndex + '">' +
-                                    '<td>' + col.title + ':' + '</td> ' +
-                                    '<td>' + col.data + '</td>' +
-                                    '</tr>' : '';
-                            }).join('');
-                            return data ? $('<table/>').append(data) : false;
-                        }
                     }
                 }
             });
