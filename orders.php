@@ -366,6 +366,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <th>مانده حساب</th>
                             <th>فاکتور</th>
                             <th>اطلاعات پرداخت</th>
+                            <th>پرینت</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -384,6 +385,9 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                </td>
+                                <td>
+                                    <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
