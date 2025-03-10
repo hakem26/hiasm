@@ -286,13 +286,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             width: 100%;
         }
         th, td {
-            white-space: nowrap;
-            padding: 8px 5px;
             text-align: center;
             vertical-align: middle;
-        }
-        th {
-            padding-bottom: 1rem;
         }
         .pagination {
             justify-content: center;
