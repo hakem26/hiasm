@@ -375,8 +375,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
 
         <?php if (!empty($orders)): ?>
-            <div class="table-wrapper">
-                <table id="ordersTable" class="table table-light table-hover table-responsive">
+            <div>
+                <table id="ordersTable" class="table table-light table-hover">
                     <thead>
                         <tr>
                             <th>تاریخ</th>
