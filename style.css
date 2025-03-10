@@ -16,7 +16,6 @@ body {
     background-color: #343a40; /* تم جدید */
     color: white;
     transition: width 0.3s ease;
-    width: auto; /* عرض پویا */
     max-width: 160px; /* حداکثر عرض */
     flex-shrink: 0; /* جلوگیری از کوچک شدن بیش از حد */
     z-index: 900; /* زیر منوی بالا */
