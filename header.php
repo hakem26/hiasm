@@ -83,7 +83,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     <!-- منوی کناری -->
     <div
         class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
-        <ul class="nav flex-column pt-5">
+        <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link"
                     href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">

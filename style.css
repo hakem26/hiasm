@@ -2,8 +2,8 @@ body {
     font-family: 'Vazirmatn', sans-serif;
     background-color: #f8f9fa;
     margin: 0;
-    padding-top: 60px; /* برای جلوگیری از تداخل با هدر ثابت */
-    padding-right: 200px; /* فاصله پیش‌فرض از منوی کناری */
+    padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
+    padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
 }
 
 .sidebar {
@@ -14,7 +14,7 @@ body {
     background-color: #343a40; /* تم جدید */
     color: white;
     transition: width 0.3s ease;
-    width: 200px; /* عرض پیش‌فرض (حالت باز) */
+    width: 140px; /* عرض پیش‌فرض (حالت باز) */
     z-index: 900; /* زیر منوی بالا */
     height: 100vh; /* ارتفاع کل صفحه */
 }
@@ -24,7 +24,7 @@ body {
 }
 
 .sidebar.open {
-    width: 200px; /* عرض در حالت باز در موبایل */
+    width: 140px; /* عرض در حالت باز در موبایل */
 }
 
 .sidebar .nav-link {
@@ -107,7 +107,7 @@ body {
 }
 
 .sidebar ~ .main-content {
-    margin-right: 200px; /* پیش‌فرض برای حالت باز */
+    margin-right: 140px; /* پیش‌فرض برای حالت باز */
 }
 
 .dropdown-toggle::after {
@@ -125,12 +125,12 @@ body {
         overflow: hidden;
     }
     .sidebar.open {
-        width: 200px; /* عرض در حالت باز در موبایل */
+        width: 140px; /* عرض در حالت باز در موبایل */
     }
     .main-content {
         margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
     }
     .sidebar.open ~ .main-content {
-        margin-right: 200px; /* تنظیم حاشیه وقتی منو بازه */
+        margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
     }
 }
