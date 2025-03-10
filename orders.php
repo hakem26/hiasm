@@ -163,19 +163,34 @@ $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
            SUM(op.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
-           wd.work_date, 
-           COALESCE(
-               (SELECT CASE 
-                   WHEN p.user_id1 = ? THEN u2.full_name 
-                   WHEN p.user_id2 = ? THEN u1.full_name 
-                   ELSE 'نامشخص' 
-               END
-               FROM Partners p
-               LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-               LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-               WHERE p.partner_id = wd.partner_id),
-               'نامشخص'
-           ) AS partner_name,
+           wd.work_date, ";
+
+if ($is_admin) {
+    // برای ادمین: نمایش نام هر دو همکار
+    $orders_query .= "
+        (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
+         FROM Partners p
+         LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+         LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+         WHERE p.partner_id = wd.partner_id) AS partners_names, ";
+} else {
+    // برای فروشنده: نمایش نام همکار مقابل
+    $orders_query .= "
+        COALESCE(
+            (SELECT CASE 
+                WHEN p.user_id1 = ? THEN u2.full_name 
+                WHEN p.user_id2 = ? THEN u1.full_name 
+                ELSE 'نامشخص' 
+            END
+            FROM Partners p
+            LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+            LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+            WHERE p.partner_id = wd.partner_id),
+            'نامشخص'
+        ) AS partner_name, ";
+}
+
+$orders_query .= "
            wd.id AS work_details_id
     FROM Orders o
     LEFT JOIN Order_Payments op ON o.order_id = op.order_id
@@ -183,10 +198,11 @@ $orders_query = "
 
 $conditions = [];
 $params = [];
-$params[] = $current_user_id; // برای user_id1 توی partner_name
-$params[] = $current_user_id; // برای user_id2 توی partner_name
-
 if (!$is_admin) {
+    // پارامترها فقط برای فروشنده نیازه
+    $params[] = $current_user_id; // برای user_id1 توی partner_name
+    $params[] = $current_user_id; // برای user_id2 توی partner_name
+
     // محدود کردن دسترسی برای کاربران فروشنده
     $conditions[] = "EXISTS (
         SELECT 1 FROM Partners p 
@@ -227,7 +243,12 @@ if (!empty($conditions)) {
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date, partner_name";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date";
+if ($is_admin) {
+    $orders_query .= ", partners_names";
+} else {
+    $orders_query .= ", partner_name";
+}
 
 // تعداد کل فاکتورها
 $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
@@ -337,7 +358,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     <thead>
                         <tr>
                             <th>تاریخ</th>
-                            <th>نام همکار</th>
+                            <th><?= $is_admin ? 'همکاران' : 'نام همکار' ?></th>
                             <th>شماره فاکتور</th>
                             <th>نام مشتری</th>
                             <th>مبلغ کل فاکتور</th>
@@ -351,7 +372,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                         <?php foreach ($orders as $order): ?>
                             <tr>
                                 <td><?= $order['work_date'] ? gregorian_to_jalali_format($order['work_date']) : 'نامشخص' ?></td>
-                                <td><?= htmlspecialchars($order['partner_name']) ?></td>
+                                <td><?= htmlspecialchars($is_admin ? $order['partners_names'] : $order['partner_name']) ?></td>
                                 <td><?= $order['order_id'] ?></td>
                                 <td><?= htmlspecialchars($order['customer_name']) ?></td>
                                 <td><?= number_format($order['total_amount'], 0) ?></td>
