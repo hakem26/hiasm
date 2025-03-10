@@ -13,7 +13,7 @@ $role = $_SESSION['role'] === 'admin' ? 'ادمین' : 'فروشنده';
 $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
-// نام صفحه فعلی (برای این مثال، "داشبورد" فرض می‌کنیم)
+// نام صفحه فعلی
 $page_name = basename($_SERVER['PHP_SELF'], ".php");
 $page_name = $page_name === 'dashboard_admin' || $page_name === 'dashboard_seller' ? 'داشبورد' : $page_name;
 $page_name = $page_name === 'products' ? 'محصولات' : $page_name;
@@ -30,7 +30,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="favicon.png" type="image/x-icon">
-    <title>سیستم مدیریت فروش</title>
+    <title>سیستم مدیریت فروش - <?php echo $page_name; ?></title>
     <!-- Bootstrap RTL CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
         integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
@@ -40,14 +40,92 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     <link
         href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <!-- قرار دادن کدهای style و کاستوم -->
-    <link rel="stylesheet" href="style.css">
-    <!-- Persian Datepicker -->
-    <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
+    <!-- Bootstrap JS (برای دراپ‌داون‌ها) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <!-- Persian Datepicker -->
+    <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
+    <!-- کاستوم استایل -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            padding-top: 60px; /* برای جلوگیری از تداخل با هدر ثابت */
+        }
+        .navbar {
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            right: 0;
+            height: calc(100vh - 60px);
+            background-color: #343a40;
+            color: white;
+            transition: width 0.3s ease;
+            width: auto;
+            max-width: 250px; /* حداکثر عرض */
+        }
+        .sidebar.collapsed {
+            width: 60px; /* عرض در حالت بسته */
+        }
+        .sidebar.open {
+            width: 200px; /* عرض در حالت باز در موبایل */
+        }
+        .sidebar .nav-link {
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+        }
+        .sidebar .nav-link i {
+            margin-left: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        .sidebar .nav-link span {
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .sidebar.collapsed .nav-link span {
+            display: none; /* مخفی کردن متن در حالت بسته */
+        }
+        .sidebar.open .nav-link span {
+            display: inline-block; /* نمایش متن در حالت باز در موبایل */
+        }
+        .main-content {
+            margin-right: 200px; /* پیش‌فرض برای حالت باز */
+            transition: margin-right 0.3s ease;
+            padding: 20px;
+        }
+        .sidebar.collapsed ~ .main-content {
+            margin-right: 60px; /* تنظیم برای حالت بسته */
+        }
+        .sidebar.open ~ .main-content {
+            margin-right: 200px; /* تنظیم برای حالت باز در موبایل */
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
+                overflow: hidden;
+            }
+            .sidebar.open {
+                width: 200px; /* عرض در حالت باز در موبایل */
+            }
+            .main-content {
+                margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
+            }
+            .sidebar.open ~ .main-content {
+                margin-right: 200px;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -63,7 +141,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
             </div>
             <span class="navbar-text mx-auto">تاریخ: <?php echo $jalali_date; ?></span>
             <div class="dropdown ms-3">
-                <a href="#" class="text-dark" data-bs-toggle="dropdown">
+                <a href="#" class="text-dark" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-user-circle fa-2x"></i>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
@@ -73,18 +151,17 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                         <hr class="dropdown-divider">
                     </li>
                     <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
-                    <li class="dropdown-item"><a href="logout.php" class="text-decoration-none text-dark"><i
-                                class="fas fa-sign-out-alt me-2"></i> خروج</a></li>
+                    <li class="dropdown-item">
+                        <a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a>
+                    </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- منوی راست -->
-    <div
-        class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+    <!-- منوی کناری -->
+    <div class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
         <ul class="nav flex-column pt-5">
-            <!-- داشبورد بر اساس نقش -->
             <li class="nav-item">
                 <a class="nav-link"
                     href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
@@ -92,32 +169,24 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                     <span>داشبورد</span>
                 </a>
             </li>
-
-            <!-- محصولات (برای هر دو نقش) -->
             <li class="nav-item">
                 <a class="nav-link" href="products.php">
                     <i class="fas fa-box"></i>
                     <span>محصولات</span>
                 </a>
             </li>
-
-            <!-- سفارشات (برای هر دو نقش) -->
             <li class="nav-item">
                 <a class="nav-link" href="orders.php">
                     <i class="fas fa-shopping-cart"></i>
                     <span>سفارشات</span>
                 </a>
             </li>
-
-            <!-- اطلاعات کار (برای هر دو نقش) -->
             <li class="nav-item">
                 <a class="nav-link" href="work_details.php">
                     <i class="fas fa-list"></i>
                     <span>اطلاعات کار</span>
                 </a>
             </li>
-
-            <!-- منوهای فقط برای ادمین -->
             <?php if ($_SESSION['role'] === 'admin'): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="users.php">
@@ -141,72 +210,6 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         </ul>
     </div>
 
-    <!-- مشکل بالای صفحات -->
-    <br>
-
-    <!-- اسکریپت‌ها -->
-    <script>
-        // [BLOCK-HEADER-003]
-        document.addEventListener('DOMContentLoaded', () => {
-            const sidebarToggle = document.querySelector('#sidebarToggle');
-            const sidebar = document.querySelector('.sidebar');
-
-            sidebarToggle.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.toggle('open');
-                } else {
-                    sidebar.classList.toggle('collapsed');
-                    document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
-                }
-            });
-        });
-    </script>
-
-    <!-- استایل‌های جدید برای تنظیم عرض منوی کناری -->
-    <style>
-        .sidebar {
-            width: auto;
-            min-width: 200px;
-            /* حداقل عرض برای متن‌های کوتاه */
-            transition: min-width 0.3s ease;
-            overflow-x: hidden;
-        }
-
-        .sidebar .nav-link span {
-            white-space: nowrap;
-            /* جلوگیری از شکستن متن */
-        }
-
-        .sidebar.collapsed {
-            min-width: 60px;
-            /* عرض کم‌شده موقع جمع شدن */
-        }
-
-        /* تنظیم عرض بر اساس طول متن */
-        .sidebar .nav-item {
-            padding: 0.5rem 1rem;
-        }
-
-        .sidebar .nav-item .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem;
-        }
-
-        .sidebar .nav-item .nav-link span {
-            margin-right: 0.5rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* افزایش عرض برای متن‌های بلندتر */
-        @media (min-width: 769px) {
-            .sidebar .nav-item:hover {
-                min-width: calc(200px + 1rem);
-                /* 1rem اضافه برای متن‌های بلند */
-            }
-        }
-    </style>
-</body>
-
-</html>
+    <!-- شروع محتوای اصلی -->
+    <div class="main-content">
+        <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
