@@ -137,6 +137,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         <!-- محتوای اصلی -->
         <div class="main-content">
             <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
+            <!-- <br> -->
 
             <script>
                 // مدیریت منوی کناری
