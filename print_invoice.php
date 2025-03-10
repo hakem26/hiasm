@@ -68,6 +68,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             padding: 10mm;
             box-sizing: border-box;
             border: 1px solid #ccc; /* برای نمایش در صفحه */
+            position: relative;
         }
         .invoice-header {
             text-align: center;
