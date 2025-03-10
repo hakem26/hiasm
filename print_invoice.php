@@ -65,25 +65,25 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             width: 148mm; /* عرض A5 */
             height: 210mm; /* ارتفاع A5 */
             margin: 0 auto;
-            padding: 10mm;
+            padding: 5mm;
             box-sizing: border-box;
             border: 1px solid #ccc; /* برای نمایش در صفحه */
             position: relative;
         }
         .invoice-header {
             text-align: center;
-            margin-bottom: 10mm;
+            margin-bottom: 5mm;
         }
         .invoice-details {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10mm;
+            margin-bottom: 5mm;
             font-size: 12pt;
         }
         .invoice-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10mm;
+            margin-bottom: 5mm;
         }
         .invoice-table th, .invoice-table td {
             border: 1px solid #000;
@@ -100,7 +100,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         }
         .invoice-footer {
             position: absolute;
-            bottom: 10mm;
+            bottom: 5mm;
             left: 0;
             right: 0;
             font-size: 10pt;
@@ -166,8 +166,8 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         <!-- پایین صفحه: فروشندگان -->
         <div class="invoice-footer">
             <hr>
+            <p>فروشندگان: </p>
             <p>
-                فروشندگان: 
                 <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس: <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> | 
                 <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس: <?= htmlspecialchars($order['partner2_phone'] ?? 'نامشخص') ?>
             </p>
