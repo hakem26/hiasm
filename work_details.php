@@ -256,7 +256,7 @@ if ($selected_year) {
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container-fluid mt-5">
+    <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="card-title">اطلاعات کاری</h5>
         </div>
@@ -338,7 +338,7 @@ if ($selected_year) {
             <div class="alert alert-warning text-center">اطلاعاتی وجود ندارد.</div>
         <?php endif; ?>
     </div>
-    
+
     <script>
         $(document).ready(function() {
             $('.agency-select').change(function() {

@@ -66,7 +66,7 @@ if ($selected_year) {
 </head>
 <body>
     <!-- [BLOCK-WORK-MONTHS-002] -->
-    <div class="container-fluid mt-5">
+    <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="card-title">لیست ماه‌های کاری</h5>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkMonthModal">افزودن ماه کاری</button>

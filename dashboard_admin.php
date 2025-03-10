@@ -14,7 +14,7 @@ $orders = [
 ?>
 
 <!-- [BLOCK-DASHBOARD-002] -->
-<div class="container-fluid mt-5"> <!-- افزایش فاصله با mt-5 برای زیر منوی بالا -->
+<div class="container-fluid"> <!-- افزایش فاصله با mt-5 برای زیر منوی بالا -->
     <h2>میز کار ادمین</h2>
 </div>
 

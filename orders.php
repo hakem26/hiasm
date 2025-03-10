@@ -300,7 +300,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body>
-    <div class="container-fluid mt-5">
+    <div class="container-fluid">
         <h5 class="card-title mb-4">لیست سفارشات</h5>
 
         <form method="GET" class="row g-3 mb-3">

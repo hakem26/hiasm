@@ -36,7 +36,7 @@ if ($is_admin && isset($_GET['delete']) && is_numeric($_GET['delete'])) {
 $products = $pdo->query("SELECT * FROM Products ORDER BY product_id DESC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<div class="container-fluid mt-5">
+<div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="card-title">مدیریت محصولات</h5>
     </div>
