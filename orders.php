@@ -284,7 +284,6 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         .table-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            white-space: nowrap;
         }
 
         table {
@@ -294,20 +293,20 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
         th,
         td {
-            text-align: center;
-            vertical-align: middle;
+            text-align: center; /* سنتر کردن محتوا */
+            vertical-align: middle; /* هم‌تراز عمودی */
             padding: 8px;
-            white-space: nowrap;
-            /* جلوگیری از شکستن متن */
+            word-break: break-word; /* اجازه شکستن متن */
+            max-width: 150px; /* حداکثر عرض برای موبایل */
         }
 
         th {
             background-color: #f8f9fa;
+            white-space: normal; /* اجازه شکستن متن توی تیترها */
         }
 
         td {
-            max-width: min-content;
-            /* عرض بر اساس محتوا */
+            white-space: normal; /* اجازه شکستن متن توی محتوا */
         }
 
         .table-responsive {
@@ -377,7 +376,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
         <?php if (!empty($orders)): ?>
             <div class="table-wrapper">
-                <table id="ordersTable" class="table table-light table-hover">
+                <table id="ordersTable" class="table table-light table-hover table-responsive">
                     <thead>
                         <tr>
                             <th>تاریخ</th>
@@ -460,20 +459,42 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
     <script>
         $(document).ready(function () {
             $('#ordersTable').DataTable({
-                responsive: false,  // غیرفعال کردن responsive برای کنترل بهتر
-                scrollX: true,      // فعال کردن اسکرول افقی
-                autoWidth: false,   // جلوگیری از تغییر عرض خودکار
-                "paging": false,
+                responsive: true,  // فعال کردن واکنش‌گرایی
+                scrollX: false,    // غیرفعال کردن اسکرول افقی (چون responsive مدیریت می‌کنه)
+                autoWidth: false,  // جلوگیری از تغییر عرض خودکار
+                "paging": true,
                 "ordering": false,
                 "info": true,
                 "searching": false,
                 "language": {
                     "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
                     "infoEmpty": "هیچ فاکتوری یافت نشد",
-                    "zeroRecords": "هیچ فاکتوری یافت نشد"
+                    "zeroRecords": "هیچ فاکتوری یافت نشد",
+                    "paginate": {
+                        "previous": "قبلی",
+                        "next": "بعدی"
+                    }
+                },
+                responsive: {
+                    details: {
+                        display: $.fn.dataTable.Responsive.display.childRowImmediate,
+                        type: 'column',
+                        renderer: function (api, rowIdx, columns) {
+                            var data = $.map(columns, function (col, i) {
+                                return col.hidden ?
+                                    '<tr data-dt-row="' + col.rowIndex + '" data-dt-column="' + col.columnIndex + '">' +
+                                    '<td>' + col.title + ':' + '</td> ' +
+                                    '<td>' + col.data + '</td>' +
+                                    '</tr>' : '';
+                            }).join('');
+                            return data ? $('<table/>').append(data) : false;
+                        }
+                    }
                 }
             });
 
@@ -498,29 +519,6 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             $('select[name="work_day_id"]').change(function () {
                 this.form.submit();
             });
-
-            // تنظیم عرض ستون‌ها بر اساس بزرگ‌ترین محتوا
-            function adjustColumnWidths() {
-                $('#ordersTable').css('width', 'auto'); // تنظیم عرض جدول بر اساس محتوا
-                
-                const table = $('#ordersTable');
-                const headers = table.find('thead th');
-                const rows = table.find('tbody tr');
-
-                headers.each(function (index) {
-                    let maxWidth = $(this).width();
-                    rows.each(function () {
-                        const cell = $(this).find('td').eq(index);
-                        const cellWidth = cell.width();
-                        if (cellWidth > maxWidth) {
-                            maxWidth = cellWidth;
-                        }
-                    });
-                    headers.eq(index).css('width', (maxWidth + 10) + 'px');
-                });
-            }
-
-            adjustColumnWidths();
         });
     </script>
 
