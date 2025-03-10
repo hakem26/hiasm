@@ -130,11 +130,11 @@ body {
 }
 
 select {
-    width: fit-content; /* اندازه‌گیری خودکار */
+    width: fit-content !important; /* اندازه‌گیری خودکار */
 }
 
 .select-wdt {
-    width: fit-content; /* اندازه‌گیری خودکار */
+    width: fit-content !important; /* اندازه‌گیری خودکار */
 }
 
 
