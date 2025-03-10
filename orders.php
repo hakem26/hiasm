@@ -282,7 +282,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         }
         table {
             min-width: 800px;
-            table-layout: auto;
+            table-layout: fixed;
+            width: 100%;
         }
         th, td {
             text-align: center;
