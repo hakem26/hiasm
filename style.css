@@ -6,8 +6,9 @@ body {
     padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
 }
 
-th, td {
-    white-space: nowrap; /* جلوگیری از شکستن خطوط */
+.table-work-details thead tr th,
+.table-work-details tbody tr td {
+    white-space: nowrap !important; /* جلوگیری از شکستن خطوط */
 }
 
 .sidebar {

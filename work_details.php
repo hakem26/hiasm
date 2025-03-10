@@ -312,7 +312,7 @@ if ($selected_year) {
 
         <?php if (!empty($filtered_work_details)): ?>
             <div class="table-responsive">
-                <table class="table table-light table-hover">
+                <table class="table table-work-details table-light table-hover">
                     <thead>
                         <tr>
                             <th>تاریخ</th>
