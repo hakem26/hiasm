@@ -282,8 +282,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         }
         table {
             min-width: 800px;
-            table-layout: fixed;
-            width: 100%;
+            table-layout: auto;
         }
         th, td {
             text-align: center;
@@ -428,6 +427,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <script>
         $(document).ready(function() {
             $('#ordersTable').DataTable({
+                responsive: true,  // نمایش خودکار و واکنش‌گرا
+                scrollX: true,     // فعال کردن اسکرول افقی در صورت لزوم
                 "pageLength": <?= $per_page ?>,
                 "paging": false,
                 "ordering": false,
