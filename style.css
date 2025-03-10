@@ -2,7 +2,7 @@ body {
     font-family: 'Vazirmatn', sans-serif;
     background-color: #f8f9fa;
     margin: 0;
-    padding-top: 100px; /* برای جلوگیری از تداخل با هدر ثابت */
+    padding-top: 60px; /* برای جلوگیری از تداخل با هدر ثابت */
 }
 
 .layout-container {
@@ -16,7 +16,8 @@ body {
     background-color: #343a40; /* تم جدید */
     color: white;
     transition: width 0.3s ease;
-    width: 150px; /* عرض پیش‌فرض */
+    width: auto; /* عرض پویا */
+    max-width: 160px; /* حداکثر عرض */
     flex-shrink: 0; /* جلوگیری از کوچک شدن بیش از حد */
     z-index: 900; /* زیر منوی بالا */
 }
@@ -26,12 +27,13 @@ body {
 }
 
 .sidebar.open {
-    width: 150px; /* عرض در حالت باز در موبایل */
+    width: auto; /* عرض پویا در موبایل */
+    max-width: 160px; /* حداکثر عرض */
 }
 
 .sidebar .nav-link {
     color: white;
-    padding: 15px 20px; /* حفظ استایل قبلی */
+    padding: 10px 15px; /* کاهش padding برای کاهش عرض */
     display: flex;
     align-items: center;
     text-decoration: none; /* برای جلوگیری از خط زیر لینک */
@@ -107,6 +109,8 @@ body {
 
 .dropdown-toggle::after {
     display: none !important; /* حذف فلش دراپ‌داون */
+    margin: 0 !important; /* حذف هرگونه فاصله */
+    padding: 0 !important; /* حذف هرگونه فاصله */
 }
 
 @media (max-width: 768px) {
@@ -118,12 +122,13 @@ body {
         overflow: hidden;
     }
     .sidebar.open {
-        width: 150px; /* عرض در حالت باز در موبایل */
+        width: auto; /* عرض پویا */
+        max-width: 160px; /* حداکثر عرض */
     }
     .main-content {
         margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
     }
     .sidebar.open ~ .main-content {
-        margin-right: 150px; /* تنظیم حاشیه وقتی منو بازه */
+        margin-right: 160px; /* تنظیم حاشیه وقتی منو بازه */
     }
 }
