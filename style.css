@@ -116,6 +116,14 @@ body {
     padding: 0 !important; /* حذف هرگونه فاصله */
 }
 
+#ordersTable {
+    overflow-x: hidden; /* جلوگیری از افقی شدن جدول */
+}
+
+.table-wrapper {
+    overflow-x: hidden !important; /* جلوگیری از افقی شدن جدول */
+}
+
 @media (max-width: 768px) {
     body {
         padding-right: 0; /* حذف پدینگ در موبایل */
