@@ -27,7 +27,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
 <html lang="fa" dir="rtl">
 
 <head>
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="favicon.png" type="image/x-icon">
     <title>سیستم مدیریت فروش</title>
@@ -48,33 +48,11 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
-    <script>
-        // اطمینان از کار کردن دراپ‌داون‌ها
-        $(document).ready(function () {
-            $('.dropdown-toggle').dropdown();
-        });
-
-        // مدیریت منوی کناری
-        document.addEventListener('DOMContentLoaded', () => {
-            const sidebarToggle = document.querySelector('#sidebarToggle');
-            const sidebar = document.querySelector('.sidebar');
-
-            sidebarToggle.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.toggle('open');
-                } else {
-                    sidebar.classList.toggle('collapsed');
-                    document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
-                }
-            });
-        });
-    </script>
 </head>
 
 <body>
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-light fixed-top"
-        style="background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <nav class="navbar navbar-expand navbar-light fixed-top">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
                 <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
@@ -84,7 +62,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
             </div>
             <span class="navbar-text mx-auto">تاریخ: <?php echo $jalali_date; ?></span>
             <div class="dropdown ms-3">
-                <a href="#" class="text-dark" data-bs-toggle="dropdown" aria-expanded="false">
+                <a href="#" class="text-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-user-circle fa-2x"></i>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
@@ -160,4 +138,20 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         <!-- محتوای اصلی -->
         <div class="main-content">
             <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
-            <br>
+
+            <script>
+                // مدیریت منوی کناری
+                document.addEventListener('DOMContentLoaded', () => {
+                    const sidebarToggle = document.querySelector('#sidebarToggle');
+                    const sidebar = document.querySelector('.sidebar');
+
+                    sidebarToggle.addEventListener('click', () => {
+                        if (window.innerWidth <= 768) {
+                            sidebar.classList.toggle('open');
+                        } else {
+                            sidebar.classList.toggle('collapsed');
+                            document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
+                        }
+                    });
+                });
+            </script>
