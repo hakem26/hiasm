@@ -78,7 +78,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             display: flex;
             justify-content: space-between;
             margin-bottom: 5mm;
-            font-size: 12pt;
+            font-size: 10pt;
         }
         .invoice-table {
             width: 100%;
@@ -96,7 +96,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         }
         .invoice-summary {
             margin-bottom: 10mm;
-            font-size: 12pt;
+            font-size: 10pt;
         }
         .invoice-footer {
             position: absolute;
@@ -121,7 +121,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
     <div class="invoice-container">
         <!-- تیتر -->
         <div class="invoice-header">
-            <h2>فاکتور فروش</h2>
+            <h3>فاکتور فروش</h3>
         </div>
 
         <!-- خط دوم: اطلاعات فاکتور -->
