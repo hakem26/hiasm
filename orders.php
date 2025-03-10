@@ -364,8 +364,10 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <th>مبلغ کل فاکتور</th>
                             <th>مبلغ پرداختی</th>
                             <th>مانده حساب</th>
-                            <th>فاکتور</th>
-                            <th>اطلاعات پرداخت</th>
+                            <?php if (!$is_admin): ?>
+                                <th>فاکتور</th>
+                                <th>اطلاعات پرداخت</th>
+                            <?php endif; ?>
                             <th>پرینت</th>
                         </tr>
                     </thead>
@@ -379,13 +381,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                 <td><?= number_format($order['total_amount'], 0) ?></td>
                                 <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
                                 <td><?= number_format($order['remaining_amount'], 0) ?></td>
-                                <td>
-                                    <a href="edit_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
-                                </td>
-                                <td>
-                                    <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                </td>
+                                <?php if (!$is_admin): ?>
+                                    <td>
+                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                    </td>
+                                    <td>
+                                        <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                    </td>
+                                <?php endif; ?>
                                 <td>
                                     <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
                                 </td>
