@@ -282,15 +282,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <style>
         .table-wrapper {
-            overflow-x: auto; /* فقط اسکرول افقی برای کل جدول */
+            overflow-x: auto; /* اسکرول افقی برای کل جدول */
             -webkit-overflow-scrolling: touch;
             position: relative;
         }
 
         table {
-            width: 100%; /* عرض کامل برای نمایش همه محتوا */
+            width: 100%;
             border-collapse: collapse;
-            table-layout: fixed; /* تنظیم ثابت برای ستون‌ها */
+            min-width: 800px; /* حداقل عرض برای فعال شدن اسکرول افقی */
         }
 
         th,
@@ -298,10 +298,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             text-align: center; /* سنتر کردن محتوا */
             vertical-align: middle; /* هم‌تراز عمودی */
             padding: 8px;
-            word-break: break-word; /* اجازه شکستن متن */
-            max-width: 0; /* حذف محدودیت عرض برای تطبیق‌پذیری */
-            overflow: hidden; /* جلوگیری از اسکرول جداگانه توی td */
-            text-overflow: ellipsis; /* نمایش ... برای متن‌های طولانی */
+            white-space: nowrap; /* جلوگیری از شکستن متن */
+            min-width: 100px; /* حداقل عرض برای هر ستون */
         }
 
         th {
