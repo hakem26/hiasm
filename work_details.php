@@ -9,20 +9,23 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
 // تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
+function gregorian_year_to_jalali($gregorian_year)
+{
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
 
 // تابع تبدیل عدد روز به نام روز
-function number_to_day($day_number) {
+function number_to_day($day_number)
+{
     $days = [
         1 => 'شنبه',
         2 => 'یکشنبه',
@@ -87,7 +90,7 @@ if ($is_admin) {
 // دریافت اطلاعات بر اساس ماه کاری انتخاب‌شده
 $work_details = [];
 if (isset($_GET['work_month_id'])) {
-    $work_month_id = (int)$_GET['work_month_id'];
+    $work_month_id = (int) $_GET['work_month_id'];
 
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$work_month_id]);
@@ -133,9 +136,10 @@ if (isset($_GET['work_month_id'])) {
 
                 foreach ($date_range as $date) {
                     $work_date = $date->format('Y-m-d');
-                    $day_number_php = (int)date('N', strtotime($work_date));
+                    $day_number_php = (int) date('N', strtotime($work_date));
                     $adjusted_day_number = ($day_number_php + 5) % 7;
-                    if ($adjusted_day_number == 0) $adjusted_day_number = 7;
+                    if ($adjusted_day_number == 0)
+                        $adjusted_day_number = 7;
 
                     if ($partner['stored_day_number'] == $adjusted_day_number) {
                         $detail_query = $pdo->prepare("
@@ -188,14 +192,14 @@ if (isset($_GET['work_month_id'])) {
 $selected_partner_id = $_GET['user_id'] ?? '';
 $filtered_work_details = $work_details;
 if (!empty($selected_partner_id)) {
-    $user_id = (int)$selected_partner_id;
-    $filtered_work_details = array_filter($work_details, function($detail) use ($user_id) {
+    $user_id = (int) $selected_partner_id;
+    $filtered_work_details = array_filter($work_details, function ($detail) use ($user_id) {
         return $detail['user_id1'] == $user_id || $detail['user_id2'] == $user_id;
     });
 }
 
 // مرتب‌سازی بر اساس work_date
-usort($filtered_work_details, function($a, $b) {
+usort($filtered_work_details, function ($a, $b) {
     return strcmp($a['work_date'], $b['work_date']);
 });
 
@@ -223,7 +227,7 @@ if ($selected_year) {
 
     if (isset($_GET['work_month_id']) && $_GET['work_month_id']) {
         $conditions[] = "wd.work_month_id = ?";
-        $params[] = (int)$_GET['work_month_id'];
+        $params[] = (int) $_GET['work_month_id'];
     }
 
     if (!empty($selected_partner_id)) {
@@ -232,8 +236,8 @@ if ($selected_year) {
             WHERE p.partner_id = wd.partner_id 
             AND (p.user_id1 = ? OR p.user_id2 = ?)
         )";
-        $params[] = (int)$selected_partner_id;
-        $params[] = (int)$selected_partner_id;
+        $params[] = (int) $selected_partner_id;
+        $params[] = (int) $selected_partner_id;
     }
 
     $final_query = $base_query . (empty($conditions) ? "" : " AND " . implode(" AND ", $conditions));
@@ -245,6 +249,7 @@ if ($selected_year) {
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -255,6 +260,7 @@ if ($selected_year) {
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -268,15 +274,15 @@ if ($selected_year) {
 
         <form method="GET" class="row g-3 mb-3">
             <?php if (!empty($years)): ?>
-            <div class="col-auto">
-                <select name="year" class="form-select" onchange="this.form.submit()">
-                    <?php foreach ($years as $year): ?>
-                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= gregorian_year_to_jalali($year) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+                <div class="col-auto">
+                    <select name="year" class="form-select" onchange="this.form.submit()">
+                        <?php foreach ($years as $year): ?>
+                            <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                                <?= gregorian_year_to_jalali($year) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             <?php endif; ?>
 
             <div class="col-auto">
@@ -284,7 +290,8 @@ if ($selected_year) {
                     <option value="">انتخاب ماه</option>
                     <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= isset($_GET['work_month_id']) && $_GET['work_month_id'] == $month['work_month_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
+                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                            <?= gregorian_to_jalali_format($month['end_date']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -294,7 +301,8 @@ if ($selected_year) {
                 <select name="user_id" class="form-select" onchange="this.form.submit()">
                     <option value="">همه همکاران</option>
                     <?php foreach ($partners as $partner): ?>
-                        <option value="<?= htmlspecialchars($partner['user_id']) ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars($partner['user_id']) ?>"
+                            <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($partner['full_name']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -303,45 +311,48 @@ if ($selected_year) {
         </form>
 
         <?php if (!empty($filtered_work_details)): ?>
-            <table class="table table-light table-hover">
-                <thead>
-                    <tr>
-                        <th>تاریخ</th>
-                        <th>روز هفته</th>
-                        <th>همکاران</th>
-                        <th>جمع کل فروش</th>
-                        <th>آژانس</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($filtered_work_details as $work): ?>
+            <div class="table-responsive">
+                <table class="table table-light table-hover">
+                    <thead>
                         <tr>
-                            <td><?= gregorian_to_jalali_format($work['work_date']) ?></td>
-                            <td><?= $work['work_day'] ?></td>
-                            <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
-                            <td><?= number_format($work['total_sales'], 0) ?></td>
-                            <td>
-                                <select class="form-select agency-select" data-id="<?= $work['work_date'] ?>" data-partner-id="<?= $work['partner_id'] ?>">
-                                    <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($work['user1']) ?>
-                                    </option>
-                                    <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $work['user_id2'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($work['user2']) ?>
-                                    </option>
-                                </select>
-                            </td>
+                            <th>تاریخ</th>
+                            <th>روز هفته</th>
+                            <th>همکاران</th>
+                            <th>جمع کل فروش</th>
+                            <th>آژانس</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($filtered_work_details as $work): ?>
+                            <tr>
+                                <td><?= gregorian_to_jalali_format($work['work_date']) ?></td>
+                                <td><?= $work['work_day'] ?></td>
+                                <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
+                                <td><?= number_format($work['total_sales'], 0) ?></td>
+                                <td>
+                                    <select class="form-select agency-select" data-id="<?= $work['work_date'] ?>"
+                                        data-partner-id="<?= $work['partner_id'] ?>">
+                                        <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($work['user1']) ?>
+                                        </option>
+                                        <option value="<?= $work['user_id2'] ?>" <?= $work['agency_owner_id'] == $work['user_id2'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($work['user2']) ?>
+                                        </option>
+                                    </select>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php elseif (isset($_GET['work_month_id'])): ?>
             <div class="alert alert-warning text-center">اطلاعاتی وجود ندارد.</div>
         <?php endif; ?>
     </div>
 
     <script>
-        $(document).ready(function() {
-            $('.agency-select').change(function() {
+        $(document).ready(function () {
+            $('.agency-select').change(function () {
                 var work_date = $(this).data("id");
                 var partner_id = $(this).data("partner-id");
                 var agency_owner_id = $(this).val();
@@ -350,11 +361,11 @@ if ($selected_year) {
                     work_date: work_date,
                     partner_id: partner_id,
                     agency_owner_id: agency_owner_id
-                }, function(response) {
+                }, function (response) {
                     alert(response);
                 });
             });
         });
     </script>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
