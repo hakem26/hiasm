@@ -198,6 +198,49 @@ if (!empty($selected_partner_id)) {
 usort($filtered_work_details, function($a, $b) {
     return strcmp($a['work_date'], $b['work_date']);
 });
+
+// محاسبه مجموع فروش بر اساس فیلترها
+$total_sales_all = 0;
+if ($selected_year) {
+    $conditions = [];
+    $params = [];
+    $base_query = "SELECT SUM(o.total_amount) as total_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE 1=1";
+
+    if (!$is_admin) {
+        $conditions[] = "EXISTS (
+            SELECT 1 FROM Partners p 
+            WHERE p.partner_id = wd.partner_id 
+            AND (p.user_id1 = ? OR p.user_id2 = ?)
+        )";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+    }
+
+    if ($selected_year) {
+        $conditions[] = "YEAR(wm.start_date) = ?";
+        $params[] = $selected_year;
+    }
+
+    if (isset($_GET['work_month_id']) && $_GET['work_month_id']) {
+        $conditions[] = "wd.work_month_id = ?";
+        $params[] = (int)$_GET['work_month_id'];
+    }
+
+    if (!empty($selected_partner_id)) {
+        $conditions[] = "EXISTS (
+            SELECT 1 FROM Partners p 
+            WHERE p.partner_id = wd.partner_id 
+            AND (p.user_id1 = ? OR p.user_id2 = ?)
+        )";
+        $params[] = (int)$selected_partner_id;
+        $params[] = (int)$selected_partner_id;
+    }
+
+    $final_query = $base_query . (empty($conditions) ? "" : " AND " . implode(" AND ", $conditions));
+    $stmt_total = $pdo->prepare($final_query);
+    $stmt_total->execute($params);
+    $total_sales_all = $stmt_total->fetchColumn() ?: 0;
+}
 ?>
 
 <!DOCTYPE html>
@@ -216,6 +259,11 @@ usort($filtered_work_details, function($a, $b) {
     <div class="container-fluid mt-5">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="card-title">اطلاعات کاری</h5>
+        </div>
+
+        <!-- نمایش مجموع فروش -->
+        <div class="mb-3">
+            <p class="text-success fw-bold">مجموع فروش (بدون تخفیف): <?= number_format($total_sales_all, 0) ?> تومان</p>
         </div>
 
         <form method="GET" class="row g-3 mb-3">
