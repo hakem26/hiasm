@@ -1,116 +1,125 @@
 body {
-    padding-top: 60px; /* از کدهای دوم - برای جلوگیری از تداخل با هدر ثابت */
-    font-family: 'Vazirmatn', sans-serif; /* از کدهای اول */
-    background-color: #f8f9fa; /* از کدهای اول */
-    margin: 0; /* از کدهای اول */
+    font-family: 'Vazirmatn', sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding-top: 60px; /* برای جلوگیری از تداخل با هدر ثابت */
 }
 
 .layout-container {
-    display: flex; /* از کدهای دوم */
-    width: 100%; /* از کدهای دوم */
-    min-height: calc(100vh - 60px); /* از کدهای دوم */
+    display: flex;
+    width: 100%;
+    min-height: calc(100vh - 60px);
 }
 
 .sidebar {
-    position: relative; /* از کدهای دوم - جایگزین fixed در کدهای اول */
-    background-color: #343a40; /* از کدهای دوم */
-    color: white; /* از کدهای دوم */
-    transition: width 0.3s ease; /* از کدهای دوم */
-    max-width: 200px; /* از کدهای دوم */
-    flex-shrink: 0; /* از کدهای دوم */
-    top: 0; /* از کدهای اول - برای سازگاری با موقعیت */
-    bottom: 0; /* از کدهای اول - برای سازگاری با موقعیت */
-    z-index: 900; /* از کدهای اول */
-    border-left: 1px solid #dee2e6; /* از کدهای اول */
+    position: relative; /* به جای fixed برای هماهنگی با flex */
+    background-color: #343a40; /* تم جدید */
+    color: white;
+    transition: width 0.3s ease;
+    width: 200px; /* عرض پیش‌فرض */
+    flex-shrink: 0; /* جلوگیری از کوچک شدن بیش از حد */
+    z-index: 900; /* زیر منوی بالا */
 }
 
 .sidebar.collapsed {
-    max-width: 50px; /* از کدهای دوم */
+    width: 60px; /* عرض در حالت بسته */
 }
 
 .sidebar.open {
-    max-width: 200px; /* از کدهای دوم */
+    width: 200px; /* عرض در حالت باز در موبایل */
 }
 
 .sidebar .nav-link {
-    color: white; /* از کدهای دوم */
-    display: flex; /* از کدهای دوم */
-    align-items: center; /* از کدهای دوم */
-    padding: 10px 15px; /* از کدهای دوم */
+    color: white;
+    padding: 15px 20px; /* حفظ استایل قبلی */
+    display: flex;
+    align-items: center;
+    text-decoration: none; /* برای جلوگیری از خط زیر لینک */
 }
 
 .sidebar .nav-link:hover {
-    color: #007bff; /* از کدهای اول */
-    background-color: #e9ecef; /* از کدهای اول */
+    color: #007bff; /* حفظ استایل قبلی */
+    background-color: #495057; /* پس‌زمینه تیره‌تر برای هور در تم جدید */
 }
 
 .sidebar .nav-link i {
-    margin-left: 10px; /* از هر دو کد - سازگار */
-    width: 20px; /* از کدهای دوم */
-    text-align: center; /* از کدهای دوم */
+    margin-left: 10px; /* برای راست‌چین بودن */
+    width: 20px;
+    text-align: center;
 }
 
 .sidebar .nav-link span {
-    display: inline-block; /* از کدهای دوم */
-    white-space: nowrap; /* از کدهای دوم */
+    display: inline-block;
+    white-space: nowrap;
 }
 
 .sidebar.collapsed .nav-link span {
-    display: none; /* از هر دو کد - سازگار */
+    display: none; /* مخفی کردن متن در حالت بسته */
 }
 
 .sidebar.open .nav-link span {
-    display: inline-block; /* از کدهای دوم */
-}
-
-.main-content {
-    flex-grow: 1; /* از کدهای دوم */
-    padding: 20px; /* از کدهای دوم */
+    display: inline-block; /* نمایش متن در حالت باز در موبایل */
 }
 
 .navbar {
-    background-color: #f5f5f5; /* از کدهای اول */
-    border-bottom: 1px solid #dee2e6; /* از کدهای اول */
-    z-index: 1000; /* از کدهای اول */
+    background-color: #f8f9fa; /* تم روشن برای هدر */
+    border-bottom: 1px solid #dee2e6;
+    z-index: 1000;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
 }
 
 .navbar-brand,
 .navbar-text {
-    color: #212529; /* از کدهای اول */
+    color: #212529;
 }
 
 .dropdown-menu {
-    background-color: #f5f5f5; /* از کدهای اول */
-    border: 1px solid #dee2e6; /* از کدهای اول */
+    background-color: #f8f9fa; /* هماهنگی با هدر */
+    border: 1px solid #dee2e6;
 }
 
 .dropdown-item {
-    color: #212529; /* از کدهای اول */
+    color: #212529;
 }
 
 .dropdown-item:hover,
 .dropdown-item:focus {
-    background-color: #e9ecef; /* از کدهای اول */
-    color: #007bff; /* از کدهای اول */
+    background-color: #e9ecef;
+    color: #007bff;
 }
 
 .dropdown-divider {
-    border-top: 1px solid #dee2e6; /* از کدهای اول */
+    border-top: 1px solid #dee2e6;
 }
 
 .card {
-    background-color: #f8f9fa; /* از کدهای اول */
+    background-color: #f8f9fa;
+}
+
+.main-content {
+    flex-grow: 1; /* محتوای اصلی بقیه عرض صفحه رو بگیره */
+    padding: 20px;
+    transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
 }
 
 @media (max-width: 768px) {
     body {
-        padding-right: 0; /* از کدهای اول */
+        padding-right: 0; /* حذف پدینگ در موبایل */
     }
     .sidebar {
-        width: 0; /* از هر دو کد - سازگار */
-        overflow: hidden; /* از هر دو کد - سازگار */
+        width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
+        overflow: hidden;
     }
     .sidebar.open {
-        width: 200px; /* از کدهای دوم */
+        width: 200px; /* عرض در حالت باز در موبایل */
+    }
+    .main-content {
+        margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
+    }
+    .sidebar.open ~ .main-content {
+        margin-right: 200px; /* تنظیم حاشیه وقتی منو بازه */
     }
 }
