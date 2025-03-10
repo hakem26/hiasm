@@ -280,18 +280,17 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.bootstrap5.min.css">
     <style>
         .table-wrapper {
-            overflow-x: auto;
+            overflow-x: auto; /* فقط اسکرول افقی برای کل جدول */
             -webkit-overflow-scrolling: touch;
             position: relative;
         }
 
         table {
-            width: 100%;
+            width: 100%; /* عرض کامل برای نمایش همه محتوا */
             border-collapse: collapse;
-            min-width: 800px; /* حداقل عرض برای فعال شدن اسکرول افقی */
+            table-layout: fixed; /* تنظیم ثابت برای ستون‌ها */
         }
 
         th,
@@ -299,16 +298,17 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             text-align: center; /* سنتر کردن محتوا */
             vertical-align: middle; /* هم‌تراز عمودی */
             padding: 8px;
-            white-space: nowrap; /* جلوگیری از شکستن متن */
-            word-break: break-word; /* اجازه شکستن متن در صورت نیاز */
-            max-width: 150px; /* حداکثر عرض برای موبایل */
+            word-break: break-word; /* اجازه شکستن متن */
+            max-width: 0; /* حذف محدودیت عرض برای تطبیق‌پذیری */
+            overflow: hidden; /* جلوگیری از اسکرول جداگانه توی td */
+            text-overflow: ellipsis; /* نمایش ... برای متن‌های طولانی */
         }
 
         th {
             background-color: #f8f9fa;
             position: sticky; /* ثابت نگه داشتن th */
             top: 0;
-            z-index: 1;
+            z-index: 1; /* اولویت بالاتر برای نمایش */
         }
 
         .table-responsive {
@@ -461,12 +461,11 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
     <script>
         $(document).ready(function () {
-            var table = $('#ordersTable').DataTable({
+            $('#ordersTable').DataTable({
                 responsive: false,  // غیرفعال کردن واکنش‌گرایی
-                scrollX: true,     // فعال کردن اسکرول افقی
+                scrollX: true,     // فعال کردن اسکرول افقی برای کل جدول
                 autoWidth: false,  // جلوگیری از تغییر عرض خودکار
                 paging: false,     // غیرفعال کردن دکمه‌های قبلی و بعدی دیتاتیبل
                 ordering: false,
@@ -483,8 +482,6 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     }
                 }
             });
-
-            new $.fn.dataTable.FixedHeader(table); // فعال کردن FixedHeader
 
             $('#loadMoreBtn').on('click', function () {
                 let table = $('#ordersTable').DataTable();
