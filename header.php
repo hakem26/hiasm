@@ -30,7 +30,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="favicon.png" type="image/x-icon">
-    <title>سیستم مدیریت فروش - <?php echo $page_name; ?></title>
+    <title>سیستم مدیریت فروش</title>
     <!-- Bootstrap RTL CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
         integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
@@ -40,98 +40,19 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     <link
         href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <!-- Bootstrap JS (برای دراپ‌داون‌ها) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-        crossorigin="anonymous"></script>
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
-        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <!-- قرار دادن کدهای style و کاستوم -->
+    <link rel="stylesheet" href="style.css">
     <!-- Persian Datepicker -->
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
-    <!-- کاستوم استایل -->
-    <link rel="stylesheet" href="style.css">
-    <style>
-        body {
-            padding-top: 60px; /* برای جلوگیری از تداخل با هدر ثابت */
-        }
-        .navbar {
-            background-color: #f8f9fa;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .sidebar {
-            position: fixed;
-            top: 60px;
-            right: 0;
-            height: calc(100vh - 60px);
-            background-color: #343a40;
-            color: white;
-            transition: width 0.3s ease;
-            width: auto;
-            max-width: 250px; /* حداکثر عرض */
-        }
-        .sidebar.collapsed {
-            width: 60px; /* عرض در حالت بسته */
-        }
-        .sidebar.open {
-            width: 200px; /* عرض در حالت باز در موبایل */
-        }
-        .sidebar .nav-link {
-            color: white;
-            display: flex;
-            align-items: center;
-            padding: 10px 15px;
-        }
-        .sidebar .nav-link i {
-            margin-left: 10px;
-            width: 20px;
-            text-align: center;
-        }
-        .sidebar .nav-link span {
-            display: inline-block;
-            white-space: nowrap;
-        }
-        .sidebar.collapsed .nav-link span {
-            display: none; /* مخفی کردن متن در حالت بسته */
-        }
-        .sidebar.open .nav-link span {
-            display: inline-block; /* نمایش متن در حالت باز در موبایل */
-        }
-        .main-content {
-            margin-right: 200px; /* پیش‌فرض برای حالت باز */
-            transition: margin-right 0.3s ease;
-            padding: 20px;
-        }
-        .sidebar.collapsed ~ .main-content {
-            margin-right: 60px; /* تنظیم برای حالت بسته */
-        }
-        .sidebar.open ~ .main-content {
-            margin-right: 200px; /* تنظیم برای حالت باز در موبایل */
-        }
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
-                overflow: hidden;
-            }
-            .sidebar.open {
-                width: 200px; /* عرض در حالت باز در موبایل */
-            }
-            .main-content {
-                margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
-            }
-            .sidebar.open ~ .main-content {
-                margin-right: 200px;
-            }
-        }
-    </style>
 </head>
 
 <body>
-    <!-- [BLOCK-HEADER-002] -->
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-light fixed-top">
+    <nav class="navbar navbar-expand navbar-light fixed-top" style="background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
                 <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
@@ -147,9 +68,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li class="dropdown-item"><?php echo htmlspecialchars($full_name); ?></li>
                     <li class="dropdown-item"><?php echo $role; ?></li>
-                    <li>
-                        <hr class="dropdown-divider">
-                    </li>
+                    <li><hr class="dropdown-divider"></li>
                     <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
                     <li class="dropdown-item">
                         <a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a>
@@ -159,57 +78,58 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         </div>
     </nav>
 
-    <!-- منوی کناری -->
-    <div class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
-        <ul class="nav flex-column pt-5">
-            <li class="nav-item">
-                <a class="nav-link"
-                    href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>داشبورد</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="products.php">
-                    <i class="fas fa-box"></i>
-                    <span>محصولات</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="orders.php">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span>سفارشات</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="work_details.php">
-                    <i class="fas fa-list"></i>
-                    <span>اطلاعات کار</span>
-                </a>
-            </li>
-            <?php if ($_SESSION['role'] === 'admin'): ?>
+    <!-- کانتینر اصلی که شامل منوی کناری و محتوا میشه -->
+    <div class="layout-container">
+        <!-- منوی کناری -->
+        <div class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+            <ul class="nav flex-column pt-5">
                 <li class="nav-item">
-                    <a class="nav-link" href="users.php">
-                        <i class="fas fa-users"></i>
-                        <span>کاربران</span>
+                    <a class="nav-link" href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>داشبورد</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="partners.php">
-                        <i class="fas fa-handshake"></i>
-                        <span>همکاران</span>
+                    <a class="nav-link" href="products.php">
+                        <i class="fas fa-box"></i>
+                        <span>محصولات</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="work_months.php">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span>ماه کاری</span>
+                    <a class="nav-link" href="orders.php">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>سفارشات</span>
                     </a>
                 </li>
-            <?php endif; ?>
-        </ul>
-    </div>
+                <li class="nav-item">
+                    <a class="nav-link" href="work_details.php">
+                        <i class="fas fa-list"></i>
+                        <span>اطلاعات کار</span>
+                    </a>
+                </li>
+                <?php if ($_SESSION['role'] === 'admin'): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="users.php">
+                            <i class="fas fa-users"></i>
+                            <span>کاربران</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="partners.php">
+                            <i class="fas fa-handshake"></i>
+                            <span>همکاران</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="work_months.php">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>ماه کاری</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+        </div>
 
-    <!-- شروع محتوای اصلی -->
-    <div class="main-content">
-        <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
+        <!-- محتوای اصلی -->
+        <div class="main-content">
+            <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
