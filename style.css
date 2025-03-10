@@ -129,6 +129,15 @@ body {
     overflow-x: hidden !important; /* جلوگیری از افقی شدن جدول */
 }
 
+select {
+    width: fit-content; /* اندازه‌گیری خودکار */
+}
+
+.select-wdt {
+    width: fit-content; /* اندازه‌گیری خودکار */
+}
+
+
 @media (max-width: 768px) {
     body {
         padding-right: 0; /* حذف پدینگ در موبایل */

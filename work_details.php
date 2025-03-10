@@ -330,7 +330,7 @@ if ($selected_year) {
                                 <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
                                 <td><?= number_format($work['total_sales'], 0) ?></td>
                                 <td>
-                                    <select class="form-select agency-select" data-id="<?= $work['work_date'] ?>"
+                                    <select class="select-wdt form-select agency-select" data-id="<?= $work['work_date'] ?>"
                                         data-partner-id="<?= $work['partner_id'] ?>">
                                         <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($work['user1']) ?>
