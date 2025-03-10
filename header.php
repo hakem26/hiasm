@@ -48,6 +48,27 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
+    <script>
+        // اطمینان از کار کردن دراپ‌داون‌ها
+        $(document).ready(function () {
+            $('.dropdown-toggle').dropdown();
+        });
+
+        // مدیریت منوی کناری
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebarToggle = document.querySelector('#sidebarToggle');
+            const sidebar = document.querySelector('.sidebar');
+
+            sidebarToggle.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.toggle('open');
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                    document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
+                }
+            });
+        });
+    </script>
 </head>
 
 <body>
