@@ -73,8 +73,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                     </li>
                     <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
                     <li class="dropdown-item">
-                        <a href="logout.php" class="text-decoration-none text-dark"><i
-                                class="fas fa-sign-out-alt me-2"></i> خروج</a>
+                        <a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a>
                     </li>
                 </ul>
             </div>
