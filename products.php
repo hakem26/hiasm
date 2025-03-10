@@ -92,6 +92,4 @@ $products = $pdo->query("SELECT * FROM Products ORDER BY product_id DESC")->fetc
     <?php endif; ?>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <?php require_once 'footer.php'; ?>

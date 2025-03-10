@@ -105,6 +105,10 @@ body {
     transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
 }
 
+.dropdown-toggle::after {
+    display: none !important; /* حذف فلش دراپ‌داون */
+}
+
 @media (max-width: 768px) {
     body {
         padding-right: 0; /* حذف پدینگ در موبایل */
