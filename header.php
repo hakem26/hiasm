@@ -52,7 +52,8 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
 
 <body>
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-light fixed-top" style="background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <nav class="navbar navbar-expand navbar-light fixed-top"
+        style="background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
                 <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
@@ -68,10 +69,13 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li class="dropdown-item"><?php echo htmlspecialchars($full_name); ?></li>
                     <li class="dropdown-item"><?php echo $role; ?></li>
-                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
                     <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
                     <li class="dropdown-item">
-                        <a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i> خروج</a>
+                        <a href="logout.php" class="text-decoration-none text-dark"><i
+                                class="fas fa-sign-out-alt me-2"></i> خروج</a>
                     </li>
                 </ul>
             </div>
@@ -81,10 +85,12 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     <!-- کانتینر اصلی که شامل منوی کناری و محتوا میشه -->
     <div class="layout-container">
         <!-- منوی کناری -->
-        <div class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+        <div
+            class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
             <ul class="nav flex-column pt-5">
                 <li class="nav-item">
-                    <a class="nav-link" href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
+                    <a class="nav-link"
+                        href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
                         <i class="fas fa-tachometer-alt"></i>
                         <span>داشبورد</span>
                     </a>
@@ -133,3 +139,4 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
         <!-- محتوای اصلی -->
         <div class="main-content">
             <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
+            <br>

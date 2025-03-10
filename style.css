@@ -16,7 +16,7 @@ body {
     background-color: #343a40; /* از کدهای دوم */
     color: white; /* از کدهای دوم */
     transition: width 0.3s ease; /* از کدهای دوم */
-    width: 200px; /* از کدهای دوم */
+    max-width: 200px; /* از کدهای دوم */
     flex-shrink: 0; /* از کدهای دوم */
     top: 0; /* از کدهای اول - برای سازگاری با موقعیت */
     bottom: 0; /* از کدهای اول - برای سازگاری با موقعیت */
@@ -25,11 +25,11 @@ body {
 }
 
 .sidebar.collapsed {
-    width: 60px; /* از کدهای دوم */
+    max-width: 50px; /* از کدهای دوم */
 }
 
 .sidebar.open {
-    width: 200px; /* از کدهای دوم */
+    max-width: 200px; /* از کدهای دوم */
 }
 
 .sidebar .nav-link {
