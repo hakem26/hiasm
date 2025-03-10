@@ -8,18 +8,21 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
-function gregorian_year_to_jalali($gregorian_year) {
+function gregorian_year_to_jalali($gregorian_year)
+{
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
 
-function number_to_day($day_number) {
+function number_to_day($day_number)
+{
     $days = [
         1 => 'شنبه',
         2 => 'یکشنبه',
@@ -69,7 +72,7 @@ $orders = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['user_id'] ?? 'all';
 $selected_work_day_id = $_GET['work_day_id'] ?? 'all';
-$page = (int)($_GET['page'] ?? 1);
+$page = (int) ($_GET['page'] ?? 1);
 $per_page = 10;
 
 if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
@@ -120,9 +123,10 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
 
                 foreach ($date_range as $date) {
                     $work_date = $date->format('Y-m-d');
-                    $day_number_php = (int)date('N', strtotime($work_date));
+                    $day_number_php = (int) date('N', strtotime($work_date));
                     $adjusted_day_number = ($day_number_php + 5) % 7;
-                    if ($adjusted_day_number == 0) $adjusted_day_number = 7;
+                    if ($adjusted_day_number == 0)
+                        $adjusted_day_number = 7;
 
                     if ($partner['stored_day_number'] == $adjusted_day_number) {
                         $detail_query = $pdo->prepare("
@@ -150,7 +154,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
         }
 
         if ($selected_partner_id && $selected_partner_id != 'all') {
-            $filtered_work_details = array_filter($work_details, function($detail) use ($selected_partner_id) {
+            $filtered_work_details = array_filter($work_details, function ($detail) use ($selected_partner_id) {
                 return $detail['user_id1'] == $selected_partner_id || $detail['user_id2'] == $selected_partner_id;
             });
             $work_details = array_values($filtered_work_details);
@@ -257,7 +261,7 @@ $total_orders = $stmt_count->fetchColumn();
 $total_pages = ceil($total_orders / $per_page);
 $offset = ($page - 1) * $per_page;
 
-$orders_query .= " LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
+$orders_query .= " LIMIT " . (int) $per_page . " OFFSET " . (int) $offset;
 $stmt_orders = $pdo->prepare($orders_query);
 $stmt_orders->execute($params);
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
@@ -265,6 +269,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -279,21 +284,40 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         .table-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            white-space: nowrap;
         }
+
         table {
-            min-width: 800px;
-            table-layout: fixed;
             width: 100%;
+            border-collapse: collapse;
         }
-        th, td {
+
+        th,
+        td {
             text-align: center;
             vertical-align: middle;
+            padding: 8px;
+            white-space: nowrap;
+            /* جلوگیری از شکستن متن */
         }
-        .pagination {
-            justify-content: center;
+
+        th {
+            background-color: #f8f9fa;
+        }
+
+        td {
+            max-width: min-content;
+            /* عرض بر اساس محتوا */
+        }
+
+        .table-responsive {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid">
         <h5 class="card-title mb-4">لیست سفارشات</h5>
@@ -314,7 +338,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
                     <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
+                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                            <?= gregorian_to_jalali_format($month['end_date']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -323,7 +348,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <select name="user_id" class="form-select" onchange="this.form.submit()">
                     <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
                     <?php foreach ($partners as $partner): ?>
-                        <option value="<?= htmlspecialchars($partner['user_id']) ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars($partner['user_id']) ?>"
+                            <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($partner['full_name']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -334,7 +360,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
                     <?php foreach ($work_details as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> - <?= $day['user2'] ?>)
+                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> -
+                            <?= $day['user2'] ?>)
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -343,7 +370,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
         <?php if (!$is_admin && $selected_work_day_id && $selected_work_day_id != 'all'): ?>
             <div class="mb-3">
-                <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش جدید</a>
+                <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش
+                    جدید</a>
             </div>
         <?php endif; ?>
 
@@ -378,15 +406,19 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                 <td><?= number_format($order['remaining_amount'], 0) ?></td>
                                 <?php if (!$is_admin): ?>
                                     <td>
-                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                        <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
+                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
+                                            onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                     </td>
                                     <td>
-                                        <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
+                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     </td>
                                 <?php endif; ?>
                                 <td>
-                                    <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
+                                    <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>"
+                                        class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -397,18 +429,21 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             <nav aria-label="Page navigation">
                 <ul class="pagination justify-content-center mt-3">
                     <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                        <a class="page-link" href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
+                        <a class="page-link"
+                            href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
                     </li>
                     <?php
                     $start_page = max(1, $page - 2);
                     $end_page = min($total_pages, $page + 2);
                     for ($i = $start_page; $i <= $end_page; $i++): ?>
                         <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                            <a class="page-link" href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
+                            <a class="page-link"
+                                href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
                         </li>
                     <?php endfor; ?>
                     <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                        <a class="page-link" href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
+                        <a class="page-link"
+                            href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
                     </li>
                 </ul>
             </nav>
@@ -426,11 +461,11 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        $(document).ready(function() {
+        $(document).ready(function () {
             $('#ordersTable').DataTable({
-                responsive: true,  // نمایش خودکار و واکنش‌گرا
-                scrollX: true,     // فعال کردن اسکرول افقی در صورت لزوم
-                "pageLength": <?= $per_page ?>,
+                responsive: false,  // غیرفعال کردن responsive برای کنترل بهتر
+                scrollX: true,      // فعال کردن اسکرول افقی
+                autoWidth: false,   // جلوگیری از تغییر عرض خودکار
                 "paging": false,
                 "ordering": false,
                 "info": true,
@@ -442,37 +477,39 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 }
             });
 
-            $('#loadMoreBtn').on('click', function() {
+            $('#loadMoreBtn').on('click', function () {
                 let table = $('#ordersTable').DataTable();
                 table.page.len(50).draw();
                 $(this).hide();
             });
 
-            $('select[name="year"]').change(function() {
+            $('select[name="year"]').change(function () {
                 this.form.submit();
             });
 
-            $('select[name="work_month_id"]').change(function() {
+            $('select[name="work_month_id"]').change(function () {
                 this.form.submit();
             });
 
-            $('select[name="user_id"]').change(function() {
+            $('select[name="user_id"]').change(function () {
                 this.form.submit();
             });
 
-            $('select[name="work_day_id"]').change(function() {
+            $('select[name="work_day_id"]').change(function () {
                 this.form.submit();
             });
 
             // تنظیم عرض ستون‌ها بر اساس بزرگ‌ترین محتوا
             function adjustColumnWidths() {
+                $('#ordersTable').css('width', 'auto'); // تنظیم عرض جدول بر اساس محتوا
+                
                 const table = $('#ordersTable');
                 const headers = table.find('thead th');
                 const rows = table.find('tbody tr');
 
-                headers.each(function(index) {
+                headers.each(function (index) {
                     let maxWidth = $(this).width();
-                    rows.each(function() {
+                    rows.each(function () {
                         const cell = $(this).find('td').eq(index);
                         const cellWidth = cell.width();
                         if (cellWidth > maxWidth) {
@@ -487,4 +524,4 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         });
     </script>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
