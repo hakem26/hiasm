@@ -52,11 +52,12 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاکتور فروش</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Vazirmatn', sans-serif;
             direction: rtl;
             text-align: right;
         }
@@ -97,6 +98,10 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-size: 12pt;
         }
         .invoice-footer {
+            position: absolute;
+            bottom: 10mm;
+            left: 0;
+            right: 0;
             font-size: 10pt;
             text-align: center;
         }
@@ -159,6 +164,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
         <!-- پایین صفحه: فروشندگان -->
         <div class="invoice-footer">
+            <hr>
             <p>
                 فروشندگان: 
                 <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس: <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> | 
