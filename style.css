@@ -16,7 +16,7 @@ body {
     background-color: #343a40; /* تم جدید */
     color: white;
     transition: width 0.3s ease;
-    width: 200px; /* عرض پیش‌فرض */
+    width: 150px; /* عرض پیش‌فرض */
     flex-shrink: 0; /* جلوگیری از کوچک شدن بیش از حد */
     z-index: 900; /* زیر منوی بالا */
 }
@@ -26,7 +26,7 @@ body {
 }
 
 .sidebar.open {
-    width: 200px; /* عرض در حالت باز در موبایل */
+    width: 150px; /* عرض در حالت باز در موبایل */
 }
 
 .sidebar .nav-link {
@@ -118,12 +118,12 @@ body {
         overflow: hidden;
     }
     .sidebar.open {
-        width: 200px; /* عرض در حالت باز در موبایل */
+        width: 150px; /* عرض در حالت باز در موبایل */
     }
     .main-content {
         margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
     }
     .sidebar.open ~ .main-content {
-        margin-right: 200px; /* تنظیم حاشیه وقتی منو بازه */
+        margin-right: 150px; /* تنظیم حاشیه وقتی منو بازه */
     }
 }
