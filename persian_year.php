@@ -3,13 +3,10 @@ require_once 'jdf.php';
 
 // تابع برای دریافت سال جاری شمسی
 function get_persian_current_year() {
-    // دریافت تاریخ فعلی میلادی
-    $gregorian_date = date('Y-m-d');
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    
-    // تبدیل به تاریخ شمسی
+    $date = new DateTime();
+    $gregorian = $date->format('Y-m-d');
+    list($gy, $gm, $gd) = explode('-', $gregorian);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    
     return $jy;
 }
 
