@@ -1,158 +1,157 @@
 body {
-    font-family: 'Vazirmatn', sans-serif;
-    background-color: #f8f9fa;
-    margin: 0;
-    padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
-    padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
+  font-family: "Vazirmatn", sans-serif;
+  background-color: #f8f9fa;
+  margin: 0;
+  padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
+  padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
 }
 
 .table-work-details thead tr th,
 .table-work-details tbody tr td {
-    white-space: nowrap !important; /* جلوگیری از شکستن خطوط */
+  white-space: nowrap !important; /* جلوگیری از شکستن خطوط */
 }
 
 .sidebar {
-    position: fixed; /* همیشه سمت راست فیکس */
-    top: 60px; /* زیر هدر */
-    right: 0;
-    bottom: 0;
-    background-color: #343a40; /* تم جدید */
-    color: white;
-    transition: width 0.3s ease;
-    width: 140px; /* عرض پیش‌فرض (حالت باز) */
-    z-index: 900; /* زیر منوی بالا */
-    height: 100vh; /* ارتفاع کل صفحه */
+  position: fixed; /* همیشه سمت راست فیکس */
+  top: 60px; /* زیر هدر */
+  right: 0;
+  bottom: 0;
+  background-color: #343a40; /* تم جدید */
+  color: white;
+  transition: width 0.3s ease;
+  width: 140px; /* عرض پیش‌فرض (حالت باز) */
+  z-index: 900; /* زیر منوی بالا */
+  height: 100vh; /* ارتفاع کل صفحه */
 }
 
 .sidebar.collapsed {
-    width: 60px; /* عرض در حالت بسته */
+  width: 60px; /* عرض در حالت بسته */
 }
 
 .sidebar.open {
-    width: 140px; /* عرض در حالت باز در موبایل */
+  width: 140px; /* عرض در حالت باز در موبایل */
 }
 
 .sidebar .nav-link {
-    color: white;
-    padding: 10px 15px; /* کاهش padding برای کاهش عرض */
-    display: flex;
-    align-items: center;
-    text-decoration: none; /* برای جلوگیری از خط زیر لینک */
+  color: white;
+  padding: 10px 15px; /* کاهش padding برای کاهش عرض */
+  display: flex;
+  align-items: center;
+  text-decoration: none; /* برای جلوگیری از خط زیر لینک */
 }
 
 .sidebar .nav-link:hover {
-    color: #007bff; /* حفظ استایل قبلی */
-    background-color: #495057; /* پس‌زمینه تیره‌تر برای هور در تم جدید */
+  color: #007bff; /* حفظ استایل قبلی */
+  background-color: #495057; /* پس‌زمینه تیره‌تر برای هور در تم جدید */
 }
 
 .sidebar .nav-link i {
-    margin-left: 10px; /* برای راست‌چین بودن */
-    width: 20px;
-    text-align: center;
+  margin-left: 10px; /* برای راست‌چین بودن */
+  width: 20px;
+  text-align: center;
 }
 
 .sidebar .nav-link span {
-    display: inline-block;
-    white-space: nowrap;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .sidebar.collapsed .nav-link span {
-    display: none; /* مخفی کردن متن در حالت بسته */
+  display: none; /* مخفی کردن متن در حالت بسته */
 }
 
 .sidebar.open .nav-link span {
-    display: inline-block; /* نمایش متن در حالت باز در موبایل */
+  display: inline-block; /* نمایش متن در حالت باز در موبایل */
 }
 
 .navbar {
-    background-color: #f8f9fa; /* تم روشن برای هدر */
-    border-bottom: 1px solid #dee2e6;
-    z-index: 1000;
-    position: fixed;
-    top: 0;
-    right: 0;
-    left: 0;
+  background-color: #f8f9fa; /* تم روشن برای هدر */
+  border-bottom: 1px solid #dee2e6;
+  z-index: 1000;
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
 }
 
 .navbar-brand,
 .navbar-text {
-    color: #212529;
+  color: #212529;
 }
 
 .dropdown-menu {
-    background-color: #f8f9fa; /* هماهنگی با هدر */
-    border: 1px solid #dee2e6;
+  background-color: #f8f9fa; /* هماهنگی با هدر */
+  border: 1px solid #dee2e6;
 }
 
 .dropdown-item {
-    color: #212529;
+  color: #212529;
 }
 
 .dropdown-item:hover,
 .dropdown-item:focus {
-    background-color: #e9ecef;
-    color: #007bff;
+  background-color: #e9ecef;
+  color: #007bff;
 }
 
 .dropdown-divider {
-    border-top: 1px solid #dee2e6;
+  border-top: 1px solid #dee2e6;
 }
 
 .card {
-    background-color: #f8f9fa;
+  background-color: #f8f9fa;
 }
 
 .main-content {
-    padding: 20px;
-    transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
+  padding: 20px;
+  transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
 }
 
 .sidebar.collapsed ~ .main-content {
-    margin-right: 60px; /* تنظیم برای حالت بسته */
+  margin-right: 60px; /* تنظیم برای حالت بسته */
 }
 
 .sidebar ~ .main-content {
-    margin-right: 140px; /* پیش‌فرض برای حالت باز */
+  margin-right: 140px; /* پیش‌فرض برای حالت باز */
 }
 
 .dropdown-toggle::after {
-    display: none !important; /* حذف فلش دراپ‌داون */
-    margin: 0 !important; /* حذف هرگونه فاصله */
-    padding: 0 !important; /* حذف هرگونه فاصله */
+  display: none !important; /* حذف فلش دراپ‌داون */
+  margin: 0 !important; /* حذف هرگونه فاصله */
+  padding: 0 !important; /* حذف هرگونه فاصله */
 }
 
 #ordersTable {
-    overflow-x: hidden; /* جلوگیری از افقی شدن جدول */
+  overflow-x: hidden; /* جلوگیری از افقی شدن جدول */
 }
 
 .table-wrapper {
-    overflow-x: hidden !important; /* جلوگیری از افقی شدن جدول */
+  overflow-x: hidden !important; /* جلوگیری از افقی شدن جدول */
 }
 
 select {
-    width: fit-content !important; /* اندازه‌گیری خودکار */
+  width: fit-content !important; /* اندازه‌گیری خودکار */
 }
 
 .select-wdt {
-    width: fit-content !important; /* اندازه‌گیری خودکار */
+  width: fit-content !important; /* اندازه‌گیری خودکار */
 }
 
-
 @media (max-width: 768px) {
-    body {
-        padding-right: 0; /* حذف پدینگ در موبایل */
-    }
-    .sidebar {
-        width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
-        overflow: hidden;
-    }
-    .sidebar.open {
-        width: 140px; /* عرض در حالت باز در موبایل */
-    }
-    .main-content {
-        margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
-    }
-    .sidebar.open ~ .main-content {
-        margin-right: 0px; /* تنظیم حاشیه وقتی منو بازه */
-    }
+  body {
+    padding-right: 0; /* حذف پدینگ در موبایل */
+  }
+  .sidebar {
+    width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
+    overflow: hidden;
+  }
+  .sidebar.open {
+    width: 140px; /* عرض در حالت باز در موبایل */
+  }
+  .sidebar ~ .main-content {
+    margin-right: 0px;
+  }
+  .sidebar.open ~ .main-content {
+    margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
+  }
 }
