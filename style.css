@@ -153,6 +153,6 @@ select {
         margin-right: 0; /* بدون حاشیه در حالت پیش‌فرض در موبایل */
     }
     .sidebar.open ~ .main-content {
-        margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
+        margin-right: 0px; /* تنظیم حاشیه وقتی منو بازه */
     }
 }
