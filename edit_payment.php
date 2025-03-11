@@ -18,15 +18,6 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
-// تابع تبدیل تاریخ شمسی به میلادی با اعتبارسنجی
-function jalali_to_gregorian_safe($jy, $jm, $jd) {
-    if (!is_numeric($jy) || !is_numeric($jm) || !is_numeric($jd) || $jy < 1300 || $jy > 1500 || $jm < 1 || $jm > 12 || $jd < 1 || $jd > 31) {
-        return null; // بازگرداندن null در صورت نامعتبر بودن
-    }
-    list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
-    return sprintf("%04d-%02d-%02d", $gy, $gm, $gd);
-}
-
 // بررسی نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
 if ($is_admin) {
@@ -94,10 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $pdo->beginTransaction();
         try {
-            // حذف همه پرداخت‌های قبلی برای این سفارش (اختیاری، بسته به منطق)
-            // $stmt = $pdo->prepare("DELETE FROM Order_Payments WHERE order_id = ?");
-            // $stmt->execute([$order_id]);
-
             // ذخیره یا به‌روزرسانی پرداخت‌ها
             foreach ($payments as $index => $payment_data) {
                 $payment_id = $payment_data['payment_id'] ?? '';
@@ -106,17 +93,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $payment_type = $payment_data['payment_type'] ?? '';
                 $payment_code = $payment_data['payment_code'] ?? '';
 
-                // اعتبارسنجی
+                // اعتبارسنجی ساده
                 if ($amount <= 0 || empty($jalali_payment_date) || empty($payment_type)) {
                     throw new Exception("فیلدهای الزامی برای پرداخت شماره " . ($index + 1) . " پر نشده است.");
                 }
 
-                // تبدیل تاریخ شمسی به میلادی با اعتبارسنجی
-                list($jy, $jm, $jd) = explode('/', $jalali_payment_date);
-                $payment_date = jalali_to_gregorian_safe($jy, $jm, $jd);
-                if ($payment_date === null) {
-                    throw new Exception("تاریخ نامعتبر برای پرداخت شماره " . ($index + 1) . " است.");
+                // اعتبارسنجی فرمت تاریخ (YYYY/MM/DD)
+                $date_parts = explode('/', $jalali_payment_date);
+                if (count($date_parts) !== 3 || !is_numeric($date_parts[0]) || !is_numeric($date_parts[1]) || !is_numeric($date_parts[2])) {
+                    throw new Exception("فرمت تاریخ نامعتبر برای پرداخت شماره " . ($index + 1) . " است.");
                 }
+
+                // تبدیل تاریخ شمسی به میلادی
+                list($jy, $jm, $jd) = explode('/', $jalali_payment_date);
+                list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
+                $payment_date = sprintf("%04d-%02d-%02d", $gy, $gm, $gd);
 
                 if ($payment_id) {
                     // به‌روزرسانی پرداخت موجود
