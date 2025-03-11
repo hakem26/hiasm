@@ -98,14 +98,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("فیلدهای الزامی برای پرداخت شماره " . ($index + 1) . " پر نشده است.");
                 }
 
-                // اعتبارسنجی فرمت تاریخ (YYYY/MM/DD)
+                // جایگزینی جداکننده‌های مختلف (مثل - یا فاصله) با /
+                $jalali_payment_date = str_replace(['-', ' '], '/', $jalali_payment_date);
                 $date_parts = explode('/', $jalali_payment_date);
-                if (count($date_parts) !== 3 || !is_numeric($date_parts[0]) || !is_numeric($date_parts[1]) || !is_numeric($date_parts[2])) {
-                    throw new Exception("فرمت تاریخ نامعتبر برای پرداخت شماره " . ($index + 1) . " است.");
+
+                // اعتبارسنجی فرمت تاریخ (باید سه بخش داشته باشه)
+                if (count($date_parts) !== 3) {
+                    throw new Exception("فرمت تاریخ نامعتبر برای پرداخت شماره " . ($index + 1) . " است. باید به صورت YYYY/MM/DD باشد.");
                 }
 
                 // تبدیل تاریخ شمسی به میلادی
-                list($jy, $jm, $jd) = explode('/', $jalali_payment_date);
+                list($jy, $jm, $jd) = $date_parts;
                 list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
                 $payment_date = sprintf("%04d-%02d-%02d", $gy, $gm, $gd);
 
@@ -247,10 +250,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $(".payment-date").last().persianDatepicker({
                     format: "YYYY/MM/DD",
                     autoClose: true,
-                    initialValue: true, // تنظیم تاریخ پیش‌فرض
-                    onSelect: function(unix) {
-                        const d = new persianDate(unix);
-                        $(this).val(d.format("YYYY/MM/DD"));
+                    initialValue: true,
+                    calendar: {
+                        persian: {
+                            locale: 'fa'
+                        }
                     }
                 });
 
@@ -282,9 +286,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     format: "YYYY/MM/DD",
                     autoClose: true,
                     initialValue: false,
-                    onSelect: function(unix) {
-                        const d = new persianDate(unix);
-                        $(this).val(d.format("YYYY/MM/DD"));
+                    calendar: {
+                        persian: {
+                            locale: 'fa'
+                        }
                     }
                 });
             });
