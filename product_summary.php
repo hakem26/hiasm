@@ -162,7 +162,8 @@ $products_query = "
     SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity
     FROM Order_Items oi
     JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id";
+    JOIN Work_Details wd ON o.work_details_id = wd.id
+    JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id";
 
 $conditions = [];
 $params = [];
@@ -178,19 +179,7 @@ if (!$is_admin) {
 }
 
 if ($selected_year) {
-    $conditions[] = "EXISTS (
-        SELECT 1 FROM Work_Months wm 
-        WHERE wm.work_month_id = wd.work_month_id
-        AND ? = (
-            SELECT jyear
-            FROM (
-                SELECT gregorian_to_jalali(YEAR(wm.start_date), 1, 1) AS jdate
-            ) AS sub
-            CROSS JOIN (SELECT 1) AS dummy
-            LIMIT 1
-        )[0]
-    )";
-    $params[] = $selected_year;
+    // فیلتر سال شمسی رو توی PHP اعمال می‌کنیم، نه SQL
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
@@ -222,6 +211,35 @@ $products_query .= " GROUP BY oi.product_name, oi.unit_price";
 $stmt_products = $pdo->prepare($products_query);
 $stmt_products->execute($params);
 $products = $stmt_products->fetchAll(PDO::FETCH_ASSOC);
+
+// فیلتر سال شمسی بعد از اجرای کوئری (توی PHP)
+if ($selected_year) {
+    $filtered_products = [];
+    foreach ($products as $product) {
+        // اینجا باید تاریخ مرتبط با هر محصول رو پیدا کنیم و سالش رو چک کنیم
+        // ولی چون مستقیم به Work_Months وصل نیست، از Work_Details استفاده می‌کنیم
+        $stmt_work_details = $pdo->prepare("
+            SELECT wm.start_date
+            FROM Work_Details wd
+            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+            JOIN Orders o ON wd.id = o.work_details_id
+            JOIN Order_Items oi ON o.order_id = oi.order_id
+            WHERE oi.product_name = ? AND oi.unit_price = ?
+            LIMIT 1
+        ");
+        $stmt_work_details->execute([$product['product_name'], $product['unit_price']]);
+        $work_detail = $stmt_work_details->fetch(PDO::FETCH_ASSOC);
+
+        if ($work_detail) {
+            list($gy, $gm, $gd) = explode('-', $work_detail['start_date']);
+            list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+            if ($jy == $selected_year) {
+                $filtered_products[] = $product;
+            }
+        }
+    }
+    $products = $filtered_products;
+}
 
 // محاسبه جمع کل
 $total_quantity = 0;
