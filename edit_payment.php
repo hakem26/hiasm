@@ -1,4 +1,5 @@
 <?php
+ob_start(); // شروع بافر خروجی برای جلوگیری از ارور هدر
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
@@ -11,9 +12,19 @@ require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
+    if (empty($gregorian_date) || strpos($gregorian_date, '-') === false) return '';
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
+}
+
+// تابع تبدیل تاریخ شمسی به میلادی با اعتبارسنجی
+function jalali_to_gregorian_safe($jy, $jm, $jd) {
+    if (!is_numeric($jy) || !is_numeric($jm) || !is_numeric($jd) || $jy < 1300 || $jy > 1500 || $jm < 1 || $jm > 12 || $jd < 1 || $jd > 31) {
+        return null; // بازگرداندن null در صورت نامعتبر بودن
+    }
+    list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
+    return sprintf("%04d-%02d-%02d", $gy, $gm, $gd);
 }
 
 // بررسی نقش کاربر
@@ -29,6 +40,7 @@ $order_id = $_GET['order_id'] ?? '';
 if (!$order_id) {
     echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>شناسه سفارش مشخص نشده است.</div></div>";
     require_once 'footer.php';
+    ob_end_flush();
     exit;
 }
 
@@ -46,6 +58,7 @@ $order = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$order) {
     echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>سفارش یافت نشد یا شما دسترسی ویرایش آن را ندارید.</div></div>";
     require_once 'footer.php';
+    ob_end_flush();
     exit;
 }
 
@@ -64,9 +77,13 @@ foreach ($existing_payments as $payment) {
 if (isset($_GET['delete_payment_id'])) {
     $delete_payment_id = $_GET['delete_payment_id'];
     $stmt = $pdo->prepare("DELETE FROM Order_Payments WHERE order_payment_id = ? AND order_id = ?");
-    $stmt->execute([$delete_payment_id, $order_id]);
-    header("Location: edit_payment.php?order_id=$order_id");
-    exit;
+    if ($stmt->execute([$delete_payment_id, $order_id])) {
+        header("Location: edit_payment.php?order_id=$order_id");
+        ob_end_flush();
+        exit;
+    } else {
+        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>خطا در حذف پرداخت.</div></div>";
+    }
 }
 
 // مدیریت ارسال فرم
@@ -85,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($payments as $index => $payment_data) {
                 $payment_id = $payment_data['payment_id'] ?? '';
                 $amount = (float)($payment_data['amount'] ?? 0);
-                $jalali_payment_date = $payment_data['payment_date'] ?? '';
+                $jalali_payment_date = trim($payment_data['payment_date'] ?? '');
                 $payment_type = $payment_data['payment_type'] ?? '';
                 $payment_code = $payment_data['payment_code'] ?? '';
 
@@ -94,10 +111,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("فیلدهای الزامی برای پرداخت شماره " . ($index + 1) . " پر نشده است.");
                 }
 
-                // تبدیل تاریخ شمسی به میلادی
+                // تبدیل تاریخ شمسی به میلادی با اعتبارسنجی
                 list($jy, $jm, $jd) = explode('/', $jalali_payment_date);
-                list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
-                $payment_date = sprintf("%04d-%02d-%02d", $gy, $gm, $gd);
+                $payment_date = jalali_to_gregorian_safe($jy, $jm, $jd);
+                if ($payment_date === null) {
+                    throw new Exception("تاریخ نامعتبر برای پرداخت شماره " . ($index + 1) . " است.");
+                }
 
                 if ($payment_id) {
                     // به‌روزرسانی پرداخت موجود
@@ -120,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
             echo "<div class='container-fluid mt-5'><div class='alert alert-success text-center'>پرداخت‌ها با موفقیت ثبت شدند. <a href='orders.php'>بازگشت به لیست سفارشات</a></div></div>";
             require_once 'footer.php';
+            ob_end_flush();
             exit;
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -236,7 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $(".payment-date").last().persianDatepicker({
                     format: "YYYY/MM/DD",
                     autoClose: true,
-                    initialValue: false,
+                    initialValue: true, // تنظیم تاریخ پیش‌فرض
                     onSelect: function(unix) {
                         const d = new persianDate(unix);
                         $(this).val(d.format("YYYY/MM/DD"));
@@ -269,7 +289,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $(".payment-date").each(function() {
                 $(this).persianDatepicker({
                     format: "YYYY/MM/DD",
-                    autoClose: true
+                    autoClose: true,
+                    initialValue: false,
+                    onSelect: function(unix) {
+                        const d = new persianDate(unix);
+                        $(this).val(d.format("YYYY/MM/DD"));
+                    }
                 });
             });
 
@@ -278,4 +303,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once 'footer.php';
+ob_end_flush(); // پایان بافر و ارسال خروجی
+?>
