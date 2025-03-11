@@ -9,14 +9,24 @@ require_once 'db.php';
 
 if (isset($_GET['month_id'])) {
     $month_id = $_GET['month_id'];
-    $stmt = $pdo->prepare("DELETE FROM Work_Months WHERE work_month_id = ?");
-    $stmt->execute([$month_id]);
+    try {
+        $pdo->beginTransaction();
 
-    // حذف اطلاعات مرتبط در Work_Details
-    $stmt = $pdo->prepare("DELETE FROM Work_Details WHERE work_month_id = ?");
-    $stmt->execute([$month_id]);
+        // حذف اطلاعات مرتبط در Work_Details
+        $stmt = $pdo->prepare("DELETE FROM Work_Details WHERE work_month_id = ?");
+        $stmt->execute([$month_id]);
 
-    header("Location: work_months.php");
-    exit;
+        // حذف ماه کاری
+        $stmt = $pdo->prepare("DELETE FROM Work_Months WHERE work_month_id = ?");
+        $stmt->execute([$month_id]);
+
+        $pdo->commit();
+
+        header("Location: work_months.php?success=1");
+        exit;
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        die("خطا در حذف ماه کاری: " . $e->getMessage());
+    }
 }
 ?>

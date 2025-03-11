@@ -13,6 +13,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $start_date = $_POST['start_date'];
     $end_date = $_POST['end_date'];
 
+    // اعتبارسنجی فرمت تاریخ (YYYY/MM/DD)
+    if (!preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $start_date) || !preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $end_date)) {
+        die("فرمت تاریخ نامعتبر است! از فرمت YYYY/MM/DD استفاده کنید.");
+    }
+
     // تبدیل شمسی به میلادی
     list($jy, $jm, $jd) = explode('/', $start_date);
     list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
@@ -26,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt = $pdo->prepare("UPDATE Work_Months SET start_date = ?, end_date = ? WHERE work_month_id = ?");
         $stmt->execute([$start_gregorian, $end_gregorian, $month_id]);
 
-        header("Location: work_months.php");
+        header("Location: work_months.php?success=1");
         exit;
     } catch (PDOException $e) {
         die("خطا در ویرایش ماه کاری: " . $e->getMessage());

@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
+require_once 'persian_year.php';
 
 // تابع تبدیل میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
@@ -16,32 +17,25 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
 }
 
-// تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1); // فقط سال رو می‌گیریم
-    return $jy;
-}
-
-// دریافت سال‌های موجود از دیتابیس (میلادی)
+// دریافت سال‌های موجود از دیتابیس (میلادی) و تبدیل به شمسی
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year'); // سال‌ها به‌صورت میلادی
-
-// دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
-$current_year = date('Y'); // سال میلادی فعلی (مثلاً 2025)
-
-// دریافت سال انتخاب‌شده (میلادی)
-$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
-
-// اگر سال انتخاب‌شده وجود نداشت، اولین سال موجود رو انتخاب کن (اگر سالی وجود داشت)
-if ($selected_year && !in_array($selected_year, $years)) {
-    $selected_year = !empty($years) ? $years[0] : null;
+$years = [];
+foreach ($years_db as $year) {
+    $years[] = gregorian_year_to_jalali($year['year']);
 }
 
-// کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی (اگر سال انتخاب‌شده وجود داشته باشه)
-if ($selected_year) {
+// دریافت سال جاری (شمسی) به‌عنوان پیش‌فرض
+$current_persian_year = get_persian_current_year();
+$selected_year = $_GET['year'] ?? $current_persian_year;
+
+// تبدیل سال شمسی انتخاب‌شده به سال میلادی
+$selected_year_miladi = jalali_to_gregorian($selected_year, 1, 1)[0];
+
+// کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی
+if ($selected_year_miladi) {
     $stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-    $stmt->execute([$selected_year]);
+    $stmt->execute([$selected_year_miladi]);
     $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else {
     $work_months = []; // اگر هیچ سالی انتخاب نشده یا وجود نداره
@@ -79,7 +73,7 @@ if ($selected_year) {
                 <select name="year" class="form-select" onchange="this.form.submit()">
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= gregorian_year_to_jalali($year) ?>
+                            <?= $year ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
