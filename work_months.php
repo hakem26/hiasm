@@ -23,28 +23,35 @@ function gregorian_year_to_jalali($gregorian_year) {
     return $jy;
 }
 
-// دریافت سال‌های موجود از دیتابیس (میلادی) و تبدیل به شمسی
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// دریافت سال‌های موجود از دیتابیس (بر اساس سال شمسی)
+$stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_date DESC");
+$work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = [];
-foreach ($years_db as $year) {
-    $years[] = gregorian_year_to_jalali($year['year']);
+$all_work_months = [];
+
+foreach ($work_months_data as $month) {
+    list($gy, $gm, $gd) = explode('-', $month['start_date']);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    $years[] = $jy;
 }
+$years = array_unique($years);
+rsort($years);
 
 // دریافت سال جاری (شمسی) به‌عنوان پیش‌فرض
 $current_persian_year = get_persian_current_year();
 $selected_year = $_GET['year'] ?? $current_persian_year;
 
-// تبدیل سال شمسی انتخاب‌شده به سال میلادی
-$selected_year_miladi = jalali_to_gregorian($selected_year, 1, 1)[0];
+// دریافت همه ماه‌های کاری و فیلتر بر اساس سال شمسی
+$stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+$all_work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// کوئری برای دریافت ماه‌های کاری بر اساس سال میلادی
-if ($selected_year_miladi) {
-    $stmt = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-    $stmt->execute([$selected_year_miladi]);
-    $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $work_months = []; // اگر هیچ سالی انتخاب نشده یا وجود نداره
+$work_months = [];
+foreach ($all_work_months as $month) {
+    list($gy, $gm, $gd) = explode('-', $month['start_date']);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    if ($jy == $selected_year) {
+        $work_months[] = $month;
+    }
 }
 ?>
 

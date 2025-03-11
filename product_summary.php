@@ -38,22 +38,34 @@ $partners = [];
 $work_details = [];
 $products = [];
 
-// دریافت سال‌ها
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت سال‌های موجود از دیتابیس (بر اساس سال شمسی)
+$stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_date DESC");
+$work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$years = [];
+foreach ($work_months_data as $month) {
+    list($gy, $gm, $gd) = explode('-', $month['start_date']);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    $years[] = $jy;
+}
+$years = array_unique($years);
+rsort($years);
 
 // تنظیم سال پیش‌فرض به سال جاری شمسی
 $current_persian_year = get_persian_current_year();
 $selected_year = $_GET['year'] ?? $current_persian_year;
 
-// تبدیل سال شمسی انتخاب‌شده به سال میلادی
-$selected_year_miladi = jalali_to_gregorian($selected_year, 1, 1)[0];
+// دریافت ماه‌های کاری بر اساس سال شمسی
+$stmt = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+$all_work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// دریافت ماه‌های کاری برای سال انتخاب‌شده (میلادی)
-$stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$stmt_months->execute([$selected_year_miladi]);
-$work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
+$work_months = [];
+foreach ($all_work_months as $month) {
+    list($gy, $gm, $gd) = explode('-', $month['start_date']);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    if ($jy == $selected_year) {
+        $work_months[] = $month;
+    }
+}
 
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['user_id'] ?? 'all';
@@ -138,9 +150,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
                             'user_id1' => $partner['user_id1'],
                             'user_id2' => $partner['user_id2']
                         ];
-                    } else {
-                        // برای دیباگ: بررسی کنیم که چرا رکوردی پیدا نمیشه
-                        // echo "No record for date: $work_date, partner_id: $partner_id<br>";
                     }
                 }
             }
@@ -169,8 +178,19 @@ if (!$is_admin) {
 }
 
 if ($selected_year) {
-    $conditions[] = "YEAR(wd.work_date) = ?";
-    $params[] = $selected_year_miladi;
+    $conditions[] = "EXISTS (
+        SELECT 1 FROM Work_Months wm 
+        WHERE wm.work_month_id = wd.work_month_id
+        AND ? = (
+            SELECT jyear
+            FROM (
+                SELECT gregorian_to_jalali(YEAR(wm.start_date), 1, 1) AS jdate
+            ) AS sub
+            CROSS JOIN (SELECT 1) AS dummy
+            LIMIT 1
+        )[0]
+    )";
+    $params[] = $selected_year;
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
@@ -220,8 +240,8 @@ foreach ($products as $product) {
         <div class="col-auto">
             <select name="year" class="form-select" onchange="this.form.submit()">
                 <?php foreach ($years as $year): ?>
-                    <option value="<?= gregorian_year_to_jalali($year) ?>" <?= $selected_year == gregorian_year_to_jalali($year) ? 'selected' : '' ?>>
-                        <?= gregorian_year_to_jalali($year) ?>
+                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                        <?= $year ?>
                     </option>
                 <?php endforeach; ?>
             </select>
