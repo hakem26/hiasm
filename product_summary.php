@@ -36,7 +36,7 @@ $current_persian_year = get_persian_current_year();
 
 // دریافت ماه‌های کاری برای سال جاری
 $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$stmt_months->execute([jalaali_to_gregorian($current_persian_year, 1, 1)[0]]);
+$stmt_months->execute([jalali_to_gregorian($current_persian_year, 1, 1)[0]]); // اصلاح اسم تابع
 $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
