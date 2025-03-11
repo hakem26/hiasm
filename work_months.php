@@ -181,56 +181,55 @@ if ($selected_year_miladi) {
 
     <!-- اسکریپت‌ها -->
     <script>
-        <script>
-    // [BLOCK-WORK-MONTHS-003]
-    document.addEventListener('DOMContentLoaded', () => {
-                // پر کردن اطلاعات در مودال ویرایش
-                document.querySelectorAll('[data-bs-target="#editWorkMonthModal"]').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const monthId = button.getAttribute('data-month-id');
-                        const startDate = button.getAttribute('data-start-date');
-                        const endDate = button.getAttribute('data-end-date');
+        // [BLOCK-WORK-MONTHS-003]
+        document.addEventListener('DOMContentLoaded', () => {
+            // پر کردن اطلاعات در مودال ویرایش
+            document.querySelectorAll('[data-bs-target="#editWorkMonthModal"]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const monthId = button.getAttribute('data-month-id');
+                    const startDate = button.getAttribute('data-start-date');
+                    const endDate = button.getAttribute('data-end-date');
 
-                        document.getElementById('edit_month_id').value = monthId;
-                        document.getElementById('edit_start_date').value = startDate;
-                        document.getElementById('edit_end_date').value = endDate;
-                    });
+                    document.getElementById('edit_month_id').value = monthId;
+                    document.getElementById('edit_start_date').value = startDate;
+                    document.getElementById('edit_end_date').value = endDate;
                 });
+            });
 
             // حذف ماه کاری
-            window.confirmDeleteMonth = function(monthId) {
-            if (confirm('آیا مطمئن هستید که می‌خواهید این ماه کاری را حذف کنید؟')) {
-                fetch('delete_work_month.php?month_id=' + monthId, {
-                    method: 'GET'
-                })
-                    .then(response => {
-                        if (response.ok) {
-                            window.location.reload(); // رفرش صفحه پس از حذف
-                        } else {
-                            alert('خطا در حذف ماه کاری!');
-                        }
+            window.confirmDeleteMonth = function (monthId) {
+                if (confirm('آیا مطمئن هستید که می‌خواهید این ماه کاری را حذف کنید؟')) {
+                    fetch('delete_work_month.php?month_id=' + monthId, {
+                        method: 'GET'
                     })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('خطا در اتصال به سرور!');
-                    });
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.reload(); // رفرش صفحه پس از حذف
+                            } else {
+                                alert('خطا در حذف ماه کاری!');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('خطا در اتصال به سرور!');
+                        });
+                }
+                return false;
             }
-            return false;
-        }
 
             // Datepicker برای فیلدهای تاریخ (شمسی) با اعداد انگلیسی
             $('.persian-date').persianDatepicker({
                 format: 'YYYY/MM/DD',
-            autoClose: true,
-            calendar: {
-                persian: {
-                locale: 'fa',
-            digits: true // استفاده از اعداد انگلیسی
+                autoClose: true,
+                calendar: {
+                    persian: {
+                        locale: 'fa',
+                        digits: true // استفاده از اعداد انگلیسی
+                    }
                 }
-            }
+            });
         });
-    });
     </script>
 
     <?php
