@@ -205,7 +205,7 @@ foreach ($products as $product) {
 }
 ?>
 
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -240,7 +240,7 @@ foreach ($products as $product) {
         }
     </style>
 </head>
-<body>
+<body> -->
     <div class="container-fluid">
         <h5 class="card-title mb-4">تجمیع محصولات</h5>
         <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?> تومان</p>
