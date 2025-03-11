@@ -8,6 +8,12 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
+// تعریف تابع number_to_day
+function number_to_day($day_number) {
+    $days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+    return $days[$day_number - 1] ?? 'نامعلوم';
+}
+
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
@@ -47,8 +53,6 @@ if ($selected_year && $selected_year != 'all') {
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['user_id'] ?? 'all';
 $selected_work_day_id = $_GET['work_day_id'] ?? 'all';
-$page = (int)($_GET['page'] ?? 1);
-$per_page = 10;
 
 if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
     $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
@@ -205,147 +209,111 @@ foreach ($products as $product) {
 }
 ?>
 
-<!-- <!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تجمیع محصولات</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-    <style>
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 800px;
-        }
-        th, td {
-            text-align: center;
-            vertical-align: middle;
-            padding: 8px;
-            white-space: nowrap;
-            min-width: 100px;
-        }
-        th {
-            background-color: #f8f9fa;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
-    </style>
-</head>
-<body> -->
-    <div class="container-fluid">
-        <h5 class="card-title mb-4">تجمیع محصولات</h5>
-        <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?> تومان</p>
+<div class="container-fluid">
+    <h5 class="card-title mb-4">تجمیع محصولات</h5>
+    <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?> تومان</p>
 
-        <form method="GET" class="row g-3 mb-3">
-            <div class="col-auto">
-                <select name="year" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
-                    <?php foreach ($years as $year): ?>
-                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= gregorian_year_to_jalali($year) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-auto">
-                <select name="work_month_id" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
-                    <?php foreach ($work_months as $month): ?>
-                        <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا
-                            <?= gregorian_to_jalali_format($month['end_date']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-auto">
-                <select name="user_id" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
-                    <?php foreach ($partners as $partner): ?>
-                        <option value="<?= htmlspecialchars($partner['user_id']) ?>"
-                            <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($partner['full_name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-auto">
-                <select name="work_day_id" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
-                    <?php foreach ($work_details as $day): ?>
-                        <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
-                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> -
-                            <?= $day['user2'] ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </form>
+    <form method="GET" class="row g-3 mb-3">
+        <div class="col-auto">
+            <select name="year" class="form-select" onchange="this.form.submit()">
+                <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
+                <?php foreach ($years as $year): ?>
+                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                        <?= gregorian_year_to_jalali($year) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-auto">
+            <select name="work_month_id" class="form-select" onchange="this.form.submit()">
+                <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
+                <?php foreach ($work_months as $month): ?>
+                    <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
+                        <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                        <?= gregorian_to_jalali_format($month['end_date']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-auto">
+            <select name="user_id" class="form-select" onchange="this.form.submit()">
+                <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
+                <?php foreach ($partners as $partner): ?>
+                    <option value="<?= htmlspecialchars($partner['user_id']) ?>"
+                        <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($partner['full_name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-auto">
+            <select name="work_day_id" class="form-select" onchange="this.form.submit()">
+                <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
+                <?php foreach ($work_details as $day): ?>
+                    <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
+                        <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> -
+                        <?= $day['user2'] ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </form>
 
-        <?php if (!empty($products)): ?>
-            <div class="table-wrapper">
-                <table id="productsTable" class="table table-light table-hover">
-                    <thead>
+    <?php if (!empty($products)): ?>
+        <div class="table-wrapper">
+            <table id="productsTable" class="table table-light table-hover">
+                <thead>
+                    <tr>
+                        <th>ردیف</th>
+                        <th>نام محصول</th>
+                        <th>قیمت واحد</th>
+                        <th>تعداد</th>
+                        <th>قیمت کل</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php $row = 1; foreach ($products as $product): ?>
                         <tr>
-                            <th>ردیف</th>
-                            <th>نام محصول</th>
-                            <th>قیمت واحد</th>
-                            <th>تعداد</th>
-                            <th>قیمت کل</th>
+                            <td><?= $row++ ?></td>
+                            <td><?= htmlspecialchars($product['product_name']) ?></td>
+                            <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
+                            <td><?= number_format($product['total_quantity'], 0) ?></td>
+                            <td><?= number_format($product['total_quantity'] * $product['unit_price'], 0) ?> تومان</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <?php $row = 1; foreach ($products as $product): ?>
-                            <tr>
-                                <td><?= $row++ ?></td>
-                                <td><?= htmlspecialchars($product['product_name']) ?></td>
-                                <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
-                                <td><?= number_format($product['total_quantity'], 0) ?></td>
-                                <td><?= number_format($product['total_quantity'] * $product['unit_price'], 0) ?> تومان</td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php else: ?>
-            <div class="alert alert-warning text-center">محصولی ثبت نشده است.</div>
-        <?php endif; ?>
-    </div>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php else: ?>
+        <div class="alert alert-warning text-center">محصولی ثبت نشده است.</div>
+    <?php endif; ?>
+</div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#productsTable').DataTable({
-                responsive: false,
-                scrollX: true,
-                autoWidth: false,
-                paging: false,
-                ordering: false,
-                info: true,
-                searching: false,
-                "language": {
-                    "info": "نمایش _START_ تا _END_ از _TOTAL_ محصول",
-                    "infoEmpty": "هیچ محصولی یافت نشد",
-                    "zeroRecords": "هیچ محصولی یافت نشد",
-                    "lengthMenu": "نمایش _MENU_ ردیف",
-                    "paginate": {
-                        "previous": "قبلی",
-                        "next": "بعدی"
-                    }
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#productsTable').DataTable({
+            responsive: false,
+            scrollX: true,
+            autoWidth: false,
+            paging: false,
+            ordering: false,
+            info: true,
+            searching: false,
+            "language": {
+                "info": "نمایش _START_ تا _END_ از _TOTAL_ محصول",
+                "infoEmpty": "هیچ محصولی یافت نشد",
+                "zeroRecords": "هیچ محصولی یافت نشد",
+                "lengthMenu": "نمایش _MENU_ ردیف",
+                "paginate": {
+                    "previous": "قبلی",
+                    "next": "بعدی"
                 }
-            });
+            }
         });
-    </script>
+    });
+</script>
 
-    <?php require_once 'footer.php'; ?>
+<?php require_once 'footer.php'; ?>
