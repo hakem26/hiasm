@@ -98,6 +98,12 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="product_summary.php">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>تجمیع محصولات</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="orders.php">
                     <i class="fas fa-shopping-cart"></i>
                     <span>سفارشات</span>
