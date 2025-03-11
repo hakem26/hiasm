@@ -11,7 +11,8 @@ require_once 'jdf.php';
 require_once 'persian_year.php';
 
 // تابع تبدیل میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd"; // خروجی: YYYY/MM/DD
@@ -44,6 +45,7 @@ if ($selected_year_miladi) {
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,64 +60,72 @@ if ($selected_year_miladi) {
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- [BLOCK-WORK-MONTHS-002] -->
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="card-title">لیست ماه‌های کاری</h5>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkMonthModal">افزودن ماه کاری</button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkMonthModal">افزودن ماه
+                کاری</button>
         </div>
 
         <!-- فیلتر سال -->
         <?php if (!empty($years)): ?>
-        <form method="GET" class="row g-3 mb-3">
-            <div class="col-auto">
-                <select name="year" class="form-select" onchange="this.form.submit()">
-                    <?php foreach ($years as $year): ?>
-                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= $year ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </form>
+            <form method="GET" class="row g-3 mb-3">
+                <div class="col-auto">
+                    <select name="year" class="form-select" onchange="this.form.submit()">
+                        <?php foreach ($years as $year): ?>
+                            <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                                <?= $year ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </form>
         <?php endif; ?>
 
         <?php if (empty($work_months)): ?>
-        <div class="alert alert-warning text-center">ماه کاری‌ای ساخته نشده است.</div>
+            <div class="alert alert-warning text-center">ماه کاری‌ای ساخته نشده است.</div>
         <?php else: ?>
-        <table class="table table-light table-hover">
-            <thead>
-                <tr>
-                    <th>ردیف</th>
-                    <th>تاریخ شروع</th>
-                    <th>تاریخ پایان</th>
-                    <th>عملیات</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php $row = 1; foreach ($work_months as $month): ?>
-                <tr>
-                    <td><?php echo $row++; ?></td>
-                    <td><?php echo gregorian_to_jalali_format($month['start_date']); ?></td>
-                    <td><?php echo gregorian_to_jalali_format($month['end_date']); ?></td>
-                    <td>
-                        <a href="#" class="text-primary me-2" data-bs-toggle="modal" data-bs-target="#editWorkMonthModal" data-month-id="<?php echo $month['work_month_id']; ?>" data-start-date="<?php echo gregorian_to_jalali_format($month['start_date']); ?>" data-end-date="<?php echo gregorian_to_jalali_format($month['end_date']); ?>">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <a href="#" class="text-danger" onclick="confirmDeleteMonth(<?php echo $month['work_month_id']; ?>)">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+            <table class="table table-light table-hover">
+                <thead>
+                    <tr>
+                        <th>ردیف</th>
+                        <th>تاریخ شروع</th>
+                        <th>تاریخ پایان</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php $row = 1;
+                    foreach ($work_months as $month): ?>
+                        <tr>
+                            <td><?php echo $row++; ?></td>
+                            <td><?php echo gregorian_to_jalali_format($month['start_date']); ?></td>
+                            <td><?php echo gregorian_to_jalali_format($month['end_date']); ?></td>
+                            <td>
+                                <a href="#" class="text-primary me-2" data-bs-toggle="modal"
+                                    data-bs-target="#editWorkMonthModal" data-month-id="<?php echo $month['work_month_id']; ?>"
+                                    data-start-date="<?php echo gregorian_to_jalali_format($month['start_date']); ?>"
+                                    data-end-date="<?php echo gregorian_to_jalali_format($month['end_date']); ?>">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="#" class="text-danger"
+                                    onclick="confirmDeleteMonth(<?php echo $month['work_month_id']; ?>)">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         <?php endif; ?>
     </div>
 
     <!-- مودال افزودن ماه کاری -->
-    <div class="modal fade" id="addWorkMonthModal" tabindex="-1" aria-labelledby="addWorkMonthModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addWorkMonthModal" tabindex="-1" aria-labelledby="addWorkMonthModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-light">
                 <div class="modal-header">
@@ -126,7 +136,8 @@ if ($selected_year_miladi) {
                     <form id="addWorkMonthForm" method="POST" action="add_work_month.php">
                         <div class="mb-3">
                             <label for="start_date" class="form-label">تاریخ شروع (شمسی)</label>
-                            <input type="text" class="form-control persian-date" id="start_date" name="start_date" required>
+                            <input type="text" class="form-control persian-date" id="start_date" name="start_date"
+                                required>
                         </div>
                         <div class="mb-3">
                             <label for="end_date" class="form-label">تاریخ پایان (شمسی)</label>
@@ -140,7 +151,8 @@ if ($selected_year_miladi) {
     </div>
 
     <!-- مودال ویرایش ماه کاری -->
-    <div class="modal fade" id="editWorkMonthModal" tabindex="-1" aria-labelledby="editWorkMonthModalLabel" aria-hidden="true">
+    <div class="modal fade" id="editWorkMonthModal" tabindex="-1" aria-labelledby="editWorkMonthModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-light">
                 <div class="modal-header">
@@ -152,11 +164,13 @@ if ($selected_year_miladi) {
                         <input type="hidden" id="edit_month_id" name="month_id">
                         <div class="mb-3">
                             <label for="edit_start_date" class="form-label">تاریخ شروع (شمسی)</label>
-                            <input type="text" class="form-control persian-date" id="edit_start_date" name="start_date" required>
+                            <input type="text" class="form-control persian-date" id="edit_start_date" name="start_date"
+                                required>
                         </div>
                         <div class="mb-3">
                             <label for="edit_end_date" class="form-label">تاریخ پایان (شمسی)</label>
-                            <input type="text" class="form-control persian-date" id="edit_end_date" name="end_date" required>
+                            <input type="text" class="form-control persian-date" id="edit_end_date" name="end_date"
+                                required>
                         </div>
                         <button type="submit" class="btn btn-primary">بروزرسانی ماه کاری</button>
                     </form>
@@ -167,28 +181,29 @@ if ($selected_year_miladi) {
 
     <!-- اسکریپت‌ها -->
     <script>
-        // [BLOCK-WORK-MONTHS-003]
-        document.addEventListener('DOMContentLoaded', () => {
-            // پر کردن اطلاعات در مودال ویرایش
-            document.querySelectorAll('[data-bs-target="#editWorkMonthModal"]').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const monthId = button.getAttribute('data-month-id');
-                    const startDate = button.getAttribute('data-start-date');
-                    const endDate = button.getAttribute('data-end-date');
+        <script>
+    // [BLOCK-WORK-MONTHS-003]
+    document.addEventListener('DOMContentLoaded', () => {
+                // پر کردن اطلاعات در مودال ویرایش
+                document.querySelectorAll('[data-bs-target="#editWorkMonthModal"]').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const monthId = button.getAttribute('data-month-id');
+                        const startDate = button.getAttribute('data-start-date');
+                        const endDate = button.getAttribute('data-end-date');
 
-                    document.getElementById('edit_month_id').value = monthId;
-                    document.getElementById('edit_start_date').value = startDate;
-                    document.getElementById('edit_end_date').value = endDate;
+                        document.getElementById('edit_month_id').value = monthId;
+                        document.getElementById('edit_start_date').value = startDate;
+                        document.getElementById('edit_end_date').value = endDate;
+                    });
                 });
-            });
 
             // حذف ماه کاری
             window.confirmDeleteMonth = function(monthId) {
-                if (confirm('آیا مطمئن هستید که می‌خواهید این ماه کاری را حذف کنید؟')) {
-                    fetch('delete_work_month.php?month_id=' + monthId, {
-                        method: 'GET'
-                    })
+            if (confirm('آیا مطمئن هستید که می‌خواهید این ماه کاری را حذف کنید؟')) {
+                fetch('delete_work_month.php?month_id=' + monthId, {
+                    method: 'GET'
+                })
                     .then(response => {
                         if (response.ok) {
                             window.location.reload(); // رفرش صفحه پس از حذف
@@ -200,24 +215,25 @@ if ($selected_year_miladi) {
                         console.error('Error:', error);
                         alert('خطا در اتصال به سرور!');
                     });
-                }
-                return false;
             }
+            return false;
+        }
 
-            // Datepicker برای فیلدهای تاریخ (شمسی)
+            // Datepicker برای فیلدهای تاریخ (شمسی) با اعداد انگلیسی
             $('.persian-date').persianDatepicker({
                 format: 'YYYY/MM/DD',
-                autoClose: true,
-                calendar: {
-                    persian: {
-                        locale: 'fa'
-                    }
+            autoClose: true,
+            calendar: {
+                persian: {
+                locale: 'fa',
+            digits: true // استفاده از اعداد انگلیسی
                 }
-            });
+            }
         });
+    });
     </script>
 
-<?php
-// [BLOCK-WORK-MONTHS-004]
-require_once 'footer.php';
-?>
+    <?php
+    // [BLOCK-WORK-MONTHS-004]
+    require_once 'footer.php';
+    ?>
