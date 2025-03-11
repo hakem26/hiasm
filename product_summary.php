@@ -47,9 +47,12 @@ $years = array_column($years_db, 'year');
 $current_persian_year = get_persian_current_year();
 $selected_year = $_GET['year'] ?? $current_persian_year;
 
-// دریافت ماه‌های کاری برای سال انتخاب‌شده
+// تبدیل سال شمسی انتخاب‌شده به سال میلادی
+$selected_year_miladi = jalali_to_gregorian($selected_year, 1, 1)[0];
+
+// دریافت ماه‌های کاری برای سال انتخاب‌شده (میلادی)
 $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$stmt_months->execute([jalali_to_gregorian($selected_year, 1, 1)[0]]);
+$stmt_months->execute([$selected_year_miladi]);
 $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
@@ -135,6 +138,9 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
                             'user_id1' => $partner['user_id1'],
                             'user_id2' => $partner['user_id2']
                         ];
+                    } else {
+                        // برای دیباگ: بررسی کنیم که چرا رکوردی پیدا نمیشه
+                        // echo "No record for date: $work_date, partner_id: $partner_id<br>";
                     }
                 }
             }
@@ -164,7 +170,7 @@ if (!$is_admin) {
 
 if ($selected_year) {
     $conditions[] = "YEAR(wd.work_date) = ?";
-    $params[] = jalali_to_gregorian($selected_year, 1, 1)[0];
+    $params[] = $selected_year_miladi;
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
