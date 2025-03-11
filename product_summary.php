@@ -7,12 +7,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
-
-// تعریف تابع number_to_day
-function number_to_day($day_number) {
-    $days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-    return $days[$day_number - 1] ?? 'نامعلوم';
-}
+require_once 'persian_year.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
@@ -21,45 +16,34 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
-// تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
-    return $jy;
+// تعریف تابع number_to_day
+function number_to_day($day_number) {
+    $days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+    return $days[$day_number - 1] ?? 'نامعلوم';
 }
 
 // بررسی نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-$years = [];
 $work_months = [];
 $partners = [];
 $work_details = [];
 $products = [];
 
-// دریافت سال‌ها
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
-$current_year = date('Y');
-$selected_year = $_GET['year'] ?? 'all';
+// دریافت سال جاری شمسی
+$current_persian_year = get_persian_current_year();
 
-if ($selected_year && $selected_year != 'all') {
-    $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-    $stmt_months->execute([$selected_year]);
-    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
-}
+// دریافت ماه‌های کاری برای سال جاری
+$stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
+$stmt_months->execute([jalaali_to_gregorian($current_persian_year, 1, 1)[0]]);
+$work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['user_id'] ?? 'all';
 $selected_work_day_id = $_GET['work_day_id'] ?? 'all';
 
-if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
-    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
-    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// دریافت همکاران
+// دریافت همکاران (کامل برای ادمین، محدود برای غیرادمین)
 if ($is_admin) {
     $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
     $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
@@ -68,10 +52,10 @@ if ($is_admin) {
         SELECT DISTINCT u.user_id, u.full_name 
         FROM Partners p
         JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
-        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.user_id != ? AND u.role = 'seller'
+        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.role = 'seller'
         ORDER BY u.full_name
     ");
-    $partners_query->execute([$current_user_id, $current_user_id, $current_user_id]);
+    $partners_query->execute([$current_user_id, $current_user_id]);
     $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -119,7 +103,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
                 $adjusted_day_number = ($day_number_php + 5) % 7;
                 if ($adjusted_day_number == 0) $adjusted_day_number = 7;
 
-                if ($partner['stored_day_number'] == $adjusted_day_number) {
+                if ($partner['stored_day_number'] == $adjusted_day_number && (!$selected_partner_id || $selected_partner_id == 'all' || $partner['user_id1'] == $selected_partner_id || $partner['user_id2'] == $selected_partner_id)) {
                     $detail_query = $pdo->prepare("
                         SELECT * FROM Work_Details 
                         WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
@@ -163,11 +147,6 @@ if (!$is_admin) {
     )";
     $params[] = $current_user_id;
     $params[] = $current_user_id;
-}
-
-if ($selected_year && $selected_year != 'all') {
-    $conditions[] = "YEAR(wd.work_date) = ?";
-    $params[] = $selected_year;
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
@@ -214,16 +193,6 @@ foreach ($products as $product) {
     <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?> تومان</p>
 
     <form method="GET" class="row g-3 mb-3">
-        <div class="col-auto">
-            <select name="year" class="form-select" onchange="this.form.submit()">
-                <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
-                <?php foreach ($years as $year): ?>
-                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                        <?= gregorian_year_to_jalali($year) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
         <div class="col-auto">
             <select name="work_month_id" class="form-select" onchange="this.form.submit()">
                 <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
