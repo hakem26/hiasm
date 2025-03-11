@@ -14,14 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $end_date = trim($_POST['end_date']);
 
     // دیباگ: چاپ مقادیر دریافت‌شده
-    // echo "Start Date: $start_date<br>End Date: $end_date<br>"; exit;
+    echo "Start Date Raw: $start_date<br>End Date Raw: $end_date<br>"; exit;
 
-    // نرمالایز کردن فرمت تاریخ به YYYY/MM/DD
-    $start_date_parts = explode('/', $start_date);
-    $end_date_parts = explode('/', $end_date);
+    // نرمالایز کردن فرمت تاریخ به YYYY/MM/DD با پشتیبانی از جداکننده‌های مختلف
+    $start_date_parts = preg_split('/[-\/]/', $start_date); // جداکننده - یا /
+    $end_date_parts = preg_split('/[-\/]/', $end_date);
 
     if (count($start_date_parts) !== 3 || count($end_date_parts) !== 3) {
-        die("فرمت تاریخ نامعتبر است! از فرمت YYYY/MM/DD استفاده کنید.");
+        die("فرمت تاریخ نامعتبر است! از فرمت YYYY/MM/DD یا YYYY-MM-DD استفاده کنید.");
     }
 
     $jy_start = str_pad($start_date_parts[0], 4, '0', STR_PAD_LEFT);
