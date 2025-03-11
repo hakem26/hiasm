@@ -119,7 +119,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="work_details.php">
-                    <i class="fas fa-list"></i>
+                    <i class="fas fa-info-circle"></i>
                     <span>اطلاعات کار</span>
                 </a>
             </li>
