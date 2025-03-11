@@ -92,16 +92,24 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="products.php">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#productsSubmenu" aria-expanded="false">
                     <i class="fas fa-box"></i>
                     <span>محصولات</span>
                 </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="product_summary.php">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>تجمیع محصولات</span>
-                </a>
+                <ul class="collapse list-unstyled" id="productsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="products.php">
+                            <i class="fas fa-list"></i>
+                            <span>لیست</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="product_summary.php">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>تجمیع</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="orders.php">
