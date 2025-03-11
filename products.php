@@ -184,9 +184,18 @@ if (!empty($products)) {
     <?php endif; ?>
 </div>
 
-<!-- اسکریپت Datepicker -->
+<!-- اسکریپت‌ها -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> <!-- اضافه کردن Bootstrap JS -->
+<script src="assets/js/persian-datepicker.min.js"></script>
 <script>
     $(document).ready(function() {
+        // دیباگ برای چک کردن کلیک دکمه
+        $('[data-bs-toggle="modal"]').on('click', function() {
+            console.log('دکمه کلیک شد برای مودال: ', $(this).data('bs-target'));
+        });
+
+        // فعال‌سازی Datepicker
         $('.persian-date').persianDatepicker({
             format: 'YYYY/MM/DD',
             autoClose: true,
