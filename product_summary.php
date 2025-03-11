@@ -16,6 +16,12 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
+// تابع تبدیل سال میلادی به سال شمسی
+function gregorian_year_to_jalali($gregorian_year) {
+    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
+    return $jy;
+}
+
 // تعریف تابع number_to_day
 function number_to_day($day_number) {
     $days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
@@ -26,17 +32,24 @@ function number_to_day($day_number) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
+$years = [];
 $work_months = [];
 $partners = [];
 $work_details = [];
 $products = [];
 
-// دریافت سال جاری شمسی
-$current_persian_year = get_persian_current_year();
+// دریافت سال‌ها
+$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
+$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$years = array_column($years_db, 'year');
 
-// دریافت ماه‌های کاری برای سال جاری
+// تنظیم سال پیش‌فرض به سال جاری شمسی
+$current_persian_year = get_persian_current_year();
+$selected_year = $_GET['year'] ?? $current_persian_year;
+
+// دریافت ماه‌های کاری برای سال انتخاب‌شده
 $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-$stmt_months->execute([jalali_to_gregorian($current_persian_year, 1, 1)[0]]); // اصلاح اسم تابع
+$stmt_months->execute([jalali_to_gregorian($selected_year, 1, 1)[0]]);
 $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
 $selected_work_month_id = $_GET['work_month_id'] ?? 'all';
@@ -149,6 +162,11 @@ if (!$is_admin) {
     $params[] = $current_user_id;
 }
 
+if ($selected_year) {
+    $conditions[] = "YEAR(wd.work_date) = ?";
+    $params[] = jalali_to_gregorian($selected_year, 1, 1)[0];
+}
+
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
     $conditions[] = "wd.work_month_id = ?";
     $params[] = $selected_work_month_id;
@@ -193,6 +211,15 @@ foreach ($products as $product) {
     <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?> تومان</p>
 
     <form method="GET" class="row g-3 mb-3">
+        <div class="col-auto">
+            <select name="year" class="form-select" onchange="this.form.submit()">
+                <?php foreach ($years as $year): ?>
+                    <option value="<?= gregorian_year_to_jalali($year) ?>" <?= $selected_year == gregorian_year_to_jalali($year) ? 'selected' : '' ?>>
+                        <?= gregorian_year_to_jalali($year) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
         <div class="col-auto">
             <select name="work_month_id" class="form-select" onchange="this.form.submit()">
                 <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
