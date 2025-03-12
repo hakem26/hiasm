@@ -129,47 +129,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 <!-- اسکریپت‌ها -->
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // دیباگ: چک کردن لود شدن jQuery و Persian Datepicker
+        console.log('jQuery لود شده:', typeof $ !== 'undefined');
+        console.log('Persian Datepicker لود شده:', typeof $.fn.persianDatepicker !== 'undefined');
+
         // Datepicker برای تاریخ شروع
-        document.querySelectorAll('.persian-date:not(.optional-date)').forEach(input => {
-            $(input).persianDatepicker({
-                format: 'YYYY/MM/DD',
-                autoClose: true,
-                calendar: {
-                    persian: {
-                        locale: 'fa',
-                        digits: true
+        const startDateInputs = document.querySelectorAll('.persian-date:not(.optional-date)');
+        startDateInputs.forEach(input => {
+            if (typeof $.fn.persianDatepicker !== 'undefined') {
+                $(input).persianDatepicker({
+                    format: 'YYYY/MM/DD',
+                    autoClose: true,
+                    calendar: {
+                        persian: {
+                            locale: 'fa',
+                            digits: true
+                        }
                     }
-                }
-            });
+                });
+                console.log('Datepicker برای تاریخ شروع فعال شد برای ID:', input.id);
+            } else {
+                console.error('Persian Datepicker برای تاریخ شروع لود نشده است!');
+            }
         });
 
         // Datepicker برای تاریخ پایان
-        document.querySelectorAll('.optional-date').forEach(input => {
-            $(input).persianDatepicker({
-                format: 'YYYY/MM/DD',
-                autoClose: true,
-                calendar: {
-                    persian: {
-                        locale: 'fa',
-                        digits: true
+        const endDateInputs = document.querySelectorAll('.optional-date');
+        endDateInputs.forEach(input => {
+            if (typeof $.fn.persianDatepicker !== 'undefined') {
+                $(input).persianDatepicker({
+                    format: 'YYYY/MM/DD',
+                    autoClose: true,
+                    calendar: {
+                        persian: {
+                            locale: 'fa',
+                            digits: true
+                        }
+                    },
+                    initialValue: false,
+                    onSelect: function(unix) {
+                        console.log('تاریخ پایان انتخاب شد: ', unix);
+                    },
+                    onHide: function() {
+                        if (!this.getState().selectedUnix) {
+                            $(this.$input).val('');
+                        }
                     }
-                },
-                initialValue: false,
-                onSelect: function(unix) {
-                    console.log('تاریخ پایان انتخاب شد: ', unix);
-                },
-                onHide: function() {
-                    if (!this.getState().selectedUnix) {
-                        $(this.$input).val('');
-                    }
-                }
-            });
+                });
+                console.log('Datepicker برای تاریخ پایان فعال شد برای ID:', input.id);
+            } else {
+                console.error('Persian Datepicker برای تاریخ پایان لود نشده است!');
+            }
         });
 
         // مدیریت چک‌باکس "روز جاری"
         function updateCurrentDay() {
             const today = '<?php echo get_today_jalali(); ?>';
-            document.querySelectorAll('.optional-date').forEach(endDate => {
+            endDateInputs.forEach(endDate => {
                 const $endDate = $(endDate);
                 const $checkbox = $('#is_current_day');
                 console.log('چک‌باکس وضعیت:', $checkbox.is(':checked'), 'برای فیلد:', $endDate.attr('id'));
