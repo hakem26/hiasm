@@ -16,6 +16,12 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
+// تابع دریافت تاریخ امروز به‌صورت شمسی
+function get_today_jalali() {
+    $jdf = new jdf();
+    return $jdf->jdate('Y/m/d', '', '', '', 'en');
+}
+
 // چک کردن نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
 
@@ -47,6 +53,7 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_pric
     $start_date = trim($_POST['start_date']);
     $end_date = trim($_POST['end_date']);
     $unit_price = trim($_POST['unit_price']);
+    $is_current_day = isset($_POST['is_current_day']) ? 1 : 0;
 
     // تبدیل تاریخ شمسی به میلادی
     list($jy, $jm, $jd) = explode('/', $start_date);
@@ -58,7 +65,7 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_pric
         list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
         $end_gregorian = "$gy-$gm-$gd";
     } else {
-        $end_gregorian = NULL; // برای بازه جاری
+        $end_gregorian = NULL; // برای بازه جاری یا وقتی چک‌باکس انتخاب نشده
     }
 
     if (!empty($unit_price) && is_numeric($unit_price)) {
@@ -172,6 +179,10 @@ if (!empty($products)) {
                                                     <input type="text" class="form-control persian-date" id="start_date_<?= $product['product_id'] ?>" name="start_date" required>
                                                 </div>
                                                 <div class="mb-3">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" id="is_current_day_<?= $product['product_id'] ?>" name="is_current_day" value="1">
+                                                        <label class="form-check-label" for="is_current_day_<?= $product['product_id'] ?>">روز جاری</label>
+                                                    </div>
                                                     <label for="end_date_<?= $product['product_id'] ?>" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>
                                                     <input type="text" class="form-control persian-date optional-date" id="end_date_<?= $product['product_id'] ?>" name="end_date">
                                                 </div>
@@ -244,7 +255,7 @@ if (!empty($products)) {
             $('.modal').removeClass('show');
         });
 
-        // فعال‌سازی Datepicker
+        // فعال‌سازی Datepicker برای تاریخ شروع
         $('.persian-date').persianDatepicker({
             format: 'YYYY/MM/DD',
             autoClose: true,
@@ -256,7 +267,7 @@ if (!empty($products)) {
             }
         });
 
-        // تنظیم فیلد اختیاری (تاریخ پایان) برای خالی بودن پیش‌فرض و امکان پاک کردن
+        // فعال‌سازی Datepicker برای تاریخ پایان با تنظیمات اختیاری
         $('.optional-date').persianDatepicker({
             format: 'YYYY/MM/DD',
             autoClose: true,
@@ -268,23 +279,38 @@ if (!empty($products)) {
             },
             initialValue: false, // بدون مقدار پیش‌فرض
             onSelect: function(unix) {
-                // در صورت انتخاب تاریخ
                 console.log('تاریخ انتخاب شد: ', unix);
             },
             onHide: function() {
-                // اجازه دادن به خالی شدن
                 if (!this.getState().selectedUnix) {
                     $(this.$input).val('');
                 }
             }
         });
 
-        // چک کردن لود شدن Bootstrap
-        if (typeof bootstrap === 'undefined') {
-            console.error('کتابخونه Bootstrap لود نشده است!');
-        } else {
-            console.log('کتابخونه Bootstrap با موفقیت لود شده است.');
+        // مدیریت چک‌باکس "روز جاری"
+        function updateCurrentDay() {
+            const today = '<?php echo get_today_jalali(); ?>';
+            $('.optional-date').each(function() {
+                const $endDate = $(this);
+                const $checkbox = $('#' + $endDate.attr('id').replace('end_date', 'is_current_day'));
+                if ($checkbox.is(':checked')) {
+                    $endDate.val(today).trigger('change');
+                    $endDate.prop('readonly', true); // غیرفعال کردن ویرایش
+                } else {
+                    $endDate.val('').trigger('change');
+                    $endDate.prop('readonly', false); // فعال کردن ویرایش
+                }
+            });
         }
+
+        // اجرا وقتی صفحه لود میشه
+        updateCurrentDay();
+
+        // اجرا وقتی چک‌باکس تغییر می‌کنه
+        $('input[name="is_current_day"]').on('change', function() {
+            updateCurrentDay();
+        });
     });
 </script>
 
