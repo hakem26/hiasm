@@ -184,33 +184,4 @@ if (!empty($products)) {
     <?php endif; ?>
 </div>
 
-<!-- اسکریپت‌ها -->
-<script>
-    $(document).ready(function() {
-        // دیباگ پیشرفته
-        $('.open-modal').on('click', function() {
-            const modalId = $(this).data('bs-target');
-            console.log('دکمه کلیک شد برای مودال: ', modalId);
-            // چک کردن وجود مودال
-            if ($(modalId).length) {
-                console.log('مودال با شناسه ', modalId, ' وجود دارد.');
-            } else {
-                console.error('مودال با شناسه ', modalId, ' یافت نشد!');
-            }
-        });
-
-        // فعال‌سازی Datepicker
-        $('.persian-date').persianDatepicker({
-            format: 'YYYY/MM/DD',
-            autoClose: true,
-            calendar: {
-                persian: {
-                    locale: 'fa',
-                    digits: true
-                }
-            }
-        });
-    });
-</script>
-
 <?php require_once 'footer.php'; ?>
