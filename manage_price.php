@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="card-title">مدیریت قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
+        <!-- <h5 class="card-title">مدیریت قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5> -->
         <a href="products.php" class="btn btn-secondary">بازگشت به لیست محصولات</a>
     </div>
 
