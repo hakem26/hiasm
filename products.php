@@ -177,7 +177,7 @@ if (!empty($products)) {
                                                 </div>
                                                 <div class="mb-3">
                                                     <div class="form-check">
-                                                        <input type="checkbox" class="form-check-input" id="is_current_day_<?= $product['product_id'] ?>" name="is_current_day" value="1">
+                                                        <input type="checkbox" class="form-check-input" id="is_current_day_<?= $product['product_id'] ?>" name="is_current_day" value="1" checked>
                                                         <label class="form-check-label" for="is_current_day_<?= $product['product_id'] ?>">روز جاری</label>
                                                     </div>
                                                     <label for="end_date_<?= $product['product_id'] ?>" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>

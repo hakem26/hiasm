@@ -77,7 +77,7 @@
             }
         });
 
-        // مدیریت چک‌باکس "روز جاری"
+        // مدیریت چک‌باکس "روز جاری" با فعال/غیرفعال کردن فیلد
         function updateCurrentDay() {
             const today = '<?php echo get_today_jalali(); ?>';
             $('.optional-date').each(function() {
@@ -85,10 +85,12 @@
                 const $checkbox = $('#' + $endDate.attr('id').replace('end_date', 'is_current_day'));
                 if ($checkbox.is(':checked')) {
                     $endDate.val(today).trigger('change');
-                    $endDate.prop('readonly', true); // غیرفعال کردن ویرایش
+                    $endDate.prop('readonly', true); // غیرفعال کردن فیلد
+                    $endDate.addClass('disabled'); // استایل غیرفعال
                 } else {
                     $endDate.val('').trigger('change');
-                    $endDate.prop('readonly', false); // فعال کردن ویرایش
+                    $endDate.prop('readonly', false); // فعال کردن فیلد
+                    $endDate.removeClass('disabled'); // حذف استایل غیرفعال
                 }
             });
         }
