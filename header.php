@@ -1,4 +1,4 @@
-<?php
+<ع?php
 // [BLOCK-HEADER-001]
 session_start();
 if (!isset($_SESSION['user_id'])) {
@@ -81,9 +81,10 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
     </nav>
 
     <!-- منوی کناری -->
-    <div
+    <
         class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
         <ul class="nav flex-column">
+            <!-- همه -->
             <li class="nav-item">
                 <a class="nav-link"
                     href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
@@ -123,6 +124,33 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                     <span>اطلاعات کار</span>
                 </a>
             </li>
+            <li class="nav-item"></li>
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu" aria-expanded="false">
+                    <i class="fas fa-chart-line"></i>
+                    <span>گزارشات</span>
+                </a>
+                <ul class="collapse list-unstyled" id="reportsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="monthly_reports.php">
+                            <i class="fas fa-calendar"></i>
+                            <span>ماهانه</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="summary_reports.php">
+                            <i class="fas fa-file-alt"></i>
+                            <span>خلاصه</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="sales_reports.php"></a>
+                            <i class="fas fa-chart-pie"></i>
+                            <span>فروش</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            <!-- ادمین -->
             <?php if ($_SESSION['role'] === 'admin'): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="users.php">

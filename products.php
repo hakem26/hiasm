@@ -117,22 +117,6 @@ if (!empty($products)) {
         </form>
     <?php endif; ?>
 
-    <!-- تست مودال ثابت -->
-    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#testModal">باز کردن مودال تست</button>
-    <div class="modal fade" id="testModal" tabindex="-1" aria-labelledby="testModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="testModalLabel">تست مودال</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    این یه تست موداله!
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- جدول نمایش محصولات -->
     <?php if (!empty($products)): ?>
         <div style="overflow-x: auto;">
@@ -226,9 +210,6 @@ if (!empty($products)) {
 </div>
 
 <!-- اسکریپت‌ها (به‌صورت دستی توی این صفحه) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/js/persian-datepicker.min.js"></script>
 <script>
     $(document).ready(function() {
         // مدیریت باز کردن مودال
