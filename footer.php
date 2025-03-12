@@ -1,10 +1,5 @@
-<?php
-// [BLOCK-FOOTER-001]
-?>
 </div>
-<!-- پایان محتوای اصلی -->
-</div>
-<!-- پایان layout-container -->
+<!-- پایان main-container -->
 
 <!-- Bootstrap RTL JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
