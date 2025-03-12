@@ -173,7 +173,7 @@ if (!empty($products)) {
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="end_date_<?= $product['product_id'] ?>" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>
-                                                    <input type="text" class="form-control persian-date" id="end_date_<?= $product['product_id'] ?>" name="end_date">
+                                                    <input type="text" class="form-control persian-date optional-date" id="end_date_<?= $product['product_id'] ?>" name="end_date">
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="unit_price_<?= $product['product_id'] ?>" class="form-label">قیمت واحد (تومان)</label>
@@ -215,9 +215,6 @@ if (!empty($products)) {
 </div>
 
 <!-- اسکریپت‌ها (به‌صورت دستی توی این صفحه) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/js/persian-datepicker.min.js"></script>
 <script>
     $(document).ready(function() {
         // مدیریت باز کردن مودال
@@ -252,6 +249,29 @@ if (!empty($products)) {
                 persian: {
                     locale: 'fa',
                     digits: true
+                }
+            }
+        });
+
+        // تنظیم فیلد اختیاری (تاریخ پایان) برای خالی بودن پیش‌فرض و امکان پاک کردن
+        $('.optional-date').persianDatepicker({
+            format: 'YYYY/MM/DD',
+            autoClose: true,
+            calendar: {
+                persian: {
+                    locale: 'fa',
+                    digits: true
+                }
+            },
+            initialValue: false, // بدون مقدار پیش‌فرض
+            onSelect: function(unix) {
+                // در صورت انتخاب تاریخ
+                console.log('تاریخ انتخاب شد: ', unix);
+            },
+            onHide: function() {
+                // اجازه دادن به خالی شدن
+                if (!this.getState().selectedUnix) {
+                    $(this.$input).val('');
                 }
             }
         });
