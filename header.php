@@ -22,6 +22,8 @@ $page_name = $page_name === 'users' ? 'کاربران' : $page_name;
 $page_name = $page_name === 'partners' ? 'همکاران' : $page_name;
 $page_name = $page_name === 'work_months' ? 'ماه کاری' : $page_name;
 $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_name;
+$page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
+
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
