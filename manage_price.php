@@ -101,13 +101,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
         <input type="hidden" name="product_id" value="<?= $product_id ?>">
         <div class="mb-3">
             <label for="start_date" class="form-label">تاریخ شروع (شمسی)</label>
-            <input type="text" class="form-control range-from-example" id="start_date" name="start_date" required>
-            <input type="hidden" class="range-from-example-alt">
+            <input type="text" class="form-control datepicker" id="start_date" name="start_date" required>
+            <input type="hidden" class="start-date-alt">
         </div>
         <div class="mb-3">
             <label for="end_date" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>
-            <input type="text" class="form-control range-to-example" id="end_date" name="end_date" value="">
-            <input type="hidden" class="range-to-example-alt">
+            <input type="text" class="form-control datepicker" id="end_date" name="end_date" value="">
+            <input type="hidden" class="end-date-alt">
         </div>
         <div class="mb-3">
             <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
@@ -151,30 +151,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
         }
         console.log('jQuery و Persian Datepicker لود شدند.');
 
-        // تعریف متغیرها برای دیت‌پیکر
-        var to, from;
-
-        // تنظیم دیت‌پیکر برای تاریخ پایان
-        to = $(".range-to-example").persianDatepicker({
-            inline: false, // تغییر به false برای نمایش عادی (نه داخل صفحه)
-            altField: '.range-to-example-alt',
-            altFormat: 'YYYY/MM/DD', // تغییر به فرمت ساده‌تر
+        // تنظیم دیت‌پیکر برای تاریخ شروع
+        $("#start_date").persianDatepicker({
+            format: 'YYYY/MM/DD',
+            altField: '.start-date-alt',
+            altFormat: 'dddd D MMMM YYYY HH:mm a', // فرمت: چهار شنبه ۲۲ اسفند ۱۴۰۳ ۱۷:۰۰ ب ظ
+            autoClose: true,
             initialValue: false,
-            onSelect: function (unix) {
-                to.touched = true;
-                console.log('تاریخ پایان انتخاب شد: ' + this.getState().selectedDate.format('YYYY/MM/DD'));
+            calendar: {
+                persian: {
+                    locale: 'fa',
+                    digits: true
+                }
+            },
+            onSelect: function(unix) {
+                var altValue = $(this.altField).val(); // گرفتن مقدار از altField
+                console.log('تاریخ شروع انتخاب شد: ' + altValue);
             }
         });
 
-        // تنظیم دیت‌پیکر برای تاریخ شروع
-        from = $(".range-from-example").persianDatepicker({
-            inline: false, // تغییر به false برای نمایش عادی
-            altField: '.range-from-example-alt',
-            altFormat: 'YYYY/MM/DD', // تغییر به فرمت ساده‌تر
+        // تنظیم دیت‌پیکر برای تاریخ پایان
+        $("#end_date").persianDatepicker({
+            format: 'YYYY/MM/DD',
+            altField: '.end-date-alt',
+            altFormat: 'dddd D MMMM YYYY HH:mm a', // فرمت: چهار شنبه ۲۲ اسفند ۱۴۰۳ ۱۷:۰۰ ب ظ
+            autoClose: true,
             initialValue: false,
-            onSelect: function (unix) {
-                from.touched = true;
-                console.log('تاریخ شروع انتخاب شد: ' + this.getState().selectedDate.format('YYYY/MM/DD'));
+            calendar: {
+                persian: {
+                    locale: 'fa',
+                    digits: true
+                }
+            },
+            onSelect: function(unix) {
+                var altValue = $(this.altField).val(); // گرفتن مقدار از altField
+                console.log('تاریخ پایان انتخاب شد: ' + altValue);
             }
         });
 
