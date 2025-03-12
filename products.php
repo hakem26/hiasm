@@ -120,7 +120,7 @@ if (!empty($products)) {
                                 <td>
                                     <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
                                     <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
-                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#priceModal<?= $product['product_id'] ?>">مدیریت قیمت</button>
+                                    <button type="button" class="btn btn-info btn-sm open-modal" data-bs-toggle="modal" data-bs-target="#priceModal<?= $product['product_id'] ?>" data-product-id="<?= $product['product_id'] ?>">مدیریت قیمت</button>
                                 </td>
                             <?php endif; ?>
                         </tr>
@@ -185,11 +185,21 @@ if (!empty($products)) {
 </div>
 
 <!-- اسکریپت‌ها -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> <!-- استفاده از نسخه 5.3.3 -->
+<script src="assets/js/persian-datepicker.min.js"></script>
 <script>
     $(document).ready(function() {
-        // دیباگ برای چک کردن کلیک دکمه
-        $('[data-bs-toggle="modal"]').on('click', function() {
-            console.log('دکمه کلیک شد برای مودال: ', $(this).data('bs-target'));
+        // دیباگ پیشرفته
+        $('.open-modal').on('click', function() {
+            const modalId = $(this).data('bs-target');
+            console.log('دکمه کلیک شد برای مودال: ', modalId);
+            // چک کردن وجود مودال
+            if ($(modalId).length) {
+                console.log('مودال با شناسه ', modalId, ' وجود دارد.');
+            } else {
+                console.error('مودال با شناسه ', modalId, ' یافت نشد!');
+            }
         });
 
         // فعال‌سازی Datepicker
