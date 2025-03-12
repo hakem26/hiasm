@@ -296,10 +296,5 @@ if (!empty($products)) {
 </script>
 
 <?php
-// تلاش برای لود فوتر و نمایش خطا اگه مشکل داشت
-try {
-    require_once 'footer.php';
-} catch (Exception $e) {
-    echo "<!-- خطا در لود footer.php: " . $e->getMessage() . " -->";
-}
+require_once 'footer.php';
 ?>
