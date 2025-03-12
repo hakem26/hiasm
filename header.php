@@ -124,7 +124,7 @@ $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_nam
                     <span>اطلاعات کار</span>
                 </a>
             </li>
-            <li class="nav-item"></li>
+            <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu" aria-expanded="false">
                     <i class="fas fa-chart-line"></i>
                     <span>گزارشات</span>
