@@ -33,21 +33,33 @@ if (!$is_admin) {
 $product_id = isset($_GET['product_id']) && is_numeric($_GET['product_id']) ? (int)$_GET['product_id'] : null;
 if (!$product_id) {
     die("شناسه محصول نامعتبر است!");
+    // دیباگ: اگه به اینجا برسه، فوتر لود نمیشه
 }
 
 // دریافت اطلاعات محصول
-$stmt = $pdo->prepare("SELECT * FROM Products WHERE product_id = ?");
-$stmt->execute([$product_id]);
-$product = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$product) {
-    die("محصولی با این شناسه یافت نشد!");
+try {
+    $stmt = $pdo->prepare("SELECT * FROM Products WHERE product_id = ?");
+    $stmt->execute([$product_id]);
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$product) {
+        die("محصولی با این شناسه یافت نشد!");
+    }
+} catch (Exception $e) {
+    echo "<!-- خطا در کوئری محصول: " . $e->getMessage() . " -->";
+    die("خطا در بارگذاری اطلاعات محصول!");
 }
 
 // دریافت تاریخچه قیمت‌ها
 $price_history = [];
-$stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC");
-$stmt->execute([$product_id]);
-$price_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC");
+    $stmt->execute([$product_id]);
+    $price_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo "<!-- دیباگ: تعداد تاریخچه قیمت‌ها = " . count($price_history) . " -->";
+} catch (Exception $e) {
+    echo "<!-- خطا در کوئری تاریخچه قیمت‌ها: " . $e->getMessage() . " -->";
+    $price_history = [];
+}
 
 // پردازش فرم افزودن قیمت
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
@@ -66,13 +78,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
         list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
         $end_gregorian = "$gy-$gm-$gd";
     } else {
-        $end_gregorian = NULL; // برای بازه جاری یا وقتی چک‌باکس انتخاب نشده
+        $end_gregorian = NULL;
     }
 
     if (!empty($unit_price) && is_numeric($unit_price)) {
-        $stmt = $pdo->prepare("INSERT INTO Product_Price_History (product_id, start_date, end_date, unit_price) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$product_id, $start_gregorian, $end_gregorian, $unit_price]);
-        echo "<script>alert('قیمت با موفقیت اضافه شد!'); window.location.href='manage_price.php?product_id=$product_id';</script>";
+        try {
+            $stmt = $pdo->prepare("INSERT INTO Product_Price_History (product_id, start_date, end_date, unit_price) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$product_id, $start_gregorian, $end_gregorian, $unit_price]);
+            echo "<script>alert('قیمت با موفقیت اضافه شد!'); window.location.href='manage_price.php?product_id=$product_id';</script>";
+        } catch (Exception $e) {
+            echo "<script>alert('خطا در ثبت قیمت: " . $e->getMessage() . "');</script>";
+        }
     } else {
         echo "<script>alert('لطفاً قیمت را به درستی وارد کنید!');</script>";
     }
@@ -135,8 +151,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 
         // Datepicker برای تاریخ شروع
         const startDateInputs = document.querySelectorAll('.persian-date:not(.optional-date)');
-        startDateInputs.forEach(input => {
-            if (typeof $.fn.persianDatepicker !== 'undefined') {
+        if (startDateInputs.length > 0 && typeof $.fn.persianDatepicker !== 'undefined') {
+            startDateInputs.forEach(input => {
                 $(input).persianDatepicker({
                     format: 'YYYY/MM/DD',
                     autoClose: true,
@@ -148,15 +164,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                     }
                 });
                 console.log('Datepicker برای تاریخ شروع فعال شد برای ID:', input.id);
-            } else {
-                console.error('Persian Datepicker برای تاریخ شروع لود نشده است!');
-            }
-        });
+            });
+        } else {
+            console.error('Datepicker برای تاریخ شروع لود نشده یا عنصر یافت نشد!');
+        }
 
         // Datepicker برای تاریخ پایان
         const endDateInputs = document.querySelectorAll('.optional-date');
-        endDateInputs.forEach(input => {
-            if (typeof $.fn.persianDatepicker !== 'undefined') {
+        if (endDateInputs.length > 0 && typeof $.fn.persianDatepicker !== 'undefined') {
+            endDateInputs.forEach(input => {
                 $(input).persianDatepicker({
                     format: 'YYYY/MM/DD',
                     autoClose: true,
@@ -177,10 +193,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                     }
                 });
                 console.log('Datepicker برای تاریخ پایان فعال شد برای ID:', input.id);
-            } else {
-                console.error('Persian Datepicker برای تاریخ پایان لود نشده است!');
-            }
-        });
+            });
+        } else {
+            console.error('Datepicker برای تاریخ پایان لود نشده یا عنصر یافت نشد!');
+        }
 
         // مدیریت چک‌باکس "روز جاری"
         function updateCurrentDay() {
@@ -215,5 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 </script>
 
 <?php
+echo "<!-- دیباگ: قبل از لود فوتر -->";
 require_once 'footer.php';
+echo "<!-- دیباگ: بعد از لود فوتر -->";
 ?>
