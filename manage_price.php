@@ -7,6 +7,8 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
+echo "<!-- دیباگ: بعد از لود header -->";
+
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
@@ -51,7 +53,6 @@ try {
     echo "<!-- خطا در کوئری تاریخچه قیمت‌ها: " . $e->getMessage() . " -->";
 }
 
-// پردازش فرم افزودن قیمت
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
     $start_date = trim($_POST['start_date']);
     $end_date = trim($_POST['end_date']);
@@ -128,57 +129,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('صفحه لود شد، شروع دیباگ...');
+    console.log('اسکریپت شروع شد...');
 
-    // چک کردن لود شدن jQuery و Persian Datepicker
-    if (typeof $ === 'undefined') {
-        console.error('jQuery لود نشده است!');
-        return;
-    }
-    if (typeof $.fn.persianDatepicker === 'undefined') {
-        console.error('Persian Datepicker لود نشده است!');
-        return;
-    }
-    console.log('jQuery و Persian Datepicker لود شدند.');
+    window.onload = function() {
+        console.log('صفحه کامل لود شد، شروع اجرای جاوااسکریپت...');
 
-    // فعال‌سازی Datepicker برای تاریخ شروع
-    $('.datepicker').persianDatepicker({
-        format: 'YYYY/MM/DD',
-        autoClose: true,
-        calendar: {
-            persian: {
-                locale: 'fa',
-                digits: true
+        // چک کردن لود شدن jQuery و Persian Datepicker
+        if (typeof $ === 'undefined') {
+            console.error('jQuery لود نشده است!');
+            return;
+        }
+        if (typeof $.fn.persianDatepicker === 'undefined') {
+            console.error('Persian Datepicker لود نشده است!');
+            return;
+        }
+        console.log('jQuery و Persian Datepicker لود شدند.');
+
+        // فعال‌سازی Datepicker
+        $('.datepicker').each(function() {
+            $(this).persianDatepicker({
+                format: 'YYYY/MM/DD',
+                autoClose: true,
+                calendar: {
+                    persian: {
+                        locale: 'fa',
+                        digits: true
+                    }
+                }
+            });
+            console.log('Datepicker فعال شد برای ID:', this.id);
+        });
+
+        // مدیریت چک‌باکس "روز جاری"
+        function updateCurrentDay() {
+            const today = '<?php echo get_today_jalali(); ?>';
+            const $endDate = $('#end_date');
+            const $checkbox = $('#is_current_day');
+            console.log('وضعیت چک‌باکس:', $checkbox.is(':checked'));
+            if ($checkbox.is(':checked')) {
+                $endDate.val(today).prop('disabled', true).addClass('disabled');
+                console.log('فیلد تاریخ پایان غیرفعال شد با مقدار:', today);
+            } else {
+                $endDate.val('').prop('disabled', false).removeClass('disabled');
+                console.log('فیلد تاریخ پایان فعال شد');
             }
         }
-    });
-    console.log('Datepicker برای همه فیلدهای تاریخ فعال شد.');
 
-    // مدیریت چک‌باکس "روز جاری"
-    function updateCurrentDay() {
-        const today = '<?php echo get_today_jalali(); ?>';
-        const $endDate = $('#end_date');
-        const $checkbox = $('#is_current_day');
-        console.log('وضعیت چک‌باکس:', $checkbox.is(':checked'));
-        if ($checkbox.is(':checked')) {
-            $endDate.val(today).prop('disabled', true).addClass('disabled');
-            console.log('فیلد تاریخ پایان غیرفعال شد با مقدار:', today);
-        } else {
-            $endDate.val('').prop('disabled', false).removeClass('disabled');
-            console.log('فیلد تاریخ پایان فعال شد');
-        }
-    }
-
-    // اجرا وقتی صفحه لود میشه
-    updateCurrentDay();
-
-    // اجرا وقتی چک‌باکس تغییر می‌کنه
-    $('#is_current_day').on('change', () => {
-        console.log('چک‌باکس تغییر کرد');
+        // اجرا وقتی صفحه لود میشه
         updateCurrentDay();
-    });
-});
+
+        // اجرا وقتی چک‌باکس تغییر می‌کنه
+        $('#is_current_day').on('change', function() {
+            console.log('چک‌باکس تغییر کرد');
+            updateCurrentDay();
+        });
+    };
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php
+echo "<!-- دیباگ: قبل از لود فوتر -->";
+require_once 'footer.php';
+echo "<!-- دیباگ: بعد از لود فوتر -->";
+?>
