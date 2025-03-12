@@ -2,9 +2,7 @@
 <!-- پایان main-container -->
 
 <!-- Bootstrap RTL JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script>
     // اطمینان از لود شدن بوت‌استرپ و فعال‌سازی دراپ‌داون‌ها
     document.addEventListener('DOMContentLoaded', () => {
@@ -17,8 +15,7 @@
             console.error('Bootstrap Dropdown is not available.');
         }
     });
-</script>
-<script>
+
     $(document).ready(function() {
         // مدیریت باز کردن مودال
         $('.open-modal').on('click', function() {
@@ -85,11 +82,11 @@
                 const $checkbox = $('#' + $endDate.attr('id').replace('end_date', 'is_current_day'));
                 if ($checkbox.is(':checked')) {
                     $endDate.val(today).trigger('change');
-                    $endDate.prop('readonly', true); // غیرفعال کردن فیلد
+                    $endDate.prop('disabled', true); // غیرفعال کردن فیلد
                     $endDate.addClass('disabled'); // استایل غیرفعال
                 } else {
                     $endDate.val('').trigger('change');
-                    $endDate.prop('readonly', false); // فعال کردن فیلد
+                    $endDate.prop('disabled', false); // فعال کردن فیلد
                     $endDate.removeClass('disabled'); // حذف استایل غیرفعال
                 }
             });
@@ -105,5 +102,4 @@
     });
 </script>
 </body>
-
 </html>
