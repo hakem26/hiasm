@@ -10,14 +10,16 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
 // تابع دریافت تاریخ امروز به‌صورت شمسی
-function get_today_jalali() {
+function get_today_jalali()
+{
     $jdf = new jdf();
     return $jdf->jdate('Y/m/d', '', '', '', 'en');
 }
@@ -41,7 +43,7 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_prod
 
 // پردازش حذف محصول (فقط برای ادمین)
 if ($is_admin && isset($_GET['delete']) && is_numeric($_GET['delete'])) {
-    $product_id = (int)$_GET['delete'];
+    $product_id = (int) $_GET['delete'];
     $stmt = $pdo->prepare("DELETE FROM Products WHERE product_id = ?");
     $stmt->execute([$product_id]);
     echo "<script>alert('محصول با موفقیت حذف شد!'); window.location.href='products.php';</script>";
@@ -49,7 +51,7 @@ if ($is_admin && isset($_GET['delete']) && is_numeric($_GET['delete'])) {
 
 // پردازش افزودن یا ویرایش قیمت (فقط برای ادمین)
 if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
-    $product_id = (int)$_POST['product_id'];
+    $product_id = (int) $_POST['product_id'];
     $start_date = trim($_POST['start_date']);
     $end_date = trim($_POST['end_date']);
     $unit_price = trim($_POST['unit_price']);
@@ -109,7 +111,8 @@ if (!empty($products)) {
                 <input type="text" class="form-control" name="product_name" placeholder="نام محصول" required>
             </div>
             <div class="col-auto">
-                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01" required>
+                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01"
+                    required>
             </div>
             <div class="col-auto">
                 <button type="submit" name="add_product" class="btn btn-primary">افزودن محصول</button>
@@ -139,40 +142,57 @@ if (!empty($products)) {
                             <td><?= number_format($product['unit_price'], 0, '', ',') ?></td>
                             <?php if ($is_admin): ?>
                                 <td>
-                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
-                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
-                                    <button type="button" class="btn btn-info btn-sm open-modal" data-bs-toggle="modal" data-bs-target="#priceModal<?= $product['product_id'] ?>" data-product-id="<?= $product['product_id'] ?>">مدیریت قیمت</button>
+                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>"
+                                        class="btn btn-warning btn-sm">ویرایش</a>
+                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
+                                    <button type="button" class="btn btn-info btn-sm open-modal" data-bs-toggle="modal"
+                                        data-bs-target="#priceModal<?= $product['product_id'] ?>"
+                                        data-product-id="<?= $product['product_id'] ?>">مدیریت قیمت</button>
                                 </td>
                             <?php endif; ?>
                         </tr>
 
                         <!-- مودال مدیریت قیمت -->
                         <?php if ($is_admin): ?>
-                            <div class="modal fade" id="priceModal<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel<?= $product['product_id'] ?>" aria-hidden="true">
+                            <div class="modal fade" id="priceModal<?= $product['product_id'] ?>" tabindex="-1"
+                                aria-labelledby="priceModalLabel<?= $product['product_id'] ?>" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content bg-light">
                                         <div class="modal-header">
-                                            <h5 class="modal-title" id="priceModalLabel<?= $product['product_id'] ?>">مدیریت قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            <h5 class="modal-title" id="priceModalLabel<?= $product['product_id'] ?>">مدیریت قیمت
+                                                برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
                                         </div>
                                         <div class="modal-body">
                                             <form method="POST" action="">
                                                 <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                                 <div class="mb-3">
-                                                    <label for="start_date_<?= $product['product_id'] ?>" class="form-label">تاریخ شروع (شمسی)</label>
-                                                    <input type="text" class="form-control persian-date" id="start_date_<?= $product['product_id'] ?>" name="start_date" required>
+                                                    <label for="start_date_<?= $product['product_id'] ?>" class="form-label">تاریخ
+                                                        شروع (شمسی)</label>
+                                                    <input type="text" class="form-control persian-date"
+                                                        id="start_date_<?= $product['product_id'] ?>" name="start_date" required>
                                                 </div>
                                                 <div class="mb-3">
                                                     <div class="form-check">
-                                                        <input type="checkbox" class="form-check-input" id="is_current_day_<?= $product['product_id'] ?>" name="is_current_day" value="1">
-                                                        <label class="form-check-label" for="is_current_day_<?= $product['product_id'] ?>">روز جاری</label>
+                                                        <input type="checkbox" class="form-check-input"
+                                                            id="is_current_day_<?= $product['product_id'] ?>" name="is_current_day"
+                                                            value="1">
+                                                        <label class="form-check-label"
+                                                            for="is_current_day_<?= $product['product_id'] ?>">روز جاری</label>
                                                     </div>
-                                                    <label for="end_date_<?= $product['product_id'] ?>" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>
-                                                    <input type="text" class="form-control persian-date optional-date" id="end_date_<?= $product['product_id'] ?>" name="end_date">
+                                                    <label for="end_date_<?= $product['product_id'] ?>" class="form-label">تاریخ
+                                                        پایان (شمسی) (اختیاری)</label>
+                                                    <input type="text" class="form-control persian-date optional-date"
+                                                        id="end_date_<?= $product['product_id'] ?>" name="end_date">
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label for="unit_price_<?= $product['product_id'] ?>" class="form-label">قیمت واحد (تومان)</label>
-                                                    <input type="number" class="form-control" id="unit_price_<?= $product['product_id'] ?>" name="unit_price" step="0.01" required>
+                                                    <label for="unit_price_<?= $product['product_id'] ?>" class="form-label">قیمت
+                                                        واحد (تومان)</label>
+                                                    <input type="number" class="form-control"
+                                                        id="unit_price_<?= $product['product_id'] ?>" name="unit_price" step="0.01"
+                                                        required>
                                                 </div>
                                                 <button type="submit" name="add_price" class="btn btn-primary">ثبت قیمت</button>
                                             </form>
@@ -211,9 +231,9 @@ if (!empty($products)) {
 
 <!-- اسکریپت‌ها (به‌صورت دستی توی این صفحه) -->
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         // مدیریت باز کردن مودال
-        $('.open-modal').on('click', function() {
+        $('.open-modal').on('click', function () {
             const modalId = $(this).data('bs-target');
             console.log('دکمه کلیک شد برای مودال: ', modalId);
             if ($(modalId).length) {
@@ -229,7 +249,7 @@ if (!empty($products)) {
         });
 
         // مدیریت بستن مودال و پاکسازی backdrop
-        $('.modal').on('hidden.bs.modal', function() {
+        $('.modal').on('hidden.bs.modal', function () {
             console.log('مودال بسته شد، پاکسازی backdrop...');
             $('.modal-backdrop').remove();
             $('body').removeClass('modal-open');
@@ -259,10 +279,10 @@ if (!empty($products)) {
                 }
             },
             initialValue: false, // بدون مقدار پیش‌فرض
-            onSelect: function(unix) {
+            onSelect: function (unix) {
                 console.log('تاریخ انتخاب شد: ', unix);
             },
-            onHide: function() {
+            onHide: function () {
                 if (!this.getState().selectedUnix) {
                     $(this.$input).val('');
                 }
@@ -272,7 +292,7 @@ if (!empty($products)) {
         // مدیریت چک‌باکس "روز جاری"
         function updateCurrentDay() {
             const today = '<?php echo get_today_jalali(); ?>';
-            $('.optional-date').each(function() {
+            $('.optional-date').each(function () {
                 const $endDate = $(this);
                 const $checkbox = $('#' + $endDate.attr('id').replace('end_date', 'is_current_day'));
                 if ($checkbox.is(':checked')) {
@@ -289,12 +309,10 @@ if (!empty($products)) {
         updateCurrentDay();
 
         // اجرا وقتی چک‌باکس تغییر می‌کنه
-        $('input[name="is_current_day"]').on('change', function() {
+        $('input[name="is_current_day"]').on('change', function () {
             updateCurrentDay();
         });
     });
 </script>
 
-<?php
-require_once 'footer.php';
-?>
+<?php require_once 'footer.php'; ?>
