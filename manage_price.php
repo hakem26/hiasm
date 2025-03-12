@@ -6,6 +6,7 @@ error_reporting(E_ALL);
 
 // لود هدر و فایل‌های مورد نیاز
 require_once 'header.php';
+require_once 'db.php';
 
 echo "<!-- دیباگ: بعد از لود header -->";
 ?>
