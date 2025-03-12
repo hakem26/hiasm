@@ -224,6 +224,115 @@ if (!empty($products)) {
     <?php endif; ?>
 </div>
 
+<!-- اسکریپت‌ها -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // مدیریت باز کردن مودال
+        document.querySelectorAll('.open-modal').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const modalId = button.getAttribute('data-bs-target');
+                console.log('دکمه کلیک شد برای مودال: ', modalId);
+                if (document.querySelector(modalId)) {
+                    console.log('مودال با شناسه ', modalId, ' وجود دارد و باید باز شود.');
+                    const modal = new bootstrap.Modal(document.querySelector(modalId), {
+                        backdrop: true,
+                        keyboard: true
+                    });
+                    modal.show();
+
+                    // فعال‌سازی Datepicker بعد از باز شدن مودال
+                    document.querySelector(modalId).addEventListener('shown.bs.modal', () => {
+                        console.log('مودال باز شد، فعال‌سازی Datepicker...');
+
+                        // Datepicker برای تاریخ شروع
+                        document.querySelectorAll(`${modalId} .persian-date:not(.optional-date)`).forEach(input => {
+                            $(input).persianDatepicker({
+                                format: 'YYYY/MM/DD',
+                                autoClose: true,
+                                calendar: {
+                                    persian: {
+                                        locale: 'fa',
+                                        digits: true
+                                    }
+                                }
+                            });
+                        });
+                        console.log('Datepicker برای تاریخ شروع فعال شد');
+
+                        // Datepicker برای تاریخ پایان
+                        document.querySelectorAll(`${modalId} .optional-date`).forEach(input => {
+                            $(input).persianDatepicker({
+                                format: 'YYYY/MM/DD',
+                                autoClose: true,
+                                calendar: {
+                                    persian: {
+                                        locale: 'fa',
+                                        digits: true
+                                    }
+                                },
+                                initialValue: false,
+                                onSelect: function(unix) {
+                                    console.log('تاریخ پایان انتخاب شد: ', unix);
+                                },
+                                onHide: function() {
+                                    if (!this.getState().selectedUnix) {
+                                        $(this.$input).val('');
+                                    }
+                                }
+                            });
+                        });
+                        console.log('Datepicker برای تاریخ پایان فعال شد');
+
+                        // مدیریت چک‌باکس "روز جاری"
+                        updateCurrentDay();
+                    });
+                } else {
+                    console.error('مودال با شناسه ', modalId, ' یافت نشد!');
+                }
+            });
+        });
+
+        // مدیریت بستن مودال و پاکسازی backdrop
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('hidden.bs.modal', () => {
+                console.log('مودال بسته شد، پاکسازی backdrop...');
+                document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                modal.classList.remove('show');
+            });
+        });
+
+        // تابع مدیریت چک‌باکس "روز جاری"
+        function updateCurrentDay() {
+            const today = '<?php echo get_today_jalali(); ?>';
+            document.querySelectorAll('.optional-date').forEach(endDate => {
+                const $endDate = $(endDate);
+                const $checkbox = $('#' + $endDate.attr('id').replace('end_date', 'is_current_day'));
+                console.log('چک‌باکس وضعیت:', $checkbox.is(':checked'), 'برای فیلد:', $endDate.attr('id'));
+                if ($checkbox.is(':checked')) {
+                    $endDate.val(today).trigger('change');
+                    $endDate.prop('disabled', true);
+                    $endDate.addClass('disabled');
+                    console.log('فیلد تاریخ پایان غیرفعال شد و تاریخ امروز تنظیم شد:', today);
+                } else {
+                    $endDate.val('').trigger('change');
+                    $endDate.prop('disabled', false);
+                    $endDate.removeClass('disabled');
+                    console.log('فیلد تاریخ پایان فعال شد');
+                }
+            });
+        }
+
+        // اجرا وقتی چک‌باکس تغییر می‌کنه
+        document.querySelectorAll('input[name="is_current_day"]').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                console.log('چک‌باکس تغییر کرد');
+                updateCurrentDay();
+            });
+        });
+    });
+</script>
+
 <?php
 echo "<!-- دیباگ: قبل از لود فوتر -->";
 require_once 'footer.php';
