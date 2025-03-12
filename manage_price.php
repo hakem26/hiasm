@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
         </div>
         <div class="mb-3">
             <label for="end_date" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>
-            <input type="text" class="form-control datepicker" id="end_date" name="end_date">
+            <input type="text" class="form-control datepicker" id="end_date" name="end_date" value="">
         </div>
         <div class="mb-3">
             <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
@@ -158,6 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                     persian: {
                         locale: 'fa',
                         digits: true
+                    }
+                },
+                onSelect: function(unix) {
+                    if (this.$input.attr('id') === 'end_date') {
+                        console.log('تاریخ پایان انتخاب شد: ' + this.getState().selectedDate.format('YYYY/MM/DD'));
                     }
                 }
             });
