@@ -17,6 +17,10 @@
     });
 
     $(document).ready(function() {
+        // دیباگ: چک کردن لود شدن jQuery و Persian Datepicker
+        console.log('jQuery لود شده:', typeof $ !== 'undefined');
+        console.log('Persian Datepicker لود شده:', typeof $.fn.persianDatepicker !== 'undefined');
+
         // مدیریت باز کردن مودال
         $('.open-modal').on('click', function() {
             const modalId = $(this).data('bs-target');
@@ -28,6 +32,49 @@
                     keyboard: true
                 });
                 modal.show();
+
+                // فعال‌سازی Datepicker بعد از باز شدن مودال
+                $(modalId).on('shown.bs.modal', function() {
+                    console.log('مودال باز شد، فعال‌سازی Datepicker...');
+                    
+                    // فعال‌سازی Datepicker برای تاریخ شروع
+                    $(modalId).find('.persian-date').persianDatepicker({
+                        format: 'YYYY/MM/DD',
+                        autoClose: true,
+                        calendar: {
+                            persian: {
+                                locale: 'fa',
+                                digits: true
+                            }
+                        }
+                    });
+                    console.log('Datepicker برای تاریخ شروع فعال شد');
+
+                    // فعال‌سازی Datepicker برای تاریخ پایان
+                    $(modalId).find('.optional-date').persianDatepicker({
+                        format: 'YYYY/MM/DD',
+                        autoClose: true,
+                        calendar: {
+                            persian: {
+                                locale: 'fa',
+                                digits: true
+                            }
+                        },
+                        initialValue: false,
+                        onSelect: function(unix) {
+                            console.log('تاریخ پایان انتخاب شد: ', unix);
+                        },
+                        onHide: function() {
+                            if (!this.getState().selectedUnix) {
+                                $(this.$input).val('');
+                            }
+                        }
+                    });
+                    console.log('Datepicker برای تاریخ پایان فعال شد');
+
+                    // مدیریت چک‌باکس "روز جاری"
+                    updateCurrentDay();
+                });
             } else {
                 console.error('مودال با شناسه ', modalId, ' یافت نشد!');
             }
@@ -41,62 +88,30 @@
             $('.modal').removeClass('show');
         });
 
-        // فعال‌سازی Datepicker برای تاریخ شروع
-        $('.persian-date').persianDatepicker({
-            format: 'YYYY/MM/DD',
-            autoClose: true,
-            calendar: {
-                persian: {
-                    locale: 'fa',
-                    digits: true
-                }
-            }
-        });
-
-        // فعال‌سازی Datepicker برای تاریخ پایان با تنظیمات اختیاری
-        $('.optional-date').persianDatepicker({
-            format: 'YYYY/MM/DD',
-            autoClose: true,
-            calendar: {
-                persian: {
-                    locale: 'fa',
-                    digits: true
-                }
-            },
-            initialValue: false, // بدون مقدار پیش‌فرض
-            onSelect: function(unix) {
-                console.log('تاریخ انتخاب شد: ', unix);
-            },
-            onHide: function() {
-                if (!this.getState().selectedUnix) {
-                    $(this.$input).val('');
-                }
-            }
-        });
-
-        // مدیریت چک‌باکس "روز جاری" با فعال/غیرفعال کردن فیلد
+        // تابع مدیریت چک‌باکس "روز جاری"
         function updateCurrentDay() {
             const today = '<?php echo get_today_jalali(); ?>';
             $('.optional-date').each(function() {
                 const $endDate = $(this);
                 const $checkbox = $('#' + $endDate.attr('id').replace('end_date', 'is_current_day'));
+                console.log('چک‌باکس وضعیت:', $checkbox.is(':checked'), 'برای فیلد:', $endDate.attr('id'));
                 if ($checkbox.is(':checked')) {
                     $endDate.val(today).trigger('change');
-                    $endDate.prop('disabled', true); // غیرفعال کردن فیلد
-                    $endDate.addClass('disabled'); // استایل غیرفعال
+                    $endDate.prop('disabled', true);
+                    $endDate.addClass('disabled');
+                    console.log('فیلد تاریخ پایان غیرفعال شد و تاریخ امروز تنظیم شد:', today);
                 } else {
                     $endDate.val('').trigger('change');
-                    $endDate.prop('disabled', false); // فعال کردن فیلد
-                    $endDate.removeClass('disabled'); // حذف استایل غیرفعال
+                    $endDate.prop('disabled', false);
+                    $endDate.removeClass('disabled');
+                    console.log('فیلد تاریخ پایان فعال شد');
                 }
             });
         }
 
-        // اجرا وقتی صفحه لود میشه
-        updateCurrentDay();
-
         // اجرا وقتی چک‌باکس تغییر می‌کنه
         $('input[name="is_current_day"]').on('change', function() {
+            console.log('چک‌باکس تغییر کرد');
             updateCurrentDay();
         });
     });
