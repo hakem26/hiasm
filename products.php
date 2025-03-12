@@ -1,4 +1,9 @@
 <?php
+// فعال کردن نمایش خطاها برای دیباگ
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
@@ -7,6 +12,14 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
+
+// تابع تبدیل تاریخ میلادی به شمسی
+function gregorian_to_jalali_format($gregorian_date)
+{
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd";
+}
 
 // چک کردن نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
@@ -27,7 +40,7 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_prod
 
 // پردازش حذف محصول (فقط برای ادمین)
 if ($is_admin && isset($_GET['delete']) && is_numeric($_GET['delete'])) {
-    $product_id = (int)$_GET['delete'];
+    $product_id = (int) $_GET['delete'];
     $stmt = $pdo->prepare("DELETE FROM Products WHERE product_id = ?");
     $stmt->execute([$product_id]);
     echo "<script>alert('محصول با موفقیت حذف شد!'); window.location.href='products.php';</script>";
@@ -35,7 +48,7 @@ if ($is_admin && isset($_GET['delete']) && is_numeric($_GET['delete'])) {
 
 // پردازش افزودن یا ویرایش قیمت (فقط برای ادمین)
 if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
-    $product_id = (int)$_POST['product_id'];
+    $product_id = (int) $_POST['product_id'];
     $start_date = trim($_POST['start_date']);
     $end_date = trim($_POST['end_date']);
     $unit_price = trim($_POST['unit_price']);
@@ -64,6 +77,9 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_pric
 
 // دریافت لیست محصولات
 $products = $pdo->query("SELECT * FROM Products ORDER BY product_id DESC")->fetchAll(PDO::FETCH_ASSOC);
+if (!$products) {
+    echo "<!-- خطا: کوئری محصولات اجرا نشد -->";
+}
 
 // دریافت تاریخچه قیمت‌ها
 $price_history = [];
@@ -73,6 +89,9 @@ if (!empty($products)) {
     $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id IN ($placeholders) ORDER BY start_date DESC");
     $stmt->execute($product_ids);
     $price_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!$price_history) {
+        echo "<!-- خطا: کوئری تاریخچه قیمت‌ها اجرا نشد -->";
+    }
 }
 ?>
 
@@ -88,13 +107,31 @@ if (!empty($products)) {
                 <input type="text" class="form-control" name="product_name" placeholder="نام محصول" required>
             </div>
             <div class="col-auto">
-                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01" required>
+                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01"
+                    required>
             </div>
             <div class="col-auto">
                 <button type="submit" name="add_product" class="btn btn-primary">افزودن محصول</button>
             </div>
         </form>
     <?php endif; ?>
+
+    <!-- تست مودال ثابت -->
+    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#testModal">باز کردن مودال
+        تست</button>
+    <div class="modal fade" id="testModal" tabindex="-1" aria-labelledby="testModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="testModalLabel">تست مودال</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    این یه تست موداله!
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- جدول نمایش محصولات -->
     <?php if (!empty($products)): ?>
@@ -118,36 +155,50 @@ if (!empty($products)) {
                             <td><?= number_format($product['unit_price'], 0, '', ',') ?></td>
                             <?php if ($is_admin): ?>
                                 <td>
-                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
-                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
-                                    <button type="button" class="btn btn-info btn-sm open-modal" data-bs-toggle="modal" data-bs-target="#priceModal<?= $product['product_id'] ?>" data-product-id="<?= $product['product_id'] ?>">مدیریت قیمت</button>
+                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>"
+                                        class="btn btn-warning btn-sm">ویرایش</a>
+                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
+                                    <button type="button" class="btn btn-info btn-sm open-modal" data-bs-toggle="modal"
+                                        data-bs-target="#priceModal<?= $product['product_id'] ?>"
+                                        data-product-id="<?= $product['product_id'] ?>">مدیریت قیمت</button>
                                 </td>
                             <?php endif; ?>
                         </tr>
 
                         <!-- مودال مدیریت قیمت -->
                         <?php if ($is_admin): ?>
-                            <div class="modal fade" id="priceModal<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel<?= $product['product_id'] ?>" aria-hidden="true">
+                            <div class="modal fade" id="priceModal<?= $product['product_id'] ?>" tabindex="-1"
+                                aria-labelledby="priceModalLabel<?= $product['product_id'] ?>" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content bg-light">
                                         <div class="modal-header">
-                                            <h5 class="modal-title" id="priceModalLabel<?= $product['product_id'] ?>">مدیریت قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            <h5 class="modal-title" id="priceModalLabel<?= $product['product_id'] ?>">مدیریت قیمت
+                                                برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
                                         </div>
                                         <div class="modal-body">
                                             <form method="POST" action="">
                                                 <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                                 <div class="mb-3">
-                                                    <label for="start_date_<?= $product['product_id'] ?>" class="form-label">تاریخ شروع (شمسی)</label>
-                                                    <input type="text" class="form-control persian-date" id="start_date_<?= $product['product_id'] ?>" name="start_date" required>
+                                                    <label for="start_date_<?= $product['product_id'] ?>" class="form-label">تاریخ
+                                                        شروع (شمسی)</label>
+                                                    <input type="text" class="form-control persian-date"
+                                                        id="start_date_<?= $product['product_id'] ?>" name="start_date" required>
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label for="end_date_<?= $product['product_id'] ?>" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>
-                                                    <input type="text" class="form-control persian-date" id="end_date_<?= $product['product_id'] ?>" name="end_date">
+                                                    <label for="end_date_<?= $product['product_id'] ?>" class="form-label">تاریخ
+                                                        پایان (شمسی) (اختیاری)</label>
+                                                    <input type="text" class="form-control persian-date"
+                                                        id="end_date_<?= $product['product_id'] ?>" name="end_date">
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label for="unit_price_<?= $product['product_id'] ?>" class="form-label">قیمت واحد (تومان)</label>
-                                                    <input type="number" class="form-control" id="unit_price_<?= $product['product_id'] ?>" name="unit_price" step="0.01" required>
+                                                    <label for="unit_price_<?= $product['product_id'] ?>" class="form-label">قیمت
+                                                        واحد (تومان)</label>
+                                                    <input type="number" class="form-control"
+                                                        id="unit_price_<?= $product['product_id'] ?>" name="unit_price" step="0.01"
+                                                        required>
                                                 </div>
                                                 <button type="submit" name="add_price" class="btn btn-primary">ثبت قیمت</button>
                                             </form>
@@ -184,4 +235,55 @@ if (!empty($products)) {
     <?php endif; ?>
 </div>
 
-<?php require_once 'footer.php'; ?>
+<!-- اسکریپت‌ها (به‌صورت دستی توی این صفحه) -->
+<script>
+    $(document).ready(function () {
+        // دیباگ پیشرفته‌تر
+        $('.open-modal').on('click', function () {
+            const modalId = $(this).data('bs-target');
+            console.log('دکمه کلیک شد برای مودال: ', modalId);
+            if ($(modalId).length) {
+                console.log('مودال با شناسه ', modalId, ' وجود دارد و باید باز شود.');
+                const modal = new bootstrap.Modal($(modalId)[0]);
+                modal.show();
+            } else {
+                console.error('مودال با شناسه ', modalId, ' یافت نشد! لطفاً DOM را بررسی کنید.');
+            }
+        });
+
+        // فعال‌سازی Datepicker
+        $('.persian-date').persianDatepicker({
+            format: 'YYYY/MM/DD',
+            autoClose: true,
+            calendar: {
+                persian: {
+                    locale: 'fa',
+                    digits: true
+                }
+            }
+        });
+
+        // چک کردن لود شدن Bootstrap
+        if (typeof bootstrap === 'undefined') {
+            console.error('کتابخونه Bootstrap لود نشده است!');
+        } else {
+            console.log('کتابخونه Bootstrap با موفقیت لود شده است.');
+        }
+
+        // لیست کردن همه مودال‌ها توی DOM
+        const modals = $('.modal');
+        console.log('تعداد مودال‌ها توی DOM: ', modals.length);
+        modals.each(function (index, modal) {
+            console.log('مودال شماره ', index, ': ', $(modal).attr('id'));
+        });
+    });
+</script>
+
+<?php
+// تلاش برای لود فوتر و نمایش خطا اگه مشکل داشت
+try {
+    require_once 'footer.php';
+} catch (Exception $e) {
+    echo "<!-- خطا در لود footer.php: " . $e->getMessage() . " -->";
+}
+?>
