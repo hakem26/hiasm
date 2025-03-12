@@ -17,12 +17,6 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
-// تابع دریافت تاریخ امروز به‌صورت شمسی
-function get_today_jalali() {
-    $jdf = new jdf();
-    return $jdf->jdate('Y/m/d', '', '', '', 'en');
-}
-
 $is_admin = ($_SESSION['role'] === 'admin');
 if (!$is_admin) {
     header("Location: index.php");
@@ -99,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <!-- <h5 class="card-title">مدیریت قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5> -->
+        <h5 class="card-title">مدیریت قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
         <a href="products.php" class="btn btn-secondary">بازگشت به لیست محصولات</a>
     </div>
 
@@ -110,12 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
             <input type="text" class="form-control datepicker" id="start_date" name="start_date" required>
         </div>
         <div class="mb-3">
-            <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="is_current_day" name="is_current_day" value="1" checked>
-                <label class="form-check-label" for="is_current_day">روز جاری</label>
-            </div>
             <label for="end_date" class="form-label">تاریخ پایان (شمسی) (اختیاری)</label>
-            <input type="text" class="form-control datepicker end-date" id="end_date" name="end_date">
+            <input type="text" class="form-control datepicker" id="end_date" name="end_date">
         </div>
         <div class="mb-3">
             <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
@@ -172,30 +162,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                 }
             });
             console.log('دیت‌پیکر فعال شد برای ID:', this.id);
-        });
-
-        // مدیریت چک‌باکس "روز جاری"
-        function updateCurrentDay() {
-            const today = '<?php echo get_today_jalali(); ?>';
-            const $endDate = $('#end_date');
-            const $checkbox = $('#is_current_day');
-            console.log('وضعیت چک‌باکس:', $checkbox.is(':checked'));
-            if ($checkbox.is(':checked')) {
-                $endDate.val(today).prop('disabled', true).addClass('disabled');
-                console.log('فیلد تاریخ پایان غیرفعال شد با مقدار:', today);
-            } else {
-                $endDate.val('').prop('disabled', false).removeClass('disabled');
-                console.log('فیلد تاریخ پایان فعال شد');
-            }
-        }
-
-        // اجرا وقتی صفحه لود میشه
-        updateCurrentDay();
-
-        // اجرا وقتی چک‌باکس تغییر می‌کنه
-        $('#is_current_day').on('change', function() {
-            console.log('چک‌باکس تغییر کرد');
-            updateCurrentDay();
         });
     };
 </script>
