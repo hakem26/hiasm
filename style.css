@@ -183,9 +183,15 @@ select {
   text-align: center;
 }
 
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
+}
+
 .responsive-table {
-  width: 100%;
-  table-layout: auto;
+  width: auto; /* عرض جدول به صورت خودکار بر اساس محتوا */
+  table-layout: fixed; /* ثابت کردن ساختار جدول */
   border-collapse: collapse;
 }
 
@@ -193,9 +199,10 @@ select {
 .responsive-table td {
   padding: 8px;
   text-align: center;
-  white-space: nowrap;
-  min-width: 0;
   vertical-align: middle;
+  white-space: nowrap; /* جلوگیری از شکستن محتوا به خط دوم */
+  overflow: hidden; /* جلوگیری از سرریز محتوا */
+  text-overflow: ellipsis; /* در صورت طولانی بودن محتوا، به صورت ... نمایش داده بشه */
 }
 
 .responsive-table th {
@@ -204,10 +211,41 @@ select {
   top: 0;
 }
 
-.table-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin-bottom: 20px;
+/* تنظیم عرض ستون‌ها بر اساس محتوای نمونه */
+.responsive-table th:nth-child(1),
+.responsive-table td:nth-child(1) {
+  /* شناسه */
+  width: 60px;
+}
+
+.responsive-table th:nth-child(2),
+.responsive-table td:nth-child(2) {
+  /* نام محصول */
+  width: 200px;
+}
+
+.responsive-table th:nth-child(3),
+.responsive-table td:nth-child(3) {
+  /* قیمت واحد */
+  width: 120px;
+}
+
+.responsive-table th:nth-child(4),
+.responsive-table td:nth-child(4) {
+  /* عملیات یا موجودی یا تغییرات */
+  width: 150px;
+}
+
+.responsive-table th:nth-child(5),
+.responsive-table td:nth-child(5) {
+  /* موجودی یا تغییرات */
+  width: 100px;
+}
+
+.responsive-table th:nth-child(6),
+.responsive-table td:nth-child(6) {
+  /* تغییرات */
+  width: 100px;
 }
 
 @media (max-width: 768px) {
@@ -227,9 +265,14 @@ select {
   .sidebar.open ~ .main-content {
     margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
   }
-  .responsive-table {
-    min-width: 600px;
+  .table-wrapper {
+    overflow-x: auto;
   }
+
+  .responsive-table {
+    min-width: 700px; /* حداقل عرض جدول برای فعال کردن اسکرول افقی */
+  }
+
   .responsive-table th,
   .responsive-table td {
     font-size: 14px;
