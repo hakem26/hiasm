@@ -343,20 +343,25 @@ $final_amount = $total_amount - $discount;
             // ساجستشن محصولات با jQuery
             $('#product_name').on('input', function () {
                 let query = $(this).val();
+                const work_details_id = '<?= htmlspecialchars($work_details_id, ENT_QUOTES, 'UTF-8') ?>';
+                console.log('Debug: Searching with work_details_id = ', work_details_id); // ديباگ
                 if (query.length >= 3) {
                     $.ajax({
                         url: 'get_products.php',
                         type: 'POST',
-                        data: { query: query },
+                        data: { query: query, work_details_id: work_details_id },
                         success: function (response) {
                             $('#product_suggestions').html(response).show();
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('AJAX Error: ', error);
                         }
                     });
                 } else {
                     $('#product_suggestions').hide();
                 }
             });
-
+            
             $(document).on('click', '.product-suggestion', function () {
                 let product = $(this).data('product');
                 $('#product_name').val(product.product_name);
@@ -381,7 +386,9 @@ $final_amount = $total_amount - $discount;
                 const quantity = document.getElementById('quantity').value;
                 const unit_price = document.getElementById('unit_price').value;
                 const discount = document.getElementById('discount')?.value || 0;
-                const work_details_id = '<?= $work_details_id ?>'; // اضافه كردن تاريخ كارى
+                const work_details_id = '<?= htmlspecialchars($work_details_id, ENT_QUOTES, 'UTF-8') ?>'; // امن‌تر كردن
+
+                console.log('Debug: Sending work_details_id = ', work_details_id); // ديباگ كنسول
 
                 if (!customer_name || !product_id || !quantity || !unit_price) {
                     alert('لطفاً همه فیلدها را پر کنید.');
@@ -395,7 +402,7 @@ $final_amount = $total_amount - $discount;
                     quantity,
                     unit_price,
                     discount,
-                    work_details_id // اضافه كردن به داده‌ها
+                    work_details_id
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);

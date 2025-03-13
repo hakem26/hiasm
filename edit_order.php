@@ -311,7 +311,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ساجستشن محصولات
         $('#product_name').on('input', function () {
             let query = $(this).val();
-            const work_details_id = '<?= $order['work_details_id'] ?>'; // اضافه كردن تاريخ كارى
+            const work_details_id = '<?= htmlspecialchars($order['work_details_id'], ENT_QUOTES, 'UTF-8') ?>';
+            console.log('Debug: Searching with work_details_id = ', work_details_id);
             if (query.length >= 3) {
                 $.ajax({
                     url: 'get_products.php',
@@ -319,13 +320,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     data: { query: query, work_details_id: work_details_id },
                     success: function (response) {
                         $('#product_suggestions').html(response).show();
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('AJAX Error: ', error);
                     }
                 });
             } else {
                 $('#product_suggestions').hide();
             }
         });
-
         $(document).on('click', '.product-suggestion', function () {
             let product = $(this).data('product');
             $('#product_name').val(product.product_name);
