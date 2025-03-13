@@ -270,6 +270,40 @@ select {
   z-index: 1055;
 }
 
+/* اطمینان از وسط‌چین بودن همه سلول‌ها */
+#productsTable th, #productsTable td {
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important; /* محتوا توی یک خط بمونه */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* تنظیمات هدرها */
+#productsTable thead th {
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+}
+
+/* جلوگیری از به‌هم‌ریختگی با تغییر سایز */
+.dataTables_wrapper {
+  overflow-x: auto;
+  width: 100%;
+}
+
+/* تنظیم دکمه‌ها توی یک خط */
+#productsTable td .btn-sm {
+  margin: 0 2px;
+  display: inline-block;
+}
+
+/* اطمینان از ثابت ماندن عرض ستون‌ها */
+#productsTable {
+  table-layout: fixed; /* عرض ستون‌ها ثابت بمونه */
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */

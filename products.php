@@ -292,6 +292,7 @@ if ($is_admin && $is_partner1) {
     <?php endif; ?>
 </div>
 
+<!-- جاوااسکریپت DataTables -->
 <script>
 $(document).ready(function() {
     $('#productsTable').DataTable({
@@ -300,7 +301,7 @@ $(document).ready(function() {
         "paging": true,            // فعال کردن صفحه‌بندی
         "autoWidth": false,        // غیرفعال کردن تنظیم خودکار عرض
         "ordering": true,          // فعال کردن مرتب‌سازی ستون‌ها
-        "responsive": false,       // غیرفعال کردن حالت ریسپانسیو (دراپ‌داون)
+        "responsive": false,       // غیرفعال کردن حالت ریسپانسیو
         "language": {
             "decimal": "",
             "emptyTable": "داده‌ای در جدول وجود ندارد",
