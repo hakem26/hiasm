@@ -138,33 +138,77 @@ try {
     <title>مدیریت محصولات</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
-        .table-responsive {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        /* کانتینر جدول */
+        .table-container {
+            position: relative;
+            max-height: 600px; /* حداکثر ارتفاع برای اسکرول عمودی */
+            overflow-x: auto; /* اسکرول افقی */
+            overflow-y: auto; /* اسکرول عمودی */
+            -webkit-overflow-scrolling: touch; /* پشتیبانی از تاچ روان توی موبایل */
+            isolation: isolate; /* جلوگیری از تاثیر روی بقیه صفحه */
+            margin-bottom: 20px;
         }
 
-        #productsTable th,
-        #productsTable td {
+        /* تنظیم جدول */
+        .custom-table {
+            width: auto; /* عرض جدول به صورت خودکار بر اساس محتوا */
+            table-layout: fixed; /* ثابت کردن عرض ستون‌ها */
+            border-collapse: collapse;
+        }
+
+        /* تنظیمات ستون‌ها */
+        .custom-table th,
+        .custom-table td {
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
             white-space: nowrap; /* جلوگیری از شکستن خط */
             overflow: hidden;
             text-overflow: ellipsis; /* نمایش ... برای محتوای طولانی */
         }
 
-        #productsTable th:nth-child(1),
-        #productsTable td:nth-child(1) { width: 60px; } /* شناسه */
-        #productsTable th:nth-child(2),
-        #productsTable td:nth-child(2) { width: 200px; } /* نام محصول */
-        #productsTable th:nth-child(3),
-        #productsTable td:nth-child(3) { width: 120px; } /* قیمت واحد */
-        #productsTable th:nth-child(4),
-        #productsTable td:nth-child(4) { width: 150px; } /* عملیات */
-        #productsTable th:nth-child(5),
-        #productsTable td:nth-child(5) { width: 100px; } /* موجودی */
-        #productsTable th:nth-child(6),
-        #productsTable td:nth-child(6) { width: 100px; } /* تغییرات */
+        /* تنظیم عرض ستون‌ها */
+        .custom-table th:nth-child(1),
+        .custom-table td:nth-child(1) { width: 60px; } /* شناسه */
+        .custom-table th:nth-child(2),
+        .custom-table td:nth-child(2) { width: 200px; } /* نام محصول */
+        .custom-table th:nth-child(3),
+        .custom-table td:nth-child(3) { width: 120px; } /* قیمت واحد */
+        .custom-table th:nth-child(4),
+        .custom-table td:nth-child(4) { width: 150px; } /* عملیات */
+        .custom-table th:nth-child(5),
+        .custom-table td:nth-child(5) { width: 100px; } /* موجودی */
+        .custom-table th:nth-child(6),
+        .custom-table td:nth-child(6) { width: 100px; } /* تغییرات */
+
+        /* هدر ثابت */
+        .custom-table th {
+            background-color: #f8f9fa;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        /* اسکرول توی موبایل */
+        @media (max-width: 768px) {
+            .table-container {
+                overflow-x: auto;
+                overflow-y: auto;
+                max-height: 400px; /* ارتفاع کمتر برای موبایل */
+            }
+
+            .custom-table {
+                min-width: 700px; /* حداقل عرض برای فعال کردن اسکرول افقی */
+            }
+
+            .custom-table th,
+            .custom-table td {
+                font-size: 14px;
+                padding: 6px;
+            }
+        }
     </style>
 </head>
 
@@ -187,8 +231,8 @@ try {
         <?php endif; ?>
 
         <?php if (!empty($products)): ?>
-            <div class="table-responsive">
-                <table id="productsTable" class="table table-light table-hover" style="width: 100%;">
+            <div class="table-container">
+                <table class="table table-light table-hover custom-table">
                     <thead>
                         <tr>
                             <th>شناسه</th>
@@ -314,18 +358,14 @@ try {
     <!-- اسکریپت‌ها -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        $(document).ready(function() {
-            $('#productsTable').DataTable({
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/Fa.json" // زبان فارسی
-                },
-                "pageLength": 20, // نمایش 20 ردیف در هر صفحه
-                "scrollX": true, // فعال کردن اسکرول افقی
-                "autoWidth": false // غیرفعال کردن تنظیم خودکار عرض
-            });
+        // جلوگیری از اسکرول کل صفحه هنگام اسکرول جدول
+        document.querySelector('.table-container').addEventListener('touchmove', function(e) {
+            e.stopPropagation(); // جلوگیری از انتقال اسکرول به والد
+        });
+
+        document.querySelector('.table-container').addEventListener('wheel', function(e) {
+            e.stopPropagation(); // جلوگیری از انتقال اسکرول به والد
         });
     </script>
 
