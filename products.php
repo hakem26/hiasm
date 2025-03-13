@@ -300,4 +300,3 @@ try {
     </script>
 
     <?php require_once 'footer.php'; ?>
-</html>
