@@ -134,17 +134,12 @@ try {
 }
 ?>
 
-<?php
-// [Previous PHP code remains unchanged until the HTML section]
-?>
-
-<!-- Add DataTables CSS -->
+<!-- فقط استایل اصلی DataTables رو نگه داشتم چون گفتی بقیه رو به style.css بردی -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
 
 <div class="container-fluid">
     <h5 class="card-title">مدیریت محصولات</h5>
-
+    <br>
     <?php if ($is_admin): ?>
         <form method="POST" class="row g-3 mb-3">
             <div class="col-auto">
@@ -217,7 +212,7 @@ try {
             </table>
         </div>
 
-        <!-- Inventory Modal (unchanged) -->
+        <!-- Inventory Modal -->
         <?php if ($is_seller && $is_partner1): ?>
             <?php foreach ($products as $product): ?>
                 <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
@@ -246,7 +241,7 @@ try {
             <?php endforeach; ?>
         <?php endif; ?>
 
-        <!-- Price History Modal (unchanged) -->
+        <!-- Price History Modal -->
         <?php if ($is_seller): ?>
             <?php foreach ($products as $product): ?>
                 <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
@@ -289,19 +284,16 @@ try {
     <?php endif; ?>
 </div>
 
-<!-- Add jQuery and DataTables JS -->
- 
+<!-- فرض کردم jQuery و DataTables JS توی header.php لود شدن -->
 <script>
 $(document).ready(function() {
     $('#productsTable').DataTable({
-        "pageLength": 20,           // 20 rows per page
-        "scrollX": true,           // Enable horizontal scrolling
-        "scrollY": "400px",        // Enable vertical scrolling with fixed height
-        "scrollCollapse": true,    // Allow table to collapse when fewer rows
-        "paging": true,            // Enable pagination
-        "responsive": true,        // Enable responsive design
-        "autoWidth": false,        // Disable auto width calculation
-        "ordering": true,          // Enable column sorting
+        "pageLength": 10,           // 10 ردیف در هر صفحه
+        "scrollX": true,           // فعال کردن اسکرول افقی
+        "paging": true,            // فعال کردن صفحه‌بندی
+        "autoWidth": false,        // غیرفعال کردن تنظیم خودکار عرض
+        "ordering": true,          // فعال کردن مرتب‌سازی ستون‌ها
+        "responsive": false,       // غیرفعال کردن حالت ریسپانسیو (دراپ‌داون)
         "language": {
             "decimal": "",
             "emptyTable": "داده‌ای در جدول وجود ندارد",
@@ -321,10 +313,18 @@ $(document).ready(function() {
             }
         },
         "columnDefs": [
-            {
-                "targets": "_all",
-                "className": "dt-nowrap"  // Force single line rows
-            }
+            { "targets": 0, "width": "50px" },  // شناسه
+            { "targets": 1, "width": "200px" }, // نام محصول
+            { "targets": 2, "width": "120px" }, // قیمت واحد
+            <?php if ($is_admin): ?>
+            { "targets": 3, "width": "150px" }, // عملیات
+            <?php endif; ?>
+            <?php if ($is_seller && $is_partner1): ?>
+            { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }, // موجودی
+            <?php endif; ?>
+            <?php if ($is_seller): ?>
+            { "targets": <?php echo ($is_admin && $is_partner1) ? 5 : ($is_admin || $is_partner1) ? 4 : 3; ?>, "width": "80px" } // تغییرات
+            <?php endif; ?>
         ]
     });
 });
