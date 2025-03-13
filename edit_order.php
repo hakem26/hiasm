@@ -167,10 +167,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 8px 6px;
         }
 
-        .product-input {
-            width: 250px;
-        }
-
         @media (max-width: 768px) {
             table {
                 min-width: 300px;
@@ -214,26 +210,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     value="<?= htmlspecialchars($order['customer_name']) ?>" required autocomplete="off">
             </div>
 
-            <!-- انتخاب محصول -->
-            <div class="mb-3">
-                <label for="product_name" class="form-label">نام محصول</label>
-                <input type="text" class="form-control product-input" id="product_name" name="product_name"
-                    placeholder="3 حرف تایپ کنید..." autocomplete="off">
-                <div id="product_suggestions" class="list-group position-absolute"
-                    style="display: none; z-index: 1000; width: 250px;"></div>
-                <input type="hidden" id="product_id" name="product_id">
-                <input type="hidden" id="unit_price" name="unit_price">
+            <!-- فرم افزودن محصول -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <label for="product_name" class="form-label">نام محصول</label>
+                    <input type="text" class="form-control" id="product_name" name="product_name"
+                        placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
+                    <div id="product_suggestions" class="list-group position-absolute"
+                        style="width: 100%; z-index: 1000; display: none;"></div>
+                    <input type="hidden" id="product_id" name="product_id">
+                </div>
+                <div class="col-3">
+                    <label for="quantity" class="form-label">تعداد</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required
+                        style="width: 100%;">
+                </div>
+                <div class="col-9">
+                    <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
+                    <input type="number" class="form-control" id="unit_price" name="unit_price" readonly
+                        style="width: 100%;">
+                </div>
+                <div class="mb-3">
+                    <label for="total_price" class="form-label">قیمت کل</label>
+                    <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+                </div>
+                <div class="col-12">
+                    <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
+                </div>
             </div>
-            <div class="mb-3">
-                <label for="quantity" class="form-label">تعداد</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1"
-                    autocomplete="off">
-            </div>
-            <div class="mb-3">
-                <label for="total_price" class="form-label">قیمت کل</label>
-                <input type="text" class="form-control" id="total_price" name="total_price" readonly>
-            </div>
-            <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
 
             <!-- جدول اقلام -->
             <div class="table-wrapper" id="items_table">
@@ -329,6 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $('#product_suggestions').hide();
             }
         });
+
         $(document).on('click', '.product-suggestion', function () {
             let product = $(this).data('product');
             $('#product_name').val(product.product_name);
@@ -350,33 +355,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $('#add_item_btn').on('click', addProduct);
 
         function addProduct() {
-            const productName = $('#product_name').val();
-            const quantity = $('#quantity').val();
-            const unitPrice = $('#unit_price').val();
-            const work_details_id = '<?= $order['work_details_id'] ?>'; // اضافه كردن تاريخ كارى
+            const productName = $('#product_name').val().trim();
+            const quantity = $('#quantity').val().trim();
+            const unitPrice = $('#unit_price').val().trim();
 
-            if (!productName || !quantity || !unitPrice) {
-                alert('لطفاً تمام فیلدها را پر کنید.');
+            console.log('Debug: Adding product - Name:', productName, 'Quantity:', quantity, 'UnitPrice:', unitPrice); // دیباگ
+
+            if (!productName || !quantity || !unitPrice || quantity <= 0) {
+                alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
                 return;
             }
 
             const total = quantity * unitPrice;
             const row = `
-        <tr id="productRow_${productCount}">
-            <td>${productName}</td>
-            <td>${quantity}</td>
-            <td>${parseInt(unitPrice).toLocaleString('fa')} تومان</td>
-            <td>${parseInt(total).toLocaleString('fa')} تومان</td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${productCount}">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-            <input type="hidden" name="products[${productCount}][name]" value="${productName}">
-            <input type="hidden" name="products[${productCount}][quantity]" value="${quantity}">
-            <input type="hidden" name="products[${productCount}][unit_price]" value="${unitPrice}">
-        </tr>
-    `;
+                <tr id="productRow_${productCount}">
+                    <td>${productName}</td>
+                    <td>${quantity}</td>
+                    <td>${parseInt(unitPrice).toLocaleString('fa')} تومان</td>
+                    <td>${parseInt(total).toLocaleString('fa')} تومان</td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${productCount}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                    <input type="hidden" name="products[${productCount}][name]" value="${productName}">
+                    <input type="hidden" name="products[${productCount}][quantity]" value="${quantity}">
+                    <input type="hidden" name="products[${productCount}][unit_price]" value="${unitPrice}">
+                </tr>
+            `;
 
             $('#productsTable').append(row);
             updateTotals();
@@ -436,4 +442,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 
-    <?php require_once 'footer.php'; ?>
+<?php require_once 'footer.php'; ?>
