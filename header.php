@@ -14,15 +14,15 @@ $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
 // نام صفحه فعلی
-$page_name = basename($_SERVER['PHP_SELF'], ".php");
-$page_name = $page_name === 'dashboard_admin' || $page_name === 'dashboard_seller' ? 'داشبورد' : $page_name;
-$page_name = $page_name === 'products' ? 'محصولات' : $page_name;
-$page_name = $page_name === 'orders' ? 'سفارشات' : $page_name;
-$page_name = $page_name === 'users' ? 'کاربران' : $page_name;
-$page_name = $page_name === 'partners' ? 'همکاران' : $page_name;
-$page_name = $page_name === 'work_months' ? 'ماه کاری' : $page_name;
-$page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_name;
-$page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
+// $page_name = basename($_SERVER['PHP_SELF'], ".php");
+// $page_name = $page_name === 'dashboard_admin' || $page_name === 'dashboard_seller' ? 'داشبورد' : $page_name;
+// $page_name = $page_name === 'products' ? 'محصولات' : $page_name;
+// $page_name = $page_name === 'orders' ? 'سفارشات' : $page_name;
+// $page_name = $page_name === 'users' ? 'کاربران' : $page_name;
+// $page_name = $page_name === 'partners' ? 'همکاران' : $page_name;
+// $page_name = $page_name === 'work_months' ? 'ماه کاری' : $page_name;
+// $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_name;
+// $page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
 
 ?>
 <!DOCTYPE html>
@@ -59,7 +59,7 @@ $page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
                 <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
                     <i class="fas fa-bars"></i>
                 </button>
-                <span class="navbar-text">صفحه <?php echo $page_name; ?></span>
+                <!-- <span class="navbar-text">صفحه <?php echo $page_name; ?></span> -->
             </div>
             <span class="navbar-text mx-auto">تاریخ: <?php echo $jalali_date; ?></span>
             <div class="dropdown ms-3">
