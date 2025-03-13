@@ -215,14 +215,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="col-12">
                     <label for="product_name" class="form-label">نام محصول</label>
                     <input type="text" class="form-control" id="product_name" name="product_name"
-                        placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
+                        placeholder="جستجو یا وارد کنید..." style="width: 100%;">
                     <div id="product_suggestions" class="list-group position-absolute"
                         style="width: 100%; z-index: 1000; display: none;"></div>
                     <input type="hidden" id="product_id" name="product_id">
                 </div>
                 <div class="col-3">
                     <label for="quantity" class="form-label">تعداد</label>
-                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required
+                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1"
                         style="width: 100%;">
                 </div>
                 <div class="col-9">
