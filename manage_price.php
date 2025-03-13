@@ -43,13 +43,22 @@ try {
 
 echo "<!-- دیباگ: محصول بارگذاری شد: " . htmlspecialchars($product['product_name']) . " -->";
 
-// دریافت تاریخچه قیمت‌ها (فقط 3 تغییر آخر)
+// دریافت تاریخچه قیمت‌ها (فقط 2 تغییر آخر)
 $price_history = [];
 try {
-    $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 3");
+    $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 2");
     $stmt->execute([$product_id]);
     $price_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo "<!-- دیباگ: تعداد تاریخچه قیمت‌ها = " . count($price_history) . " -->";
+
+    // برای هر تغییر، قیمت قبلی رو محاسبه می‌کنیم
+    foreach ($price_history as &$price) {
+        $stmt = $pdo->prepare("SELECT unit_price FROM Product_Price_History WHERE product_id = ? AND start_date < ? ORDER BY start_date DESC LIMIT 1");
+        $stmt->execute([$product_id, $price['start_date']]);
+        $previous_price = $stmt->fetch(PDO::FETCH_ASSOC);
+        $price['previous_price'] = $previous_price ? $previous_price['unit_price'] : $product['unit_price'];
+    }
+    unset($price);
 } catch (Exception $e) {
     echo "<!-- خطا در کوئری تاریخچه قیمت‌ها: " . $e->getMessage() . " -->";
 }
@@ -117,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
     </form>
 
     <?php if (!empty($price_history)): ?>
-        <h6 class="mt-4">تاریخچه قیمت‌ها (3 تغییر آخر):</h6>
+        <h6 class="mt-4">تاریخچه قیمت‌ها (2 تغییر آخر):</h6>
         <ul class="list-group">
             <?php foreach ($price_history as $price): ?>
                 <li class="list-group-item">
@@ -127,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                     <?php else: ?>
                         (تاکنون)
                     <?php endif; ?>
-                    : <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
+                    : از <?= number_format($price['previous_price'], 0, '', ',') ?> به <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
                 </li>
             <?php endforeach; ?>
         </ul>

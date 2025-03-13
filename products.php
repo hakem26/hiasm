@@ -63,14 +63,24 @@ try {
         $latest_price = $stmt->fetch(PDO::FETCH_ASSOC);
         $product['latest_price'] = $latest_price ? $latest_price['unit_price'] : null;
     }
-    unset($product); // برای جلوگیری از مشکلات مرجع
+    unset($product);
 
-    // دریافت تاریخچه قیمت‌ها برای هر محصول (فقط 3 تغییر آخر برای نمایش در مودال)
+    // دریافت تاریخچه قیمت‌ها برای هر محصول (فقط 2 تغییر آخر برای نمایش در مودال)
     if ($is_seller) {
         foreach ($products as &$product) {
-            $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 3");
+            $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 2");
             $stmt->execute([$product['product_id']]);
             $product['price_history'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // برای هر تغییر، قیمت قبلی رو محاسبه می‌کنیم
+            foreach ($product['price_history'] as &$price) {
+                // اگر این اولین تغییر قیمت باشه (آخرین رکورد توی لیست مرتب‌شده)، قیمت قبلی از Products میاد
+                $stmt = $pdo->prepare("SELECT unit_price FROM Product_Price_History WHERE product_id = ? AND start_date < ? ORDER BY start_date DESC LIMIT 1");
+                $stmt->execute([$product['product_id'], $price['start_date']]);
+                $previous_price = $stmt->fetch(PDO::FETCH_ASSOC);
+                $price['previous_price'] = $previous_price ? $previous_price['unit_price'] : $product['unit_price'];
+            }
+            unset($price);
         }
         unset($product);
     }
@@ -103,7 +113,9 @@ try {
                     <th>شناسه</th>
                     <th>نام محصول</th>
                     <th>قیمت واحد (تومان)</th>
-                    <th>عملیات</th>
+                    <?php if ($is_admin): ?>
+                        <th>عملیات</th>
+                    <?php endif; ?>
                     <?php if ($is_seller): ?>
                         <th>تغییرات</th>
                     <?php endif; ?>
@@ -116,18 +128,17 @@ try {
                         <td><?= htmlspecialchars($product['product_name']) ?></td>
                         <td>
                             <?php
-                            // نمایش آخرین قیمت اگه وجود داشته باشه، وگرنه قیمت اصلی
                             $display_price = $product['latest_price'] ?? $product['unit_price'];
                             echo number_format($display_price, 0, '', ',');
                             ?>
                         </td>
-                        <td>
-                            <?php if ($is_admin): ?>
+                        <?php if ($is_admin): ?>
+                            <td>
                                 <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
                                 <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
                                 <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
-                            <?php endif; ?>
-                        </td>
+                            </td>
+                        <?php endif; ?>
                         <?php if ($is_seller): ?>
                             <td>
                                 <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#priceModal_<?= $product['product_id'] ?>">
@@ -153,7 +164,7 @@ try {
                                                                 <?php else: ?>
                                                                     (تاکنون)
                                                                 <?php endif; ?>
-                                                                : <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
+                                                                : از <?= number_format($price['previous_price'], 0, '', ',') ?> به <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
                                                             </li>
                                                         <?php endforeach; ?>
                                                     </ul>
