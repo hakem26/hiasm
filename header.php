@@ -153,6 +153,19 @@ $page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
                     </li>
                 </ul>
             </li>
+            <li class="nav-item"></li>
+                <a class="nav-link" href="debtors.php">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>بدهکاران</span>
+                </a>
+            </li>
+            <li class="nav-item"></li>
+                <a class="nav-link" href="inventory.php">
+                    <i class="fas fa-warehouse"></i>
+                    <span>موجودی</span>
+                </a>
+            </li>
+
             <!-- ادمین -->
             <?php if ($_SESSION['role'] === 'admin'): ?>
                 <li class="nav-item">
