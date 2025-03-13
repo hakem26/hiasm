@@ -1,27 +1,100 @@
+/* متغیرهای سراسری برای هماهنگی */
+:root {
+  --primary-bg: #f8f9fa;
+  --sidebar-bg: #343a40;
+  --sidebar-hover-bg: #495057;
+  --text-color: #212529;
+  --hover-color: #007bff;
+  --border-color: #dee2e6;
+  --table-sticky-bg: #f8f9fa;
+}
+
+/* تنظیمات پایه بدنه */
 body {
   font-family: "Vazirmatn", sans-serif;
-  background-color: #f8f9fa;
+  background-color: var(--primary-bg);
   margin: 0;
   padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
   padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
 }
 
-.table-work-details thead tr th,
-.table-work-details tbody tr td {
-  white-space: nowrap !important; /* جلوگیری از شکستن خطوط */
+/* استایل جدول */
+.table-container {
+  position: relative;
+  max-height: 600px;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+  margin-bottom: 20px;
 }
 
+.responsive-table {
+  width: auto;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.responsive-table th,
+.responsive-table td {
+  padding: 8px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.responsive-table th:nth-child(1),
+.responsive-table td:nth-child(1) {
+  width: 60px; /* شناسه */
+}
+
+.responsive-table th:nth-child(2),
+.responsive-table td:nth-child(2) {
+  width: 200px; /* نام محصول */
+}
+
+.responsive-table th:nth-child(3),
+.responsive-table td:nth-child(3) {
+  width: 120px; /* قیمت واحد */
+}
+
+.responsive-table th:nth-child(4),
+.responsive-table td:nth-child(4) {
+  width: 150px; /* عملیات */
+}
+
+.responsive-table th:nth-child(5),
+.responsive-table td:nth-child(5) {
+  width: 100px; /* موجودی */
+}
+
+.responsive-table th:nth-child(6),
+.responsive-table td:nth-child(6) {
+  width: 100px; /* تغییرات */
+}
+
+.responsive-table th {
+  background-color: var(--table-sticky-bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* استایل منو */
 .sidebar {
-  position: fixed; /* همیشه سمت راست فیکس */
+  position: fixed;
   top: 60px; /* زیر هدر */
   right: 0;
   bottom: 0;
-  background-color: #343a40; /* تم جدید */
+  background-color: var(--sidebar-bg);
   color: white;
   transition: width 0.3s ease;
   width: 140px; /* عرض پیش‌فرض (حالت باز) */
-  z-index: 900; /* زیر منوی بالا */
-  height: 100vh; /* ارتفاع کل صفحه */
+  z-index: 900;
+  height: 100vh;
+  overflow-y: auto; /* اسکرول عمودی برای منو */
 }
 
 .sidebar.collapsed {
@@ -32,28 +105,40 @@ body {
   width: 140px; /* عرض در حالت باز در موبایل */
 }
 
-.sidebar .nav-link {
+.sidebar-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-nav .nav-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* جداکننده بین آیتم‌ها */
+}
+
+.sidebar-nav .nav-link {
   color: white;
-  padding: 10px 15px; /* کاهش padding برای کاهش عرض */
+  padding: 10px 15px;
   display: flex;
   align-items: center;
-  text-decoration: none; /* برای جلوگیری از خط زیر لینک */
+  text-decoration: none;
+  font-size: 14px;
 }
 
-.sidebar .nav-link:hover {
-  color: #007bff; /* حفظ استایل قبلی */
-  background-color: #495057; /* پس‌زمینه تیره‌تر برای هور در تم جدید */
+.sidebar-nav .nav-link:hover {
+  color: var(--hover-color);
+  background-color: var(--sidebar-hover-bg);
 }
 
-.sidebar .nav-link i {
+.sidebar-nav .nav-link i {
   margin-left: 10px; /* برای راست‌چین بودن */
   width: 20px;
   text-align: center;
 }
 
-.sidebar .nav-link span {
+.sidebar-nav .nav-link span {
   display: inline-block;
   white-space: nowrap;
+  transition: opacity 0.3s ease;
 }
 
 .sidebar.collapsed .nav-link span {
@@ -64,9 +149,10 @@ body {
   display: inline-block; /* نمایش متن در حالت باز در موبایل */
 }
 
+/* استایل هدر */
 .navbar {
-  background-color: #f8f9fa; /* تم روشن برای هدر */
-  border-bottom: 1px solid #dee2e6;
+  background-color: var(--primary-bg);
+  border-bottom: 1px solid var(--border-color);
   z-index: 1000;
   position: fixed;
   top: 0;
@@ -76,201 +162,77 @@ body {
 
 .navbar-brand,
 .navbar-text {
-  color: #212529;
+  color: var(--text-color);
 }
 
 .dropdown-menu {
-  background-color: #f8f9fa; /* هماهنگی با هدر */
-  border: 1px solid #dee2e6;
+  background-color: var(--primary-bg);
+  border: 1px solid var(--border-color);
 }
 
 .dropdown-item {
-  color: #212529;
+  color: var(--text-color);
 }
 
 .dropdown-item:hover,
 .dropdown-item:focus {
   background-color: #e9ecef;
-  color: #007bff;
+  color: var(--hover-color);
 }
 
 .dropdown-divider {
-  border-top: 1px solid #dee2e6;
+  border-top: 1px solid var(--border-color);
 }
 
-.card {
-  background-color: #f8f9fa;
-}
-
+/* استایل محتوای اصلی */
 .main-content {
   padding: 20px;
-  transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
+  transition: margin-right 0.3s ease;
 }
 
 .sidebar.collapsed ~ .main-content {
-  margin-right: 60px; /* تنظیم برای حالت بسته */
+  margin-right: 60px;
 }
 
 .sidebar ~ .main-content {
-  margin-right: 140px; /* پیش‌فرض برای حالت باز */
+  margin-right: 140px;
 }
 
 .dropdown-toggle::after {
-  display: none !important; /* حذف فلش دراپ‌داون */
-  margin: 0 !important; /* حذف هرگونه فاصله */
-  padding: 0 !important; /* حذف هرگونه فاصله */
+  display: none !important;
 }
 
-#ordersTable {
-  overflow-x: hidden; /* جلوگیری از افقی شدن جدول */
-}
-
-.table-wrapper {
-  overflow-x: hidden !important; /* جلوگیری از افقی شدن جدول */
-}
-
-select {
-  width: fit-content !important; /* اندازه‌گیری خودکار */
-}
-
-.select-wdt {
-  width: fit-content !important; /* اندازه‌گیری خودکار */
-}
-
-.invoice-container {
-  width: 148mm; /* عرض A5 */
-  height: 210mm; /* ارتفاع A5 */
-  margin: 0 auto;
-  padding: 0 3mm;
-  box-sizing: border-box;
-  border: 1px solid #ccc; /* برای نمایش در صفحه */
-  position: relative;
-}
-.invoice-header {
-  text-align: center;
-  margin-bottom: 5mm;
-}
-.invoice-details {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5mm;
-  font-size: 10pt;
-}
-.invoice-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 5mm;
-}
-.invoice-table th,
-.invoice-table td {
-  border: 1px solid #000;
-  padding: 5px;
-  text-align: center;
-  font-size: 10pt;
-}
-.invoice-table th {
-  background-color: #f0f0f0;
-}
-.invoice-summary {
-  font-size: 10pt;
-}
-.invoice-footer {
-  position: absolute;
-  bottom: 1mm;
-  left: 0;
-  right: 0;
-  font-size: 10pt;
-  text-align: center;
-}
-
-/* کانتینر جدول */
-.table-container {
-  position: relative;
-  max-height: 600px; /* حداکثر ارتفاع برای اسکرول عمودی */
-  overflow-x: auto; /* اسکرول افقی */
-  overflow-y: auto; /* اسکرول عمودی */
-  -webkit-overflow-scrolling: touch; /* پشتیبانی از تاچ روان توی موبایل */
-  isolation: isolate; /* جلوگیری از تاثیر روی بقیه صفحه */
-  margin-bottom: 20px;
-}
-
-/* تنظیم جدول */
-.responsive-table {
-  width: auto; /* عرض جدول به صورت خودکار بر اساس محتوا */
-  table-layout: fixed; /* ثابت کردن عرض ستون‌ها */
-  border-collapse: collapse;
-}
-
-/* تنظیمات ستون‌ها */
-.responsive-table th,
-.responsive-table td {
-  padding: 8px;
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap; /* جلوگیری از شکستن خط */
-  overflow: hidden;
-  text-overflow: ellipsis; /* نمایش ... برای محتوای طولانی */
-}
-
-/* تنظیم عرض ستون‌ها */
-.responsive-table th:nth-child(1),
-.responsive-table td:nth-child(1) {
-  width: 60px;
-} /* شناسه */
-.responsive-table th:nth-child(2),
-.responsive-table td:nth-child(2) {
-  width: 200px;
-} /* نام محصول */
-.responsive-table th:nth-child(3),
-.responsive-table td:nth-child(3) {
-  width: 120px;
-} /* قیمت واحد */
-.responsive-table th:nth-child(4),
-.responsive-table td:nth-child(4) {
-  width: 150px;
-} /* عملیات */
-.responsive-table th:nth-child(5),
-.responsive-table td:nth-child(5) {
-  width: 100px;
-} /* موجودی */
-.responsive-table th:nth-child(6),
-.responsive-table td:nth-child(6) {
-  width: 100px;
-} /* تغییرات */
-
-/* هدر ثابت */
-.responsive-table th {
-  background-color: #f8f9fa;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
+/* تنظیمات ریسپانسیو */
 @media (max-width: 768px) {
   body {
-    padding-right: 0; /* حذف پدینگ در موبایل */
+    padding-right: 0;
   }
+
   .sidebar {
-    width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
+    width: 0;
     overflow: hidden;
   }
+
   .sidebar.open {
-    width: 140px; /* عرض در حالت باز در موبایل */
+    width: 140px;
   }
+
   .sidebar ~ .main-content {
-    margin-right: 0px;
+    margin-right: 0;
   }
+
   .sidebar.open ~ .main-content {
-    margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
+    margin-right: 140px;
   }
+
   .table-container {
     overflow-x: auto;
     overflow-y: auto;
-    max-height: 400px; /* ارتفاع کمتر برای موبایل */
+    max-height: 400px;
   }
 
   .responsive-table {
-    min-width: 700px; /* حداقل عرض برای فعال کردن اسکرول افقی */
+    min-width: 700px;
   }
 
   .responsive-table th,
@@ -278,4 +240,75 @@ select {
     font-size: 14px;
     padding: 6px;
   }
+
+  .sidebar-nav .nav-link {
+    font-size: 12px; /* کاهش اندازه فونت در موبایل */
+    padding: 8px 12px;
+  }
+}
+
+/* استایل‌های اضافی */
+.card {
+  background-color: var(--primary-bg);
+}
+
+select {
+  width: fit-content !important;
+}
+
+.select-wdt {
+  width: fit-content !important;
+}
+
+.invoice-container {
+  width: 148mm;
+  height: 210mm;
+  margin: 0 auto;
+  padding: 0 3mm;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  position: relative;
+}
+
+.invoice-header {
+  text-align: center;
+  margin-bottom: 5mm;
+}
+
+.invoice-details {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5mm;
+  font-size: 10pt;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 5mm;
+}
+
+.invoice-table th,
+.invoice-table td {
+  border: 1px solid #000;
+  padding: 5px;
+  text-align: center;
+  font-size: 10pt;
+}
+
+.invoice-table th {
+  background-color: #f0f0f0;
+}
+
+.invoice-summary {
+  font-size: 10pt;
+}
+
+.invoice-footer {
+  position: absolute;
+  bottom: 1mm;
+  left: 0;
+  right: 0;
+  font-size: 10pt;
+  text-align: center;
 }
