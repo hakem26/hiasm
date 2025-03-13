@@ -216,8 +216,6 @@ $products = $stmt_products->fetchAll(PDO::FETCH_ASSOC);
 if ($selected_year) {
     $filtered_products = [];
     foreach ($products as $product) {
-        // اینجا باید تاریخ مرتبط با هر محصول رو پیدا کنیم و سالش رو چک کنیم
-        // ولی چون مستقیم به Work_Months وصل نیست، از Work_Details استفاده می‌کنیم
         $stmt_work_details = $pdo->prepare("
             SELECT wm.start_date
             FROM Work_Details wd
@@ -239,6 +237,20 @@ if ($selected_year) {
         }
     }
     $products = $filtered_products;
+}
+
+// مرتب‌سازی بر اساس الفبای فارسی
+$collator = new Collator('fa_IR');
+usort($products, function ($a, $b) use ($collator) {
+    return $collator->compare($a['product_name'], $b['product_name']);
+});
+
+// محاسبه جمع کل
+$total_quantity = 0;
+$total_amount = 0;
+foreach ($products as $product) {
+    $total_quantity += $product['total_quantity'];
+    $total_amount += $product['total_quantity'] * $product['unit_price'];
 }
 
 // محاسبه جمع کل

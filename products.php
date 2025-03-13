@@ -56,6 +56,12 @@ try {
     $products = $pdo->query("SELECT * FROM Products ORDER BY product_id DESC")->fetchAll(PDO::FETCH_ASSOC);
     echo "<!-- دیباگ: تعداد محصولات = " . count($products) . " -->";
 
+    // مرتب‌سازی بر اساس الفبای فارسی
+    $collator = new Collator('fa_IR');
+    usort($products, function ($a, $b) use ($collator) {
+        return $collator->compare($a['product_name'], $b['product_name']);
+    });
+
     // دریافت آخرین قیمت برای هر محصول
     foreach ($products as &$product) {
         $stmt = $pdo->prepare("SELECT unit_price FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 1");
