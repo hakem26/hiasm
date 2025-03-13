@@ -172,12 +172,11 @@ select {
   background-color: #f0f0f0;
 }
 .invoice-summary {
-  margin-bottom: 10mm;
   font-size: 10pt;
 }
 .invoice-footer {
   position: absolute;
-  bottom: 3mm;
+  bottom: 5mm;
   left: 0;
   right: 0;
   font-size: 10pt;
