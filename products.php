@@ -134,7 +134,7 @@ try {
 }
 ?>
 
-<!-- فقط استایل اصلی DataTables رو نگه داشتم چون گفتی بقیه رو به style.css بردی -->
+<!-- فقط استایل اصلی DataTables -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
 
 <div class="container-fluid">
@@ -284,7 +284,6 @@ try {
     <?php endif; ?>
 </div>
 
-<!-- فرض کردم jQuery و DataTables JS توی header.php لود شدن -->
 <script>
 $(document).ready(function() {
     $('#productsTable').DataTable({
@@ -323,7 +322,7 @@ $(document).ready(function() {
             { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }, // موجودی
             <?php endif; ?>
             <?php if ($is_seller): ?>
-            { "targets": <?php echo ($is_admin && $is_partner1) ? 5 : ($is_admin || $is_partner1) ? 4 : 3; ?>, "width": "80px" } // تغییرات
+            { "targets": <?php echo (($is_admin && $is_partner1) ? 5 : ($is_admin || $is_partner1) ? 4 : 3); ?>, "width": "80px" } // تغییرات
             <?php endif; ?>
         ]
     });
