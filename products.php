@@ -140,6 +140,32 @@ try {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #productsTable th,
+        #productsTable td {
+            white-space: nowrap; /* جلوگیری از شکستن خط */
+            overflow: hidden;
+            text-overflow: ellipsis; /* نمایش ... برای محتوای طولانی */
+        }
+
+        #productsTable th:nth-child(1),
+        #productsTable td:nth-child(1) { width: 60px; } /* شناسه */
+        #productsTable th:nth-child(2),
+        #productsTable td:nth-child(2) { width: 200px; } /* نام محصول */
+        #productsTable th:nth-child(3),
+        #productsTable td:nth-child(3) { width: 120px; } /* قیمت واحد */
+        #productsTable th:nth-child(4),
+        #productsTable td:nth-child(4) { width: 150px; } /* عملیات */
+        #productsTable th:nth-child(5),
+        #productsTable td:nth-child(5) { width: 100px; } /* موجودی */
+        #productsTable th:nth-child(6),
+        #productsTable td:nth-child(6) { width: 100px; } /* تغییرات */
+    </style>
 </head>
 
 <body>
@@ -196,6 +222,8 @@ try {
                                         <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
                                         <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
                                     </td>
+                                <?php else: ?>
+                                    <td></td> <!-- پر کردن ستون خالی برای هماهنگی -->
                                 <?php endif; ?>
                                 <?php if ($is_seller && $is_partner1): ?>
                                     <td>
@@ -204,7 +232,6 @@ try {
                                             تغییر
                                         </button>
 
-                                        <!-- مودال برای ویرایش موجودی -->
                                         <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                                             <div class="modal-dialog">
                                                 <div class="modal-content">
@@ -229,6 +256,8 @@ try {
                                             </div>
                                         </div>
                                     </td>
+                                <?php elseif ($is_seller): ?>
+                                    <td></td> <!-- پر کردن ستون خالی برای هماهنگی -->
                                 <?php endif; ?>
                                 <?php if ($is_seller): ?>
                                     <td>
@@ -236,7 +265,6 @@ try {
                                             تغییرات
                                         </button>
 
-                                        <!-- مودال برای نمایش تاریخچه قیمت -->
                                         <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                                             <div class="modal-dialog">
                                                 <div class="modal-content">
@@ -270,6 +298,8 @@ try {
                                             </div>
                                         </div>
                                     </td>
+                                <?php else: ?>
+                                    <td></td> <!-- پر کردن ستون خالی برای هماهنگی -->
                                 <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
@@ -294,16 +324,7 @@ try {
                 },
                 "pageLength": 20, // نمایش 20 ردیف در هر صفحه
                 "scrollX": true, // فعال کردن اسکرول افقی
-                "autoWidth": false, // غیرفعال کردن تنظیم خودکار عرض
-                "columnDefs": [
-                    { "width": "60px", "targets": 0 }, // شناسه
-                    { "width": "200px", "targets": 1 }, // نام محصول
-                    { "width": "120px", "targets": 2 }, // قیمت واحد
-                    { "width": "150px", "targets": 3 }, // عملیات
-                    { "width": "100px", "targets": 4 }, // موجودی
-                    { "width": "100px", "targets": 5 } // تغییرات
-                ],
-                "responsive": false // غیرفعال کردن واکنش‌گرایی پیش‌فرض DataTables
+                "autoWidth": false // غیرفعال کردن تنظیم خودکار عرض
             });
         });
     </script>
