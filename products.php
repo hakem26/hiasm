@@ -290,10 +290,7 @@ try {
 </div>
 
 <!-- Add jQuery and DataTables JS -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-
+ 
 <script>
 $(document).ready(function() {
     $('#productsTable').DataTable({
@@ -332,29 +329,5 @@ $(document).ready(function() {
     });
 });
 </script>
-
-<style>
-/* Custom CSS for table */
-.dataTables_wrapper {
-    width: 100%;
-    margin: 0 auto;
-}
-
-.dataTable th, .dataTable td {
-    white-space: nowrap; /* Prevent text wrapping */
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Ensure buttons stay on one line */
-.btn-sm {
-    margin: 0 2px;
-}
-
-/* Fix modal z-index issue with DataTables */
-.modal {
-    z-index: 1055;
-}
-</style>
 
 <?php require_once 'footer.php'; ?>

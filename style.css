@@ -248,6 +248,28 @@ select {
   width: 100px;
 }
 
+/* Custom CSS for table */
+.dataTables_wrapper {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.dataTable th, .dataTable td {
+  white-space: nowrap; /* Prevent text wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ensure buttons stay on one line */
+.btn-sm {
+  margin: 0 2px;
+}
+
+/* Fix modal z-index issue with DataTables */
+.modal {
+  z-index: 1055;
+}
+
 @media (max-width: 768px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */

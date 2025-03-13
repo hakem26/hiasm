@@ -49,6 +49,8 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script src="assets/js/persian-date.min.js"></script>
     <script src="assets/js/persian-datepicker.min.js"></script>
+    <script src="assets/js/jquery.dataTables.min.js"></script>
+    <script src="assets/js/dataTables.responsive.min.js"></script>
 </head>
 
 <body>
@@ -154,10 +156,10 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                 </ul>
             </li>
             <li class="nav-item"></li>
-                <a class="nav-link" href="debtors.php">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <span>بدهکاران</span>
-                </a>
+            <a class="nav-link" href="debtors.php">
+                <i class="fas fa-money-bill-wave"></i>
+                <span>بدهکاران</span>
+            </a>
             </li>
             <!-- <li class="nav-item"></li>
                 <a class="nav-link" href="inventory.php">
