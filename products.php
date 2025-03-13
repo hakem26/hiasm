@@ -132,6 +132,14 @@ try {
 } catch (Exception $e) {
     echo "<!-- خطا در کوئری محصولات: " . $e->getMessage() . " -->";
 }
+
+// محاسبه اندیس ستون "تغییرات" قبل از جاوااسکریپت
+$changes_column_index = 3; // مقدار پیش‌فرض
+if ($is_admin && $is_partner1) {
+    $changes_column_index = 5;
+} elseif ($is_admin || $is_partner1) {
+    $changes_column_index = 4;
+}
 ?>
 
 <!-- فقط استایل اصلی DataTables -->
@@ -322,7 +330,7 @@ $(document).ready(function() {
             { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }, // موجودی
             <?php endif; ?>
             <?php if ($is_seller): ?>
-            { "targets": <?php echo (($is_admin && $is_partner1) ? 5 : ($is_admin || $is_partner1) ? 4 : 3); ?>, "width": "80px" } // تغییرات
+            { "targets": <?php echo $changes_column_index; ?>, "width": "80px" } // تغییرات
             <?php endif; ?>
         ]
     });
