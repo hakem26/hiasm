@@ -195,15 +195,15 @@ select {
 }
 
 /* تنظیم جدول */
-.custom-table {
+.responsive-table {
   width: auto; /* عرض جدول به صورت خودکار بر اساس محتوا */
   table-layout: fixed; /* ثابت کردن عرض ستون‌ها */
   border-collapse: collapse;
 }
 
 /* تنظیمات ستون‌ها */
-.custom-table th,
-.custom-table td {
+.responsive-table th,
+.responsive-table td {
   padding: 8px;
   text-align: center;
   vertical-align: middle;
@@ -213,33 +213,33 @@ select {
 }
 
 /* تنظیم عرض ستون‌ها */
-.custom-table th:nth-child(1),
-.custom-table td:nth-child(1) {
+.responsive-table th:nth-child(1),
+.responsive-table td:nth-child(1) {
   width: 60px;
 } /* شناسه */
-.custom-table th:nth-child(2),
-.custom-table td:nth-child(2) {
+.responsive-table th:nth-child(2),
+.responsive-table td:nth-child(2) {
   width: 200px;
 } /* نام محصول */
-.custom-table th:nth-child(3),
-.custom-table td:nth-child(3) {
+.responsive-table th:nth-child(3),
+.responsive-table td:nth-child(3) {
   width: 120px;
 } /* قیمت واحد */
-.custom-table th:nth-child(4),
-.custom-table td:nth-child(4) {
+.responsive-table th:nth-child(4),
+.responsive-table td:nth-child(4) {
   width: 150px;
 } /* عملیات */
-.custom-table th:nth-child(5),
-.custom-table td:nth-child(5) {
+.responsive-table th:nth-child(5),
+.responsive-table td:nth-child(5) {
   width: 100px;
 } /* موجودی */
-.custom-table th:nth-child(6),
-.custom-table td:nth-child(6) {
+.responsive-table th:nth-child(6),
+.responsive-table td:nth-child(6) {
   width: 100px;
 } /* تغییرات */
 
 /* هدر ثابت */
-.custom-table th {
+.responsive-table th {
   background-color: #f8f9fa;
   position: sticky;
   top: 0;
@@ -269,12 +269,12 @@ select {
     max-height: 400px; /* ارتفاع کمتر برای موبایل */
   }
 
-  .custom-table {
+  .responsive-table {
     min-width: 700px; /* حداقل عرض برای فعال کردن اسکرول افقی */
   }
 
-  .custom-table th,
-  .custom-table td {
+  .responsive-table th,
+  .responsive-table td {
     font-size: 14px;
     padding: 6px;
   }
