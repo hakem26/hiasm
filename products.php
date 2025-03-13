@@ -134,6 +134,14 @@ try {
 }
 ?>
 
+<?php
+// [Previous PHP code remains unchanged until the HTML section]
+?>
+
+<!-- Add DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+
 <div class="container-fluid">
     <h5 class="card-title">مدیریت محصولات</h5>
 
@@ -152,122 +160,201 @@ try {
     <?php endif; ?>
 
     <?php if (!empty($products)): ?>
-        <table class="table table-light table-hover responsive-table">
-            <thead>
-                <tr>
-                    <th>شناسه</th>
-                    <th>نام محصول</th>
-                    <th>قیمت واحد (تومان)</th>
-                    <?php if ($is_admin): ?>
-                        <th>عملیات</th>
-                    <?php endif; ?>
-                    <?php if ($is_seller && $is_partner1): ?>
-                        <th>موجودی</th>
-                    <?php endif; ?>
-                    <?php if ($is_seller): ?>
-                        <th>تغییرات</th>
-                    <?php endif; ?>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($products as $product): ?>
+        <div class="table-responsive" style="overflow-x: auto;">
+            <table id="productsTable" class="table table-light table-hover display nowrap" style="width:100%;">
+                <thead>
                     <tr>
-                        <td><?= $product['product_id'] ?></td>
-                        <td><?= htmlspecialchars($product['product_name']) ?></td>
-                        <td>
-                            <?php
-                            $display_price = $product['latest_price'] ?? $product['unit_price'];
-                            echo number_format($display_price, 0, '', ',');
-                            ?>
-                        </td>
+                        <th>شناسه</th>
+                        <th>نام محصول</th>
+                        <th>قیمت واحد (تومان)</th>
                         <?php if ($is_admin): ?>
-                            <td>
-                                <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
-                                <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
-                                <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
-                            </td>
+                            <th>عملیات</th>
                         <?php endif; ?>
                         <?php if ($is_seller && $is_partner1): ?>
-                            <td>
-                                <span id="inventory_<?= $product['product_id'] ?>"><?= $product['inventory'] ?></span>
-                                <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#inventoryModal_<?= $product['product_id'] ?>">
-                                    تغییر
-                                </button>
-
-                                <!-- مودال برای ویرایش موجودی -->
-                                <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="inventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی برای <?= htmlspecialchars($product['product_name']) ?></h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <form method="POST">
-                                                    <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
-                                                    <div class="mb-3">
-                                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد جدید</label>
-                                                        <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>" name="new_quantity" min="0" required>
-                                                    </div>
-                                                    <button type="submit" name="update_inventory" class="btn btn-primary">ذخیره</button>
-                                                </form>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
+                            <th>موجودی</th>
                         <?php endif; ?>
                         <?php if ($is_seller): ?>
-                            <td>
-                                <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#priceModal_<?= $product['product_id'] ?>">
-                                    تغییرات
-                                </button>
-
-                                <!-- مودال برای نمایش تاریخچه قیمت -->
-                                <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <?php if (!empty($product['price_history'])): ?>
-                                                    <ul class="list-group">
-                                                        <?php foreach ($product['price_history'] as $price): ?>
-                                                            <li class="list-group-item">
-                                                                <?= gregorian_to_jalali_format($price['start_date']) ?>
-                                                                <?php if ($price['end_date']): ?>
-                                                                    تا <?= gregorian_to_jalali_format($price['end_date']) ?>
-                                                                <?php else: ?>
-                                                                    (تاکنون)
-                                                                <?php endif; ?>
-                                                                : از <?= number_format($price['previous_price'], 0, '', ',') ?> به <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
-                                                            </li>
-                                                        <?php endforeach; ?>
-                                                    </ul>
-                                                <?php else: ?>
-                                                    <p class="text-center">این محصول تغییر قیمتی نداشته است.</p>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
+                            <th>تغییرات</th>
                         <?php endif; ?>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php foreach ($products as $product): ?>
+                        <tr>
+                            <td><?= $product['product_id'] ?></td>
+                            <td><?= htmlspecialchars($product['product_name']) ?></td>
+                            <td>
+                                <?php
+                                $display_price = $product['latest_price'] ?? $product['unit_price'];
+                                echo number_format($display_price, 0, '', ',');
+                                ?>
+                            </td>
+                            <?php if ($is_admin): ?>
+                                <td>
+                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
+                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
+                                    <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
+                                </td>
+                            <?php endif; ?>
+                            <?php if ($is_seller && $is_partner1): ?>
+                                <td>
+                                    <span id="inventory_<?= $product['product_id'] ?>"><?= $product['inventory'] ?></span>
+                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#inventoryModal_<?= $product['product_id'] ?>">
+                                        تغییر
+                                    </button>
+                                </td>
+                            <?php endif; ?>
+                            <?php if ($is_seller): ?>
+                                <td>
+                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#priceModal_<?= $product['product_id'] ?>">
+                                        تغییرات
+                                    </button>
+                                </td>
+                            <?php endif; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Inventory Modal (unchanged) -->
+        <?php if ($is_seller && $is_partner1): ?>
+            <?php foreach ($products as $product): ?>
+                <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="inventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form method="POST">
+                                    <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+                                    <div class="mb-3">
+                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد جدید</label>
+                                        <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>" name="new_quantity" min="0" required>
+                                    </div>
+                                    <button type="submit" name="update_inventory" class="btn btn-primary">ذخیره</button>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
+        <!-- Price History Modal (unchanged) -->
+        <?php if ($is_seller): ?>
+            <?php foreach ($products as $product): ?>
+                <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <?php if (!empty($product['price_history'])): ?>
+                                    <ul class="list-group">
+                                        <?php foreach ($product['price_history'] as $price): ?>
+                                            <li class="list-group-item">
+                                                <?= gregorian_to_jalali_format($price['start_date']) ?>
+                                                <?php if ($price['end_date']): ?>
+                                                    تا <?= gregorian_to_jalali_format($price['end_date']) ?>
+                                                <?php else: ?>
+                                                    (تاکنون)
+                                                <?php endif; ?>
+                                                : از <?= number_format($price['previous_price'], 0, '', ',') ?> به <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php else: ?>
+                                    <p class="text-center">این محصول تغییر قیمتی نداشته است.</p>
+                                <?php endif; ?>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
     <?php else: ?>
         <div class="alert alert-warning text-center">محصولی وجود ندارد.</div>
     <?php endif; ?>
 </div>
+
+<!-- Add jQuery and DataTables JS -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#productsTable').DataTable({
+        "pageLength": 20,           // 20 rows per page
+        "scrollX": true,           // Enable horizontal scrolling
+        "scrollY": "400px",        // Enable vertical scrolling with fixed height
+        "scrollCollapse": true,    // Allow table to collapse when fewer rows
+        "paging": true,            // Enable pagination
+        "responsive": true,        // Enable responsive design
+        "autoWidth": false,        // Disable auto width calculation
+        "ordering": true,          // Enable column sorting
+        "language": {
+            "decimal": "",
+            "emptyTable": "داده‌ای در جدول وجود ندارد",
+            "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+            "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+            "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+            "lengthMenu": "نمایش _MENU_ ردیف",
+            "loadingRecords": "در حال بارگذاری...",
+            "processing": "در حال پردازش...",
+            "search": "جستجو:",
+            "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+            "paginate": {
+                "first": "اولین",
+                "last": "آخرین",
+                "next": "بعدی",
+                "previous": "قبلی"
+            }
+        },
+        "columnDefs": [
+            {
+                "targets": "_all",
+                "className": "dt-nowrap"  // Force single line rows
+            }
+        ]
+    });
+});
+</script>
+
+<style>
+/* Custom CSS for table */
+.dataTables_wrapper {
+    width: 100%;
+    margin: 0 auto;
+}
+
+.dataTable th, .dataTable td {
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ensure buttons stay on one line */
+.btn-sm {
+    margin: 0 2px;
+}
+
+/* Fix modal z-index issue with DataTables */
+.modal {
+    z-index: 1055;
+}
+</style>
 
 <?php require_once 'footer.php'; ?>
