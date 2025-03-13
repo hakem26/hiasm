@@ -183,6 +183,33 @@ select {
   text-align: center;
 }
 
+.responsive-table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+.responsive-table th,
+.responsive-table td {
+  padding: 8px;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+.responsive-table th {
+  background-color: #f8f9fa;
+  position: sticky;
+  top: 0;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
+}
+
 @media (max-width: 768px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */
@@ -199,5 +226,13 @@ select {
   }
   .sidebar.open ~ .main-content {
     margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
+  }
+  .responsive-table {
+    min-width: 600px;
+  }
+  .responsive-table th,
+  .responsive-table td {
+    font-size: 14px;
+    padding: 6px;
   }
 }

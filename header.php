@@ -159,12 +159,12 @@ $page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
                     <span>بدهکاران</span>
                 </a>
             </li>
-            <li class="nav-item"></li>
+            <!-- <li class="nav-item"></li>
                 <a class="nav-link" href="inventory.php">
                     <i class="fas fa-warehouse"></i>
                     <span>موجودی</span>
                 </a>
-            </li>
+            </li> -->
 
             <!-- ادمین -->
             <?php if ($_SESSION['role'] === 'admin'): ?>

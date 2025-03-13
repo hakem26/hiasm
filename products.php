@@ -50,6 +50,31 @@ if ($is_admin && isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     }
 }
 
+// پردازش به‌روزرسانی موجودی (فقط برای همکار ۱)
+if ($is_seller && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_inventory'])) {
+    $product_id = (int)$_POST['product_id'];
+    $new_quantity = (int)$_POST['new_quantity'];
+    $current_user_id = $_SESSION['user_id'];
+
+    // چک کن که آیا کاربر همکار ۱ هست
+    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ?");
+    $stmt_check->execute([$current_user_id]);
+    $is_partner1 = $stmt_check->fetchColumn() > 0;
+
+    if ($is_partner1) {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
+                                 ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+            $stmt->execute([$current_user_id, $product_id, $new_quantity]);
+            echo "<script>alert('موجودی با موفقیت به‌روزرسانی شد!'); window.location.href='products.php';</script>";
+        } catch (Exception $e) {
+            echo "<script>alert('خطا در به‌روزرسانی موجودی: " . $e->getMessage() . "');</script>";
+        }
+    } else {
+        echo "<script>alert('شما دسترسی به ویرایش موجودی ندارید!');</script>";
+    }
+}
+
 // دریافت محصولات
 $products = [];
 try {
@@ -71,16 +96,30 @@ try {
     }
     unset($product);
 
-    // دریافت تاریخچه قیمت‌ها برای هر محصول (فقط 2 تغییر آخر برای نمایش در مودال)
+    // دریافت موجودی برای همکار ۱
+    $current_user_id = $_SESSION['user_id'];
+    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ?");
+    $stmt_check->execute([$current_user_id]);
+    $is_partner1 = $stmt_check->fetchColumn() > 0;
+
+    if ($is_partner1) {
+        foreach ($products as &$product) {
+            $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
+            $stmt->execute([$current_user_id, $product['product_id']]);
+            $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+            $product['inventory'] = $inventory ? $inventory['quantity'] : 0;
+        }
+        unset($product);
+    }
+
+    // دریافت تاریخچه قیمت‌ها برای فروشنده
     if ($is_seller) {
         foreach ($products as &$product) {
             $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 2");
             $stmt->execute([$product['product_id']]);
             $product['price_history'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // برای هر تغییر، قیمت قبلی رو محاسبه می‌کنیم
             foreach ($product['price_history'] as &$price) {
-                // اگر این اولین تغییر قیمت باشه (آخرین رکورد توی لیست مرتب‌شده)، قیمت قبلی از Products میاد
                 $stmt = $pdo->prepare("SELECT unit_price FROM Product_Price_History WHERE product_id = ? AND start_date < ? ORDER BY start_date DESC LIMIT 1");
                 $stmt->execute([$product['product_id'], $price['start_date']]);
                 $previous_price = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -113,7 +152,7 @@ try {
     <?php endif; ?>
 
     <?php if (!empty($products)): ?>
-        <table class="table table-light table-hover">
+        <table class="table table-light table-hover responsive-table">
             <thead>
                 <tr>
                     <th>شناسه</th>
@@ -121,6 +160,9 @@ try {
                     <th>قیمت واحد (تومان)</th>
                     <?php if ($is_admin): ?>
                         <th>عملیات</th>
+                    <?php endif; ?>
+                    <?php if ($is_seller && $is_partner1): ?>
+                        <th>موجودی</th>
                     <?php endif; ?>
                     <?php if ($is_seller): ?>
                         <th>تغییرات</th>
@@ -143,6 +185,39 @@ try {
                                 <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
                                 <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
                                 <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
+                            </td>
+                        <?php endif; ?>
+                        <?php if ($is_seller && $is_partner1): ?>
+                            <td>
+                                <span id="inventory_<?= $product['product_id'] ?>"><?= $product['inventory'] ?></span>
+                                <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#inventoryModal_<?= $product['product_id'] ?>">
+                                    تغییر
+                                </button>
+
+                                <!-- مودال برای ویرایش موجودی -->
+                                <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="inventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <form method="POST">
+                                                    <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+                                                    <div class="mb-3">
+                                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد جدید</label>
+                                                        <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>" name="new_quantity" min="0" required>
+                                                    </div>
+                                                    <button type="submit" name="update_inventory" class="btn btn-primary">ذخیره</button>
+                                                </form>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         <?php endif; ?>
                         <?php if ($is_seller): ?>

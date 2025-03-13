@@ -62,7 +62,6 @@ if ($work_details_id && empty($work_info)) {
     $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Work_Details WHERE id = ?");
     $stmt_check->execute([$work_details_id]);
     if ($stmt_check->fetchColumn() == 0) {
-        // ثبت خودکار Work_Details با partner_id کاربر فعلی
         $stmt_insert = $pdo->prepare("
             INSERT INTO Work_Details (id, work_date, work_month_id, partner_id)
             VALUES (?, CURDATE(), (SELECT work_month_id FROM Work_Months WHERE CURDATE() BETWEEN start_date AND end_date LIMIT 1), ?)
@@ -97,7 +96,6 @@ if ($work_info['partner_id']) {
         $user1_name = $partner_data['user1_name'] ?: 'نامشخص';
         $user2_name = $partner_data['user2_name'] ?: 'نامشخص';
 
-        // اگه کاربر لاگین‌شده user1 باشه، user2 رو نشون بده و برعکس
         if ($user1_id == $current_user_id && $user2_name != 'نامشخص') {
             $partner_name = $user2_name;
         } elseif ($user2_id == $current_user_id && $user1_name != 'نامشخص') {
@@ -112,6 +110,40 @@ $customer_name = '';
 $total_amount = array_sum(array_column($items, 'total_price'));
 $discount = 0;
 $final_amount = $total_amount - $discount;
+
+// چک کردن موجودی و کسر آن (فقط برای همکار ۱)
+$stmt_check_partner1 = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ? AND partner_id = ?");
+$stmt_check_partner1->execute([$current_user_id, $work_info['partner_id']]);
+$is_partner1 = $stmt_check_partner1->fetchColumn() > 0;
+
+if ($is_partner1 && !empty($items)) {
+    $pdo->beginTransaction();
+    try {
+        foreach ($items as $item) {
+            $product_id = $item['product_id'];
+            $quantity = $item['quantity'];
+
+            $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+            $stmt_inventory->execute([$current_user_id, $product_id]);
+            $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+
+            $current_quantity = $inventory ? $inventory['quantity'] : 0;
+            if ($current_quantity < $quantity) {
+                throw new Exception("موجودی کافی برای محصول '$item[product_name]' نیست. موجودی: $current_quantity، درخواست: $quantity");
+            }
+
+            $new_quantity = $current_quantity - $quantity;
+            $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
+                                       ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+            $stmt_update->execute([$current_user_id, $product_id, $new_quantity]);
+        }
+        $pdo->commit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo "<div class='alert alert-danger text-center'>خطا در کسر موجودی: " . $e->getMessage() . "</div>";
+        $items = []; // خالی کردن سبد خرید در صورت خطا
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -130,35 +162,22 @@ $final_amount = $total_amount - $discount;
             -webkit-overflow-scrolling: touch;
         }
 
-        table {
-            min-width: 400px;
+        .responsive-table {
+            width: 100%;
             table-layout: auto;
         }
 
-        th,
-        td {
+        .responsive-table th,
+        .responsive-table td {
+            padding: 8px;
+            text-align: center;
             white-space: nowrap;
-            padding: 8px 6px;
+            min-width: 0;
         }
 
         @media (max-width: 768px) {
-            table {
-                min-width: 300px;
-            }
-
-            th,
-            td {
-                padding: 4px;
-                font-size: 14px;
-            }
-
-            .table-wrapper {
-                overflow-x: scroll;
-            }
-
-            .total-row td {
-                border-top: 2px solid #dee2e6;
-                font-weight: bold;
+            .responsive-table {
+                min-width: 600px;
             }
         }
     </style>
@@ -211,7 +230,7 @@ $final_amount = $total_amount - $discount;
             <!-- جدول فاکتور -->
             <div class="table-wrapper" id="items_table">
                 <?php if (!empty($items)): ?>
-                    <table class="table table-light">
+                    <table class="table table-light responsive-table">
                         <thead>
                             <tr>
                                 <th>نام محصول</th>
@@ -293,7 +312,7 @@ $final_amount = $total_amount - $discount;
             }
 
             itemsTable.innerHTML = `
-                <table class="table table-light">
+                <table class="table table-light responsive-table">
                     <thead>
                         <tr>
                             <th>نام محصول</th>
