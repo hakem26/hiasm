@@ -56,7 +56,6 @@ if ($is_seller && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_
     $new_quantity = (int)$_POST['new_quantity'];
     $current_user_id = $_SESSION['user_id'];
 
-    // چک کن که آیا کاربر همکار ۱ هست
     $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ?");
     $stmt_check->execute([$current_user_id]);
     $is_partner1 = $stmt_check->fetchColumn() > 0;
@@ -81,13 +80,11 @@ try {
     $products = $pdo->query("SELECT * FROM Products ORDER BY product_id DESC")->fetchAll(PDO::FETCH_ASSOC);
     echo "<!-- دیباگ: تعداد محصولات = " . count($products) . " -->";
 
-    // مرتب‌سازی بر اساس الفبای فارسی
     $collator = new Collator('fa_IR');
     usort($products, function ($a, $b) use ($collator) {
         return $collator->compare($a['product_name'], $b['product_name']);
     });
 
-    // دریافت آخرین قیمت برای هر محصول
     foreach ($products as &$product) {
         $stmt = $pdo->prepare("SELECT unit_price FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 1");
         $stmt->execute([$product['product_id']]);
@@ -96,7 +93,6 @@ try {
     }
     unset($product);
 
-    // دریافت موجودی برای همکار ۱
     $current_user_id = $_SESSION['user_id'];
     $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ?");
     $stmt_check->execute([$current_user_id]);
@@ -105,14 +101,13 @@ try {
     if ($is_partner1) {
         foreach ($products as &$product) {
             $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
-            $stmt->execute([$current_user_id, $product['product_id']]); // خط اصلاح‌شده (خط 119)
+            $stmt->execute([$current_user_id, $product['product_id']]);
             $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
             $product['inventory'] = $inventory ? $inventory['quantity'] : 0;
         }
         unset($product);
     }
 
-    // دریافت تاریخچه قیمت‌ها برای فروشنده
     if ($is_seller) {
         foreach ($products as &$product) {
             $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 2");
@@ -133,8 +128,23 @@ try {
     echo "<!-- خطا در کوئری محصولات: " . $e->getMessage() . " -->";
 }
 ?>
-    <div class="container-fluid">
-        <h5 class="card-title">مدیریت محصولات</h5>
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت محصولات</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container-fluid mt-5">
+        <h5 class="card-title mb-4">مدیریت محصولات</h5>
 
         <?php if ($is_admin): ?>
             <form method="POST" class="row g-3 mb-3">
@@ -151,8 +161,8 @@ try {
         <?php endif; ?>
 
         <?php if (!empty($products)): ?>
-            <div class="table-container">
-                <table class="table table-light table-hover responsive-table">
+            <div class="table-responsive">
+                <table id="productsTable" class="table table-light table-hover" style="width: 100%;">
                     <thead>
                         <tr>
                             <th>شناسه</th>
@@ -274,33 +284,29 @@ try {
     <!-- اسکریپت‌ها -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        // جلوگیری از اسکرول کل صفحه هنگام اسکرول جدول
-        document.querySelector('.table-container').addEventListener('touchmove', function(e) {
-            e.stopPropagation(); // جلوگیری از انتقال اسکرول به والد
-        });
-
-        document.querySelector('.table-container').addEventListener('wheel', function(e) {
-            e.stopPropagation(); // جلوگیری از انتقال اسکرول به والد
-        });
-
-        // دیباگ مودال
-        document.addEventListener('DOMContentLoaded', function() {
-            var myModal = document.querySelector('.modal');
-            if (myModal) {
-                myModal.addEventListener('show.bs.modal', function() {
-                    console.log('مودال در حال نمایش است');
-                });
-                myModal.addEventListener('shown.bs.modal', function() {
-                    console.log('مودال نمایش داده شد');
-                });
-                myModal.addEventListener('hide.bs.modal', function() {
-                    console.log('مودال در حال بسته شدن است');
-                });
-            } else {
-                console.log('هیچ مودالی پیدا نشد!');
-            }
+        $(document).ready(function() {
+            $('#productsTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/Fa.json" // زبان فارسی
+                },
+                "pageLength": 20, // نمایش 20 ردیف در هر صفحه
+                "scrollX": true, // فعال کردن اسکرول افقی
+                "autoWidth": false, // غیرفعال کردن تنظیم خودکار عرض
+                "columnDefs": [
+                    { "width": "60px", "targets": 0 }, // شناسه
+                    { "width": "200px", "targets": 1 }, // نام محصول
+                    { "width": "120px", "targets": 2 }, // قیمت واحد
+                    { "width": "150px", "targets": 3 }, // عملیات
+                    { "width": "100px", "targets": 4 }, // موجودی
+                    { "width": "100px", "targets": 5 } // تغییرات
+                ],
+                "responsive": false // غیرفعال کردن واکنش‌گرایی پیش‌فرض DataTables
+            });
         });
     </script>
 
     <?php require_once 'footer.php'; ?>
+</html>

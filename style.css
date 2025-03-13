@@ -1,156 +1,72 @@
-:root {
-  --primary-bg: #f8f9fa;
-  --sidebar-bg: #343a40;
-  --sidebar-hover-bg: #495057;
-  --text-color: #212529;
-  --hover-color: #007bff;
-  --border-color: #dee2e6;
-  --table-sticky-bg: #f8f9fa;
-}
-
 body {
   font-family: "Vazirmatn", sans-serif;
-  background-color: var(--primary-bg);
+  background-color: #f8f9fa;
   margin: 0;
-  padding-top: 50px;
-  padding-right: 0;
+  padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
+  padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
 }
 
-/* استایل جدول */
-.table-container {
-  position: relative;
-  max-height: 600px;
-  overflow-x: auto;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  isolation: isolate;
-  margin-bottom: 20px;
+.table-work-details thead tr th,
+.table-work-details tbody tr td {
+  white-space: nowrap !important; /* جلوگیری از شکستن خطوط */
 }
 
-.responsive-table {
-  width: auto;
-  table-layout: fixed;
-  border-collapse: collapse;
-}
-
-.responsive-table th,
-.responsive-table td {
-  padding: 8px;
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.responsive-table th:nth-child(1),
-.responsive-table td:nth-child(1) {
-  width: 60px;
-}
-
-.responsive-table th:nth-child(2),
-.responsive-table td:nth-child(2) {
-  width: 200px;
-}
-
-.responsive-table th:nth-child(3),
-.responsive-table td:nth-child(3) {
-  width: 120px;
-}
-
-.responsive-table th:nth-child(4),
-.responsive-table td:nth-child(4) {
-  width: 150px;
-}
-
-.responsive-table th:nth-child(5),
-.responsive-table td:nth-child(5) {
-  width: 100px;
-}
-
-.responsive-table th:nth-child(6),
-.responsive-table td:nth-child(6) {
-  width: 100px;
-}
-
-.responsive-table th {
-  background-color: var(--table-sticky-bg);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-/* استایل منو */
 .sidebar {
-  position: fixed;
-  top: 60px;
+  position: fixed; /* همیشه سمت راست فیکس */
+  top: 60px; /* زیر هدر */
   right: 0;
   bottom: 0;
-  background-color: var(--sidebar-bg);
+  background-color: #343a40; /* تم جدید */
   color: white;
   transition: width 0.3s ease;
-  width: 140px;
-  z-index: 900;
-  height: 100vh;
-  overflow-y: auto;
+  width: 140px; /* عرض پیش‌فرض (حالت باز) */
+  z-index: 900; /* زیر منوی بالا */
+  height: 100vh; /* ارتفاع کل صفحه */
 }
 
 .sidebar.collapsed {
-  width: 60px;
+  width: 60px; /* عرض در حالت بسته */
 }
 
 .sidebar.open {
-  width: 140px;
+  width: 140px; /* عرض در حالت باز در موبایل */
 }
 
-.sidebar-nav {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.sidebar-nav .nav-item {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-nav .nav-link {
-  color: white !important; /* اولویت بالاتر */
-  padding: 10px 15px;
+.sidebar .nav-link {
+  color: white;
+  padding: 10px 15px; /* کاهش padding برای کاهش عرض */
   display: flex;
   align-items: center;
-  text-decoration: none;
-  font-size: 14px;
+  text-decoration: none; /* برای جلوگیری از خط زیر لینک */
 }
 
-.sidebar-nav .nav-link:hover {
-  color: white !important; /* اولویت بالاتر */
-  background-color: #495057 !important; /* سایه تیره‌تر */
+.sidebar .nav-link:hover {
+  color: #007bff; /* حفظ استایل قبلی */
+  background-color: #495057; /* پس‌زمینه تیره‌تر برای هور در تم جدید */
 }
 
-.sidebar-nav .nav-link i {
-  margin-left: 10px;
+.sidebar .nav-link i {
+  margin-left: 10px; /* برای راست‌چین بودن */
   width: 20px;
   text-align: center;
 }
 
-.sidebar-nav .nav-link span {
+.sidebar .nav-link span {
   display: inline-block;
   white-space: nowrap;
-  transition: opacity 0.3s ease;
 }
 
 .sidebar.collapsed .nav-link span {
-  display: none;
+  display: none; /* مخفی کردن متن در حالت بسته */
 }
 
 .sidebar.open .nav-link span {
-  display: inline-block;
+  display: inline-block; /* نمایش متن در حالت باز در موبایل */
 }
 
-/* استایل هدر */
 .navbar {
-  background-color: var(--primary-bg);
-  border-bottom: 1px solid var(--border-color);
+  background-color: #f8f9fa; /* تم روشن برای هدر */
+  border-bottom: 1px solid #dee2e6;
   z-index: 1000;
   position: fixed;
   top: 0;
@@ -160,132 +76,91 @@ body {
 
 .navbar-brand,
 .navbar-text {
-  color: var(--text-color);
+  color: #212529;
 }
 
 .dropdown-menu {
-  background-color: var(--primary-bg);
-  border: 1px solid var(--border-color);
+  background-color: #f8f9fa; /* هماهنگی با هدر */
+  border: 1px solid #dee2e6;
 }
 
 .dropdown-item {
-  color: var(--text-color);
+  color: #212529;
 }
 
 .dropdown-item:hover,
 .dropdown-item:focus {
   background-color: #e9ecef;
-  color: var(--hover-color);
+  color: #007bff;
 }
 
 .dropdown-divider {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #dee2e6;
 }
 
-/* استایل محتوای اصلی */
+.card {
+  background-color: #f8f9fa;
+}
+
 .main-content {
   padding: 20px;
-  transition: margin-right 0.3s ease;
+  transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
 }
 
 .sidebar.collapsed ~ .main-content {
-  margin-right: 60px;
+  margin-right: 60px; /* تنظیم برای حالت بسته */
 }
 
 .sidebar ~ .main-content {
-  margin-right: 140px;
+  margin-right: 140px; /* پیش‌فرض برای حالت باز */
 }
 
 .dropdown-toggle::after {
-  display: none !important;
+  display: none !important; /* حذف فلش دراپ‌داون */
+  margin: 0 !important; /* حذف هرگونه فاصله */
+  padding: 0 !important; /* حذف هرگونه فاصله */
 }
 
-/* تنظیمات ریسپانسیو */
-@media (max-width: 768px) {
-  body {
-    padding-right: 0;
-  }
-
-  .sidebar {
-    width: 0;
-    overflow: hidden;
-  }
-
-  .sidebar.open {
-    width: 140px;
-  }
-
-  .sidebar ~ .main-content {
-    margin-right: 0;
-  }
-
-  .sidebar.open ~ .main-content {
-    margin-right: 140px;
-  }
-
-  .table-container {
-    overflow-x: auto;
-    overflow-y: auto;
-    max-height: 400px;
-  }
-
-  .responsive-table {
-    min-width: 700px;
-  }
-
-  .responsive-table th,
-  .responsive-table td {
-    font-size: 14px;
-    padding: 6px;
-  }
-
-  .sidebar-nav .nav-link {
-    font-size: 12px;
-    padding: 8px 12px;
-  }
+#ordersTable {
+  overflow-x: hidden; /* جلوگیری از افقی شدن جدول */
 }
 
-/* استایل‌های اضافی */
-.card {
-  background-color: var(--primary-bg);
+.table-wrapper {
+  overflow-x: hidden !important; /* جلوگیری از افقی شدن جدول */
 }
 
 select {
-  width: fit-content !important;
+  width: fit-content !important; /* اندازه‌گیری خودکار */
 }
 
 .select-wdt {
-  width: fit-content !important;
+  width: fit-content !important; /* اندازه‌گیری خودکار */
 }
 
 .invoice-container {
-  width: 148mm;
-  height: 210mm;
+  width: 148mm; /* عرض A5 */
+  height: 210mm; /* ارتفاع A5 */
   margin: 0 auto;
   padding: 0 3mm;
   box-sizing: border-box;
-  border: 1px solid #ccc;
+  border: 1px solid #ccc; /* برای نمایش در صفحه */
   position: relative;
 }
-
 .invoice-header {
   text-align: center;
   margin-bottom: 5mm;
 }
-
 .invoice-details {
   display: flex;
   justify-content: space-between;
   margin-bottom: 5mm;
   font-size: 10pt;
 }
-
 .invoice-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 5mm;
 }
-
 .invoice-table th,
 .invoice-table td {
   border: 1px solid #000;
@@ -293,15 +168,12 @@ select {
   text-align: center;
   font-size: 10pt;
 }
-
 .invoice-table th {
   background-color: #f0f0f0;
 }
-
 .invoice-summary {
   font-size: 10pt;
 }
-
 .invoice-footer {
   position: absolute;
   bottom: 1mm;
@@ -311,11 +183,99 @@ select {
   text-align: center;
 }
 
-/* تنظیم z-index برای مودال‌ها */
-.modal {
-  z-index: 1050;
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
 }
 
-.modal-backdrop {
-  z-index: 1040;
+.responsive-table {
+  width: auto; /* عرض جدول به صورت خودکار بر اساس محتوا */
+  table-layout: fixed; /* ثابت کردن ساختار جدول */
+  border-collapse: collapse;
+}
+
+.responsive-table th,
+.responsive-table td {
+  padding: 8px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap; /* جلوگیری از شکستن محتوا به خط دوم */
+  overflow: hidden; /* جلوگیری از سرریز محتوا */
+  text-overflow: ellipsis; /* در صورت طولانی بودن محتوا، به صورت ... نمایش داده بشه */
+}
+
+.responsive-table th {
+  background-color: #f8f9fa;
+  position: sticky;
+  top: 0;
+}
+
+/* تنظیم عرض ستون‌ها بر اساس محتوای نمونه */
+.responsive-table th:nth-child(1),
+.responsive-table td:nth-child(1) {
+  /* شناسه */
+  width: 60px;
+}
+
+.responsive-table th:nth-child(2),
+.responsive-table td:nth-child(2) {
+  /* نام محصول */
+  width: 200px;
+}
+
+.responsive-table th:nth-child(3),
+.responsive-table td:nth-child(3) {
+  /* قیمت واحد */
+  width: 120px;
+}
+
+.responsive-table th:nth-child(4),
+.responsive-table td:nth-child(4) {
+  /* عملیات یا موجودی یا تغییرات */
+  width: 150px;
+}
+
+.responsive-table th:nth-child(5),
+.responsive-table td:nth-child(5) {
+  /* موجودی یا تغییرات */
+  width: 100px;
+}
+
+.responsive-table th:nth-child(6),
+.responsive-table td:nth-child(6) {
+  /* تغییرات */
+  width: 100px;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-right: 0; /* حذف پدینگ در موبایل */
+  }
+  .sidebar {
+    width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
+    overflow: hidden;
+  }
+  .sidebar.open {
+    width: 140px; /* عرض در حالت باز در موبایل */
+  }
+  .sidebar ~ .main-content {
+    margin-right: 0px;
+  }
+  .sidebar.open ~ .main-content {
+    margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
+  }
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .responsive-table {
+    min-width: 700px; /* حداقل عرض جدول برای فعال کردن اسکرول افقی */
+  }
+
+  .responsive-table th,
+  .responsive-table td {
+    font-size: 14px;
+    padding: 6px;
+  }
 }
