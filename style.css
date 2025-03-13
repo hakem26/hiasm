@@ -114,7 +114,7 @@ body {
 }
 
 .sidebar-nav .nav-link {
-  color: white;
+  color: white !important; /* اولویت بالاتر */
   padding: 10px 15px;
   display: flex;
   align-items: center;
@@ -123,8 +123,8 @@ body {
 }
 
 .sidebar-nav .nav-link:hover {
-  color: white; /* متن سفید باقی می‌مونه */
-  background-color: #495057; /* سایه تیره‌تر بدون تغییر رنگ متن */
+  color: white !important; /* اولویت بالاتر */
+  background-color: #495057 !important; /* سایه تیره‌تر */
 }
 
 .sidebar-nav .nav-link i {

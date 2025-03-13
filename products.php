@@ -105,7 +105,7 @@ try {
     if ($is_partner1) {
         foreach ($products as &$product) {
             $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
-            $stmt->execute([$current_user_id, $product['product_id']]);
+            $stmt->execute([$current_user_id, $product['product_id']]); // خط اصلاح‌شده (خط 119)
             $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
             $product['inventory'] = $inventory ? $inventory['quantity'] : 0;
         }
@@ -116,7 +116,7 @@ try {
     if ($is_seller) {
         foreach ($products as &$product) {
             $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 2");
-            $stmt->execute([$product['product_id']);
+            $stmt->execute([$product['product_id']]);
             $product['price_history'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($product['price_history'] as &$price) {
@@ -133,20 +133,6 @@ try {
     echo "<!-- خطا در کوئری محصولات: " . $e->getMessage() . " -->";
 }
 ?>
-
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت محصولات</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-</head>
-
-<body>
     <div class="container-fluid">
         <h5 class="card-title">مدیریت محصولات</h5>
 
@@ -318,4 +304,3 @@ try {
     </script>
 
     <?php require_once 'footer.php'; ?>
-</html>
