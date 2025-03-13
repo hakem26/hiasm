@@ -43,10 +43,10 @@ try {
 
 echo "<!-- دیباگ: محصول بارگذاری شد: " . htmlspecialchars($product['product_name']) . " -->";
 
-// دریافت تاریخچه قیمت‌ها
+// دریافت تاریخچه قیمت‌ها (فقط 3 تغییر آخر)
 $price_history = [];
 try {
-    $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC");
+    $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 3");
     $stmt->execute([$product_id]);
     $price_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo "<!-- دیباگ: تعداد تاریخچه قیمت‌ها = " . count($price_history) . " -->";
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
     </form>
 
     <?php if (!empty($price_history)): ?>
-        <h6 class="mt-4">تاریخچه قیمت‌ها:</h6>
+        <h6 class="mt-4">تاریخچه قیمت‌ها (3 تغییر آخر):</h6>
         <ul class="list-group">
             <?php foreach ($price_history as $price): ?>
                 <li class="list-group-item">
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
         $("#start_date").persianDatepicker({
             format: 'YYYY/MM/DD',
             altField: '.start-date-alt',
-            altFormat: 'dddd D MMMM YYYY HH:mm a', // فرمت: چهار شنبه ۲۲ اسفند ۱۴۰۳ ۱۷:۰۰ ب ظ
+            altFormat: 'dddd D MMMM YYYY HH:mm a',
             autoClose: true,
             initialValue: false,
             calendar: {
@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                 }
             },
             onSelect: function(unix) {
-                var altValue = $(this.altField).val(); // گرفتن مقدار از altField
+                var altValue = $(this.altField).val();
                 console.log('تاریخ شروع انتخاب شد: ' + altValue);
             }
         });
@@ -174,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
         $("#end_date").persianDatepicker({
             format: 'YYYY/MM/DD',
             altField: '.end-date-alt',
-            altFormat: 'dddd D MMMM YYYY HH:mm a', // فرمت: چهار شنبه ۲۲ اسفند ۱۴۰۳ ۱۷:۰۰ ب ظ
+            altFormat: 'dddd D MMMM YYYY HH:mm a',
             autoClose: true,
             initialValue: false,
             calendar: {
@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                 }
             },
             onSelect: function(unix) {
-                var altValue = $(this.altField).val(); // گرفتن مقدار از altField
+                var altValue = $(this.altField).val();
                 console.log('تاریخ پایان انتخاب شد: ' + altValue);
             }
         });
