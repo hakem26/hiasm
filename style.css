@@ -177,7 +177,7 @@ select {
 }
 .invoice-footer {
   position: absolute;
-  bottom: 1mm;
+  bottom: 2mm;
   left: 0;
   right: 0;
   font-size: 10pt;
