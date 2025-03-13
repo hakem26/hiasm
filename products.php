@@ -116,7 +116,7 @@ try {
     if ($is_seller) {
         foreach ($products as &$product) {
             $stmt = $pdo->prepare("SELECT * FROM Product_Price_History WHERE product_id = ? ORDER BY start_date DESC LIMIT 2");
-            $stmt->execute([$product['product_id']]);
+            $stmt->execute([$product['product_id']);
             $product['price_history'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($product['price_history'] as &$price) {
@@ -143,7 +143,7 @@ try {
     <title>مدیریت محصولات</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
@@ -297,6 +297,25 @@ try {
         document.querySelector('.table-container').addEventListener('wheel', function(e) {
             e.stopPropagation(); // جلوگیری از انتقال اسکرول به والد
         });
+
+        // دیباگ مودال
+        document.addEventListener('DOMContentLoaded', function() {
+            var myModal = document.querySelector('.modal');
+            if (myModal) {
+                myModal.addEventListener('show.bs.modal', function() {
+                    console.log('مودال در حال نمایش است');
+                });
+                myModal.addEventListener('shown.bs.modal', function() {
+                    console.log('مودال نمایش داده شد');
+                });
+                myModal.addEventListener('hide.bs.modal', function() {
+                    console.log('مودال در حال بسته شدن است');
+                });
+            } else {
+                console.log('هیچ مودالی پیدا نشد!');
+            }
+        });
     </script>
 
     <?php require_once 'footer.php'; ?>
+</html>

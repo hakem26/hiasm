@@ -1,4 +1,3 @@
-/* متغیرهای سراسری برای هماهنگی */
 :root {
   --primary-bg: #f8f9fa;
   --sidebar-bg: #343a40;
@@ -9,13 +8,12 @@
   --table-sticky-bg: #f8f9fa;
 }
 
-/* تنظیمات پایه بدنه */
 body {
   font-family: "Vazirmatn", sans-serif;
   background-color: var(--primary-bg);
   margin: 0;
-  padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
-  padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
+  padding-top: 50px;
+  padding-right: 0;
 }
 
 /* استایل جدول */
@@ -47,32 +45,32 @@ body {
 
 .responsive-table th:nth-child(1),
 .responsive-table td:nth-child(1) {
-  width: 60px; /* شناسه */
+  width: 60px;
 }
 
 .responsive-table th:nth-child(2),
 .responsive-table td:nth-child(2) {
-  width: 200px; /* نام محصول */
+  width: 200px;
 }
 
 .responsive-table th:nth-child(3),
 .responsive-table td:nth-child(3) {
-  width: 120px; /* قیمت واحد */
+  width: 120px;
 }
 
 .responsive-table th:nth-child(4),
 .responsive-table td:nth-child(4) {
-  width: 150px; /* عملیات */
+  width: 150px;
 }
 
 .responsive-table th:nth-child(5),
 .responsive-table td:nth-child(5) {
-  width: 100px; /* موجودی */
+  width: 100px;
 }
 
 .responsive-table th:nth-child(6),
 .responsive-table td:nth-child(6) {
-  width: 100px; /* تغییرات */
+  width: 100px;
 }
 
 .responsive-table th {
@@ -85,24 +83,24 @@ body {
 /* استایل منو */
 .sidebar {
   position: fixed;
-  top: 60px; /* زیر هدر */
+  top: 60px;
   right: 0;
   bottom: 0;
   background-color: var(--sidebar-bg);
   color: white;
   transition: width 0.3s ease;
-  width: 140px; /* عرض پیش‌فرض (حالت باز) */
+  width: 140px;
   z-index: 900;
   height: 100vh;
-  overflow-y: auto; /* اسکرول عمودی برای منو */
+  overflow-y: auto;
 }
 
 .sidebar.collapsed {
-  width: 60px; /* عرض در حالت بسته */
+  width: 60px;
 }
 
 .sidebar.open {
-  width: 140px; /* عرض در حالت باز در موبایل */
+  width: 140px;
 }
 
 .sidebar-nav {
@@ -112,7 +110,7 @@ body {
 }
 
 .sidebar-nav .nav-item {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* جداکننده بین آیتم‌ها */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-nav .nav-link {
@@ -125,12 +123,12 @@ body {
 }
 
 .sidebar-nav .nav-link:hover {
-  color: var(--hover-color);
-  background-color: var(--sidebar-hover-bg);
+  color: white; /* متن سفید باقی می‌مونه */
+  background-color: #495057; /* سایه تیره‌تر بدون تغییر رنگ متن */
 }
 
 .sidebar-nav .nav-link i {
-  margin-left: 10px; /* برای راست‌چین بودن */
+  margin-left: 10px;
   width: 20px;
   text-align: center;
 }
@@ -142,11 +140,11 @@ body {
 }
 
 .sidebar.collapsed .nav-link span {
-  display: none; /* مخفی کردن متن در حالت بسته */
+  display: none;
 }
 
 .sidebar.open .nav-link span {
-  display: inline-block; /* نمایش متن در حالت باز در موبایل */
+  display: inline-block;
 }
 
 /* استایل هدر */
@@ -242,7 +240,7 @@ body {
   }
 
   .sidebar-nav .nav-link {
-    font-size: 12px; /* کاهش اندازه فونت در موبایل */
+    font-size: 12px;
     padding: 8px 12px;
   }
 }
@@ -311,4 +309,13 @@ select {
   right: 0;
   font-size: 10pt;
   text-align: center;
+}
+
+/* تنظیم z-index برای مودال‌ها */
+.modal {
+  z-index: 1050;
+}
+
+.modal-backdrop {
+  z-index: 1040;
 }
