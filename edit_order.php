@@ -362,7 +362,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             console.log('Debug: Adding product - Name:', productName, 'Quantity:', quantity, 'UnitPrice:', unitPrice); // دیباگ
 
             if (!productName || !quantity || !unitPrice || quantity <= 0) {
-                alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
                 return;
             }
 
