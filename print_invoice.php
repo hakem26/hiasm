@@ -53,6 +53,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاکتور فروش</title>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <style>
         body {
             margin: 0;
@@ -60,51 +61,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-family: 'Vazirmatn', sans-serif;
             direction: rtl;
             text-align: right;
-        }
-        .invoice-container {
-            width: 148mm; /* عرض A5 */
-            height: 210mm; /* ارتفاع A5 */
-            margin: 0 auto;
-            padding: 0 5mm;
-            box-sizing: border-box;
-            border: 1px solid #ccc; /* برای نمایش در صفحه */
-            position: relative;
-        }
-        .invoice-header {
-            text-align: center;
-            margin-bottom: 5mm;
-        }
-        .invoice-details {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5mm;
-            font-size: 10pt;
-        }
-        .invoice-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 5mm;
-        }
-        .invoice-table th, .invoice-table td {
-            border: 1px solid #000;
-            padding: 5px;
-            text-align: center;
-            font-size: 10pt;
-        }
-        .invoice-table th {
-            background-color: #f0f0f0;
-        }
-        .invoice-summary {
-            margin-bottom: 10mm;
-            font-size: 10pt;
-        }
-        .invoice-footer {
-            position: absolute;
-            bottom: 1mm;
-            left: 0;
-            right: 0;
-            font-size: 10pt;
-            text-align: center;
         }
         @media print {
             .invoice-container {

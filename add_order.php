@@ -10,7 +10,8 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
@@ -115,6 +116,7 @@ $final_amount = $total_amount - $discount;
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -127,28 +129,37 @@ $final_amount = $total_amount - $discount;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
+
         table {
             min-width: 400px;
             table-layout: auto;
         }
-        th, td {
+
+        th,
+        td {
             white-space: nowrap;
             padding: 8px 6px;
         }
+
         .product-input {
             width: 250px;
         }
+
         @media (max-width: 768px) {
             table {
                 min-width: 300px;
             }
-            th, td {
+
+            th,
+            td {
                 padding: 4px;
                 font-size: 14px;
             }
+
             .table-wrapper {
                 overflow-x: scroll;
             }
+
             .total-row td {
                 border-top: 2px solid #dee2e6;
                 font-weight: bold;
@@ -156,6 +167,7 @@ $final_amount = $total_amount - $discount;
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">ثبت فاکتور</h5>
@@ -172,20 +184,24 @@ $final_amount = $total_amount - $discount;
         <form id="order-form">
             <div class="mb-3">
                 <label for="customer_name" class="form-label">نام مشتری</label>
-                <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($customer_name) ?>" required autocomplete="off">
+                <input type="text" class="form-control" id="customer_name" name="customer_name"
+                    value="<?= htmlspecialchars($customer_name) ?>" required autocomplete="off">
             </div>
 
             <!-- انتخاب محصول -->
             <div class="mb-3">
                 <label for="product_name" class="form-label">نام محصول</label>
-                <input type="text" class="form-control product-input" id="product_name" name="product_name" placeholder="3 حرف تایپ کنید..." required autocomplete="off">
-                <div id="product_suggestions" class="list-group position-absolute" style="display: none; z-index: 1000; width: 250px;"></div>
+                <input type="text" class="form-control product-input" id="product_name" name="product_name"
+                    placeholder="3 حرف تایپ کنید..." required autocomplete="off">
+                <div id="product_suggestions" class="list-group position-absolute"
+                    style="display: none; z-index: 1000; width: 250px;"></div>
                 <input type="hidden" id="product_id" name="product_id">
                 <input type="hidden" id="unit_price" name="unit_price">
             </div>
             <div class="mb-3">
                 <label for="quantity" class="form-label">تعداد</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required autocomplete="off">
+                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required
+                    autocomplete="off">
             </div>
             <div class="mb-3">
                 <label for="total_price" class="form-label">قیمت کل</label>
@@ -214,7 +230,8 @@ $final_amount = $total_amount - $discount;
                                     <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
                                     <td><?= number_format($item['total_price'], 0) ?> تومان</td>
                                     <td>
-                                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
+                                        <button type="button" class="btn btn-danger btn-sm delete-item"
+                                            data-index="<?= $index ?>">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -226,7 +243,8 @@ $final_amount = $total_amount - $discount;
                             </tr>
                             <tr class="total-row">
                                 <td colspan="3"><label for="discount" class="form-label">تخفیف</label></td>
-                                <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
+                                <td><input type="number" class="form-control" id="discount" name="discount"
+                                        value="<?= $discount ?>" min="0"></td>
                                 <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
                             </tr>
                         </tbody>
@@ -236,8 +254,10 @@ $final_amount = $total_amount - $discount;
 
             <!-- نمایش پیش‌فرض برای جمع کل و تخفیف -->
             <div class="mb-3">
-                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?> تومان</span></p>
-                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?> تومان</span></p>
+                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?>
+                        تومان</span></p>
+                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?>
+                        تومان</span></p>
             </div>
 
             <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">بستن فاکتور</button>
@@ -321,14 +341,14 @@ $final_amount = $total_amount - $discount;
 
         document.addEventListener('DOMContentLoaded', () => {
             // ساجستشن محصولات با jQuery
-            $('#product_name').on('input', function() {
+            $('#product_name').on('input', function () {
                 let query = $(this).val();
                 if (query.length >= 3) {
                     $.ajax({
                         url: 'get_products.php',
                         type: 'POST',
                         data: { query: query },
-                        success: function(response) {
+                        success: function (response) {
                             $('#product_suggestions').html(response).show();
                         }
                     });
@@ -337,7 +357,7 @@ $final_amount = $total_amount - $discount;
                 }
             });
 
-            $(document).on('click', '.product-suggestion', function() {
+            $(document).on('click', '.product-suggestion', function () {
                 let product = $(this).data('product');
                 $('#product_name').val(product.product_name);
                 $('#product_id').val(product.product_id);
@@ -347,7 +367,7 @@ $final_amount = $total_amount - $discount;
                 $('#quantity').focus();
             });
 
-            $('#quantity').on('input', function() {
+            $('#quantity').on('input', function () {
                 let quantity = $(this).val();
                 let unit_price = $('#unit_price').val();
                 let total = quantity * unit_price;
@@ -361,6 +381,7 @@ $final_amount = $total_amount - $discount;
                 const quantity = document.getElementById('quantity').value;
                 const unit_price = document.getElementById('unit_price').value;
                 const discount = document.getElementById('discount')?.value || 0;
+                const work_details_id = '<?= $work_details_id ?>'; // اضافه كردن تاريخ كارى
 
                 if (!customer_name || !product_id || !quantity || !unit_price) {
                     alert('لطفاً همه فیلدها را پر کنید.');
@@ -373,7 +394,8 @@ $final_amount = $total_amount - $discount;
                     product_id,
                     quantity,
                     unit_price,
-                    discount
+                    discount,
+                    work_details_id // اضافه كردن به داده‌ها
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
@@ -451,7 +473,7 @@ $final_amount = $total_amount - $discount;
 
                 const data = {
                     action: 'finalize_order',
-                    work_details_id: '<?= $work_details_id ?>',
+                    work_details_id: '<?= $work_details_id ?>', // مطمئن مي‌شويم تاريخ كارى ارسال مي‌شه
                     customer_name,
                     discount
                 };
@@ -467,4 +489,4 @@ $final_amount = $total_amount - $discount;
         });
     </script>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>

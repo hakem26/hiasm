@@ -10,7 +10,8 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
@@ -84,7 +85,7 @@ if ($order['partner_id']) {
 // مدیریت ارسال فرم (ویرایش سفارش)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customer_name = $_POST['customer_name'] ?? '';
-    $discount = (int)($_POST['discount'] ?? 0);
+    $discount = (int) ($_POST['discount'] ?? 0);
     $products = $_POST['products'] ?? [];
 
     if (empty($customer_name) || empty($products)) {
@@ -141,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -153,28 +155,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
+
         table {
             min-width: 400px;
             table-layout: auto;
         }
-        th, td {
+
+        th,
+        td {
             white-space: nowrap;
             padding: 8px 6px;
         }
+
         .product-input {
             width: 250px;
         }
+
         @media (max-width: 768px) {
             table {
                 min-width: 300px;
             }
-            th, td {
+
+            th,
+            td {
                 padding: 4px;
                 font-size: 14px;
             }
+
             .table-wrapper {
                 overflow-x: scroll;
             }
+
             .total-row td {
                 border-top: 2px solid #dee2e6;
                 font-weight: bold;
@@ -182,6 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">ویرایش سفارش</h5>
@@ -198,20 +210,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form id="edit-order-form" method="POST">
             <div class="mb-3">
                 <label for="customer_name" class="form-label">نام مشتری</label>
-                <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($order['customer_name']) ?>" required autocomplete="off">
+                <input type="text" class="form-control" id="customer_name" name="customer_name"
+                    value="<?= htmlspecialchars($order['customer_name']) ?>" required autocomplete="off">
             </div>
 
             <!-- انتخاب محصول -->
             <div class="mb-3">
                 <label for="product_name" class="form-label">نام محصول</label>
-                <input type="text" class="form-control product-input" id="product_name" name="product_name" placeholder="3 حرف تایپ کنید..." autocomplete="off">
-                <div id="product_suggestions" class="list-group position-absolute" style="display: none; z-index: 1000; width: 250px;"></div>
+                <input type="text" class="form-control product-input" id="product_name" name="product_name"
+                    placeholder="3 حرف تایپ کنید..." autocomplete="off">
+                <div id="product_suggestions" class="list-group position-absolute"
+                    style="display: none; z-index: 1000; width: 250px;"></div>
                 <input type="hidden" id="product_id" name="product_id">
                 <input type="hidden" id="unit_price" name="unit_price">
             </div>
             <div class="mb-3">
                 <label for="quantity" class="form-label">تعداد</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" autocomplete="off">
+                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1"
+                    autocomplete="off">
             </div>
             <div class="mb-3">
                 <label for="total_price" class="form-label">قیمت کل</label>
@@ -232,34 +248,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </tr>
                     </thead>
                     <tbody id="productsTable">
-                        <?php 
+                        <?php
                         $initial_total = 0;
-                        foreach ($items as $index => $item): 
+                        foreach ($items as $index => $item):
                             $initial_total += $item['total_price'];
-                        ?>
+                            ?>
                             <tr id="productRow_<?= $index ?>">
                                 <td><?= htmlspecialchars($item['product_name']) ?></td>
                                 <td><?= $item['quantity'] ?></td>
                                 <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
                                 <td><?= number_format($item['total_price'], 0) ?> تومان</td>
                                 <td>
-                                    <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
+                                    <button type="button" class="btn btn-danger btn-sm delete-item"
+                                        data-index="<?= $index ?>">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
-                                <input type="hidden" name="products[<?= $index ?>][name]" value="<?= htmlspecialchars($item['product_name']) ?>">
-                                <input type="hidden" name="products[<?= $index ?>][quantity]" value="<?= $item['quantity'] ?>">
-                                <input type="hidden" name="products[<?= $index ?>][unit_price]" value="<?= $item['unit_price'] ?>">
+                                <input type="hidden" name="products[<?= $index ?>][name]"
+                                    value="<?= htmlspecialchars($item['product_name']) ?>">
+                                <input type="hidden" name="products[<?= $index ?>][quantity]"
+                                    value="<?= $item['quantity'] ?>">
+                                <input type="hidden" name="products[<?= $index ?>][unit_price]"
+                                    value="<?= $item['unit_price'] ?>">
                             </tr>
                         <?php endforeach; ?>
                         <tr class="total-row">
                             <td colspan="3"><strong>جمع کل</strong></td>
-                            <td colspan="2"><strong id="total_amount"><?= number_format($initial_total, 0) ?> تومان</strong></td>
+                            <td colspan="2"><strong id="total_amount"><?= number_format($initial_total, 0) ?>
+                                    تومان</strong></td>
                         </tr>
                         <tr class="total-row">
                             <td colspan="2"><label for="discount" class="form-label">تخفیف</label></td>
-                            <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $order['discount'] ?>" min="0"></td>
-                            <td colspan="2"><strong id="final_amount"><?= number_format($initial_total - $order['discount'], 0) ?> تومان</strong></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount"
+                                    value="<?= $order['discount'] ?>" min="0"></td>
+                            <td colspan="2"><strong
+                                    id="final_amount"><?= number_format($initial_total - $order['discount'], 0) ?>
+                                    تومان</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -267,8 +291,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- نمایش پیش‌فرض برای جمع کل و تخفیف -->
             <div class="mb-3">
-                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($initial_total, 0) ?> تومان</span></p>
-                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($initial_total - $order['discount'], 0) ?> تومان</span></p>
+                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($initial_total, 0) ?>
+                        تومان</span></p>
+                <p><strong>مبلغ نهایی:</strong> <span
+                        id="final_amount_display"><?= number_format($initial_total - $order['discount'], 0) ?>
+                        تومان</span></p>
             </div>
 
             <button type="submit" class="btn btn-success mt-3">ذخیره تغییرات</button>
@@ -282,14 +309,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         let productCount = <?= count($items) ?>;
 
         // ساجستشن محصولات
-        $('#product_name').on('input', function() {
+        $('#product_name').on('input', function () {
             let query = $(this).val();
+            const work_details_id = '<?= $order['work_details_id'] ?>'; // اضافه كردن تاريخ كارى
             if (query.length >= 3) {
                 $.ajax({
                     url: 'get_products.php',
                     type: 'POST',
-                    data: { query: query },
-                    success: function(response) {
+                    data: { query: query, work_details_id: work_details_id },
+                    success: function (response) {
                         $('#product_suggestions').html(response).show();
                     }
                 });
@@ -298,7 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
-        $(document).on('click', '.product-suggestion', function() {
+        $(document).on('click', '.product-suggestion', function () {
             let product = $(this).data('product');
             $('#product_name').val(product.product_name);
             $('#product_id').val(product.product_id);
@@ -308,7 +336,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $('#quantity').focus();
         });
 
-        $('#quantity').on('input', function() {
+        $('#quantity').on('input', function () {
             let quantity = $(this).val();
             let unit_price = $('#unit_price').val();
             let total = quantity * unit_price;
@@ -316,10 +344,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
 
         // افزودن محصول جدید
+        $('#add_item_btn').on('click', addProduct);
+
         function addProduct() {
             const productName = $('#product_name').val();
             const quantity = $('#quantity').val();
             const unitPrice = $('#unit_price').val();
+            const work_details_id = '<?= $order['work_details_id'] ?>'; // اضافه كردن تاريخ كارى
 
             if (!productName || !quantity || !unitPrice) {
                 alert('لطفاً تمام فیلدها را پر کنید.');
@@ -328,21 +359,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             const total = quantity * unitPrice;
             const row = `
-                <tr id="productRow_${productCount}">
-                    <td>${productName}</td>
-                    <td>${quantity}</td>
-                    <td>${parseInt(unitPrice).toLocaleString('fa')} تومان</td>
-                    <td>${parseInt(total).toLocaleString('fa')} تومان</td>
-                    <td>
-                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${productCount}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                    <input type="hidden" name="products[${productCount}][name]" value="${productName}">
-                    <input type="hidden" name="products[${productCount}][quantity]" value="${quantity}">
-                    <input type="hidden" name="products[${productCount}][unit_price]" value="${unitPrice}">
-                </tr>
-            `;
+        <tr id="productRow_${productCount}">
+            <td>${productName}</td>
+            <td>${quantity}</td>
+            <td>${parseInt(unitPrice).toLocaleString('fa')} تومان</td>
+            <td>${parseInt(total).toLocaleString('fa')} تومان</td>
+            <td>
+                <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${productCount}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+            <input type="hidden" name="products[${productCount}][name]" value="${productName}">
+            <input type="hidden" name="products[${productCount}][quantity]" value="${quantity}">
+            <input type="hidden" name="products[${productCount}][unit_price]" value="${unitPrice}">
+        </tr>
+    `;
 
             $('#productsTable').append(row);
             updateTotals();
@@ -367,7 +398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // به‌روزرسانی جمع کل و تخفیف
         function updateTotals() {
             let totalAmount = 0;
-            $('#productsTable tr').each(function() {
+            $('#productsTable tr').each(function () {
                 if ($(this).attr('id') && $(this).attr('id').startsWith('productRow_')) {
                     const unitPrice = parseInt($(this).find('input[name^="products["][name$="[unit_price]"]').val());
                     const quantity = parseInt($(this).find('input[name^="products["][name$="[quantity]"]').val());
@@ -387,19 +418,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // رویدادها
         $('#add_item_btn').on('click', addProduct);
 
-        $(document).on('click', '.delete-item', function() {
+        $(document).on('click', '.delete-item', function () {
             const index = $(this).data('index');
             deleteProduct(index);
         });
 
-        $('#discount').on('input', function() {
+        $('#discount').on('input', function () {
             updateTotals();
         });
 
         // بارگذاری اولیه
-        $(document).ready(function() {
+        $(document).ready(function () {
             updateTotals();
         });
     </script>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
