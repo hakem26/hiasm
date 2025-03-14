@@ -109,7 +109,7 @@ if ($selected_year) {
             <div class="row g-3">
                 <div class="col-md-3">
                     <label for="year" class="form-label">سال</label>
-                    <select name="year" id="year" class="form-select" onchange="loadFilters()">
+                    <select name="year" id="year" class="form-select">
                         <option value="">همه</option>
                         <?php foreach ($years as $year): ?>
                             <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
@@ -181,6 +181,7 @@ if ($selected_year) {
                 console.log('Loading months for year:', year);
                 if (!year) {
                     $('#work_month_id').html('<option value="">انتخاب ماه</option>');
+                    $('#user_id').html('<option value="">انتخاب همکار</option>');
                     return;
                 }
                 $.ajax({
@@ -237,15 +238,20 @@ if ($selected_year) {
                     },
                     success: function(response) {
                         console.log('Reports response:', response);
-                        if (response.success) {
-                            $('#reports-table').html(response.html);
-                        } else {
-                            $('#reports-table').html('<div class="alert alert-danger text-center">' + (response.message || 'خطایی رخ داد.') + '</div>');
+                        try {
+                            if (response.success && response.html) {
+                                $('#reports-table').html(response.html);
+                            } else {
+                                $('#reports-table').html('<div class="alert alert-danger text-center">' + (response.message || 'خطایی در پردازش داده‌ها رخ داد.') + '</div>');
+                            }
+                        } catch (e) {
+                            console.error('Error rendering reports:', e);
+                            $('#reports-table').html('<div class="alert alert-danger text-center">خطا در نمایش گزارش‌ها: ' + e.message + '</div>');
                         }
                     },
                     error: function(xhr, status, error) {
                         console.error('AJAX Error:', error);
-                        $('#reports-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری گزارش‌ها رخ داد.</div>');
+                        $('#reports-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری گزارش‌ها رخ داد: ' + error + '</div>');
                     }
                 });
             }
@@ -264,19 +270,17 @@ if ($selected_year) {
             }
             loadReports();
 
-            // به‌روزرسانی وقتی سال تغییر می‌کنه
+            // رویدادهای تغییر
             $('#year').on('change', function() {
                 loadFilters();
             });
 
-            // به‌روزرسانی وقتی ماه تغییر می‌کنه
             $('#work_month_id').on('change', function() {
                 const month_id = $(this).val();
                 loadPartners(month_id);
                 loadReports();
             });
 
-            // به‌روزرسانی وقتی همکار تغییر می‌کنه
             $('#user_id').on('change', function() {
                 loadReports();
             });
