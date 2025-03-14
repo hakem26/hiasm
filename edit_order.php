@@ -82,6 +82,12 @@ if ($order['partner_id']) {
     }
 }
 
+// دریافت user_id همکار ۱ برای مدیریت موجودی
+$stmt_partner = $pdo->prepare("SELECT user_id1 FROM Partners WHERE partner_id = ?");
+$stmt_partner->execute([$order['partner_id']]);
+$partner_data = $stmt_partner->fetch(PDO::FETCH_ASSOC);
+$partner1_id = $partner_data['user_id1'] ?? null;
+
 // مدیریت ارسال فرم (ویرایش سفارش)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customer_name = $_POST['customer_name'] ?? '';
@@ -100,55 +106,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->beginTransaction();
         try {
-            // چک کردن اینکه کاربر همکار ۱ هست یا نه
-            $stmt_check_partner1 = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ? AND partner_id = ?");
-            $stmt_check_partner1->execute([$current_user_id, $order['partner_id']]);
-            $is_partner1 = $stmt_check_partner1->fetchColumn() > 0;
+            // برگرداندن موجودی محصولات قبلی برای همکار ۱
+            foreach ($items as $item) {
+                $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
+                $stmt_product->execute([$item['product_name']]);
+                $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
+                $product_id = $product ? $product['product_id'] : null;
 
-            // اگه همکار ۱ هست، موجودی محصولات قبلی رو برگردون
-            if ($is_partner1) {
-                foreach ($items as $item) {
-                    $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
-                    $stmt_product->execute([$item['product_name']]);
-                    $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
-                    $product_id = $product ? $product['product_id'] : null;
+                if ($product_id) {
+                    $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+                    $stmt_inventory->execute([$partner1_id, $product_id]);
+                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
-                    if ($product_id) {
-                        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                        $stmt_inventory->execute([$current_user_id, $product_id]);
-                        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+                    $current_quantity = $inventory ? $inventory['quantity'] : 0;
+                    $new_quantity = $current_quantity + $item['quantity'];
 
-                        $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                        $new_quantity = $current_quantity + $item['quantity'];
-
-                        $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                        $stmt_update->execute([$current_user_id, $product_id, $new_quantity]);
-                    }
-                }
-
-                // کسر موجودی برای محصولات جدید
-                foreach ($products as $product) {
-                    $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
-                    $stmt_product->execute([$product['name']]);
-                    $product_new = $stmt_product->fetch(PDO::FETCH_ASSOC);
-                    $product_id = $product_new ? $product_new['product_id'] : null;
-
-                    if ($product_id) {
-                        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                        $stmt_inventory->execute([$current_user_id, $product_id]);
-                        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-
-                        $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                        if ($current_quantity < $product['quantity']) {
-                            throw new Exception("موجودی کافی برای محصول '{$product['name']}' نیست. موجودی: $current_quantity، درخواست: {$product['quantity']}");
-                        }
-
-                        $new_quantity = $current_quantity - $product['quantity'];
-                        $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                        $stmt_update->execute([$current_user_id, $product_id, $new_quantity]);
-                    }
+                    $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
+                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                    $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 }
             }
 
@@ -282,9 +257,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="number" class="form-control" id="unit_price" name="unit_price" readonly
                         style="width: 100%;">
                 </div>
-                <div class="mb-3">
-                    <label for="total_price" class="form-label">قیمت کل</label>
-                    <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label for="total_price" class="form-label">قیمت کل</label>
+                        <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label for="inventory_quantity" class="form-label">موجودی</label>
+                        <p class="form-control-static" id="inventory_quantity">0</p>
+                    </div>
                 </div>
                 <div class="col-12">
                     <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
@@ -363,6 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let productCount = <?= count($items) ?>;
+        let initialInventory = 0; // متغیر برای ذخیره موجودی اولیه
 
         // ساجستشن محصولات
         $('#product_name').on('input', function () {
@@ -393,6 +375,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $('#unit_price').val(product.unit_price);
             $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
             $('#product_suggestions').hide();
+
+            // دریافت موجودی محصول برای همکار ۱
+            $.ajax({
+                url: 'get_inventory.php',
+                type: 'POST',
+                data: { 
+                    product_id: product.product_id,
+                    user_id: '<?= $partner1_id ?>' // همکار ۱
+                },
+                success: function(response) {
+                    let inventory = response.inventory || 0;
+                    initialInventory = inventory;
+                    $('#inventory_quantity').text(inventory);
+                    $('#quantity').val(1); // مقدار پیش‌فرض تعداد
+                    updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error: ', error);
+                    $('#inventory_quantity').text('0');
+                }
+            });
+
             $('#quantity').focus();
         });
 
@@ -401,7 +405,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             let unit_price = $('#unit_price').val();
             let total = quantity * unit_price;
             $('#total_price').val(total.toLocaleString('fa') + ' تومان');
+            updateInventoryDisplay();
         });
+
+        // تابع برای به‌روزرسانی نمایش موجودی
+        function updateInventoryDisplay() {
+            let quantity = $('#quantity').val();
+            let remainingInventory = initialInventory - quantity;
+            $('#inventory_quantity').text(remainingInventory);
+        }
 
         // افزودن محصول جدید
         $('#add_item_btn').on('click', addProduct);
@@ -410,41 +422,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const productName = $('#product_name').val().trim();
             const quantity = $('#quantity').val().trim();
             const unitPrice = $('#unit_price').val().trim();
+            const productId = $('#product_id').val().trim();
 
-            console.log('Debug: Adding product - Name:', productName, 'Quantity:', quantity, 'UnitPrice:', unitPrice); // دیباگ
+            console.log('Debug: Adding product - Name:', productName, 'Quantity:', quantity, 'UnitPrice:', unitPrice);
 
             if (!productName || !quantity || !unitPrice || quantity <= 0) {
                 return;
             }
 
-            const total = quantity * unitPrice;
-            const row = `
-                <tr id="productRow_${productCount}">
-                    <td>${productName}</td>
-                    <td>${quantity}</td>
-                    <td>${parseInt(unitPrice).toLocaleString('fa')} تومان</td>
-                    <td>${parseInt(total).toLocaleString('fa')} تومان</td>
-                    <td>
-                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${productCount}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                    <input type="hidden" name="products[${productCount}][name]" value="${productName}">
-                    <input type="hidden" name="products[${productCount}][quantity]" value="${quantity}">
-                    <input type="hidden" name="products[${productCount}][unit_price]" value="${unitPrice}">
-                </tr>
-            `;
+            // بررسی موجودی قبل از افزودن
+            $.ajax({
+                url: 'get_inventory.php',
+                type: 'POST',
+                data: { 
+                    product_id: productId,
+                    user_id: '<?= $partner1_id ?>' // همکار ۱
+                },
+                success: function(response) {
+                    let inventory = response.inventory || 0;
+                    if (inventory < quantity) {
+                        alert(`موجودی کافی نیست! موجودی فعلی: ${inventory}، تعداد درخواست‌شده: ${quantity}`);
+                        return;
+                    }
 
-            $('#productsTable').append(row);
-            updateTotals();
-            productCount++;
+                    // اگه موجودی کافی بود، محصول رو اضافه کن
+                    const total = quantity * unitPrice;
+                    const row = `
+                        <tr id="productRow_${productCount}">
+                            <td>${productName}</td>
+                            <td>${quantity}</td>
+                            <td>${parseInt(unitPrice).toLocaleString('fa')} تومان</td>
+                            <td>${parseInt(total).toLocaleString('fa')} تومان</td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${productCount}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                            <input type="hidden" name="products[${productCount}][name]" value="${productName}">
+                            <input type="hidden" name="products[${productCount}][quantity]" value="${quantity}">
+                            <input type="hidden" name="products[${productCount}][unit_price]" value="${unitPrice}">
+                        </tr>
+                    `;
 
-            // پاک کردن فرم
-            $('#product_name').val('');
-            $('#quantity').val('1');
-            $('#total_price').val('');
-            $('#product_id').val('');
-            $('#unit_price').val('');
+                    $('#productsTable').append(row);
+                    updateTotals();
+                    productCount++;
+
+                    // پاک کردن فرم
+                    $('#product_name').val('');
+                    $('#quantity').val('1');
+                    $('#total_price').val('');
+                    $('#product_id').val('');
+                    $('#unit_price').val('');
+                    $('#inventory_quantity').text('0');
+                    initialInventory = 0;
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error: ', error);
+                    alert('خطا در بررسی موجودی.');
+                }
+            });
         }
 
         // حذف محصول

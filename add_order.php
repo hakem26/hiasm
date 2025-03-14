@@ -110,6 +110,12 @@ $customer_name = '';
 $total_amount = array_sum(array_column($items, 'total_price'));
 $discount = 0;
 $final_amount = $total_amount - $discount;
+
+// دریافت user_id همکار ۱ برای مدیریت موجودی
+$stmt_partner = $pdo->prepare("SELECT user_id1 FROM Partners WHERE partner_id = ?");
+$stmt_partner->execute([$work_info['partner_id']]);
+$partner_data = $stmt_partner->fetch(PDO::FETCH_ASSOC);
+$partner1_id = $partner_data['user_id1'] ?? null;
 ?>
 
 <!DOCTYPE html>
@@ -184,9 +190,15 @@ $final_amount = $total_amount - $discount;
                     <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
                     <input type="number" class="form-control" id="unit_price" name="unit_price" readonly style="width: 100%;">
                 </div>
-                <div class="mb-3">
-                    <label for="total_price" class="form-label">قیمت کل</label>
-                    <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label for="total_price" class="form-label">قیمت کل</label>
+                        <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label for="inventory_quantity" class="form-label">موجودی</label>
+                        <p class="form-control-static" id="inventory_quantity">0</p>
+                    </div>
                 </div>
                 <div class="col-12">
                     <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
@@ -320,6 +332,8 @@ $final_amount = $total_amount - $discount;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            let initialInventory = 0; // متغیر برای ذخیره موجودی اولیه
+
             // ساجستشن محصولات با jQuery
             $('#product_name').on('input', function() {
                 let query = $(this).val();
@@ -349,15 +363,46 @@ $final_amount = $total_amount - $discount;
                 $('#unit_price').val(product.unit_price);
                 $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
                 $('#product_suggestions').hide();
+
+                // دریافت موجودی محصول برای همکار ۱
+                $.ajax({
+                    url: 'get_inventory.php',
+                    type: 'POST',
+                    data: { 
+                        product_id: product.product_id,
+                        user_id: '<?= $partner1_id ?>' // همکار ۱
+                    },
+                    success: function(response) {
+                        let inventory = response.inventory || 0;
+                        initialInventory = inventory;
+                        $('#inventory_quantity').text(inventory);
+                        $('#quantity').val(1); // مقدار پیش‌فرض تعداد
+                        updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error: ', error);
+                        $('#inventory_quantity').text('0');
+                    }
+                });
+
                 $('#quantity').focus();
             });
 
+            // به‌روزرسانی قیمت کل و موجودی با تغییر تعداد
             $('#quantity').on('input', function() {
                 let quantity = $(this).val();
                 let unit_price = $('#unit_price').val();
                 let total = quantity * unit_price;
                 $('#total_price').val(total.toLocaleString('fa') + ' تومان');
+                updateInventoryDisplay();
             });
+
+            // تابع برای به‌روزرسانی نمایش موجودی
+            function updateInventoryDisplay() {
+                let quantity = $('#quantity').val();
+                let remainingInventory = initialInventory - quantity;
+                $('#inventory_quantity').text(remainingInventory);
+            }
 
             // افزودن محصول
             document.getElementById('add_item_btn').addEventListener('click', async () => {
@@ -375,6 +420,23 @@ $final_amount = $total_amount - $discount;
                     return;
                 }
 
+                // بررسی موجودی قبل از افزودن
+                const response = await sendRequest('get_inventory.php', { 
+                    product_id: product_id,
+                    user_id: '<?= $partner1_id ?>' // همکار ۱
+                });
+
+                if (!response.success) {
+                    alert(response.message);
+                    return;
+                }
+
+                let inventory = response.inventory || 0;
+                if (inventory < quantity) {
+                    alert(`موجودی کافی نیست! موجودی فعلی: ${inventory}، تعداد درخواست‌شده: ${quantity}`);
+                    return;
+                }
+
                 const data = {
                     action: 'add_item',
                     customer_name,
@@ -382,19 +444,22 @@ $final_amount = $total_amount - $discount;
                     quantity,
                     unit_price,
                     discount,
-                    work_details_id
+                    work_details_id,
+                    partner1_id: '<?= $partner1_id ?>' // برای کسر موجودی همکار ۱
                 };
 
-                const response = await sendRequest('ajax_handler.php', data);
-                if (response.success) {
-                    renderItemsTable(response.data);
+                const addResponse = await sendRequest('ajax_handler.php', data);
+                if (addResponse.success) {
+                    renderItemsTable(addResponse.data);
                     document.getElementById('product_name').value = '';
                     document.getElementById('quantity').value = '1';
                     document.getElementById('total_price').value = '';
                     document.getElementById('product_id').value = '';
                     document.getElementById('unit_price').value = '';
+                    document.getElementById('inventory_quantity').textContent = '0';
+                    initialInventory = 0;
                 } else {
-                    alert(response.message);
+                    alert(addResponse.message);
                 }
             });
 
@@ -405,7 +470,8 @@ $final_amount = $total_amount - $discount;
                     if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
                         const data = {
                             action: 'delete_item',
-                            index: index
+                            index: index,
+                            partner1_id: '<?= $partner1_id ?>' // برای برگرداندن موجودی همکار ۱
                         };
 
                         const response = await sendRequest('ajax_handler.php', data);
@@ -462,7 +528,8 @@ $final_amount = $total_amount - $discount;
                     action: 'finalize_order',
                     work_details_id: '<?= $work_details_id ?>',
                     customer_name,
-                    discount
+                    discount,
+                    partner1_id: '<?= $partner1_id ?>' // برای کسر موجودی همکار ۱
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
@@ -477,4 +544,3 @@ $final_amount = $total_amount - $discount;
     </script>
 
     <?php require_once 'footer.php'; ?>
-</html>
