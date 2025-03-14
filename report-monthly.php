@@ -31,45 +31,26 @@ function get_jalali_month_name($month) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-// فیلترها
-$filter_year = $_GET['filter_year'] ?? date('Y') + 621; // سال شمسی پیش‌فرض (1403)
+// دریافت مقادیر فیلتر از GET یا مقدار پیش‌فرض
+$filter_year = $_GET['filter_year'] ?? (jalali_to_gregorian(date('Y'), date('m'), date('d'), '/')[0]); // سال شمسی فعلی
 $filter_work_month = $_GET['filter_work_month'] ?? '';
 $filter_partner = $_GET['filter_partner'] ?? '';
+
+// تبدیل سال شمسی به میلادی برای کوئری
+$gregorian_year = $filter_year - 621;
 
 // دریافت لیست سال‌ها برای فیلتر
 $years = [];
 $stmt_years = $pdo->query("SELECT DISTINCT YEAR(start_date) as year FROM Work_Months ORDER BY year DESC");
 while ($row = $stmt_years->fetch(PDO::FETCH_ASSOC)) {
-    $jalali_year = $row['year'] + 621; // تبدیل به سال شمسی
+    $jalali_year = $row['year'] + 621;
     $years[] = $jalali_year;
 }
 
 // دریافت لیست ماه‌های کاری برای فیلتر
 $work_months = [];
-$month_conditions = [];
-if ($filter_year) {
-    $gregorian_year = $filter_year - 621;
-    $month_conditions[] = "YEAR(wm.start_date) = :year";
-}
-if ($filter_work_month) {
-    $month_conditions[] = "wm.work_month_id = :work_month_id";
-}
-
-$month_sql = "SELECT wm.work_month_id, wm.start_date, wm.end_date FROM Work_Months wm";
-if ($month_conditions) {
-    $month_sql .= " WHERE " . implode(" AND ", $month_conditions);
-}
-$month_sql .= " ORDER BY wm.start_date DESC";
-
-$stmt_months = $pdo->prepare($month_sql);
-$params = [];
-if ($filter_year) {
-    $params[':year'] = $filter_year - 621;
-}
-if ($filter_work_month) {
-    $params[':work_month_id'] = $filter_work_month;
-}
-$stmt_months->execute($params);
+$stmt_months = $pdo->prepare("SELECT work_month_id, start_date, end_date FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
+$stmt_months->execute([$gregorian_year]);
 while ($row = $stmt_months->fetch(PDO::FETCH_ASSOC)) {
     $start_date = explode('-', $row['start_date']);
     $jalali_year = $start_date[0] + 621;
@@ -96,66 +77,68 @@ while ($row = $stmt_partners->fetch(PDO::FETCH_ASSOC)) {
     $partners[$row['partner_id']] = $partner_name;
 }
 
-// دریافت گزارش‌های ماهانه
+// دریافت گزارش‌های ماهانه (برای بارگذاری اولیه)
 $reports = [];
-$conditions = [];
-$params = [];
+if ($filter_year || $filter_work_month || $filter_partner) {
+    $conditions = [];
+    $params = [];
 
-$conditions[] = "wm.work_month_id = wd.work_month_id";
-$conditions[] = "wd.partner_id = p.partner_id";
-$conditions[] = "(p.user_id1 = :user_id OR p.user_id2 = :user_id)";
-$params[':user_id'] = $current_user_id;
+    $conditions[] = "wm.work_month_id = wd.work_month_id";
+    $conditions[] = "wd.partner_id = p.partner_id";
+    $conditions[] = "(p.user_id1 = :user_id OR p.user_id2 = :user_id)";
+    $params[':user_id'] = $current_user_id;
 
-if ($filter_year) {
-    $conditions[] = "YEAR(wm.start_date) = :year";
-    $params[':year'] = $filter_year - 621;
-}
-if ($filter_work_month) {
-    $conditions[] = "wm.work_month_id = :work_month_id";
-    $params[':work_month_id'] = $filter_work_month;
-}
-if ($filter_partner) {
-    $conditions[] = "p.partner_id = :partner_id";
-    $params[':partner_id'] = $filter_partner;
-}
+    if ($filter_year) {
+        $conditions[] = "YEAR(wm.start_date) = :year";
+        $params[':year'] = $gregorian_year;
+    }
+    if ($filter_work_month) {
+        $conditions[] = "wm.work_month_id = :work_month_id";
+        $params[':work_month_id'] = $filter_work_month;
+    }
+    if ($filter_partner) {
+        $conditions[] = "p.partner_id = :partner_id";
+        $params[':partner_id'] = $filter_partner;
+    }
 
-$sql = "
-    SELECT wm.work_month_id, wm.start_date, wm.end_date, p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name,
-           COUNT(DISTINCT wd.work_date) AS days_worked,
-           (SELECT COUNT(DISTINCT work_date) FROM Work_Details WHERE work_month_id = wm.work_month_id) AS total_days,
-           SUM(o.total_amount) AS total_sales
-    FROM Work_Months wm
-    JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-    LEFT JOIN Orders o ON o.work_details_id = wd.id
-    WHERE " . implode(" AND ", $conditions) . "
-    GROUP BY wm.work_month_id, p.partner_id
-    ORDER BY wm.start_date DESC
-";
+    $sql = "
+        SELECT wm.work_month_id, wm.start_date, wm.end_date, p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name,
+               COUNT(DISTINCT wd.work_date) AS days_worked,
+               (SELECT COUNT(DISTINCT work_date) FROM Work_Details WHERE work_month_id = wm.work_month_id) AS total_days,
+               SUM(o.total_amount) AS total_sales
+        FROM Work_Months wm
+        JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+        LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+        LEFT JOIN Orders o ON o.work_details_id = wd.id
+        WHERE " . implode(" AND ", $conditions) . "
+        GROUP BY wm.work_month_id, p.partner_id
+        ORDER BY wm.start_date DESC
+    ";
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
 
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $start_date = explode('-', $row['start_date']);
-    $jalali_year = $start_date[0] + 621;
-    $jalali_month = (int)$start_date[1];
-    $month_name = get_jalali_month_name($jalali_month) . ' ' . $jalali_year;
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $start_date = explode('-', $row['start_date']);
+        $jalali_year = $start_date[0] + 621;
+        $jalali_month = (int)$start_date[1];
+        $month_name = get_jalali_month_name($jalali_month) . ' ' . $jalali_year;
 
-    $partner_name = $row['user1_name'] . ' و ' . $row['user2_name'];
-    $total_sales = $row['total_sales'] ?? 0;
-    $status = ($row['days_worked'] == $row['total_days']) ? 'تکمیل' : 'ناقص';
+        $partner_name = $row['user1_name'] . ' و ' . $row['user2_name'];
+        $total_sales = $row['total_sales'] ?? 0;
+        $status = ($row['days_worked'] == $row['total_days']) ? 'تکمیل' : 'ناقص';
 
-    $reports[] = [
-        'work_month_id' => $row['work_month_id'],
-        'month_name' => $month_name,
-        'partner_name' => $partner_name,
-        'partner_id' => $row['partner_id'],
-        'total_sales' => $total_sales,
-        'status' => $status
-    ];
+        $reports[] = [
+            'work_month_id' => $row['work_month_id'],
+            'month_name' => $month_name,
+            'partner_name' => $partner_name,
+            'partner_id' => $row['partner_id'],
+            'total_sales' => $total_sales,
+            'status' => $status
+        ];
+    }
 }
 ?>
 
@@ -176,7 +159,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         <h5 class="card-title mb-4">گزارشات ماهانه</h5>
 
         <!-- فرم فیلترها -->
-        <form method="GET" class="mb-4">
+        <div class="mb-4">
             <div class="row g-3">
                 <div class="col-md-3">
                     <label for="filter_year" class="form-label">سال</label>
@@ -209,14 +192,11 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary">فیلتر</button>
-                </div>
             </div>
-        </form>
+        </div>
 
         <!-- جدول گزارشات -->
-        <div class="table-responsive">
+        <div class="table-responsive" id="reports-table">
             <table class="table table-light">
                 <thead>
                     <tr>
@@ -254,6 +234,67 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+    <script>
+        $(document).ready(function() {
+            // تابع برای بارگذاری جدول با فیلترها
+            function loadReports() {
+                const filter_year = $('#filter_year').val();
+                const filter_work_month = $('#filter_work_month').val();
+                const filter_partner = $('#filter_partner').val();
 
-<?php require_once 'footer.php'; ?>
+                $.ajax({
+                    url: 'get_reports.php',
+                    type: 'GET',
+                    data: {
+                        filter_year: filter_year,
+                        filter_work_month: filter_work_month,
+                        filter_partner: filter_partner
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#reports-table').html(response.html);
+                        } else {
+                            $('#reports-table').html('<div class="alert alert-danger text-center">' + response.message + '</div>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error:', error);
+                        $('#reports-table').html('<div class="alert alert-danger text-center">خطایی رخ داد.</div>');
+                    }
+                });
+            }
+
+            // به‌روزرسانی ماه‌ها با تغییر سال
+            $('#filter_year').on('change', function() {
+                const year = $(this).val();
+                $.ajax({
+                    url: 'get_work_months.php',
+                    type: 'GET',
+                    data: { year: year },
+                    success: function(response) {
+                        if (response.success) {
+                            const $select = $('#filter_work_month');
+                            $select.empty().append('<option value="">همه</option>');
+                            response.months.forEach(month => {
+                                $select.append(`<option value="${month.work_month_id}">${month.month_name}</option>`);
+                            });
+                            loadReports(); // به‌روزرسانی جدول
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error:', error);
+                    }
+                });
+            });
+
+            // به‌روزرسانی جدول با تغییر هر فیلتر
+            $('#filter_year, #filter_work_month, #filter_partner').on('change', function() {
+                loadReports();
+            });
+
+            // بارگذاری اولیه
+            loadReports();
+        });
+    </script>
+
+    <?php require_once 'footer.php'; ?>
