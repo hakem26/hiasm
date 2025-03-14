@@ -210,6 +210,7 @@ if ($selected_work_month_id) {
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading months:', error);
+                        $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
                     }
                 });
             }
@@ -232,12 +233,12 @@ if ($selected_work_month_id) {
                         if (response.success) {
                             $('#reports-table').html(response.html);
                         } else {
-                            $('#reports-table').html('<div class="alert alert-danger text-center">' + response.message + '</div>');
+                            $('#reports-table').html('<div class="alert alert-danger text-center">' + (response.message || 'خطایی رخ داد.') + '</div>');
                         }
                     },
                     error: function(xhr, status, error) {
                         console.error('AJAX Error:', error);
-                        $('#reports-table').html('<div class="alert alert-danger text-center">خطایی رخ داد.</div>');
+                        $('#reports-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری گزارش‌ها رخ داد.</div>');
                     }
                 });
             }

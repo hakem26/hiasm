@@ -47,7 +47,7 @@ $sql = "
     SELECT wm.work_month_id, wm.start_date, wm.end_date, p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name,
            COUNT(DISTINCT wd.work_date) AS days_worked,
            (SELECT COUNT(DISTINCT work_date) FROM Work_Details WHERE work_month_id = wm.work_month_id) AS total_days,
-           SUM(o.total_amount) AS total_sales
+           COALESCE(SUM(o.total_amount), 0) AS total_sales
     FROM Work_Months wm
     JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
     JOIN Partners p ON wd.partner_id = p.partner_id
@@ -65,9 +65,11 @@ $stmt->execute($params);
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $start_date = gregorian_to_jalali_format($row['start_date']);
     $end_date = gregorian_to_jalali_format($row['end_date']);
-    $partner_name = $row['user1_name'] . ' و ' . $row['user2_name'];
+    $partner_name = ($row['user1_name'] ?? 'نامشخص') . ' و ' . ($row['user2_name'] ?? 'نامشخص');
     $total_sales = $row['total_sales'] ?? 0;
-    $status = ($row['days_worked'] == $row['total_days']) ? 'تکمیل' : 'ناقص';
+    $days_worked = $row['days_worked'] ?? 0;
+    $total_days = $row['total_days'] ?? 0;
+    $status = ($days_worked == $total_days) ? 'تکمیل' : 'ناقص';
 
     $reports[] = [
         'work_month_id' => $row['work_month_id'],
