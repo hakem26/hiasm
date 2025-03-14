@@ -110,40 +110,6 @@ $customer_name = '';
 $total_amount = array_sum(array_column($items, 'total_price'));
 $discount = 0;
 $final_amount = $total_amount - $discount;
-
-// چک کردن موجودی و کسر آن (فقط برای همکار ۱)
-$stmt_check_partner1 = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ? AND partner_id = ?");
-$stmt_check_partner1->execute([$current_user_id, $work_info['partner_id']]);
-$is_partner1 = $stmt_check_partner1->fetchColumn() > 0;
-
-if ($is_partner1 && !empty($items)) {
-    $pdo->beginTransaction();
-    try {
-        foreach ($items as $item) {
-            $product_id = $item['product_id'];
-            $quantity = $item['quantity'];
-
-            $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-            $stmt_inventory->execute([$current_user_id, $product_id]);
-            $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-
-            $current_quantity = $inventory ? $inventory['quantity'] : 0;
-            if ($current_quantity < $quantity) {
-                throw new Exception("موجودی کافی برای محصول '$item[product_name]' نیست. موجودی: $current_quantity، درخواست: $quantity");
-            }
-
-            $new_quantity = $current_quantity - $quantity;
-            $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                       ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-            $stmt_update->execute([$current_user_id, $product_id, $new_quantity]);
-        }
-        $pdo->commit();
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        echo "<div class='alert alert-danger text-center'>خطا در کسر موجودی: " . $e->getMessage() . "</div>";
-        $items = []; // خالی کردن سبد خرید در صورت خطا
-    }
-}
 ?>
 
 <!DOCTYPE html>
