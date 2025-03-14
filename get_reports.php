@@ -7,7 +7,7 @@ require_once 'jdf.php';
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%02d/%02d/%04d", $jd, $jm, $jy);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 // تابع برای دریافت نام ماه شمسی
@@ -74,10 +74,9 @@ try {
     $stmt->execute($params);
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $start_date = explode('-', $row['start_date']);
-        $jalali_year = $start_date[0] + 621;
-        $jalali_month = (int)$start_date[1];
-        $month_name = get_jalali_month_name($jalali_month) . ' ' . $jalali_year;
+        $start_date = gregorian_to_jalali_format($row['start_date']);
+        list($jy, $jm, $jd) = explode('/', $start_date);
+        $month_name = get_jalali_month_name((int)$jm) . ' ' . $jy;
 
         $partner_name = ($row['user1_name'] ?? 'نامشخص') . ' و ' . ($row['user2_name'] ?? 'نامشخص');
         $total_sales = $row['total_sales'] ?? 0;

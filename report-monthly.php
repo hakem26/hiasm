@@ -13,7 +13,7 @@ require_once 'jdf.php';
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%02d/%02d/%04d", $jd, $jm, $jy);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 // تابع برای دریافت نام ماه شمسی
@@ -68,10 +68,9 @@ if ($selected_year) {
     ");
     $stmt->execute([$selected_year, $current_user_id, $current_user_id]);
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $start_date = explode('-', $row['start_date']);
-        $jalali_year = $start_date[0] + 621;
-        $jalali_month = (int)$start_date[1];
-        $month_name = get_jalali_month_name($jalali_month) . ' ' . $jalali_year;
+        $start_date = gregorian_to_jalali_format($row['start_date']);
+        list($jy, $jm, $jd) = explode('/', $start_date);
+        $month_name = get_jalali_month_name((int)$jm) . ' ' . $jy;
 
         $partner_name = ($row['user1_name'] ?? 'نامشخص') . ' و ' . ($row['user2_name'] ?? 'نامشخص');
         $total_sales = $row['total_sales'] ?? 0;
@@ -110,7 +109,7 @@ if ($selected_year) {
             <div class="row g-3">
                 <div class="col-md-3">
                     <label for="year" class="form-label">سال</label>
-                    <select name="year" id="year" class="form-select" onchange="loadReports()">
+                    <select name="year" id="year" class="form-select" onchange="loadFilters()">
                         <option value="">همه</option>
                         <?php foreach ($years as $year): ?>
                             <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
@@ -129,7 +128,7 @@ if ($selected_year) {
                 <div class="col-md-3">
                     <label for="user_id" class="form-label">همکار</label>
                     <select name="user_id" id="user_id" class="form-select" onchange="loadReports()">
-                        <option value="">همه همکاران</option>
+                        <option value="">انتخاب همکار</option>
                         <!-- همکاران اینجا با AJAX بارگذاری می‌شن -->
                     </select>
                 </div>
@@ -197,12 +196,16 @@ if ($selected_year) {
                 });
             }
 
-            // تابع برای بارگذاری همکاران
-            function loadPartners() {
+            // تابع برای بارگذاری همکاران بر اساس ماه
+            function loadPartners(month_id) {
+                if (!month_id) {
+                    $('#user_id').html('<option value="">انتخاب همکار</option>');
+                    return;
+                }
                 $.ajax({
-                    url: 'get_partners.php', // فایل جدید برای بارگذاری همکاران
+                    url: 'get_partners.php',
                     type: 'POST',
-                    data: { user_id: <?= json_encode($current_user_id) ?> },
+                    data: { month_id: month_id, user_id: <?= json_encode($current_user_id) ?> },
                     success: function(response) {
                         $('#user_id').html(response);
                     },
@@ -242,23 +245,34 @@ if ($selected_year) {
                 });
             }
 
+            // تابع برای بارگذاری همه فیلترها
+            function loadFilters() {
+                const year = $('#year').val();
+                loadMonths(year);
+                loadReports();
+            }
+
             // بارگذاری اولیه
             const initial_year = $('#year').val();
             if (initial_year) {
                 loadMonths(initial_year);
             }
-            loadPartners();
             loadReports();
 
             // به‌روزرسانی وقتی سال تغییر می‌کنه
             $('#year').on('change', function() {
-                const year = $(this).val();
-                loadMonths(year);
+                loadFilters();
+            });
+
+            // به‌روزرسانی وقتی ماه تغییر می‌کنه
+            $('#work_month_id').on('change', function() {
+                const month_id = $(this).val();
+                loadPartners(month_id);
                 loadReports();
             });
 
-            // به‌روزرسانی وقتی ماه یا همکار تغییر می‌کنه
-            $('#work_month_id, #user_id').on('change', function() {
+            // به‌روزرسانی وقتی همکار تغییر می‌کنه
+            $('#user_id').on('change', function() {
                 loadReports();
             });
         });
