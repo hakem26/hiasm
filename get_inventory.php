@@ -17,6 +17,7 @@ $product_id = $_POST['product_id'] ?? '';
 $user_id = $_POST['user_id'] ?? '';
 
 if (!$product_id || !$user_id) {
+    error_log("get_inventory.php - Missing parameters: product_id=$product_id, user_id=$user_id");
     respond(false, 'شناسه محصول یا کاربر مشخص نشده است.', ['product_id' => $product_id, 'user_id' => $user_id]);
 }
 
@@ -28,10 +29,10 @@ try {
     $quantity = $inventory ? (int)$inventory['quantity'] : 0;
 
     // لاگ برای دیباگ
-    error_log("Inventory check - user_id: $user_id, product_id: $product_id, quantity: $quantity");
+    error_log("get_inventory.php - user_id: $user_id, product_id: $product_id, quantity: $quantity");
 
     respond(true, 'موجودی با موفقیت دریافت شد.', ['inventory' => $quantity]);
 } catch (Exception $e) {
-    error_log("Error in get_inventory.php: " . $e->getMessage());
+    error_log("get_inventory.php - Error: " . $e->getMessage());
     respond(false, 'خطا در دریافت موجودی: ' . $e->getMessage());
 }

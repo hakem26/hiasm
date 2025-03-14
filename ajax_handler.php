@@ -30,6 +30,7 @@ switch ($action) {
         $partner1_id = $_POST['partner1_id'] ?? '';
 
         if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$work_details_id || !$partner1_id) {
+            error_log("ajax_handler.php - Missing parameters: customer_name=$customer_name, product_id=$product_id, quantity=$quantity, unit_price=$unit_price, work_details_id=$work_details_id, partner1_id=$partner1_id");
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
         }
 
@@ -39,6 +40,7 @@ switch ($action) {
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$product) {
+            error_log("ajax_handler.php - Product not found: product_id=$product_id");
             respond(false, 'محصول یافت نشد.');
         }
 
@@ -49,7 +51,9 @@ switch ($action) {
             $stmt_inventory->execute([$partner1_id, $product_id]);
             $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
-            $current_quantity = $inventory ? $inventory['quantity'] : 0;
+            $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+            error_log("ajax_handler.php - Checking inventory: user_id=$partner1_id, product_id=$product_id, current_quantity=$current_quantity, requested_quantity=$quantity");
+
             if ($current_quantity < $quantity) {
                 throw new Exception("موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
             }
@@ -62,6 +66,7 @@ switch ($action) {
             $pdo->commit();
         } catch (Exception $e) {
             $pdo->rollBack();
+            error_log("ajax_handler.php - Inventory error: " . $e->getMessage());
             respond(false, 'خطا در کسر موجودی: ' . $e->getMessage());
         }
 
