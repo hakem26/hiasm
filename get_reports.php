@@ -3,6 +3,9 @@ session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 
+// تنظیم هدر برای JSON
+header('Content-Type: application/json; charset=UTF-8');
+
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
@@ -109,8 +112,8 @@ try {
     $html .= '</tbody></table>';
 
     error_log('Generated HTML: ' . $html); // لاگ HTML برای دیباگ
-    echo json_encode(['success' => true, 'html' => $html]);
+    echo json_encode(['success' => true, 'html' => $html], JSON_UNESCAPED_UNICODE);
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'خطا در دیتابیس: لطفاً با پشتیبانی تماس بگیرید.']);
+    echo json_encode(['success' => false, 'message' => 'خطا در دیتابیس: لطفاً با پشتیبانی تماس بگیرید.'], JSON_UNESCAPED_UNICODE);
 }

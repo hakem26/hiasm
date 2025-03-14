@@ -236,10 +236,12 @@ if ($selected_year) {
                         work_month_id: work_month_id,
                         user_id: user_id
                     },
+                    dataType: 'json', // صراحتاً نوع داده رو JSON تنظیم می‌کنم
                     success: function(response) {
-                        console.log('Reports response:', JSON.stringify(response)); // نمایش کامل پاسخ
+                        console.log('Reports response (raw):', response);
                         try {
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
+                                console.log('Rendering HTML:', response.html);
                                 $('#reports-table').html(response.html);
                             } else {
                                 throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
