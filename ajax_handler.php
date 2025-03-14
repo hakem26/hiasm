@@ -185,7 +185,7 @@ switch ($action) {
             $_SESSION['is_order_in_progress'] = false;
 
             respond(true, 'سفارش با موفقیت ثبت شد.', [
-                'redirect' => "invoice.php?order_id=$order_id"
+                'redirect' => "orders.php"
             ]);
         } catch (Exception $e) {
             $pdo->rollBack();
