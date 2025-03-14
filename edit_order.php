@@ -87,6 +87,11 @@ $stmt_partner = $pdo->prepare("SELECT user_id1 FROM Partners WHERE partner_id = 
 $stmt_partner->execute([$order['partner_id']]);
 $partner_data = $stmt_partner->fetch(PDO::FETCH_ASSOC);
 $partner1_id = $partner_data['user_id1'] ?? null;
+if (!$partner1_id) {
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>همکار ۱ یافت نشد. لطفاً با مدیر سیستم تماس بگیرید.</div></div>";
+    require_once 'footer.php';
+    exit;
+}
 
 // مدیریت ارسال فرم (ویرایش سفارش)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -380,20 +385,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $.ajax({
                 url: 'get_inventory.php',
                 type: 'POST',
-                data: { 
+                data: {
                     product_id: product.product_id,
-                    user_id: '<?= $partner1_id ?>' // همکار ۱
+                    user_id: '<?= $partner1_id ?>'
                 },
-                success: function(response) {
-                    let inventory = response.inventory || 0;
-                    initialInventory = inventory;
-                    $('#inventory_quantity').text(inventory);
-                    $('#quantity').val(1); // مقدار پیش‌فرض تعداد
-                    updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
+                success: function (response) {
+                    console.log('Inventory response:', response); // لاگ برای دیباگ
+                    if (response.success) {
+                        let inventory = response.data.inventory || 0;
+                        initialInventory = inventory;
+                        $('#inventory_quantity').text(inventory);
+                        $('#quantity').val(1); // مقدار پیش‌فرض تعداد
+                        updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
+                    } else {
+                        console.error('Failed to fetch inventory:', response.message);
+                        $('#inventory_quantity').text('0');
+                        alert('خطا در دریافت موجودی: ' + response.message);
+                    }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error('AJAX Error: ', error);
                     $('#inventory_quantity').text('0');
+                    alert('خطا در دریافت موجودی.');
                 }
             });
 
@@ -434,11 +447,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $.ajax({
                 url: 'get_inventory.php',
                 type: 'POST',
-                data: { 
+                data: {
                     product_id: productId,
                     user_id: '<?= $partner1_id ?>' // همکار ۱
                 },
-                success: function(response) {
+                success: function (response) {
                     let inventory = response.inventory || 0;
                     if (inventory < quantity) {
                         alert(`موجودی کافی نیست! موجودی فعلی: ${inventory}، تعداد درخواست‌شده: ${quantity}`);
@@ -477,7 +490,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $('#inventory_quantity').text('0');
                     initialInventory = 0;
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error('AJAX Error: ', error);
                     alert('خطا در بررسی موجودی.');
                 }
@@ -530,4 +543,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>

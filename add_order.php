@@ -116,6 +116,12 @@ $stmt_partner = $pdo->prepare("SELECT user_id1 FROM Partners WHERE partner_id = 
 $stmt_partner->execute([$work_info['partner_id']]);
 $partner_data = $stmt_partner->fetch(PDO::FETCH_ASSOC);
 $partner1_id = $partner_data['user_id1'] ?? null;
+
+if (!$partner1_id) {
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>همکار ۱ یافت نشد. لطفاً با مدیر سیستم تماس بگیرید.</div></div>";
+    require_once 'footer.php';
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -171,24 +177,29 @@ $partner1_id = $partner_data['user_id1'] ?? null;
         <form id="order-form">
             <div class="mb-3">
                 <label for="customer_name" class="form-label">نام مشتری</label>
-                <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($customer_name) ?>" required autocomplete="off">
+                <input type="text" class="form-control" id="customer_name" name="customer_name"
+                    value="<?= htmlspecialchars($customer_name) ?>" required autocomplete="off">
             </div>
 
             <!-- انتخاب محصول -->
             <div class="row g-3 mb-3">
                 <div class="col-12">
                     <label for="product_name" class="form-label">نام محصول</label>
-                    <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
-                    <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+                    <input type="text" class="form-control" id="product_name" name="product_name"
+                        placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
+                    <div id="product_suggestions" class="list-group position-absolute"
+                        style="width: 100%; z-index: 1000; display: none;"></div>
                     <input type="hidden" id="product_id" name="product_id">
                 </div>
                 <div class="col-3">
                     <label for="quantity" class="form-label">تعداد</label>
-                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required autocomplete="off" style="width: 100%;">
+                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required
+                        autocomplete="off" style="width: 100%;">
                 </div>
                 <div class="col-9">
                     <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
-                    <input type="number" class="form-control" id="unit_price" name="unit_price" readonly style="width: 100%;">
+                    <input type="number" class="form-control" id="unit_price" name="unit_price" readonly
+                        style="width: 100%;">
                 </div>
                 <div class="row mb-3">
                     <div class="col-6">
@@ -226,7 +237,8 @@ $partner1_id = $partner_data['user_id1'] ?? null;
                                     <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
                                     <td><?= number_format($item['total_price'], 0) ?> تومان</td>
                                     <td>
-                                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
+                                        <button type="button" class="btn btn-danger btn-sm delete-item"
+                                            data-index="<?= $index ?>">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -238,7 +250,8 @@ $partner1_id = $partner_data['user_id1'] ?? null;
                             </tr>
                             <tr class="total-row">
                                 <td colspan="3"><label for="discount" class="form-label">تخفیف</label></td>
-                                <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
+                                <td><input type="number" class="form-control" id="discount" name="discount"
+                                        value="<?= $discount ?>" min="0"></td>
                                 <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
                             </tr>
                         </tbody>
@@ -248,8 +261,10 @@ $partner1_id = $partner_data['user_id1'] ?? null;
 
             <!-- نمایش پیش‌فرض برای جمع کل و تخفیف -->
             <div class="mb-3">
-                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?> تومان</span></p>
-                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?> تومان</span></p>
+                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?>
+                        تومان</span></p>
+                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?>
+                        تومان</span></p>
             </div>
 
             <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">بستن فاکتور</button>
@@ -335,7 +350,7 @@ $partner1_id = $partner_data['user_id1'] ?? null;
             let initialInventory = 0; // متغیر برای ذخیره موجودی اولیه
 
             // ساجستشن محصولات با jQuery
-            $('#product_name').on('input', function() {
+            $('#product_name').on('input', function () {
                 let query = $(this).val();
                 const work_details_id = '<?= htmlspecialchars($work_details_id, ENT_QUOTES, 'UTF-8') ?>';
                 console.log('Debug: Searching with work_details_id = ', work_details_id);
@@ -344,10 +359,10 @@ $partner1_id = $partner_data['user_id1'] ?? null;
                         url: 'get_products.php',
                         type: 'POST',
                         data: { query: query, work_details_id: work_details_id },
-                        success: function(response) {
+                        success: function (response) {
                             $('#product_suggestions').html(response).show();
                         },
-                        error: function(xhr, status, error) {
+                        error: function (xhr, status, error) {
                             console.error('AJAX Error: ', error);
                         }
                     });
@@ -356,7 +371,7 @@ $partner1_id = $partner_data['user_id1'] ?? null;
                 }
             });
 
-            $(document).on('click', '.product-suggestion', function() {
+            $(document).on('click', '.product-suggestion', function () {
                 let product = $(this).data('product');
                 $('#product_name').val(product.product_name);
                 $('#product_id').val(product.product_id);
@@ -368,20 +383,28 @@ $partner1_id = $partner_data['user_id1'] ?? null;
                 $.ajax({
                     url: 'get_inventory.php',
                     type: 'POST',
-                    data: { 
+                    data: {
                         product_id: product.product_id,
-                        user_id: '<?= $partner1_id ?>' // همکار ۱
+                        user_id: '<?= $partner1_id ?>'
                     },
-                    success: function(response) {
-                        let inventory = response.inventory || 0;
-                        initialInventory = inventory;
-                        $('#inventory_quantity').text(inventory);
-                        $('#quantity').val(1); // مقدار پیش‌فرض تعداد
-                        updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
+                    success: function (response) {
+                        console.log('Inventory response:', response); // لاگ برای دیباگ
+                        if (response.success) {
+                            let inventory = response.data.inventory || 0;
+                            initialInventory = inventory;
+                            $('#inventory_quantity').text(inventory);
+                            $('#quantity').val(1); // مقدار پیش‌فرض تعداد
+                            updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
+                        } else {
+                            console.error('Failed to fetch inventory:', response.message);
+                            $('#inventory_quantity').text('0');
+                            alert('خطا در دریافت موجودی: ' + response.message);
+                        }
                     },
-                    error: function(xhr, status, error) {
+                    error: function (xhr, status, error) {
                         console.error('AJAX Error: ', error);
                         $('#inventory_quantity').text('0');
+                        alert('خطا در دریافت موجودی.');
                     }
                 });
 
@@ -389,7 +412,7 @@ $partner1_id = $partner_data['user_id1'] ?? null;
             });
 
             // به‌روزرسانی قیمت کل و موجودی با تغییر تعداد
-            $('#quantity').on('input', function() {
+            $('#quantity').on('input', function () {
                 let quantity = $(this).val();
                 let unit_price = $('#unit_price').val();
                 let total = quantity * unit_price;
@@ -421,7 +444,7 @@ $partner1_id = $partner_data['user_id1'] ?? null;
                 }
 
                 // بررسی موجودی قبل از افزودن
-                const response = await sendRequest('get_inventory.php', { 
+                const response = await sendRequest('get_inventory.php', {
                     product_id: product_id,
                     user_id: '<?= $partner1_id ?>' // همکار ۱
                 });
