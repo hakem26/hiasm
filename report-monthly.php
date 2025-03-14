@@ -120,14 +120,14 @@ if ($selected_year) {
                 </div>
                 <div class="col-md-3">
                     <label for="work_month_id" class="form-label">ماه کاری</label>
-                    <select name="work_month_id" id="work_month_id" class="form-select" onchange="loadReports()">
+                    <select name="work_month_id" id="work_month_id" class="form-select">
                         <option value="">انتخاب ماه</option>
                         <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label for="user_id" class="form-label">همکار</label>
-                    <select name="user_id" id="user_id" class="form-select" onchange="loadReports()">
+                    <select name="user_id" id="user_id" class="form-select">
                         <option value="">انتخاب همکار</option>
                         <!-- همکاران اینجا با AJAX بارگذاری می‌شن -->
                     </select>
@@ -178,6 +178,7 @@ if ($selected_year) {
         $(document).ready(function() {
             // تابع برای بارگذاری ماه‌ها بر اساس سال
             function loadMonths(year) {
+                console.log('Loading months for year:', year);
                 if (!year) {
                     $('#work_month_id').html('<option value="">انتخاب ماه</option>');
                     return;
@@ -187,6 +188,7 @@ if ($selected_year) {
                     type: 'POST',
                     data: { year: year, user_id: <?= json_encode($current_user_id) ?> },
                     success: function(response) {
+                        console.log('Months response:', response);
                         $('#work_month_id').html(response);
                     },
                     error: function(xhr, status, error) {
@@ -198,6 +200,7 @@ if ($selected_year) {
 
             // تابع برای بارگذاری همکاران بر اساس ماه
             function loadPartners(month_id) {
+                console.log('Loading partners for month:', month_id);
                 if (!month_id) {
                     $('#user_id').html('<option value="">انتخاب همکار</option>');
                     return;
@@ -207,6 +210,7 @@ if ($selected_year) {
                     type: 'POST',
                     data: { month_id: month_id, user_id: <?= json_encode($current_user_id) ?> },
                     success: function(response) {
+                        console.log('Partners response:', response);
                         $('#user_id').html(response);
                     },
                     error: function(xhr, status, error) {
@@ -218,6 +222,7 @@ if ($selected_year) {
 
             // تابع برای بارگذاری گزارش‌ها
             function loadReports() {
+                console.log('Loading reports...');
                 const year = $('#year').val();
                 const work_month_id = $('#work_month_id').val();
                 const user_id = $('#user_id').val();
@@ -231,10 +236,10 @@ if ($selected_year) {
                         user_id: user_id
                     },
                     success: function(response) {
+                        console.log('Reports response:', response);
                         if (response.success) {
                             $('#reports-table').html(response.html);
                         } else {
-                            console.log('Server response:', response); // لاگ برای دیباگ
                             $('#reports-table').html('<div class="alert alert-danger text-center">' + (response.message || 'خطایی رخ داد.') + '</div>');
                         }
                     },
