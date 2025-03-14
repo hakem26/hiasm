@@ -9,12 +9,22 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date)
-{
+// تابع تبدیل تاریخ میلادی به شمسی
+function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return "$jy/$jm/$jd";
+    return sprintf("%02d/%02d/%04d", $jd, $jm, $jy);
+}
+
+// تابع برای دریافت نام ماه شمسی
+function get_jalali_month_name($month) {
+    $month_names = [
+        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
+        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
+        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+    ];
+    return $month_names[$month] ?? '';
 }
 
 // تابع تبدیل سال میلادی به سال شمسی
@@ -23,6 +33,10 @@ function gregorian_year_to_jalali($gregorian_year)
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
+
+// بررسی نقش کاربر
+$is_admin = ($_SESSION['role'] === 'admin');
+$current_user_id = $_SESSION['user_id'];
 
 // دریافت سال‌های موجود از دیتابیس (میلادی)
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
@@ -46,54 +60,80 @@ if ($selected_year) {
     $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت لیست همکاران
-$is_admin = ($_SESSION['role'] === 'admin');
-$current_user_id = $_SESSION['user_id'];
+// دریافت لیست همکاران برای فیلتر
 $partners = [];
-if ($is_admin) {
-    $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
-    $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $partners_query = $pdo->prepare("
-        SELECT DISTINCT u.user_id, u.full_name 
-        FROM Partners p
-        JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
-        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.role = 'seller'
-        ORDER BY u.full_name
-    ");
-    $partners_query->execute([$current_user_id, $current_user_id]);
-    $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
+$stmt_partners = $pdo->prepare("
+    SELECT DISTINCT p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name
+    FROM Partners p
+    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+    WHERE p.user_id1 = :user_id OR p.user_id2 = :user_id
+");
+$stmt_partners->execute([':user_id' => $current_user_id]);
+while ($row = $stmt_partners->fetch(PDO::FETCH_ASSOC)) {
+    $partner_name = $row['user1_name'] . ' و ' . $row['user2_name'];
+    $partners[$row['partner_id']] = $partner_name;
 }
 
-// دریافت گزارش‌های اولیه بر اساس فیلترها
+// دریافت گزارش‌های ماهانه (برای بارگذاری اولیه)
+$reports = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? '';
 $selected_partner_id = $_GET['user_id'] ?? '';
-$reports = [];
-if ($selected_work_month_id) {
-    $stmt_reports = $pdo->prepare("
+
+if ($selected_work_month_id || $selected_year || $selected_partner_id) {
+    $conditions = [];
+    $params = [];
+
+    $conditions[] = "wm.work_month_id = wd.work_month_id";
+    $conditions[] = "wd.partner_id = p.partner_id";
+    $conditions[] = "(p.user_id1 = :user_id OR p.user_id2 = :user_id)";
+    $params[':user_id'] = $current_user_id;
+
+    if ($selected_year) {
+        $conditions[] = "YEAR(wm.start_date) = :year";
+        $params[':year'] = $selected_year;
+    }
+    if ($selected_work_month_id) {
+        $conditions[] = "wm.work_month_id = :work_month_id";
+        $params[':work_month_id'] = $selected_work_month_id;
+    }
+    if ($selected_partner_id) {
+        $conditions[] = "(p.user_id1 = :partner_id OR p.user_id2 = :partner_id)";
+        $params[':partner_id'] = $selected_partner_id;
+    }
+
+    $sql = "
         SELECT wm.work_month_id, wm.start_date, wm.end_date, p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name,
                COUNT(DISTINCT wd.work_date) AS days_worked,
                (SELECT COUNT(DISTINCT work_date) FROM Work_Details WHERE work_month_id = wm.work_month_id) AS total_days,
-               SUM(o.total_amount) AS total_sales
+               COALESCE(SUM(o.total_amount), 0) AS total_sales
         FROM Work_Months wm
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
         JOIN Partners p ON wd.partner_id = p.partner_id
         LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
         LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
         LEFT JOIN Orders o ON o.work_details_id = wd.id
-        WHERE wm.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+        WHERE " . implode(" AND ", $conditions) . "
         GROUP BY wm.work_month_id, p.partner_id
         ORDER BY wm.start_date DESC
-    ");
-    $stmt_reports->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
-    while ($row = $stmt_reports->fetch(PDO::FETCH_ASSOC)) {
-        $partner_name = $row['user1_name'] . ' و ' . $row['user2_name'];
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $start_date = explode('-', $row['start_date']);
+        $jalali_year = $start_date[0] + 621;
+        $jalali_month = (int)$start_date[1];
+        $month_name = get_jalali_month_name($jalali_month) . ' ' . $jalali_year;
+
+        $partner_name = ($row['user1_name'] ?? 'نامشخص') . ' و ' . ($row['user2_name'] ?? 'نامشخص');
         $total_sales = $row['total_sales'] ?? 0;
         $status = ($row['days_worked'] == $row['total_days']) ? 'تکمیل' : 'ناقص';
+
         $reports[] = [
             'work_month_id' => $row['work_month_id'],
-            'start_date' => gregorian_to_jalali_format($row['start_date']),
-            'end_date' => gregorian_to_jalali_format($row['end_date']),
+            'month_name' => $month_name,
             'partner_name' => $partner_name,
             'partner_id' => $row['partner_id'],
             'total_sales' => $total_sales,
@@ -148,9 +188,9 @@ if ($selected_work_month_id) {
                     <label for="user_id" class="form-label">همکار</label>
                     <select name="user_id" id="user_id" class="form-select">
                         <option value="">همه همکاران</option>
-                        <?php foreach ($partners as $partner): ?>
-                            <option value="<?= htmlspecialchars($partner['user_id']) ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($partner['full_name']) ?>
+                        <?php foreach ($partners as $partner_id => $partner_name): ?>
+                            <option value="<?= htmlspecialchars($partner_id) ?>" <?= $selected_partner_id == $partner_id ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($partner_name) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -178,7 +218,7 @@ if ($selected_work_month_id) {
                     <?php else: ?>
                         <?php foreach ($reports as $report): ?>
                             <tr>
-                                <td><?= htmlspecialchars($report['start_date']) ?> تا <?= htmlspecialchars($report['end_date']) ?></td>
+                                <td><?= htmlspecialchars($report['month_name']) ?></td>
                                 <td><?= htmlspecialchars($report['partner_name']) ?></td>
                                 <td><?= number_format($report['total_sales'], 0) ?> تومان</td>
                                 <td><?= $report['status'] ?></td>
