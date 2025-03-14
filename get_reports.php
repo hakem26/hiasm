@@ -3,22 +3,12 @@ session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+// تابع تبدیل میلادی به شمسی
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%02d/%02d/%04d", $jd, $jm, $jy);
-}
-
-// تابع برای دریافت نام ماه شمسی
-function get_jalali_month_name($month) {
-    $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
-        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
-        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
-    ];
-    return $month_names[$month] ?? '';
+    return "$jy/$jm/$jd";
 }
 
 if (!isset($_SESSION['user_id'])) {
@@ -27,11 +17,9 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $current_user_id = $_SESSION['user_id'];
-$filter_year = $_GET['filter_year'] ?? '';
-$filter_work_month = $_GET['filter_work_month'] ?? '';
-$filter_partner = $_GET['filter_partner'] ?? '';
-
-$gregorian_year = $filter_year ? ($filter_year - 621) : '';
+$year = $_GET['year'] ?? '';
+$work_month_id = $_GET['work_month_id'] ?? '';
+$user_id = $_GET['user_id'] ?? '';
 
 $reports = [];
 $conditions = [];
@@ -42,17 +30,17 @@ $conditions[] = "wd.partner_id = p.partner_id";
 $conditions[] = "(p.user_id1 = :user_id OR p.user_id2 = :user_id)";
 $params[':user_id'] = $current_user_id;
 
-if ($filter_year) {
+if ($year) {
     $conditions[] = "YEAR(wm.start_date) = :year";
-    $params[':year'] = $gregorian_year;
+    $params[':year'] = $year;
 }
-if ($filter_work_month) {
+if ($work_month_id) {
     $conditions[] = "wm.work_month_id = :work_month_id";
-    $params[':work_month_id'] = $filter_work_month;
+    $params[':work_month_id'] = $work_month_id;
 }
-if ($filter_partner) {
-    $conditions[] = "p.partner_id = :partner_id";
-    $params[':partner_id'] = $filter_partner;
+if ($user_id) {
+    $conditions[] = "(p.user_id1 = :partner_id OR p.user_id2 = :partner_id)";
+    $params[':partner_id'] = $user_id;
 }
 
 $sql = "
@@ -75,18 +63,16 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $start_date = explode('-', $row['start_date']);
-    $jalali_year = $start_date[0] + 621;
-    $jalali_month = (int)$start_date[1];
-    $month_name = get_jalali_month_name($jalali_month) . ' ' . $jalali_year;
-
+    $start_date = gregorian_to_jalali_format($row['start_date']);
+    $end_date = gregorian_to_jalali_format($row['end_date']);
     $partner_name = $row['user1_name'] . ' و ' . $row['user2_name'];
     $total_sales = $row['total_sales'] ?? 0;
     $status = ($row['days_worked'] == $row['total_days']) ? 'تکمیل' : 'ناقص';
 
     $reports[] = [
         'work_month_id' => $row['work_month_id'],
-        'month_name' => $month_name,
+        'start_date' => $start_date,
+        'end_date' => $end_date,
         'partner_name' => $partner_name,
         'partner_id' => $row['partner_id'],
         'total_sales' => $total_sales,
@@ -100,7 +86,7 @@ if (empty($reports)) {
 } else {
     foreach ($reports as $report) {
         $html .= '<tr>';
-        $html .= '<td>' . htmlspecialchars($report['month_name']) . '</td>';
+        $html .= '<td>' . htmlspecialchars($report['start_date']) . ' تا ' . htmlspecialchars($report['end_date']) . '</td>';
         $html .= '<td>' . htmlspecialchars($report['partner_name']) . '</td>';
         $html .= '<td>' . number_format($report['total_sales'], 0) . ' تومان</td>';
         $html .= '<td>' . $report['status'] . '</td>';
