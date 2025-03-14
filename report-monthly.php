@@ -237,12 +237,12 @@ if ($selected_year) {
                         user_id: user_id
                     },
                     success: function(response) {
-                        console.log('Reports response:', response);
+                        console.log('Reports response:', JSON.stringify(response)); // نمایش کامل پاسخ
                         try {
-                            if (response.success && response.html) {
+                            if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                                 $('#reports-table').html(response.html);
                             } else {
-                                $('#reports-table').html('<div class="alert alert-danger text-center">' + (response.message || 'خطایی در پردازش داده‌ها رخ داد.') + '</div>');
+                                throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
                             }
                         } catch (e) {
                             console.error('Error rendering reports:', e);
@@ -250,7 +250,7 @@ if ($selected_year) {
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('AJAX Error:', error);
+                        console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
                         $('#reports-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری گزارش‌ها رخ داد: ' + error + '</div>');
                     }
                 });

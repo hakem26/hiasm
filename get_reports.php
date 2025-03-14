@@ -108,8 +108,9 @@ try {
     }
     $html .= '</tbody></table>';
 
+    error_log('Generated HTML: ' . $html); // لاگ HTML برای دیباگ
     echo json_encode(['success' => true, 'html' => $html]);
 } catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage()); // لاگ خطا
+    error_log("Database error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'خطا در دیتابیس: لطفاً با پشتیبانی تماس بگیرید.']);
 }
