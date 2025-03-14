@@ -153,14 +153,15 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                             <span>فروش</span>
                         </a>
                     </li>
+                    <li class="nav-item"></li>
+                        <a class="nav-link" href="report-bill.php">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>مالی</span>
+                        </a>
+                    </li>
                 </ul>
             </li>
-            <li class="nav-item"></li>
-            <a class="nav-link" href="debtors.php">
-                <i class="fas fa-money-bill-wave"></i>
-                <span>بدهکاران</span>
-            </a>
-            </li>
+            
             <!-- <li class="nav-item"></li>
                 <a class="nav-link" href="inventory.php">
                     <i class="fas fa-warehouse"></i>
