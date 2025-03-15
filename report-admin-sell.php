@@ -92,21 +92,7 @@ if ($selected_year && $selected_month) {
     $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_sessions = $sessions['total_sessions'] ?? 0;
 
-    // لیست محصولات
-    $stmt = $pdo->prepare("
-        SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_price
-        FROM Order_Items oi
-        JOIN Orders o ON oi.order_id = o.order_id
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
-        GROUP BY oi.product_name, oi.unit_price
-        ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
-    ");
-    $params = [$selected_month];
-    if ($selected_user_id !== 'all') $params[] = $selected_user_id;
-    $stmt->execute($params);
-    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    error_log("Admin Report - Total Sales: $total_sales, Total Discount: $total_discount, Total Sessions: $total_sessions, User ID: $selected_user_id, Month ID: $selected_month");
 }
 ?>
 
@@ -252,7 +238,7 @@ if ($selected_year && $selected_month) {
                 }
 
                 $.ajax({
-                    url: 'get_products.php',
+                    url: 'get_admin_products.php', // استفاده از فایل جدید برای ادمین
                     type: 'GET',
                     data: {
                         action: 'get_sales_report',
