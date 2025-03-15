@@ -234,9 +234,10 @@ if ($selected_year) {
                     data: {
                         year: year,
                         work_month_id: work_month_id,
-                        user_id: user_id
+                        user_id: user_id,
+                        report_type: 'monthly' // اضافه کردن پارامتر report_type
                     },
-                    dataType: 'json', // صراحتاً نوع داده رو JSON تنظیم می‌کنم
+                    dataType: 'json',
                     success: function(response) {
                         console.log('Reports response (raw):', response);
                         try {

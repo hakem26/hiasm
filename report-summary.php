@@ -242,7 +242,8 @@ if ($selected_year) {
                     data: {
                         year: year,
                         work_month_id: work_month_id,
-                        user_id: user_id
+                        user_id: user_id,
+                        report_type: 'summary' // اضافه کردن پارامتر report_type
                     },
                     dataType: 'json',
                     success: function(response) {
