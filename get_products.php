@@ -1,9 +1,91 @@
 <?php
 require_once 'db.php';
 
+$action = $_GET['action'] ?? ''; // پارامتر جدید برای انتخاب عملکرد
 $query = $_POST['query'] ?? '';
-$work_details_id = $_POST['work_details_id'] ?? ''; // مطمئن مي‌شويم دريافت مي‌شه
+$work_details_id = $_POST['work_details_id'] ?? ''; // برای منطق فعلی
+$work_month_id = $_GET['work_month_id'] ?? ''; // برای گزارش فروش
+$current_user_id = $_SESSION['user_id'] ?? null; // برای فیلتر همکار اول
 
+if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
+    // منطق گزارش فروش
+    header('Content-Type: application/json; charset=UTF-8');
+
+    // متغیرهای جمع کل
+    $total_sales = 0;
+    $total_discount = 0;
+    $total_sessions = 0;
+
+    // جمع کل فروش و تخفیف
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
+               COALESCE(SUM(o.discount), 0) AS total_discount
+        FROM Orders o
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+    ");
+    $stmt->execute([$work_month_id, $current_user_id]);
+    $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+    $total_sales = $summary['total_sales'] ?? 0;
+    $total_discount = $summary['total_discount'] ?? 0;
+
+    // تعداد جلسات (روزهای کاری)
+    $stmt = $pdo->prepare("
+        SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
+        FROM Work_Details wd
+        WHERE wd.work_month_id = ?
+    ");
+    $stmt->execute([$work_month_id]);
+    $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
+    $total_sessions = $sessions['total_sessions'] ?? 0;
+
+    // لیست محصولات
+    $products = [];
+    $stmt = $pdo->prepare("
+        SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_price
+        FROM Order_Items oi
+        JOIN Orders o ON oi.order_id = o.order_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+        GROUP BY oi.product_name, oi.unit_price
+        ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
+    ");
+    $stmt->execute([$work_month_id, $current_user_id]);
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // تولید HTML جدول
+    $html = '<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th><th>مشاهده</th></tr></thead><tbody>';
+    if (empty($products)) {
+        $html .= '<tr><td colspan="7" class="text-center">محصولی یافت نشد.</td></tr>';
+    } else {
+        $row_number = 1;
+        foreach ($products as $product) {
+            $html .= '<tr>';
+            $html .= '<td>' . $row_number++ . '</td>';
+            $html .= '<td>' . htmlspecialchars($product['product_name']) . '</td>';
+            $html .= '<td>' . number_format($product['unit_price'], 0) . ' تومان</td>';
+            $html .= '<td>' . $product['total_quantity'] . '</td>';
+            $html .= '<td>' . number_format($product['total_price'], 0) . ' تومان</td>';
+            $html .= '<td></td>';
+            $html .= '<td><a href="print-report-sell.php?work_month_id=' . $work_month_id . '" class="btn btn-info btn-sm"><i class="fas fa-eye"></i> مشاهده</a></td>';
+            $html .= '</tr>';
+        }
+    }
+    $html .= '</tbody></table>';
+
+    echo json_encode([
+        'success' => true,
+        'html' => $html,
+        'total_sales' => $total_sales,
+        'total_discount' => $total_discount,
+        'total_sessions' => $total_sessions
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// منطق فعلی (پیشنهاددهنده محصولات)
 if (empty($query)) {
     exit;
 }
