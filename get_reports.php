@@ -33,6 +33,7 @@ $current_user_id = $_SESSION['user_id'];
 $year = $_GET['year'] ?? '';
 $work_month_id = $_GET['work_month_id'] ?? '';
 $user_id = $_GET['user_id'] ?? '';
+$report_type = $_GET['report_type'] ?? 'monthly'; // پارامتر جدید برای نوع گزارش
 
 $reports = [];
 $conditions = [];
@@ -105,7 +106,9 @@ try {
             $html .= '<td>' . htmlspecialchars($report['partner_name']) . '</td>';
             $html .= '<td>' . number_format($report['total_sales'], 0) . ' تومان</td>';
             $html .= '<td>' . $report['status'] . '</td>';
-            $html .= '<td><a href="print-report-monthly.php?work_month_id=' . $report['work_month_id'] . '&partner_id=' . $report['partner_id'] . '" class="btn btn-info btn-sm"><i class="fas fa-eye"></i> مشاهده</a></td>';
+            // لینک بر اساس نوع گزارش تنظیم می‌شه
+            $link = $report_type === 'summary' ? 'print-report-summary.php' : 'print-report-monthly.php';
+            $html .= '<td><a href="' . $link . '?work_month_id=' . $report['work_month_id'] . '&partner_id=' . $report['partner_id'] . '" class="btn btn-info btn-sm"><i class="fas fa-eye"></i> مشاهده</a></td>';
             $html .= '</tr>';
         }
     }
