@@ -71,13 +71,14 @@ if ($selected_year && $selected_month) {
     $total_sales = $summary['total_sales'] ?? 0;
     $total_discount = $summary['total_discount'] ?? 0;
 
-    // تعداد جلسات (روزهای کاری)
+    // تعداد جلسات (روزهای کاری) فقط برای user_id1
     $stmt = $pdo->prepare("
         SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
         FROM Work_Details wd
-        WHERE wd.work_month_id = ?
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_month_id = ? AND p.user_id1 = ?
     ");
-    $stmt->execute([$selected_month]);
+    $stmt->execute([$selected_month, $current_user_id]);
     $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_sessions = $sessions['total_sessions'] ?? 0;
 
@@ -239,10 +240,10 @@ if ($selected_year && $selected_month) {
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                                 console.log('Rendering HTML:', response.html);
                                 $('#products-table').html(response.html);
-                                // به‌روزرسانی جمع کل‌ها
+                                // به‌روزرسانی جمع کل‌ها (حذف کلمه "جلسه" از اینجا)
                                 $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان' : '0 تومان');
                                 $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' تومان' : '0 تومان');
-                                $('#total-sessions').text(response.total_sessions ? response.total_sessions + ' جلسه' : '0 جلسه');
+                                $('#total-sessions').text(response.total_sessions ? response.total_sessions : 0);
                                 $('#view-report-btn').prop('disabled', false);
                             } else {
                                 throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));

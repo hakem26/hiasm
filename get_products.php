@@ -35,13 +35,14 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
         $total_discount = $summary['total_discount'] ?? 0;
         error_log("Total sales: $total_sales, Total discount: $total_discount");
 
-        // تعداد جلسات (روزهای کاری)
+        // تعداد جلسات (روزهای کاری) فقط برای user_id1
         $stmt = $pdo->prepare("
             SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
             FROM Work_Details wd
-            WHERE wd.work_month_id = ?
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            WHERE wd.work_month_id = ? AND p.user_id1 = ?
         ");
-        $stmt->execute([$work_month_id]);
+        $stmt->execute([$work_month_id, $current_user_id]);
         $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sessions = $sessions['total_sessions'] ?? 0;
         error_log("Total sessions: $total_sessions");
