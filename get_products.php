@@ -2,28 +2,19 @@
 session_start();
 require_once 'db.php';
 
-// فعال کردن نمایش خطاها برای دیباگ (فقط برای تست)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 // لگ کردن درخواست ورودی
 error_log("Request received: " . json_encode($_GET, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-$action = $_GET['action'] ?? ''; // پارامتر جدید برای انتخاب عملکرد
+$action = $_GET['action'] ?? '';
 $query = $_POST['query'] ?? '';
-$work_details_id = $_POST['work_details_id'] ?? ''; // برای منطق فعلی
-$work_month_id = $_GET['work_month_id'] ?? ''; // برای گزارش فروش
-$current_user_id = $_SESSION['user_id'] ?? null; // برای فیلتر همکار اول
+$work_details_id = $_POST['work_details_id'] ?? '';
+$work_month_id = $_GET['work_month_id'] ?? '';
+$current_user_id = $_SESSION['user_id'] ?? null;
 
 if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
-    // لگ کردن شروع منطق گزارش فروش
     error_log("Starting get_sales_report: work_month_id = $work_month_id, user_id = $current_user_id");
-
-    // تنظیم هدر برای JSON
     header('Content-Type: application/json; charset=UTF-8');
 
-    // متغیرهای جمع کل
     $total_sales = 0;
     $total_discount = 0;
     $total_sessions = 0;
@@ -65,7 +56,7 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             JOIN Partners p ON wd.partner_id = p.partner_id
             WHERE wd.work_month_id = ? AND p.user_id1 = ?
             GROUP BY oi.product_name, oi.unit_price
-            ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
+            ORDER BY oi.product_name COLLATE utf8_persian_ci
         ");
         $stmt->execute([$work_month_id, $current_user_id]);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -91,7 +82,6 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
         }
         $html .= '</tbody></table>';
 
-        // لگ کردن خروجی
         error_log("HTML generated: " . substr($html, 0, 100) . "...");
 
         echo json_encode([
@@ -102,7 +92,6 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             'total_sessions' => $total_sessions
         ], JSON_UNESCAPED_UNICODE);
     } catch (Exception $e) {
-        // لگ کردن خطا
         error_log("Error in get_sales_report: " . $e->getMessage());
         echo json_encode([
             'success' => false,
@@ -119,14 +108,12 @@ if (empty($query)) {
 
 $products = [];
 if ($work_details_id) {
-    // گرفتن تاريخ كارى با ديباگ
     $stmt_work = $pdo->prepare("SELECT work_date FROM Work_Details WHERE id = ?");
     $stmt_work->execute([$work_details_id]);
     $work_date = $stmt_work->fetchColumn();
-    error_log("Debug: work_details_id = $work_details_id, work_date = $work_date"); // لگ براي ديباگ
+    error_log("Debug: work_details_id = $work_details_id, work_date = $work_date");
 
     if ($work_date) {
-        // گرفتن آخرين قيمت تا تاريخ كارى با شرايط دقيق‌تر
         $stmt = $pdo->prepare("
             SELECT p.product_id, p.product_name, COALESCE(
                 (SELECT unit_price 
@@ -142,12 +129,11 @@ if ($work_details_id) {
         ");
         $stmt->execute([$work_date, $work_date, '%' . $query . '%']);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        error_log("Debug: Products fetched with work_date = $work_date, count = " . count($products)); // لگ
+        error_log("Debug: Products fetched with work_date = $work_date, count = " . count($products));
     } else {
         error_log("Debug: No work_date found for work_details_id = $work_details_id");
     }
 } else {
-    // اگر تاريخ كارى مشخص نباشه، فقط قيمت پايه رو نشون بده
     $stmt = $pdo->prepare("SELECT product_id, product_name, unit_price FROM Products WHERE product_name LIKE ? LIMIT 10");
     $stmt->execute(['%' . $query . '%']);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
