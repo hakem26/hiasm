@@ -62,10 +62,10 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         error_log("Products fetched: " . count($products));
 
-        // تولید HTML جدول
-        $html = '<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th><th>مشاهده</th></tr></thead><tbody>';
+        // تولید HTML جدول (بدون ستون‌های سود و مشاهده)
+        $html = '<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th></tr></thead><tbody>';
         if (empty($products)) {
-            $html .= '<tr><td colspan="7" class="text-center">محصولی یافت نشد.</td></tr>';
+            $html .= '<tr><td colspan="5" class="text-center">محصولی یافت نشد.</td></tr>';
         } else {
             $row_number = 1;
             foreach ($products as $product) {
@@ -75,8 +75,6 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
                 $html .= '<td>' . number_format($product['unit_price'], 0) . ' تومان</td>';
                 $html .= '<td>' . $product['total_quantity'] . '</td>';
                 $html .= '<td>' . number_format($product['total_price'], 0) . ' تومان</td>';
-                $html .= '<td></td>';
-                $html .= '<td><a href="print-report-sell.php?work_month_id=' . $work_month_id . '" class="btn btn-info btn-sm"><i class="fas fa-eye"></i> مشاهده</a></td>';
                 $html .= '</tr>';
             }
         }

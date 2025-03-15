@@ -10,36 +10,25 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date)
-{
+function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 // تابع برای دریافت نام ماه شمسی
-function get_jalali_month_name($month)
-{
+function get_jalali_month_name($month) {
     $month_names = [
-        1 => 'فروردین',
-        2 => 'اردیبهشت',
-        3 => 'خرداد',
-        4 => 'تیر',
-        5 => 'مرداد',
-        6 => 'شهریور',
-        7 => 'مهر',
-        8 => 'آبان',
-        9 => 'آذر',
-        10 => 'دی',
-        11 => 'بهمن',
-        12 => 'اسفند'
+        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
+        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
+        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
 
 // تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year)
-{
+function gregorian_year_to_jalali($gregorian_year) {
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
@@ -147,10 +136,15 @@ if ($selected_year && $selected_month) {
                 </div>
                 <div class="col-md-3">
                     <label for="work_month_id" class="form-label">ماه کاری</label>
-                    <select name="work_month_id" id="work_month_id" class="form-select">
-                        <option value="">انتخاب ماه</option>
-                        <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
-                    </select>
+                    <div class="input-group">
+                        <select name="work_month_id" id="work_month_id" class="form-select">
+                            <option value="">انتخاب ماه</option>
+                            <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
+                        </select>
+                        <button id="view-report-btn" class="btn btn-info" disabled>
+                            <i class="fas fa-eye"></i> مشاهده
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -165,14 +159,12 @@ if ($selected_year && $selected_month) {
                         <th>قیمت واحد</th>
                         <th>تعداد</th>
                         <th>قیمت کل</th>
-                        <th>سود</th>
-                        <th>مشاهده</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($products)): ?>
                         <tr>
-                            <td colspan="7" class="text-center">محصولی یافت نشد.</td>
+                            <td colspan="5" class="text-center">محصولی یافت نشد.</td>
                         </tr>
                     <?php else: ?>
                         <?php $row_number = 1; ?>
@@ -183,13 +175,6 @@ if ($selected_year && $selected_month) {
                                 <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
                                 <td><?= $product['total_quantity'] ?></td>
                                 <td><?= number_format($product['total_price'], 0) ?> تومان</td>
-                                <td></td>
-                                <td>
-                                    <a href="print-report-sell.php?work_month_id=<?= $selected_month ?>"
-                                        class="btn btn-info btn-sm">
-                                        <i class="fas fa-eye"></i> مشاهده
-                                    </a>
-                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -201,25 +186,28 @@ if ($selected_year && $selected_month) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        $(document).ready(function () {
+        $(document).ready(function() {
             // تابع برای بارگذاری ماه‌ها بر اساس سال
             function loadMonths(year) {
                 console.log('Loading months for year:', year);
                 if (!year) {
                     $('#work_month_id').html('<option value="">انتخاب ماه</option>');
+                    $('#view-report-btn').prop('disabled', true);
                     return;
                 }
                 $.ajax({
                     url: 'get_months.php',
                     type: 'POST',
                     data: { year: year, user_id: <?= json_encode($current_user_id) ?> },
-                    success: function (response) {
+                    success: function(response) {
                         console.log('Months response:', response);
                         $('#work_month_id').html(response);
+                        $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
                     },
-                    error: function (xhr, status, error) {
+                    error: function(xhr, status, error) {
                         console.error('Error loading months:', error);
                         $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
+                        $('#view-report-btn').prop('disabled', true);
                     }
                 });
             }
@@ -231,7 +219,8 @@ if ($selected_year && $selected_month) {
                 const work_month_id = $('#work_month_id').val();
 
                 if (!work_month_id) {
-                    $('#products-table').html('<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th><th>مشاهده</th></tr></thead><tbody><tr><td colspan="7" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr></tbody></table>');
+                    $('#products-table').html('<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th></tr></thead><tbody><tr><td colspan="5" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr></tbody></table>');
+                    $('#view-report-btn').prop('disabled', true);
                     return;
                 }
 
@@ -244,7 +233,7 @@ if ($selected_year && $selected_month) {
                         work_month_id: work_month_id
                     },
                     dataType: 'json',
-                    success: function (response) {
+                    success: function(response) {
                         console.log('Products response (raw):', response);
                         try {
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
@@ -254,17 +243,20 @@ if ($selected_year && $selected_month) {
                                 $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان' : '0 تومان');
                                 $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' تومان' : '0 تومان');
                                 $('#total-sessions').text(response.total_sessions ? response.total_sessions + ' جلسه' : '0 جلسه');
+                                $('#view-report-btn').prop('disabled', false);
                             } else {
-                                throw new Error(response.message || 'داده‌ای برای نمایش وجود ندارد');
+                                throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
                             }
                         } catch (e) {
                             console.error('Error rendering products:', e);
                             $('#products-table').html('<div class="alert alert-danger text-center">خطا در نمایش محصولات: ' + e.message + '</div>');
+                            $('#view-report-btn').prop('disabled', true);
                         }
                     },
-                    error: function (xhr, status, error) {
+                    error: function(xhr, status, error) {
                         console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
-                        $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + xhr.responseText + '</div>');
+                        $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + error + '</div>');
+                        $('#view-report-btn').prop('disabled', true);
                     }
                 });
             }
@@ -284,12 +276,23 @@ if ($selected_year && $selected_month) {
             loadProducts();
 
             // رویدادهای تغییر
-            $('#year').on('change', function () {
+            $('#year').on('change', function() {
                 loadFilters();
             });
 
-            $('#work_month_id').on('change', function () {
+            $('#work_month_id').on('change', function() {
                 loadProducts();
+                $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
+            });
+
+            // رویداد کلیک دکمه مشاهده
+            $('#view-report-btn').on('click', function() {
+                const work_month_id = $('#work_month_id').val();
+                if (work_month_id) {
+                    window.location.href = 'print-report-sell.php?work_month_id=' + work_month_id;
+                } else {
+                    alert('ماه کاری به درستی انتخاب نشده است.');
+                }
             });
         });
     </script>
