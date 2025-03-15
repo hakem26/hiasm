@@ -27,7 +27,7 @@ if (!$month) {
 $start_date = gregorian_to_jalali_format($month['start_date']);
 $end_date = gregorian_to_jalali_format($month['end_date']);
 list($jy, $jm, $jd) = explode('/', $start_date);
-$month_name = get_jalali_month_name((int) $jm) . ' ' . $jy;
+$month_name = get_jalali_month_name((int)$jm) . ' ' . $jy;
 
 // دریافت نام کاربر گزارش‌گیرنده
 $stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
@@ -75,28 +75,18 @@ $stmt->execute([$work_month_id, $current_user_id]);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // تبدیل تاریخ به شمسی
-function gregorian_to_jalali_format($gregorian_date)
-{
+function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
-function get_jalali_month_name($month)
-{
+function get_jalali_month_name($month) {
     $month_names = [
-        1 => 'فروردین',
-        2 => 'اردیبهشت',
-        3 => 'خرداد',
-        4 => 'تیر',
-        5 => 'مرداد',
-        6 => 'شهریور',
-        7 => 'مهر',
-        8 => 'آبان',
-        9 => 'آذر',
-        10 => 'دی',
-        11 => 'بهمن',
-        12 => 'اسفند'
+        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
+        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
+        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -115,53 +105,43 @@ function get_jalali_month_name($month)
             size: A4 portrait;
             margin: 10mm;
         }
-
         body {
             font-family: Arial, sans-serif;
             font-size: 12px;
         }
-
         .summary-box {
             border: 2px solid #000;
             width: 50%;
             margin: 0 auto;
             padding: 10px;
         }
-
         .summary-box table {
             width: 100%;
             border-collapse: collapse;
         }
-
         .summary-box td {
             padding: 10px;
             border: 1px solid #ccc;
         }
-
         .products-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-
-        .products-table th,
-        .products-table td {
+        .products-table th, .products-table td {
             border: 1px solid #ccc;
             padding: 8px;
             text-align: center;
         }
-
         .total-row {
             background-color: #f0f0f0;
             font-weight: bold;
         }
-
         .grand-total-row {
             background-color: #fff3cd;
             font-weight: bold;
             font-size: 14px;
         }
-
         .page-break {
             page-break-before: always;
         }
@@ -204,9 +184,9 @@ function get_jalali_month_name($month)
         // تیتر صفحه
         echo '<h4>گزارش کاری ' . $month_name . ' - ' . $user_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
 
-        // جدول محصولات
+        // جدول محصولات (با ستون سود)
         echo '<table class="products-table">';
-        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th></tr></thead>';
+        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th></tr></thead>';
         echo '<tbody>';
 
         $page_total = 0;
@@ -222,6 +202,7 @@ function get_jalali_month_name($month)
             echo '<td>' . number_format($item['unit_price'], 0) . ' تومان</td>';
             echo '<td>' . $item['total_quantity'] . '</td>';
             echo '<td>' . number_format($total_price, 0) . ' تومان</td>';
+            echo '<td></td>'; // ستون سود (فعلاً خالی)
             echo '</tr>';
         }
 
@@ -229,6 +210,7 @@ function get_jalali_month_name($month)
         echo '<tr class="total-row">';
         echo '<td colspan="4">جمع کل</td>';
         echo '<td>' . number_format($page_total, 0) . ' تومان</td>';
+        echo '<td></td>'; // ستون سود برای جمع کل
         echo '</tr>';
 
         // اگر صفحه آخر باشه و تعداد محصولات ≤ 30 باشه، ردیف جمع کل فروش رو اضافه کن
@@ -236,6 +218,7 @@ function get_jalali_month_name($month)
             echo '<tr class="grand-total-row">';
             echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
             echo '<td>' . number_format($total_sales, 0) . ' تومان</td>';
+            echo '<td></td>'; // ستون سود برای جمع کل فروش
             echo '</tr>';
         }
 
@@ -245,5 +228,4 @@ function get_jalali_month_name($month)
 
     <button class="btn btn-secondary mt-3" onclick="window.print()">چاپ</button>
 </body>
-
 </html>
