@@ -19,7 +19,7 @@ function gregorian_to_jalali_format($gregorian_date) {
 // تابع برای دریافت نام ماه شمسی
 function get_jalali_month_name($month) {
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        1 => 'فروردین', 2 => 'اردیبشهت', 3 => 'خرداد',
         4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
         7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
         10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
@@ -44,11 +44,8 @@ $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months O
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = array_column($years_db, 'year');
 
-// دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
-$current_year = date('Y');
-
 // دریافت سال و همکار انتخاب‌شده
-$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
+$selected_year = $_GET['year'] ?? (!empty($years) ? $years[0] : null);
 $selected_user_id = $_GET['user_id'] ?? ($user_role === 'admin' ? 'all' : $current_user_id); // پیش‌فرض "همه" برای ادمین
 $selected_month = $_GET['work_month_id'] ?? '';
 
@@ -214,7 +211,8 @@ if ($selected_year && $selected_month) {
         $(document).ready(function() {
             // تابع برای بارگذاری ماه‌ها بر اساس سال
             function loadMonths(year) {
-                console.log('Loading months for year:', year);
+                const selected_user_id = $('#user_id').val() || '<?= $current_user_id ?>';
+                console.log('Loading months for year:', year, 'selected_user_id:', selected_user_id);
                 if (!year) {
                     $('#work_month_id').html('<option value="">انتخاب ماه</option>');
                     $('#view-report-btn').prop('disabled', true);
@@ -223,15 +221,15 @@ if ($selected_year && $selected_month) {
                 $.ajax({
                     url: 'get_months.php',
                     type: 'POST',
-                    data: { year: year, user_id: <?= json_encode($current_user_id) ?> },
+                    data: { year: year, user_id: selected_user_id },
                     success: function(response) {
                         console.log('Months response:', response);
                         $('#work_month_id').html(response);
                         $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error loading months:', error);
-                        $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
+                        console.error('Error loading months:', error, 'Status:', status, 'Response:', xhr.responseText);
+                        $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها: ' + error + '</option>');
                         $('#view-report-btn').prop('disabled', true);
                     }
                 });
@@ -308,6 +306,10 @@ if ($selected_year && $selected_month) {
             });
 
             $('#user_id').on('change', function() {
+                const year = $('#year').val();
+                if (year) {
+                    loadMonths(year);
+                }
                 loadProducts();
             });
 

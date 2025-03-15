@@ -8,16 +8,37 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
-$year = $_POST['year'];
-$user_id = $_POST['user_id'];
-$stmt = $pdo->prepare("
-    SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
-    FROM Work_Months wm
-    JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
-    WHERE YEAR(wm.start_date) = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-    ORDER BY wm.start_date DESC
-");
-$stmt->execute([$year, $user_id, $user_id]);
+$year = $_POST['year'] ?? '';
+$user_id = $_POST['user_id'] ?? '';
+
+if (!$year) {
+    echo '<option value="">انتخاب ماه</option>';
+    exit;
+}
+
+// اگر "همه" انتخاب شده، فقط ماه‌هایی که حداقل یه روز کاری دارن رو برگردون
+if ($user_id === 'all') {
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
+        FROM Work_Months wm
+        JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
+        WHERE YEAR(wm.start_date) = ?
+        ORDER BY wm.start_date DESC
+    ");
+    $stmt->execute([$year]);
+} else {
+    // برای همکار خاص، از جدول Partners برای پیدا کردن partner_id استفاده می‌کنیم
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
+        FROM Work_Months wm
+        JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE YEAR(wm.start_date) = ? AND p.user_id1 = ?
+        ORDER BY wm.start_date DESC
+    ");
+    $stmt->execute([$year, $user_id]);
+}
+
 $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 echo '<option value="">انتخاب ماه</option>';
