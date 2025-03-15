@@ -56,7 +56,7 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             JOIN Partners p ON wd.partner_id = p.partner_id
             WHERE wd.work_month_id = ? AND p.user_id1 = ?
             GROUP BY oi.product_name, oi.unit_price
-            ORDER BY oi.product_name COLLATE utf8_persian_ci
+            ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
         ");
         $stmt->execute([$work_month_id, $current_user_id]);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
