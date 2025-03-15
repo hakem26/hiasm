@@ -32,16 +32,14 @@ $end_date = $month['end_date'];
 
 // دریافت روزهای کاری برای این ماه و همکار
 $stmt = $pdo->prepare("
-    SELECT DISTINCT wd.work_date, p.user_id1, p.user_id2, u1.full_name AS agency_name1, u2.full_name AS agency_name2,
+    SELECT DISTINCT wd.work_date, wd.agency_owner_id, u.full_name AS agency_name,
            COALESCE(SUM(o.total_amount), 0) AS total_sales,
            COALESCE(SUM(o.discount), 0) AS total_discount
     FROM Work_Details wd
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+    LEFT JOIN Users u ON wd.agency_owner_id = u.user_id
     LEFT JOIN Orders o ON o.work_details_id = wd.id
     WHERE wd.work_month_id = ? AND wd.partner_id = ?
-    GROUP BY wd.work_date, p.user_id1, p.user_id2, u1.full_name, u2.full_name
+    GROUP BY wd.work_date, wd.agency_owner_id, u.full_name
     ORDER BY wd.work_date
 ");
 $stmt->execute([$work_month_id, $partner_id]);
@@ -144,7 +142,7 @@ function gregorian_to_jalali_format($gregorian_date) {
         foreach ($work_days as $index => $day) {
             $day_count++;
             $jalali_date = gregorian_to_jalali_format($day['work_date']);
-            $agency_name = $day['agency_name1'] ?? $day['agency_name2'] ?? 'نامشخص';
+            $agency_name = $day['agency_name'] ?? 'نامشخص';
 
             echo '<div class="day-box">';
             echo '<p>تاریخ: ' . $jalali_date . '</p>';
