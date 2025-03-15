@@ -35,6 +35,9 @@ function gregorian_year_to_jalali($gregorian_year) {
 
 // بررسی نقش کاربر
 $current_user_id = $_SESSION['user_id'];
+$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
+$stmt->execute([$current_user_id]);
+$user_role = $stmt->fetchColumn();
 
 // دریافت سال‌های موجود از دیتابیس (میلادی)
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
@@ -44,8 +47,10 @@ $years = array_column($years_db, 'year');
 // دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
 $current_year = date('Y');
 
-// دریافت سال انتخاب‌شده (میلادی)
+// دریافت سال و همکار انتخاب‌شده
 $selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
+$selected_user_id = $_GET['user_id'] ?? ($user_role === 'admin' ? 'all' : $current_user_id); // پیش‌فرض "همه" برای ادمین
+$selected_month = $_GET['work_month_id'] ?? '';
 
 // متغیرهای جمع کل
 $total_sales = 0;
@@ -54,7 +59,6 @@ $total_sessions = 0;
 
 // محصولات
 $products = [];
-$selected_month = $_GET['work_month_id'] ?? '';
 
 if ($selected_year && $selected_month) {
     // جمع کل فروش و تخفیف
@@ -64,21 +68,25 @@ if ($selected_year && $selected_month) {
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+        WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
     ");
-    $stmt->execute([$selected_month, $current_user_id]);
+    $params = [$selected_month];
+    if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+    $stmt->execute($params);
     $summary = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_sales = $summary['total_sales'] ?? 0;
     $total_discount = $summary['total_discount'] ?? 0;
 
-    // تعداد جلسات (روزهای کاری) فقط برای user_id1
+    // تعداد جلسات (روزهای کاری)
     $stmt = $pdo->prepare("
         SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
         FROM Work_Details wd
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+        WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
     ");
-    $stmt->execute([$selected_month, $current_user_id]);
+    $params = [$selected_month];
+    if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+    $stmt->execute($params);
     $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_sessions = $sessions['total_sessions'] ?? 0;
 
@@ -89,11 +97,13 @@ if ($selected_year && $selected_month) {
         JOIN Orders o ON oi.order_id = o.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+        WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
         GROUP BY oi.product_name, oi.unit_price
         ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
     ");
-    $stmt->execute([$selected_month, $current_user_id]);
+    $params = [$selected_month];
+    if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+    $stmt->execute($params);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
@@ -135,6 +145,20 @@ if ($selected_year && $selected_month) {
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php if ($user_role === 'admin'): ?>
+                    <div class="col-md-3">
+                        <label for="user_id" class="form-label">همکار</label>
+                        <select name="user_id" id="user_id" class="form-select">
+                            <option value="all" <?= $selected_user_id === 'all' ? 'selected' : '' ?>>همه</option>
+                            <?php
+                            $stmt = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
+                            while ($user = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                echo '<option value="' . $user['user_id'] . '" ' . ($selected_user_id == $user['user_id'] ? 'selected' : '') . '>' . htmlspecialchars($user['full_name']) . '</option>';
+                            }
+                            ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
                 <div class="col-md-3">
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <div class="input-group">
@@ -217,6 +241,7 @@ if ($selected_year && $selected_month) {
             function loadProducts() {
                 console.log('Loading products...');
                 const year = $('#year').val();
+                const user_id = $('#user_id').val() || '<?= $current_user_id ?>';
                 const work_month_id = $('#work_month_id').val();
 
                 if (!work_month_id) {
@@ -231,6 +256,7 @@ if ($selected_year && $selected_month) {
                     data: {
                         action: 'get_sales_report',
                         year: year,
+                        user_id: user_id,
                         work_month_id: work_month_id
                     },
                     dataType: 'json',
@@ -240,7 +266,7 @@ if ($selected_year && $selected_month) {
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                                 console.log('Rendering HTML:', response.html);
                                 $('#products-table').html(response.html);
-                                // به‌روزرسانی جمع کل‌ها (حذف کلمه "جلسه" از اینجا)
+                                // به‌روزرسانی جمع کل‌ها
                                 $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان' : '0 تومان');
                                 $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' تومان' : '0 تومان');
                                 $('#total-sessions').text(response.total_sessions ? response.total_sessions : 0);
@@ -281,6 +307,10 @@ if ($selected_year && $selected_month) {
                 loadFilters();
             });
 
+            $('#user_id').on('change', function() {
+                loadProducts();
+            });
+
             $('#work_month_id').on('change', function() {
                 loadProducts();
                 $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
@@ -289,8 +319,9 @@ if ($selected_year && $selected_month) {
             // رویداد کلیک دکمه مشاهده
             $('#view-report-btn').on('click', function() {
                 const work_month_id = $('#work_month_id').val();
+                const user_id = $('#user_id').val() || '<?= $current_user_id ?>';
                 if (work_month_id) {
-                    window.location.href = 'print-report-sell.php?work_month_id=' + work_month_id;
+                    window.location.href = 'print-report-sell.php?work_month_id=' + work_month_id + '&user_id=' + user_id;
                 } else {
                     alert('ماه کاری به درستی انتخاب نشده است.');
                 }

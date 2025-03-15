@@ -10,9 +10,10 @@ $query = $_POST['query'] ?? '';
 $work_details_id = $_POST['work_details_id'] ?? '';
 $work_month_id = $_GET['work_month_id'] ?? '';
 $current_user_id = $_SESSION['user_id'] ?? null;
+$selected_user_id = $_GET['user_id'] ?? $current_user_id;
 
 if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
-    error_log("Starting get_sales_report: work_month_id = $work_month_id, user_id = $current_user_id");
+    error_log("Starting get_sales_report: work_month_id = $work_month_id, user_id = $selected_user_id");
     header('Content-Type: application/json; charset=UTF-8');
 
     $total_sales = 0;
@@ -27,22 +28,26 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             FROM Orders o
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE wd.work_month_id = ? AND p.user_id1 = ?
+            WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
         ");
-        $stmt->execute([$work_month_id, $current_user_id]);
+        $params = [$work_month_id];
+        if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+        $stmt->execute($params);
         $summary = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sales = $summary['total_sales'] ?? 0;
         $total_discount = $summary['total_discount'] ?? 0;
         error_log("Total sales: $total_sales, Total discount: $total_discount");
 
-        // تعداد جلسات (روزهای کاری) فقط برای user_id1
+        // تعداد جلسات (روزهای کاری)
         $stmt = $pdo->prepare("
             SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
             FROM Work_Details wd
             JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE wd.work_month_id = ? AND p.user_id1 = ?
+            WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
         ");
-        $stmt->execute([$work_month_id, $current_user_id]);
+        $params = [$work_month_id];
+        if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+        $stmt->execute($params);
         $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sessions = $sessions['total_sessions'] ?? 0;
         error_log("Total sessions: $total_sessions");
@@ -55,11 +60,13 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             JOIN Orders o ON oi.order_id = o.order_id
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE wd.work_month_id = ? AND p.user_id1 = ?
+            WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
             GROUP BY oi.product_name, oi.unit_price
             ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
         ");
-        $stmt->execute([$work_month_id, $current_user_id]);
+        $params = [$work_month_id];
+        if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+        $stmt->execute($params);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         error_log("Products fetched: " . count($products));
 
@@ -94,7 +101,7 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
         error_log("Error in get_sales_report: " . $e->getMessage());
         echo json_encode([
             'success' => false,
-            'message' => 'خطایی در سرور رخ داد: ' . $e->getMessage()
+            'message' => 'خطایی در سرور رخ داد: ' + $e->getMessage()
         ], JSON_UNESCAPED_UNICODE);
     }
     exit;

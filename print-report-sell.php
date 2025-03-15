@@ -10,11 +10,15 @@ require_once 'jdf.php';
 
 // دریافت پارامترها
 $work_month_id = $_GET['work_month_id'] ?? '';
+$selected_user_id = $_GET['user_id'] ?? $_SESSION['user_id'];
 if (!$work_month_id) {
     die('ماه کاری انتخاب نشده است.');
 }
 
 $current_user_id = $_SESSION['user_id'];
+$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
+$stmt->execute([$current_user_id]);
+$user_role = $stmt->fetchColumn();
 
 // دریافت اطلاعات ماه کاری
 $stmt = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
@@ -35,6 +39,17 @@ $stmt->execute([$current_user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 $user_name = $user['full_name'] ?? 'نامشخص';
 
+// دریافت نام همکار (یا "همه همکاران")
+$partner_name = 'همه همکاران';
+if ($selected_user_id !== 'all' && $user_role === 'admin') {
+    $stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
+    $stmt->execute([$selected_user_id]);
+    $partner = $stmt->fetch(PDO::FETCH_ASSOC);
+    $partner_name = $partner['full_name'] ?? 'نامشخص';
+} elseif ($user_role !== 'admin') {
+    $partner_name = $user_name;
+}
+
 // جمع کل فروش و تخفیف
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
@@ -42,21 +57,25 @@ $stmt = $pdo->prepare("
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND p.user_id1 = ?
+    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
 ");
-$stmt->execute([$work_month_id, $current_user_id]);
+$params = [$work_month_id];
+if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+$stmt->execute($params);
 $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sales = $summary['total_sales'] ?? 0;
 $total_discount = $summary['total_discount'] ?? 0;
 
-// تعداد جلسات (روزهای کاری) فقط برای user_id1
+// تعداد جلسات (روزهای کاری)
 $stmt = $pdo->prepare("
     SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
     FROM Work_Details wd
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND p.user_id1 = ?
+    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
 ");
-$stmt->execute([$work_month_id, $current_user_id]);
+$params = [$work_month_id];
+if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+$stmt->execute($params);
 $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sessions = $sessions['total_sessions'] ?? 0;
 
@@ -68,11 +87,13 @@ $stmt = $pdo->prepare("
     JOIN Orders o ON oi.order_id = o.order_id
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND p.user_id1 = ?
+    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
     GROUP BY oi.product_name, oi.unit_price
     ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
 ");
-$stmt->execute([$work_month_id, $current_user_id]);
+$params = [$work_month_id];
+if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+$stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // تبدیل تاریخ به شمسی
@@ -84,7 +105,7 @@ function gregorian_to_jalali_format($gregorian_date) {
 
 function get_jalali_month_name($month) {
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        1 => 'فروردین', 2 => 'اردیبشهت', 3 => 'خرداد',
         4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
         7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
         10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
@@ -183,7 +204,7 @@ function get_jalali_month_name($month) {
         $page_items = array_slice($products, $start, $items_per_page);
 
         // تیتر صفحه
-        echo '<h4>گزارش کاری ' . $month_name . ' - ' . $user_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
+        echo '<h4>گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
 
         // جدول محصولات (با ستون سود)
         echo '<table class="products-table">';
