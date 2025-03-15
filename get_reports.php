@@ -107,7 +107,7 @@ try {
             $html .= '<td>' . number_format($report['total_sales'], 0) . ' تومان</td>';
             $html .= '<td>' . $report['status'] . '</td>';
             // لینک بر اساس نوع گزارش تنظیم می‌شه
-            $link = $report_type === 'summary' ? 'print-report-summary.php' : 'print-report-monthly.php';
+            $link = $report_type === 'report-summary' ? 'print-report-summary.php' : 'print-report-monthly.php';
             $html .= '<td><a href="' . $link . '?work_month_id=' . $report['work_month_id'] . '&partner_id=' . $report['partner_id'] . '" class="btn btn-info btn-sm"><i class="fas fa-eye"></i> مشاهده</a></td>';
             $html .= '</tr>';
         }
