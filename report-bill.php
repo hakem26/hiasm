@@ -66,10 +66,11 @@ if ($selected_year && $selected_month) {
     $stmt->execute([$selected_month, $current_user_id]);
     $total_invoices = $stmt->fetchColumn() ?? 0;
 
-    // مجموع پرداختی‌ها
+    // مجموع پرداختی‌ها (از جدول Order_Payments)
     $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(o.paid_amount), 0) AS total_payments
-        FROM Orders o
+        SELECT COALESCE(SUM(op.amount), 0) AS total_payments
+        FROM Order_Payments op
+        JOIN Orders o ON op.order_id = o.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         WHERE wd.work_month_id = ? AND p.user_id1 = ?
@@ -80,15 +81,19 @@ if ($selected_year && $selected_month) {
     // مانده بدهی
     $total_debt = $total_invoices - $total_payments;
 
-    // لیست فاکتورها برای جدول
+    // لیست فاکتورها برای جدول (همراه با پرداختی‌ها)
     $stmt = $pdo->prepare("
-        SELECT o.order_date, u.full_name AS customer_name, (o.total_amount - o.discount - o.paid_amount) AS remaining_debt
+        SELECT o.created_at AS order_date, o.customer_name, 
+               (o.total_amount - o.discount - COALESCE((
+                   SELECT SUM(op.amount) 
+                   FROM Order_Payments op 
+                   WHERE op.order_id = o.order_id
+               ), 0)) AS remaining_debt
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        JOIN Users u ON o.customer_id = u.user_id  -- فرض می‌کنیم customer_id به جدول Users ربط داره
         WHERE wd.work_month_id = ? AND p.user_id1 = ?
-        ORDER BY o.order_date DESC
+        ORDER BY o.created_at DESC
     ");
     $stmt->execute([$selected_month, $current_user_id]);
     $bills = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -215,13 +220,13 @@ if ($selected_year && $selected_month) {
                 }
 
                 $.ajax({
-                    url: 'get_bills.php', // فایل جدید برای بارگذاری فاکتورها
+                    url: 'get_bills.php',
                     type: 'GET',
                     data: {
                         action: 'get_bill_report',
                         year: year,
                         work_month_id: work_month_id,
-                        user_id: <?= json_encode($current_user_id) ?> // ارسال user_id
+                        user_id: <?= json_encode($current_user_id) ?>
                     },
                     dataType: 'json',
                     success: function(response) {
