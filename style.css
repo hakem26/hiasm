@@ -16,7 +16,7 @@ body {
   top: 60px; /* زیر هدر */
   right: 0;
   bottom: 0;
-  background-color: #c6d3b3; /* تم جدید */
+  background-color: #edffd0; /* تم جدید */
   color: #333;
   transition: width 0.3s ease;
   width: 140px; /* عرض پیش‌فرض (حالت باز) */
