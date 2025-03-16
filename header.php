@@ -52,6 +52,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <script src="assets/js/dataTables.responsive.min.js"></script>
     <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
+    <style>
+        #productsTable th,
+        #productsTable td {
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+    </style>
 </head>
 
 <body>
