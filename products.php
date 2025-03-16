@@ -147,6 +147,19 @@ if ($is_admin && $is_partner1) {
 <!-- فقط استایل اصلی DataTables -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
 
+<style>
+/* وسط‌چین کردن هدر جدول */
+table.dataTable thead th,
+table.dataTable thead td {
+    text-align: center !important;
+}
+
+/* وسط‌چین کردن محتوای ستون‌ها */
+table.dataTable tbody td {
+    text-align: center !important;
+}
+</style>
+
 <div class="container-fluid">
     <h5 class="card-title">مدیریت محصولات</h5>
     <br>
@@ -156,8 +169,7 @@ if ($is_admin && $is_partner1) {
                 <input type="text" class="form-control" name="product_name" placeholder="نام محصول" required>
             </div>
             <div class="col-auto">
-                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01"
-                    required>
+                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01" required>
             </div>
             <div class="col-auto">
                 <button type="submit" name="add_product" class="btn btn-primary">افزودن محصول</button>
@@ -197,27 +209,22 @@ if ($is_admin && $is_partner1) {
                             </td>
                             <?php if ($is_admin): ?>
                                 <td>
-                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>"
-                                        class="btn btn-warning btn-sm">ویرایش</a>
-                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm"
-                                        onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
-                                    <a href="manage_price.php?product_id=<?= $product['product_id'] ?>"
-                                        class="btn btn-info btn-sm">مدیریت قیمت</a>
+                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
+                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
+                                    <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
                                 </td>
                             <?php endif; ?>
                             <?php if ($is_seller && $is_partner1): ?>
                                 <td>
                                     <span id="inventory_<?= $product['product_id'] ?>"><?= $product['inventory'] ?></span>
-                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal"
-                                        data-bs-target="#inventoryModal_<?= $product['product_id'] ?>">
+                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#inventoryModal_<?= $product['product_id'] ?>">
                                         تغییر
                                     </button>
                                 </td>
                             <?php endif; ?>
                             <?php if ($is_seller): ?>
                                 <td>
-                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal"
-                                        data-bs-target="#priceModal_<?= $product['product_id'] ?>">
+                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#priceModal_<?= $product['product_id'] ?>">
                                         تغییرات
                                     </button>
                                 </td>
@@ -231,23 +238,19 @@ if ($is_admin && $is_partner1) {
         <!-- Inventory Modal -->
         <?php if ($is_seller && $is_partner1): ?>
             <?php foreach ($products as $product): ?>
-                <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1"
-                    aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="inventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی برای
-                                    <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="inventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <form method="POST">
                                     <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                     <div class="mb-3">
-                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد
-                                            جدید</label>
-                                        <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>"
-                                            name="new_quantity" min="0" required>
+                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد جدید</label>
+                                        <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>" name="new_quantity" min="0" required>
                                     </div>
                                     <button type="submit" name="update_inventory" class="btn btn-primary">ذخیره</button>
                                 </form>
@@ -264,13 +267,11 @@ if ($is_admin && $is_partner1) {
         <!-- Price History Modal -->
         <?php if ($is_seller): ?>
             <?php foreach ($products as $product): ?>
-                <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1"
-                    aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای
-                                    <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
@@ -336,18 +337,19 @@ if ($is_admin && $is_partner1) {
                 }
             },
             "columnDefs": [
+                { "targets": "_all", "className": "text-center" }, // وسط‌چین کردن همه ستون‌ها
                 { "targets": 0, "width": "50px" },  // شناسه
                 { "targets": 1, "width": "200px" }, // نام محصول
                 { "targets": 2, "width": "120px" }  // قیمت واحد
-            <?php if ($is_admin): ?>,
+                <?php if ($is_admin): ?>,
                     { "targets": 3, "width": "150px" }  // عملیات
-            <?php endif; ?>
-            <?php if ($is_seller && $is_partner1): ?>,
+                <?php endif; ?>
+                <?php if ($is_seller && $is_partner1): ?>,
                     { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }  // موجودی
-            <?php endif; ?>
-            <?php if ($is_seller): ?>,
+                <?php endif; ?>
+                <?php if ($is_seller): ?>,
                     { "targets": <?php echo $changes_column_index; ?>, "width": "80px" }  // تغییرات
-            <?php endif; ?>
+                <?php endif; ?>
             ]
         });
     });
