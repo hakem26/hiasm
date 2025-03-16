@@ -2,6 +2,14 @@
 ob_start(); // شروع بافر خروجی در ابتدای فایل
 session_start();
 require_once 'db.php';
+require_once 'jdf.php'; // مطمئن شو که این فایل شامل توابع تبدیل تاریخ هست
+
+// تابع تبدیل تاریخ میلادی به شمسی (برای اطمینان)
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
+}
 
 // لگ کردن درخواست ورودی
 error_log("Bill Request received: " . json_encode($_GET, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
