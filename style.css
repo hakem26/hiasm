@@ -78,6 +78,9 @@ body {
   margin: 0;
   padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
   padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
+  -moz-font-feature-settings: "ss01";
+  -webkit-font-feature-settings: "ss01";
+  font-feature-settings: "ss01";
 }
 
 h1, h2, h3, h4, h5, h6 {
