@@ -33,7 +33,7 @@ session_start(); // این خط باید در ابتدای فایل باشد
         }
     </style>
 </head>
-<body>
+<body style="background: linear-gradient(to bottom right, lightgreen, lightcyan);">
     <!-- [BLOCK-LOGIN-002] -->
     <div class="login-box">
         <h2 class="text-center mb-4">ورود به سیستم</h2>
