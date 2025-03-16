@@ -16,8 +16,8 @@ body {
   top: 60px; /* زیر هدر */
   right: 0;
   bottom: 0;
-  background-color: #343a40; /* تم جدید */
-  color: white;
+  background-color: #eee; /* تم جدید */
+  color: #333;
   transition: width 0.3s ease;
   width: 140px; /* عرض پیش‌فرض (حالت باز) */
   z-index: 900; /* زیر منوی بالا */
@@ -33,15 +33,17 @@ body {
 }
 
 .sidebar .nav-link {
-  color: white;
+  color: #333;
   padding: 10px 15px; /* کاهش padding برای کاهش عرض */
   display: flex;
   align-items: center;
   text-decoration: none; /* برای جلوگیری از خط زیر لینک */
 }
 
-.sidebar .nav-link:hover {
-  color: #007bff; /* حفظ استایل قبلی */
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus,
+.sidebar .nav-link.active {
+  color: #810b8d; /* حفظ استایل قبلی */
   background-color: #495057; /* پس‌زمینه تیره‌تر برای هور در تم جدید */
 }
 

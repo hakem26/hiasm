@@ -74,7 +74,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                     <li>
                         <hr class="dropdown-divider">
                     </li>
-                    <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li>
+                    <!-- <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li> -->
                     <li class="dropdown-item">
                         <a href="logout.php" class="text-decoration-none text-dark"><i
                                 class="fas fa-sign-out-alt me-2"></i> خروج</a>

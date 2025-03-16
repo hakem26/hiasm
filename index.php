@@ -36,7 +36,7 @@ session_start(); // این خط باید در ابتدای فایل باشد
 <body style="background: linear-gradient(to bottom right, lightgreen, lightcyan);">
     <!-- [BLOCK-LOGIN-002] -->
     <div class="login-box">
-        <h2 class="text-center mb-4">سیستم مدیریت فروش هایفوبیوتی</h2>
+        <h3 class="text-center mb-4">سیستم مدیریت فروش هایفوبیوتی</h3>
         <?php
         if (isset($_SESSION['error'])) {
             echo '<div class="alert alert-danger">' . $_SESSION['error'] . '</div>';
