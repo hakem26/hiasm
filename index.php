@@ -45,7 +45,7 @@ session_start(); // این خط باید در ابتدای فایل باشد
         ?>
         <form action="login_process.php" method="POST">
             <div class="text-center mb-3">
-                <img src="logo.png" alt="Logo" style="max-width: 100%; height: auto; margin: 10px;">
+                <img src="logo.png" alt="Logo" style="width: 128px; height: auto; margin: 10px;">
             </div>
             <div class="mb-3">
                 <label for="username" class="form-label">نام کاربری</label>
