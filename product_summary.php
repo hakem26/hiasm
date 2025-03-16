@@ -349,11 +349,10 @@ foreach ($products as $product) {
 
 <script>
     $(document).ready(function () {
-        $('#productsTable').DataTable({
-            "pageLength": 10,           // 10 ردیف در هر صفحه
+        $('#productsTable').DataTable({         // 10 ردیف در هر صفحه
             "scrollX": true,            // فعال کردن اسکرول افقی
-            "paging": true,             // فعال کردن صفحه‌بندی
-            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
+            "paging": false,             // فعال کردن صفحه‌بندی
+            "autoWidth": true,         // غیرفعال کردن تنظیم خودکار عرض
             "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
             "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
             "language": {
