@@ -1,9 +1,91 @@
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: 200;
+	src: url('assets/fonts/woff/Morabba-UltraLight.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-UltraLight.woff2') format('woff2');	
+}
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: 300;
+	src: url('assets/fonts/woff/Morabba-light.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-light.woff2') format('woff2');		 
+}
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: 500;
+	src: url('assets/fonts/woff/Morabba-medium.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-medium.woff2') format('woff2');		 
+}
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: 600;
+	src: url('assets/fonts/woff/Morabba-semibold.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-semibold.woff2') format('woff2');	 
+}
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: 800;
+	src: url('assets/fonts/woff/Morabba-e trabold.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-extrabold.woff2') format('woff2');		 
+}
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: 850;
+	src: url('assets/fonts/woff/Morabba-black.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-black.woff2') format('woff2');		 
+}
+
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: 900;
+	src: url('assets/fonts/woff/Morabba-Heavy.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-Heavy.woff2') format('woff2');		 
+}
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: bold;
+	src: url('assets/fonts/woff/Morabba-bold.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-bold.woff2') format('woff2');	 
+}
+
+@font-face {
+	font-family: Morabba;
+	font-style: normal;
+	font-weight: normal;
+	src: url('assets/fonts/woff/Morabba-regular.woff') format('woff'),   
+	url('assets/fonts/woff2/Morabba-regular.woff2') format('woff2');	
+}
+
 body {
-  font-family: "Vazirmatn", sans-serif;
+  font-family: morabba  !important;
+  font-weight: normal !important; /* برای جلوگیری از تداخل با فونت‌های دیگر */
   background-color: #f8f9fa;
   margin: 0;
   padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
   padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-weight: bold;
+}
+
+input, textarea {
+	font-weight: 300;
 }
 
 .table-work-details thead tr th,
