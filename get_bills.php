@@ -23,6 +23,8 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
     $bills = [];
 
     try {
+        // لگ کردن شروع کوئری‌ها
+        error_log("Executing total_invoices query...");
         // جمع کل فاکتورها (فروش - تخفیف)
         $stmt = $pdo->prepare("
             SELECT COALESCE(SUM(o.total_amount - o.discount), 0) AS total_invoices
@@ -33,8 +35,10 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
         ");
         $stmt->execute([$work_month_id, $effective_user_id]);
         $total_invoices = $stmt->fetchColumn() ?? 0;
-        error_log("Total invoices: $total_invoices");
+        error_log("Total invoices result: $total_invoices");
 
+        // لگ کردن شروع کوئری پرداختی‌ها
+        error_log("Executing total_payments query...");
         // مجموع پرداختی‌ها (از جدول Order_Payments)
         $stmt = $pdo->prepare("
             SELECT COALESCE(SUM(op.amount), 0) AS total_payments
@@ -46,11 +50,10 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
         ");
         $stmt->execute([$work_month_id, $effective_user_id]);
         $total_payments = $stmt->fetchColumn() ?? 0;
-        error_log("Total payments: $total_payments");
+        error_log("Total payments result: $total_payments");
 
-        // مانده بدهی
-        $total_debt = $total_invoices - $total_payments;
-
+        // لگ کردن شروع کوئری لیست فاکتورها
+        error_log("Executing bills query...");
         // لیست فاکتورها برای جدول (همراه با پرداختی‌ها)
         $stmt = $pdo->prepare("
             SELECT o.created_at AS order_date, o.customer_name, 
@@ -67,7 +70,7 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
         ");
         $stmt->execute([$work_month_id, $effective_user_id]);
         $bills = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        error_log("Bills fetched: " . count($bills));
+        error_log("Bills fetched: " . count($bills) . ", Sample: " . json_encode($bills[0] ?? 'No data'));
 
         // تولید HTML جدول
         $html = '<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><th>مانده بدهی</th></tr></thead><tbody>';
@@ -86,19 +89,23 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
 
         error_log("HTML generated: " . substr($html, 0, 100) . "...");
 
-        echo json_encode([
+        // خروجی JSON
+        $response = [
             'success' => true,
             'html' => $html,
             'total_invoices' => $total_invoices,
             'total_payments' => $total_payments,
             'total_debt' => $total_debt
-        ], JSON_UNESCAPED_UNICODE);
+        ];
+        error_log("Response before echo: " . json_encode($response, JSON_UNESCAPED_UNICODE));
+        echo json_encode($response, JSON_UNESCAPED_UNICODE);
     } catch (Exception $e) {
         error_log("Error in get_bill_report: " . $e->getMessage());
-        echo json_encode([
+        $error_response = [
             'success' => false,
             'message' => 'خطایی در سرور رخ داد: ' . $e->getMessage()
-        ], JSON_UNESCAPED_UNICODE);
+        ];
+        echo json_encode($error_response, JSON_UNESCAPED_UNICODE);
     }
     exit;
 }

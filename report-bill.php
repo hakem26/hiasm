@@ -10,25 +10,36 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 // تابع برای دریافت نام ماه شمسی
-function get_jalali_month_name($month) {
+function get_jalali_month_name($month)
+{
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
-        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
-        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+        1 => 'فروردین',
+        2 => 'اردیبهشت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
 
 // تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
+function gregorian_year_to_jalali($gregorian_year)
+{
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
@@ -181,7 +192,7 @@ if ($selected_year && $selected_month) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        $(document).ready(function() {
+        $(document).ready(function () {
             // تابع برای بارگذاری ماه‌ها بر اساس سال
             function loadMonths(year) {
                 console.log('Loading months for year:', year);
@@ -194,12 +205,12 @@ if ($selected_year && $selected_month) {
                     url: 'get_months.php',
                     type: 'POST',
                     data: { year: year, user_id: <?= json_encode($current_user_id) ?> },
-                    success: function(response) {
+                    success: function (response) {
                         console.log('Months response:', response);
                         $('#work_month_id').html(response);
-                        $('#summary').hide(); // پنهان کردن اطلاعات اضافی تا ماه انتخاب بشه
+                        $('#summary').hide();
                     },
-                    error: function(xhr, status, error) {
+                    error: function (xhr, status, error) {
                         console.error('Error loading months:', error);
                         $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
                         $('#summary').hide();
@@ -229,8 +240,8 @@ if ($selected_year && $selected_month) {
                         user_id: <?= json_encode($current_user_id) ?>
                     },
                     dataType: 'json',
-                    success: function(response) {
-                        console.log('Bills response (raw):', response);
+                    success: function (response) {
+                        console.log('Bills response (raw):', response); // نمایش خروجی خام
                         try {
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                                 console.log('Rendering HTML:', response.html);
@@ -238,10 +249,10 @@ if ($selected_year && $selected_month) {
                                 // به‌روزرسانی اطلاعات اضافی
                                 $('#summary').show();
                                 $('#summary').html(`
-                                    <p>جمع کل فاکتورها: <strong>${response.total_invoices ? new Intl.NumberFormat('fa-IR').format(response.total_invoices) + ' تومان' : '0 تومان'}</strong></p>
-                                    <p>مجموع پرداختی‌ها: <strong>${response.total_payments ? new Intl.NumberFormat('fa-IR').format(response.total_payments) + ' تومان' : '0 تومان'}</strong></p>
-                                    <p>مانده بدهی‌ها: <strong>${response.total_debt ? new Intl.NumberFormat('fa-IR').format(response.total_debt) + ' تومان' : '0 تومان'}</strong></p>
-                                `);
+                                <p>جمع کل فاکتورها: <strong>${response.total_invoices ? new Intl.NumberFormat('fa-IR').format(response.total_invoices) + ' تومان' : '0 تومان'}</strong></p>
+                                <p>مجموع پرداختی‌ها: <strong>${response.total_payments ? new Intl.NumberFormat('fa-IR').format(response.total_payments) + ' تومان' : '0 تومان'}</strong></p>
+                                <p>مانده بدهی‌ها: <strong>${response.total_debt ? new Intl.NumberFormat('fa-IR').format(response.total_debt) + ' تومان' : '0 تومان'}</strong></p>
+                            `);
                             } else {
                                 throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
                             }
@@ -251,8 +262,8 @@ if ($selected_year && $selected_month) {
                             $('#summary').hide();
                         }
                     },
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
+                    error: function (xhr, status, error) {
+                        console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText }); // نمایش متن پاسخ
                         $('#bills-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری فاکتورها رخ داد: ' + error + '</div>');
                         $('#summary').hide();
                     }
@@ -274,11 +285,11 @@ if ($selected_year && $selected_month) {
             loadBills();
 
             // رویدادهای تغییر
-            $('#year').on('change', function() {
+            $('#year').on('change', function () {
                 loadFilters();
             });
 
-            $('#work_month_id').on('change', function() {
+            $('#work_month_id').on('change', function () {
                 loadBills();
             });
         });
