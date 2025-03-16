@@ -148,7 +148,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="report-sell.php">
+                        <a class="nav-link" href="<?php echo $_SESSION['role'] === 'admin' ? 'report-admin-sell.php' : 'report-sell.php'; ?>">
                             <i class="fas fa-dollar-sign"></i>
                             <span>فروش</span>
                         </a>
