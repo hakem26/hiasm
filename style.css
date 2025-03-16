@@ -316,7 +316,7 @@ select {
   width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */
   }
@@ -338,7 +338,7 @@ select {
   }
 
   .responsive-table {
-    min-width: 700px; /* حداقل عرض جدول برای فعال کردن اسکرول افقی */
+    min-width: 600px; /* حداقل عرض جدول برای فعال کردن اسکرول افقی */
   }
 
   .responsive-table th,
