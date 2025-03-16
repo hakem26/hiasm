@@ -42,8 +42,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link
         href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <!-- قرار دادن کدهای style و کاستوم -->
-    <link rel="stylesheet" href="style.css">
     <!-- Persian Datepicker -->
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
@@ -52,6 +50,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <script src="assets/js/persian-datepicker.min.js"></script>
     <script src="assets/js/jquery.dataTables.min.js"></script>
     <script src="assets/js/dataTables.responsive.min.js"></script>
+    <!-- قرار دادن کدهای style و کاستوم -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        table.dataTable thead th.dt-head-left,
+        table.dataTable thead td.dt-head-left,
+        table.dataTable tfoot th.dt-head-left,
+        table.dataTable tfoot td.dt-head-left {
+            text-align: center !important;
+            /* وسط‌چین کردن هدرها */
+            vertical-align: middle !important;
+            /* وسط‌چین کردن محتوا */
+            white-space: nowrap !important;
+            /* جلوگیری از شکستن خطوط */
+        }
+    </style>
 </head>
 
 <body>
@@ -111,7 +124,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'product_summary.php' ? 'active' : ''; ?>" 
+                        <a class="nav-link <?php echo $current_page == 'product_summary.php' ? 'active' : ''; ?>"
                             href="product_summary.php">
                             <i class="fas fa-chart-bar"></i>
                             <span>تجمیع</span>
