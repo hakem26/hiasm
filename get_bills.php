@@ -1,4 +1,5 @@
 <?php
+ob_start(); // شروع بافر خروجی در ابتدای فایل
 session_start();
 require_once 'db.php';
 
@@ -23,7 +24,6 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
     $bills = [];
 
     try {
-        // لگ کردن شروع کوئری‌ها
         error_log("Executing total_invoices query...");
         // جمع کل فاکتورها (فروش - تخفیف)
         $stmt = $pdo->prepare("
@@ -37,7 +37,6 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
         $total_invoices = $stmt->fetchColumn() ?? 0;
         error_log("Total invoices result: $total_invoices");
 
-        // لگ کردن شروع کوئری پرداختی‌ها
         error_log("Executing total_payments query...");
         // مجموع پرداختی‌ها (از جدول Order_Payments)
         $stmt = $pdo->prepare("
@@ -52,7 +51,9 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
         $total_payments = $stmt->fetchColumn() ?? 0;
         error_log("Total payments result: $total_payments");
 
-        // لگ کردن شروع کوئری لیست فاکتورها
+        // مانده بدهی
+        $total_debt = $total_invoices - $total_payments;
+
         error_log("Executing bills query...");
         // لیست فاکتورها برای جدول (همراه با پرداختی‌ها)
         $stmt = $pdo->prepare("
@@ -70,7 +71,7 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
         ");
         $stmt->execute([$work_month_id, $effective_user_id]);
         $bills = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        error_log("Bills fetched: " . count($bills) . ", Sample: " . json_encode($bills[0] ?? 'No data'));
+        error_log("Bills fetched: " . count($bills) . ", Sample: " . json_encode($bills[0] ?? 'No data', JSON_UNESCAPED_UNICODE));
 
         // تولید HTML جدول
         $html = '<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><th>مانده بدهی</th></tr></thead><tbody>';
@@ -89,7 +90,7 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
 
         error_log("HTML generated: " . substr($html, 0, 100) . "...");
 
-        // خروجی JSON
+        // تولید پاسخ JSON
         $response = [
             'success' => true,
             'html' => $html,
@@ -98,6 +99,9 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
             'total_debt' => $total_debt
         ];
         error_log("Response before echo: " . json_encode($response, JSON_UNESCAPED_UNICODE));
+        
+        // پاک کردن بافر و ارسال خروجی
+        ob_end_clean();
         echo json_encode($response, JSON_UNESCAPED_UNICODE);
     } catch (Exception $e) {
         error_log("Error in get_bill_report: " . $e->getMessage());
@@ -105,8 +109,22 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
             'success' => false,
             'message' => 'خطایی در سرور رخ داد: ' . $e->getMessage()
         ];
+        
+        // پاک کردن بافر و ارسال خطا
+        ob_end_clean();
         echo json_encode($error_response, JSON_UNESCAPED_UNICODE);
     }
+    exit;
+} else {
+    error_log("Invalid request: action=$action, work_month_id=$work_month_id, user_id=$effective_user_id");
+    $error_response = [
+        'success' => false,
+        'message' => 'درخواست نامعتبر است.'
+    ];
+    
+    // پاک کردن بافر و ارسال خطا
+    ob_end_clean();
+    echo json_encode($error_response, JSON_UNESCAPED_UNICODE);
     exit;
 }
 ?>
