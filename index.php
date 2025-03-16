@@ -44,6 +44,9 @@ session_start(); // این خط باید در ابتدای فایل باشد
         }
         ?>
         <form action="login_process.php" method="POST">
+            <div class="text-center mb-3">
+                <img src="logo.png" alt="Logo" style="max-width: 100%; height: auto; margin: 10px;">
+            </div>
             <div class="mb-3">
                 <label for="username" class="form-label">نام کاربری</label>
                 <input type="text" class="form-control" id="username" name="username" value="<?php echo isset($_COOKIE['username']) ? htmlspecialchars($_COOKIE['username']) : ''; ?>" required>
