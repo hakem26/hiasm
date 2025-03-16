@@ -29,7 +29,7 @@ h5 {
 }
 
 .sidebar.collapsed {
-  width: 60px; /* عرض در حالت بسته */
+  width: 60px; /* عرض در حالت باریک (تا 768px و دسکتاپ) */
 }
 
 .sidebar.open {
@@ -63,7 +63,7 @@ h5 {
 }
 
 .sidebar.collapsed .nav-link span {
-  display: none; /* مخفی کردن متن در حالت بسته */
+  display: none; /* مخفی کردن متن در حالت باریک */
 }
 
 .sidebar.open .nav-link span {
@@ -114,11 +114,15 @@ h5 {
 }
 
 .sidebar.collapsed ~ .main-content {
-  margin-right: 60px; /* تنظیم برای حالت بسته */
+  margin-right: 60px; /* تنظیم برای حالت باریک */
 }
 
 .sidebar ~ .main-content {
   margin-right: 140px; /* پیش‌فرض برای حالت باز */
+}
+
+.sidebar.open ~ .main-content {
+  margin-right: 140px; /* تنظیم حاشیه وقتی منو در موبایل بازه */
 }
 
 .dropdown-toggle::after {
@@ -317,17 +321,17 @@ select {
     padding-right: 0; /* حذف پدینگ در موبایل */
   }
   .sidebar {
-    width: 0; /* مخفی در حالت پیش‌فرض در موبایل */
+    width: 0; /* کامل بسته در موبایل */
     overflow: hidden;
   }
   .sidebar.open {
-    width: 140px; /* عرض در حالت باز در موبایل */
+    width: 140px; /* باز شدن کامل در موبایل */
   }
   .sidebar ~ .main-content {
     margin-right: 0px;
   }
   .sidebar.open ~ .main-content {
-    margin-right: 140px; /* تنظیم حاشیه وقتی منو بازه */
+    margin-right: 140px; /* تنظیم حاشیه وقتی منو در موبایل بازه */
   }
   .table-wrapper {
     overflow-x: auto;

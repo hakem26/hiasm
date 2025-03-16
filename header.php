@@ -14,16 +14,6 @@ $gregorian_date = date('Y-m-d');
 $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
 // نام صفحه فعلی
-// $page_name = basename($_SERVER['PHP_SELF'], ".php");
-// $page_name = $page_name === 'dashboard_admin' || $page_name === 'dashboard_seller' ? 'داشبورد' : $page_name;
-// $page_name = $page_name === 'products' ? 'محصولات' : $page_name;
-// $page_name = $page_name === 'orders' ? 'سفارشات' : $page_name;
-// $page_name = $page_name === 'users' ? 'کاربران' : $page_name;
-// $page_name = $page_name === 'partners' ? 'همکاران' : $page_name;
-// $page_name = $page_name === 'work_months' ? 'ماه کاری' : $page_name;
-// $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_name;
-// $page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
-
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
@@ -93,8 +83,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </nav>
 
     <!-- منوی کناری -->
-    <div
-        class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
+    <div class="sidebar collapsed"> <!-- پیش‌فرض باریک (collapsed) -->
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
@@ -105,11 +94,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#productsSubmenu"
-                    aria-expanded="false">
+                    aria-expanded="true" aria-controls="productsSubmenu"> <!-- پیش‌فرض باز -->
                     <i class="fas fa-box"></i>
                     <span>محصولات</span>
                 </a>
-                <ul class="collapse list-unstyled" id="productsSubmenu">
+                <ul class="collapse list-unstyled show" id="productsSubmenu"> <!-- پیش‌فرض باز -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'products.php' ? 'active' : ''; ?>"
                             href="products.php">
@@ -127,7 +116,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </ul>
             </li>
             <li class="nav-item">
-                <a class="nav-link product_summary.php <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>"
+                <a class="nav-link <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>"
                     href="orders.php">
                     <i class="fas fa-shopping-cart"></i>
                     <span>سفارشات</span>
@@ -142,11 +131,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu"
-                    aria-expanded="false">
+                    aria-expanded="true" aria-controls="reportsSubmenu"> <!-- پیش‌فرض باز -->
                     <i class="fas fa-box"></i>
                     <span>گزارشات</span>
                 </a>
-                <ul class="collapse list-unstyled" id="reportsSubmenu">
+                <ul class="collapse list-unstyled show" id="reportsSubmenu"> <!-- پیش‌فرض باز -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'report-daily.php' ? 'active' : ''; ?>"
                             href="report-monthly.php">
@@ -168,44 +157,37 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <span>فروش</span>
                         </a>
                     </li>
-                    <li class="nav-item"></li>
-                    <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
-                        href="report-bill.php">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <span>مالی</span>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
+                            href="report-bill.php">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>مالی</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- ادمین -->
+            <?php if ($_SESSION['role'] === 'admin'): ?>
+                <li class="nav-item">
+                    <a class="nav-link" href="users.php">
+                        <i class="fas fa-users"></i>
+                        <span>کاربران</span>
                     </a>
-            </li>
-        </ul>
-        </li>
-
-        <!-- <li class="nav-item"></li>
-                <a class="nav-link" href="inventory.php">
-                    <i class="fas fa-warehouse"></i>
-                    <span>موجودی</span>
-                </a>
-            </li> -->
-
-        <!-- ادمین -->
-        <?php if ($_SESSION['role'] === 'admin'): ?>
-            <li class="nav-item">
-                <a class="nav-link" href="users.php">
-                    <i class="fas fa-users"></i>
-                    <span>کاربران</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="partners.php">
-                    <i class="fas fa-handshake"></i>
-                    <span>همکاران</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="work_months.php">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>ماه کاری</span>
-                </a>
-            </li>
-        <?php endif; ?>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="partners.php">
+                        <i class="fas fa-handshake"></i>
+                        <span>همکاران</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="work_months.php">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>ماه کاری</span>
+                    </a>
+                </li>
+            <?php endif; ?>
         </ul>
     </div>
 
@@ -221,11 +203,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
                 sidebarToggle.addEventListener('click', () => {
                     if (window.innerWidth <= 768) {
+                        // در موبایل: کامل باز یا بسته می‌شه
                         sidebar.classList.toggle('open');
+                        if (!sidebar.classList.contains('open')) {
+                            sidebar.classList.remove('collapsed'); // مطمئن می‌شیم در حالت بسته کامل بسته بشه
+                        }
                     } else {
+                        // در دسکتاپ و تا 768px: حالت باریک یا باز
                         sidebar.classList.toggle('collapsed');
                         document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
                     }
                 });
+
+                // تنظیم اولیه منو به حالت باریک (collapsed) در دسکتاپ
+                if (window.innerWidth > 768) {
+                    sidebar.classList.add('collapsed');
+                }
             });
         </script>
