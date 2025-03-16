@@ -52,19 +52,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <script src="assets/js/dataTables.responsive.min.js"></script>
     <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
-    <style>
-        table.dataTable thead th.dt-head-left,
-        table.dataTable thead td.dt-head-left,
-        table.dataTable tfoot th.dt-head-left,
-        table.dataTable tfoot td.dt-head-left {
-            text-align: center !important;
-            /* وسط‌چین کردن هدرها */
-            vertical-align: middle !important;
-            /* وسط‌چین کردن محتوا */
-            white-space: nowrap !important;
-            /* جلوگیری از شکستن خطوط */
-        }
-    </style>
 </head>
 
 <body>
