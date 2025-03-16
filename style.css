@@ -310,6 +310,11 @@ select {
   width: 100%;
 }
 
+table.dataTable thead th, table.dataTable thead td, table.dataTable tfoot th, table.dataTable tfoot td {
+  text-align: center !important; /* اطمینان از وسط‌چین بودن هدرها */
+  vertical-align: middle !important; /* اطمینان از وسط‌چین بودن هدرها */
+}
+
 @media (max-width: 768px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */
