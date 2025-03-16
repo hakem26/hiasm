@@ -10,20 +10,23 @@ require_once 'jdf.php';
 require_once 'persian_year.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
 // تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
+function gregorian_year_to_jalali($gregorian_year)
+{
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
 
 // تعریف تابع number_to_day
-function number_to_day($day_number) {
+function number_to_day($day_number)
+{
     $days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
     return $days[$day_number - 1] ?? 'نامعلوم';
 }
@@ -127,9 +130,10 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
             $partner_id = $partner['partner_id'];
             foreach ($date_range as $date) {
                 $work_date = $date->format('Y-m-d');
-                $day_number_php = (int)date('N', strtotime($work_date));
+                $day_number_php = (int) date('N', strtotime($work_date));
                 $adjusted_day_number = ($day_number_php + 5) % 7;
-                if ($adjusted_day_number == 0) $adjusted_day_number = 7;
+                if ($adjusted_day_number == 0)
+                    $adjusted_day_number = 7;
 
                 if ($partner['stored_day_number'] == $adjusted_day_number && (!$selected_partner_id || $selected_partner_id == 'all' || $partner['user_id1'] == $selected_partner_id || $partner['user_id2'] == $selected_partner_id)) {
                     $detail_query = $pdo->prepare("
@@ -264,7 +268,8 @@ foreach ($products as $product) {
 
 <div class="container-fluid">
     <h5 class="card-title mb-4">تجمیع محصولات</h5>
-    <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?> تومان</p>
+    <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?>
+        تومان</p>
 
     <form method="GET" class="row g-3 mb-3">
         <div class="col-auto">
@@ -324,7 +329,8 @@ foreach ($products as $product) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php $row = 1; foreach ($products as $product): ?>
+                    <?php $row = 1;
+                    foreach ($products as $product): ?>
                         <tr>
                             <td><?= $row++ ?></td>
                             <td><?= htmlspecialchars($product['product_name']) ?></td>
@@ -342,25 +348,35 @@ foreach ($products as $product) {
 </div>
 
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         $('#productsTable').DataTable({
-            responsive: false,
-            scrollX: true,
-            autoWidth: false,
-            paging: false,
-            ordering: false,
-            info: true,
-            searching: false,
+            "pageLength": 10,           // 10 ردیف در هر صفحه
+            "scrollX": true,            // فعال کردن اسکرول افقی
+            "paging": true,             // فعال کردن صفحه‌بندی
+            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
+            "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
+            "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
             "language": {
-                "info": "نمایش _START_ تا _END_ از _TOTAL_ محصول",
-                "infoEmpty": "هیچ محصولی یافت نشد",
-                "zeroRecords": "هیچ محصولی یافت نشد",
+                "decimal": "",
+                "emptyTable": "داده‌ای در جدول وجود ندارد",
+                "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+                "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
                 "lengthMenu": "نمایش _MENU_ ردیف",
+                "loadingRecords": "در حال بارگذاری...",
+                "processing": "در حال پردازش...",
+                "search": "جستجو:",
+                "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
                 "paginate": {
-                    "previous": "قبلی",
-                    "next": "بعدی"
+                    "first": "اولین",
+                    "last": "آخرین",
+                    "next": "بعدی",
+                    "previous": "قبلی"
                 }
-            }
+            },
+            "columnDefs": [
+                { "targets": "_all", "className": "text-center" } // وسط‌چین کردن همه ستون‌ها
+            ]
         });
     });
 </script>
