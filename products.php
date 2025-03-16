@@ -300,47 +300,42 @@ $(document).ready(function() {
         "scrollX": true,           // فعال کردن اسکرول افقی
         "paging": true,            // فعال کردن صفحه‌بندی
         "autoWidth": false,        // غیرفعال کردن تنظیم خودکار عرض
-        columnDefs: [
-            { className: "dt-head-left", targets: "_all" }, // برای تمام th ها
-            { className: "dt-body-left", targets: "_all" }  // برای تمام td ها
-        ],
         "ordering": true,          // فعال کردن مرتب‌سازی ستون‌ها
         "responsive": false,       // غیرفعال کردن حالت ریسپانسیو
-        // "language": {
-        //     "decimal": "",
-        //     "emptyTable": "داده‌ای در جدول وجود ندارد",
-        //     "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
-        //     "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
-        //     "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
-        //     "lengthMenu": "نمایش _MENU_ ردیف",
-        //     "loadingRecords": "در حال بارگذاری...",
-        //     "processing": "در حال پردازش...",
-        //     "search": "جستجو:",
-        //     "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
-        //     "paginate": {
-        //         "first": "اولین",
-        //         "last": "آخرین",
-        //         "next": "بعدی",
-        //         "previous": "قبلی"
-        //     }
-        // },
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/Persian.json' // فارسی‌سازی در صورت نیاز
-        }
-        // "columnDefs": [
-        //     { "targets": 0, "width": "50px" },  // شناسه
-        //     { "targets": 1, "width": "200px" }, // نام محصول
-        //     { "targets": 2, "width": "120px" }, // قیمت واحد
-        //     <?php if ($is_admin): ?>
-        //     { "targets": 3, "width": "150px" }, // عملیات
-        //     <?php endif; ?>
-        //     <?php if ($is_seller && $is_partner1): ?>
-        //     { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }, // موجودی
-        //     <?php endif; ?>
-        //     <?php if ($is_seller): ?>
-        //     { "targets": <?php echo $changes_column_index; ?>, "width": "80px" } // تغییرات
-        //     <?php endif; ?>
-        // ]
+        "language": {
+            "decimal": "",
+            "emptyTable": "داده‌ای در جدول وجود ندارد",
+            "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+            "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+            "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+            "lengthMenu": "نمایش _MENU_ ردیف",
+            "loadingRecords": "در حال بارگذاری...",
+            "processing": "در حال پردازش...",
+            "search": "جستجو:",
+            "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+            "paginate": {
+                "first": "اولین",
+                "last": "آخرین",
+                "next": "بعدی",
+                "previous": "قبلی"
+            }
+        },
+        "columnDefs": [
+            { className: "dt-head-center", targets: "_all" }, // برای تمام th ها
+            { className: "dt-body-center", targets: "_all" }  // برای تمام td ها
+            { "targets": 0, "width": "50px" },  // شناسه
+            { "targets": 1, "width": "200px" }, // نام محصول
+            { "targets": 2, "width": "120px" }, // قیمت واحد
+            <?php if ($is_admin): ?>
+            { "targets": 3, "width": "150px" }, // عملیات
+            <?php endif; ?>
+            <?php if ($is_seller && $is_partner1): ?>
+            { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }, // موجودی
+            <?php endif; ?>
+            <?php if ($is_seller): ?>
+            { "targets": <?php echo $changes_column_index; ?>, "width": "80px" } // تغییرات
+            <?php endif; ?>
+        ]
     });
 });
 </script>

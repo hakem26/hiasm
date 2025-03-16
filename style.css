@@ -312,15 +312,6 @@ select {
   width: 100%;
 }
 
-table.dataTable th,
-table.dataTable td {
-  white-space: nowrap; /* جلوگیری از شکستن متن */
-}
-
-table.dataTable {
-  width: auto !important; /* استفاده از عرض به اندازه محتوا */
-}
-
 @media (max-width: 768px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */
