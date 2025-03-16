@@ -24,6 +24,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 // $page_name = $page_name === 'work_details' ? 'اطلاعات کار' : $page_name;
 // $page_name = $page_name === 'products'? 'لیست محصولات': $page_name;
 
+$current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -89,7 +90,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
         class="sidebar <?php echo isset($_COOKIE['side_nav_collapsed']) && $_COOKIE['side_nav_collapsed'] == '1' ? 'collapsed' : ''; ?>">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link"
+                <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
                     href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>داشبورد</span>
@@ -103,13 +104,15 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                 </a>
                 <ul class="collapse list-unstyled" id="productsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="products.php">
+                        <a class="nav-link <?php echo $current_page == 'products.php' ? 'active' : ''; ?>"
+                            href="products.php">
                             <i class="fas fa-list"></i>
-                            <span>لیست</span>
+                            <span>لیست </span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="product_summary.php">
+                        <a class="nav-link <?php echo $current_page == 'product_summary.php' ? 'active' : ''; ?>" 
+                            href="product_summary.php">
                             <i class="fas fa-chart-bar"></i>
                             <span>تجمیع</span>
                         </a>
@@ -117,13 +120,15 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                 </ul>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="orders.php">
+                <a class="nav-link product_summary.php <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>"
+                    href="orders.php">
                     <i class="fas fa-shopping-cart"></i>
                     <span>سفارشات</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="work_details.php">
+                <a class="nav-link <?php echo $current_page == 'work_details.php' ? 'active' : ''; ?>"
+                    href="work_details.php">
                     <i class="fas fa-info-circle"></i>
                     <span>اطلاعات کار</span>
                 </a>
@@ -136,60 +141,64 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
                 </a>
                 <ul class="collapse list-unstyled" id="reportsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="report-monthly.php">
+                        <a class="nav-link <?php echo $current_page == 'report-daily.php' ? 'active' : ''; ?>"
+                            href="report-monthly.php">
                             <i class="fas fa-calendar-alt"></i>
                             <span>ماهانه</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="report-summary.php">
+                        <a class="nav-link <?php echo $current_page == 'report-summary.php' ? 'active' : ''; ?>"
+                            href="report-summary.php">
                             <i class="fas fa-chart-pie"></i>
                             <span>خلاصه</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo $_SESSION['role'] === 'admin' ? 'report-admin-sell.php' : 'report-sell.php'; ?>">
+                        <a class="nav-link <?php echo $current_page == 'report-sell.php' || $current_page == 'report-admin-sell.php' ? 'active' : ''; ?>"
+                            href="<?php echo $_SESSION['role'] === 'admin' ? 'report-admin-sell.php' : 'report-sell.php'; ?>">
                             <i class="fas fa-dollar-sign"></i>
                             <span>فروش</span>
                         </a>
                     </li>
                     <li class="nav-item"></li>
-                        <a class="nav-link" href="report-bill.php">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span>مالی</span>
-                        </a>
-                    </li>
-                </ul>
+                    <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
+                        href="report-bill.php">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>مالی</span>
+                    </a>
             </li>
-            
-            <!-- <li class="nav-item"></li>
+        </ul>
+        </li>
+
+        <!-- <li class="nav-item"></li>
                 <a class="nav-link" href="inventory.php">
                     <i class="fas fa-warehouse"></i>
                     <span>موجودی</span>
                 </a>
             </li> -->
 
-            <!-- ادمین -->
-            <?php if ($_SESSION['role'] === 'admin'): ?>
-                <li class="nav-item">
-                    <a class="nav-link" href="users.php">
-                        <i class="fas fa-users"></i>
-                        <span>کاربران</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="partners.php">
-                        <i class="fas fa-handshake"></i>
-                        <span>همکاران</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="work_months.php">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span>ماه کاری</span>
-                    </a>
-                </li>
-            <?php endif; ?>
+        <!-- ادمین -->
+        <?php if ($_SESSION['role'] === 'admin'): ?>
+            <li class="nav-item">
+                <a class="nav-link" href="users.php">
+                    <i class="fas fa-users"></i>
+                    <span>کاربران</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="partners.php">
+                    <i class="fas fa-handshake"></i>
+                    <span>همکاران</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="work_months.php">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>ماه کاری</span>
+                </a>
+            </li>
+        <?php endif; ?>
         </ul>
     </div>
 
