@@ -64,10 +64,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </button>
                 <!-- <span class="navbar-text">صفحه <?php echo $page_name; ?></span> -->
             </div>
-            <span class="navbar-text mx-auto">تاریخ: <?php echo $jalali_date; ?></span>
+            <span class="navbar-text mx-auto" style="background-color: #690974;"><?php echo $jalali_date; ?></span>
             <div class="dropdown ms-3">
                 <a href="#" class="text-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user-circle fa-2x"></i>
+                    <i class="fas fa-user-circle fa-2x" style="background-color: #690974;"></i>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li class="dropdown-item"><?php echo htmlspecialchars($full_name); ?></li>
