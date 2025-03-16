@@ -55,7 +55,7 @@ $jalali_date = jdate('Y/m/d', strtotime($gregorian_date));
 
 <body>
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-light fixed-top">
+    <nav class="navbar navbar-expand navbar-light fixed-top" style="background-color: #bed2a0;">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
                 <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
