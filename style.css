@@ -6,6 +6,10 @@ body {
   padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
 }
 
+h5 {
+  color: #690974; /* رنگ بنفش برای عناوین */
+}
+
 .table-work-details thead tr th,
 .table-work-details tbody tr td {
   white-space: nowrap !important; /* جلوگیری از شکستن خطوط */

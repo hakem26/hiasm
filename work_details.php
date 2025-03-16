@@ -263,7 +263,7 @@ if ($selected_year) {
 
 <body>
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center text-center mb-3">
             <h5 class="card-title">اطلاعات کاری</h5>
         </div>
 
