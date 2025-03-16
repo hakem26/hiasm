@@ -56,7 +56,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <body>
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-light fixed-top" style="background-color: #bed2a0;">
+    <nav class="navbar navbar-expand navbar-light fixed-top" style="background-color: #e1ebd0;">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
                 <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
