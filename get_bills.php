@@ -2,9 +2,9 @@
 ob_start(); // شروع بافر خروجی در ابتدای فایل
 session_start();
 require_once 'db.php';
-require_once 'jdf.php'; // مطمئن شو که این فایل شامل توابع تبدیل تاریخ هست
+require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی (برای اطمینان)
+// تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
@@ -16,6 +16,7 @@ error_log("Bill Request received: " . json_encode($_GET, JSON_PRETTY_PRINT | JSO
 
 $action = $_GET['action'] ?? '';
 $work_month_id = $_GET['work_month_id'] ?? '';
+$display_filter = $_GET['display_filter'] ?? 'all'; // پیش‌فرض "همه"
 $user_id = $_GET['user_id'] ?? null; // دریافت user_id از درخواست
 $current_user_id = $_SESSION['user_id'] ?? null;
 
@@ -23,7 +24,7 @@ $current_user_id = $_SESSION['user_id'] ?? null;
 $effective_user_id = $user_id !== null ? $user_id : $current_user_id;
 
 if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
-    error_log("Starting get_bill_report: work_month_id = $work_month_id, user_id = $effective_user_id");
+    error_log("Starting get_bill_report: work_month_id = $work_month_id, user_id = $effective_user_id, display_filter = $display_filter");
     header('Content-Type: application/json; charset=UTF-8');
 
     $total_invoices = 0;
@@ -63,9 +64,10 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
         $total_debt = $total_invoices - $total_payments;
 
         error_log("Executing bills query...");
-        // لیست فاکتورها برای جدول (همراه با پرداختی‌ها)
-        $stmt = $pdo->prepare("
+        // لیست فاکتورها برای جدول (با فیلتر بدهکاران)
+        $query = "
             SELECT o.created_at AS order_date, o.customer_name, 
+                   (o.total_amount - o.discount) AS invoice_amount,
                    (o.total_amount - o.discount - COALESCE((
                        SELECT SUM(op.amount) 
                        FROM Order_Payments op 
@@ -75,21 +77,31 @@ if ($action === 'get_bill_report' && $work_month_id && $effective_user_id) {
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
             WHERE wd.work_month_id = ? AND p.user_id1 = ?
-            ORDER BY o.created_at DESC
-        ");
+        ";
+        if ($display_filter === 'debtors') {
+            $query .= " AND (o.total_amount - o.discount - COALESCE((
+                       SELECT SUM(op.amount) 
+                       FROM Order_Payments op 
+                       WHERE op.order_id = o.order_id
+                   ), 0)) > 0";
+        }
+        $query .= " ORDER BY o.created_at DESC";
+
+        $stmt = $pdo->prepare($query);
         $stmt->execute([$work_month_id, $effective_user_id]);
         $bills = $stmt->fetchAll(PDO::FETCH_ASSOC);
         error_log("Bills fetched: " . count($bills) . ", Sample: " . json_encode($bills[0] ?? 'No data', JSON_UNESCAPED_UNICODE));
 
         // تولید HTML جدول
-        $html = '<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><th>مانده بدهی</th></tr></thead><tbody>';
+        $html = '<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><th>مبلغ فاکتور</th><th>مانده بدهی</th></tr></thead><tbody>';
         if (empty($bills)) {
-            $html .= '<tr><td colspan="3" class="text-center">فاکتوری یافت نشد.</td></tr>';
+            $html .= '<tr><td colspan="4" class="text-center">فاکتوری یافت نشد.</td></tr>';
         } else {
             foreach ($bills as $bill) {
                 $html .= '<tr>';
                 $html .= '<td>' . gregorian_to_jalali_format($bill['order_date']) . '</td>';
                 $html .= '<td>' . htmlspecialchars($bill['customer_name']) . '</td>';
+                $html .= '<td>' . number_format($bill['invoice_amount'], 0) . ' تومان</td>';
                 $html .= '<td>' . number_format($bill['remaining_debt'], 0) . ' تومان</td>';
                 $html .= '</tr>';
             }
