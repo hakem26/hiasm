@@ -243,7 +243,7 @@ body, .container-fluid {
                             </tr>
                         <?php endforeach; ?>
                         <tr class="total-row">
-                            <td colspan="2" style=""><strong>جمع کل</strong></td>
+                            <td colspan="2"><strong>جمع کل</strong></td>
                             <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
                         </tr>
                         <tr class="total-row">
@@ -325,11 +325,11 @@ function renderItemsTable(data) {
                     </tr>
                 `).join('')}
                 <tr class="total-row">
-                    <td colspan="4"><strong>جمع کل</strong></td>
+                    <td colspan="2"><strong>جمع کل</strong></td>
                     <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
                 </tr>
                 <tr class="total-row">
-                    <td colspan="3"><label for="discount" class="form-label">تخفیف</label></td>
+                    <td><label for="discount" class="form-label">تخفیف</label></td>
                     <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
                     <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
                 </tr>
