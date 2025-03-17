@@ -135,8 +135,8 @@ $total_pages = ceil($total_tables / $tables_per_page);
         }
 
         .page {
-            width: 210mm;
-            height: 297mm;
+            width: 297mm;
+            height: 210mm;
             padding: 3mm;
             font-weight: bold;
             margin: 0 auto;
