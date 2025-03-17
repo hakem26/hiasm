@@ -337,7 +337,7 @@ table.dataTable tbody td {
                 }
             },
             "columnDefs": [
-                { "targets": "_all", "className": "text-right" }, // وسط‌چین کردن همه ستون‌ها
+                { "targets": "_all", "className": "text-start" }, // وسط‌چین کردن همه ستون‌ها
                 { "targets": 0, "width": "50px" },  // شناسه
                 { "targets": 1, "width": "200px" }, // نام محصول
                 { "targets": 2, "width": "120px" }  // قیمت واحد
