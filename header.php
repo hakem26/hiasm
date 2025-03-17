@@ -40,6 +40,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <script src="assets/js/persian-datepicker.min.js"></script>
     <script src="assets/js/jquery.dataTables.min.js"></script>
     <script src="assets/js/dataTables.responsive.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
     <style>
