@@ -88,43 +88,7 @@ if ($selected_year) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گزارش خلاصه</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- اضافه کردن استایل DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="style.css">
-
-    <style>
-        /* وسط‌چین کردن هدر جدول */
-        table.dataTable thead th,
-        table.dataTable thead td {
-            text-align: center !important;
-        }
-
-        /* وسط‌چین کردن محتوای ستون‌ها */
-        table.dataTable tbody td {
-            text-align: center !important;
-        }
-
-        /* استایل برای پرینت */
-        @media print {
-            @page {
-                size: A4 portrait;
-                margin: 3mm;
-            }
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container-fluid mt-5">
+<div class="container-fluid mt-5">
         <h5 class="card-title mb-4">گزارش خلاصه</h5>
 
         <!-- فرم فیلترها -->
