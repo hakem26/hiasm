@@ -82,8 +82,8 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
         $items_str = [];
         foreach ($items as $item) {
-            $quantity = $item['quantity'] == 1 ? '' : $item['quantity'] . 'عدد ';
-            $items_str[] = "{$item['product_name']} {$quantity}({$item['total_price']})";
+            $quantity = $item['quantity'] == 1 ? '' : '(' . $item['quantity'] . 'عدد)';
+            $items_str[] = "{$item['product_name']} {$quantity}(" . number_format($item['total_price'], 0) . ")";
         }
         $items_display = implode(' - ', $items_str);
 
