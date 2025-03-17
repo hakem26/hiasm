@@ -21,6 +21,19 @@ function gregorian_to_jalali_format($gregorian_date)
 $today = date('Y-m-d');
 $today_jalali = gregorian_to_jalali_format($today);
 
+// روز هفته به فارسی
+$day_of_week = jdate('l', strtotime($today));
+$day_names = [
+    'شنبه' => 'شنبه',
+    'یک‌شنبه' => 'یک‌شنبه',
+    'دوشنبه' => 'دوشنبه',
+    'سه‌شنبه' => 'سه‌شنبه',
+    'چهارشنبه' => 'چهارشنبه',
+    'پنج‌شنبه' => 'پنج‌شنبه',
+    'جمعه' => 'جمعه'
+];
+$persian_day = $day_names[$day_of_week] ?? 'نامشخص';
+
 // کاربر فعلی
 $current_user_id = $_SESSION['user_id'];
 $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
@@ -28,13 +41,18 @@ $stmt_user->execute([$current_user_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
 $user_name = $user['full_name'] ?? 'کاربر ناشناس';
 
-// دریافت ماه کاری فعلی
-$stmt_month = $pdo->query("SELECT work_month_id, start_date, end_date FROM Work_Months WHERE work_month_id = (SELECT MAX(work_month_id) FROM Work_Months WHERE end_date <= CURDATE())");
-$month = $stmt_month->fetch(PDO::FETCH_ASSOC);
-$work_month_id = $month['work_month_id'];
-$start_month = $month['start_date'];
-$end_month = $month['end_date'];
-$month_jalali = gregorian_to_jalali_format($start_month) . ' تا ' . gregorian_to_jalali_format($end_month);
+// دریافت اطلاعات روز کاری برای امروز
+$stmt_work_details = $pdo->prepare("
+    SELECT id AS work_details_id
+    FROM Work_Details
+    WHERE work_date = ? AND partner_id IN (
+        SELECT partner_id FROM Partners WHERE user_id1 = ? OR user_id2 = ?
+    )
+    LIMIT 1
+");
+$stmt_work_details->execute([$today, $current_user_id, $current_user_id]);
+$work_details = $stmt_work_details->fetch(PDO::FETCH_ASSOC);
+$work_details_id = $work_details['work_details_id'] ?? null;
 
 // نفرات امروز (همکار آن کاربر)
 $stmt_partners = $pdo->prepare("
@@ -50,78 +68,6 @@ $stmt_partners = $pdo->prepare("
 ");
 $stmt_partners->execute([$current_user_id, $current_user_id, $today]);
 $partners_today = $stmt_partners->fetchAll(PDO::FETCH_ASSOC);
-
-// فروش کلی (روزانه، هفتگی، ماه کاری) - با استفاده از work_date
-$start_week = date('Y-m-d', strtotime('monday this week'));
-$end_week = date('Y-m-d', strtotime('sunday this week'));
-
-$stmt_sales = $pdo->prepare("
-    SELECT 
-        SUM(CASE WHEN wd.work_date = ? THEN o.final_amount ELSE 0 END) AS daily_sales,
-        SUM(CASE WHEN wd.work_date >= ? AND wd.work_date <= ? THEN o.final_amount ELSE 0 END) AS weekly_sales,
-        SUM(CASE WHEN wd.work_date >= ? AND wd.work_date <= ? THEN o.final_amount ELSE 0 END) AS monthly_sales
-    FROM Orders o
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE (p.user_id1 = ? OR p.user_id2 = ?)
-");
-$stmt_sales->execute([$today, $start_week, $end_week, $start_month, $end_month, $current_user_id, $current_user_id]);
-$sales = $stmt_sales->fetch(PDO::FETCH_ASSOC);
-
-// محصولات پر فروش (ماه کاری)
-$stmt_top_products = $pdo->prepare("
-    SELECT oi.product_name, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_amount
-    FROM Order_Items oi
-    JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE (p.user_id1 = ? OR p.user_id2 = ?) 
-    AND wd.work_month_id = ?
-    GROUP BY oi.product_name
-    ORDER BY total_quantity DESC
-    LIMIT 5
-");
-$stmt_top_products->execute([$current_user_id, $current_user_id, $work_month_id]);
-$top_products = $stmt_top_products->fetchAll(PDO::FETCH_ASSOC);
-
-// فروشندگان برتر (همکاران و فروش جفت‌ها در ماه کاری)
-$stmt_top_sellers = $pdo->prepare("
-    SELECT 
-        CONCAT(u1.full_name, ' و ', COALESCE(u2.full_name, 'بدون همکار')) AS partner_pair,
-        p.partner_id,
-        SUM(o.final_amount) AS total_sales
-    FROM Partners p
-    JOIN Users u1 ON p.user_id1 = u1.user_id
-    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-    JOIN Work_Details wd ON p.partner_id = wd.partner_id
-    JOIN Orders o ON o.work_details_id = wd.id
-    WHERE (p.user_id1 = ? OR p.user_id2 = ?) 
-    AND wd.work_month_id = ?
-    GROUP BY p.partner_id, u1.full_name, u2.full_name
-    ORDER BY total_sales DESC
-    LIMIT 5
-");
-$stmt_top_sellers->execute([$current_user_id, $current_user_id, $work_month_id]);
-$top_sellers = $stmt_top_sellers->fetchAll(PDO::FETCH_ASSOC);
-
-// آمار بدهکاران (تا 10 ردیف)
-$stmt_debtors = $pdo->prepare("
-    SELECT o.customer_name, o.final_amount, 
-           COALESCE(SUM(op.amount), 0) AS paid_amount,
-           (o.final_amount - COALESCE(SUM(op.amount), 0)) AS debt
-    FROM Orders o
-    LEFT JOIN Order_Payments op ON o.order_id = op.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE (p.user_id1 = ? OR p.user_id2 = ?) 
-    AND wd.work_month_id = ?
-    GROUP BY o.order_id, o.customer_name, o.final_amount
-    HAVING debt > 0
-    ORDER BY debt DESC
-    LIMIT 10
-");
-$stmt_debtors->execute([$current_user_id, $current_user_id, $work_month_id]);
-$debtors = $stmt_debtors->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <h2 class="text-center mb-4">داشبورد فروشنده - <?= htmlspecialchars($user_name) ?></h2>
@@ -129,7 +75,7 @@ $debtors = $stmt_debtors->fetchAll(PDO::FETCH_ASSOC);
 <!-- نفرات امروز -->
 <div class="card">
     <div class="card-body">
-        <h5 class="card-title">نفرات امروز (<?= $today_jalali ?>)</h5>
+        <h5 class="card-title">امروز <?= $persian_day ?> (<?= $today_jalali ?>)</h5>
         <ul class="list-group">
             <?php foreach ($partners_today as $partner): ?>
                 <li class="list-group-item"><?= htmlspecialchars($partner['partner_name'] ?? 'همکار ناشناس') ?></li>
@@ -138,88 +84,16 @@ $debtors = $stmt_debtors->fetchAll(PDO::FETCH_ASSOC);
                 <li class="list-group-item">هیچ همکاری امروز فعال نیست.</li>
             <?php endif; ?>
         </ul>
-    </div>
-</div>
-
-<!-- نمودار فروش کلی -->
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">آمار فروش کلی</h5>
-        <canvas id="salesChart"></canvas>
-        <script>
-            const ctx = document.getElementById('salesChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['روزانه', 'هفتگی', 'ماه کاری'],
-                    datasets: [{
-                        label: 'فروش (تومان)',
-                        data: [<?= $sales['daily_sales'] ?? 0 ?>, <?= $sales['weekly_sales'] ?? 0 ?>, <?= $sales['monthly_sales'] ?? 0 ?>],
-                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: { y: { beginAtZero: true } },
-                    responsive: true
-                }
-            });
-        </script>
-    </div>
-</div>
-
-<!-- محصولات پر فروش -->
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">محصولات پر فروش (ماه کاری: <?= htmlspecialchars($month_jalali) ?>)</h5>
-        <ul class="list-group">
-            <?php foreach ($top_products as $product): ?>
-                <li class="list-group-item">
-                    <?= htmlspecialchars($product['product_name']) ?> - تعداد: <?= $product['total_quantity'] ?> - مبلغ: <?= number_format($product['total_amount'], 0) ?> تومان
-                </li>
-            <?php endforeach; ?>
-            <?php if (empty($top_products)): ?>
-                <li class="list-group-item">محصولی یافت نشد.</li>
-            <?php endif; ?>
-        </ul>
-    </div>
-</div>
-
-<!-- فروشندگان برتر -->
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">فروشندگان برتر (ماه کاری: <?= htmlspecialchars($month_jalali) ?>)</h5>
-        <ul class="list-group">
-            <?php foreach ($top_sellers as $seller): ?>
-                <li class="list-group-item">
-                    <?= htmlspecialchars($seller['partner_pair']) ?> (کد همکار: <?= $seller['partner_id'] ?>) - فروش: <?= number_format($seller['total_sales'], 0) ?> تومان
-                </li>
-            <?php endforeach; ?>
-            <?php if (empty($top_sellers)): ?>
-                <li class="list-group-item">فروشنده‌ای یافت نشد.</li>
-            <?php endif; ?>
-        </ul>
-    </div>
-</div>
-
-<!-- آمار بدهکاران -->
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">آمار بدهکاران (ماه کاری: <?= htmlspecialchars($month_jalali) ?>)</h5>
-        <ul class="list-group">
-            <?php foreach ($debtors as $debtor): ?>
-                <li class="list-group-item">
-                    <?= htmlspecialchars($debtor['customer_name']) ?> - بدهی: <?= number_format($debtor['debt'], 0) ?> تومان
-                </li>
-            <?php endforeach; ?>
-            <?php if (empty($debtors)): ?>
-                <li class="list-group-item">بدهی‌ای یافت نشد.</li>
-            <?php endif; ?>
-        </ul>
+        <?php if (!empty($partners_today) && $work_details_id): ?>
+            <div class="mt-3">
+                <a href="https://hakemo26.persiasptool.com/add_order.php?work_details_id=<?= $work_details_id ?>" class="btn btn-primary me-2">ثبت سفارش</a>
+                <a href="https://hakemo26.persiasptool.com/orders.php?year=2025&work_month_id=10&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>" class="btn btn-secondary">لیست سفارشات</a>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
 <?php
+// بخش‌های دیگر (فروش، محصولات پر فروش، فروشندگان برتر، بدهکاران) فعلاً خالی می‌مونه تا مرحله به مرحله کامل بشه
 require_once 'footer.php';
 ?>
