@@ -68,22 +68,44 @@ $user2_name = $partner['user2_name'] ?? 'نامشخص';
 $stmt_days = $pdo->prepare("
     SELECT wd.id, wd.work_date,
            GROUP_CONCAT(
-               CONCAT(o.order_id, '|||', o.customer_name, '|||', o.total_amount, '|||', o.discount, '|||', o.final_amount, '|||', 
-                      (SELECT GROUP_CONCAT(CONCAT(oi.quantity, ' x ', oi.item_name, ' @ ', oi.unit_price) SEPARATOR ', ') 
-                       FROM Order_Items oi WHERE oi.order_id = o.order_id) SEPARATOR '---') AS items,
-               '---' AS delimiter
+               CONCAT(
+                   o.order_id, '|||', 
+                   COALESCE(o.customer_name, ''), '|||', 
+                   COALESCE(o.total_amount, 0), '|||', 
+                   COALESCE(o.discount, 0), '|||', 
+                   COALESCE(o.final_amount, 0), '|||', 
+                   COALESCE(
+                       (SELECT GROUP_CONCAT(
+                           CONCAT(oi.quantity, ' x ', oi.item_name, ' @ ', oi.unit_price) 
+                           SEPARATOR ', '
+                       ) 
+                       FROM Order_Items oi 
+                       WHERE oi.order_id = o.order_id),
+                       ''
+                   )
+               ) 
+               SEPARATOR '---'
            ) AS order_items,
-           (SELECT GROUP_CONCAT(CONCAT(op.amount, ' (', op.payment_type, ' - ', op.payment_date, ')') SEPARATOR ', ')
-            FROM Order_Payments op WHERE op.order_id = o.order_id) AS payments
+           (SELECT GROUP_CONCAT(
+               CONCAT(op.amount, ' (', op.payment_type, ' - ', op.payment_date, ')') 
+               SEPARATOR ', '
+           )
+           FROM Order_Payments op 
+           WHERE op.order_id = o.order_id) AS payments
     FROM Work_Details wd
     LEFT JOIN Orders o ON o.work_details_id = wd.id
     WHERE wd.work_month_id = ? AND wd.partner_id = ?
     GROUP BY wd.id
     ORDER BY wd.work_date
 ");
-$stmt_days->execute([$work_month_id, $partner_id]);
-$work_days = [];
 
+try {
+    $stmt_days->execute([$work_month_id, $partner_id]);
+} catch (PDOException $e) {
+    die('خطا در اجرای کوئری: ' . $e->getMessage() . '<br>کوئری: ' . $stmt_days->queryString);
+}
+
+$work_days = [];
 while ($row = $stmt_days->fetch(PDO::FETCH_ASSOC)) {
     $orders = [];
     if ($row['order_items']) {
