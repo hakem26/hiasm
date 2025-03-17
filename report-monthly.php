@@ -11,6 +11,7 @@ require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
+    if (!$gregorian_date) return "نامشخص";
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
@@ -88,6 +89,9 @@ if ($selected_year) {
 }
 ?>
 
+<!-- فقط استایل اصلی DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+
 <style>
 /* جلوگیری از اسکرول افقی صفحه اصلی */
 body, .container-fluid {
@@ -102,23 +106,18 @@ body, .container-fluid {
     -webkit-overflow-scrolling: touch; /* اسکرول روان در دستگاه‌های لمسی */
 }
 
-/* تنظیمات جدول */
-.monthly-reports-table {
-    width: 800px; /* عرض ثابت جدول */
-    table-layout: fixed; /* ثابت کردن عرض ستون‌ها */
-    border-collapse: collapse;
+/* وسط‌چین کردن هدر جدول */
+table.dataTable thead th,
+table.dataTable thead td {
+    text-align: center !important;
 }
 
-/* تنظیمات ستون‌ها */
-.monthly-reports-table th,
-.monthly-reports-table td {
+/* وسط‌چین کردن محتوای ستون‌ها */
+table.dataTable tbody td {
     text-align: center !important;
-    vertical-align: middle !important;
     white-space: nowrap !important; /* جلوگیری از چند خطی شدن */
     overflow: hidden;
     text-overflow: ellipsis; /* نمایش ... برای متن طولانی */
-    padding: 8px;
-    width: 160px; /* عرض ثابت برای هر ستون (800px / 5 ستون) */
 }
 </style>
 
@@ -158,7 +157,7 @@ body, .container-fluid {
 
     <!-- جدول گزارشات -->
     <div class="table-responsive" id="reports-table">
-        <table class="table table-light monthly-reports-table">
+        <table id="reportsTable" class="table table-light table-hover display" style="width:100%;">
             <thead>
                 <tr>
                     <th>ماه کاری</th>
@@ -194,9 +193,46 @@ body, .container-fluid {
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     $(document).ready(function() {
+        // تنظیم DataTables برای جدول گزارشات
+        $('#reportsTable').DataTable({
+            "pageLength": 10,           // 10 ردیف در هر صفحه
+            "scrollX": true,            // فعال کردن اسکرول افقی
+            "paging": true,             // فعال کردن صفحه‌بندی
+            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
+            "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
+            "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
+            "language": {
+                "decimal": "",
+                "emptyTable": "داده‌ای در جدول وجود ندارد",
+                "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+                "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+                "lengthMenu": "نمایش _MENU_ ردیف",
+                "loadingRecords": "در حال بارگذاری...",
+                "processing": "در حال پردازش...",
+                "search": "جستجو:",
+                "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+                "paginate": {
+                    "first": "اولین",
+                    "last": "آخرین",
+                    "next": "بعدی",
+                    "previous": "قبلی"
+                }
+            },
+            "columnDefs": [
+                { "targets": "_all", "className": "text-center" }, // وسط‌چین کردن همه ستون‌ها
+                { "targets": 0, "width": "160px" }, // ماه کاری
+                { "targets": 1, "width": "160px" }, // نام همکار
+                { "targets": 2, "width": "160px" }, // مجموع فروش
+                { "targets": 3, "width": "160px" }, // وضعیت
+                { "targets": 4, "width": "160px" }  // مشاهده
+            ]
+        });
+
         // تابع برای بارگذاری ماه‌ها بر اساس سال
         function loadMonths(year) {
             console.log('Loading months for year:', year);
@@ -256,7 +292,7 @@ body, .container-fluid {
                     year: year,
                     work_month_id: work_month_id,
                     user_id: user_id,
-                    report_type: 'monthly' // اضافه کردن پارامتر report_type
+                    report_type: 'monthly'
                 },
                 dataType: 'json',
                 success: function(response) {
@@ -265,6 +301,42 @@ body, .container-fluid {
                         if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                             console.log('Rendering HTML:', response.html);
                             $('#reports-table').html(response.html);
+                            // دوباره DataTable را روی جدول جدید اعمال کن
+                            $('#reportsTable').DataTable({
+                                "destroy": true, // تخریب جدول قبلی
+                                "pageLength": 10,
+                                "scrollX": true,
+                                "paging": true,
+                                "autoWidth": false,
+                                "ordering": true,
+                                "responsive": false,
+                                "language": {
+                                    "decimal": "",
+                                    "emptyTable": "داده‌ای در جدول وجود ندارد",
+                                    "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                                    "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+                                    "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+                                    "lengthMenu": "نمایش _MENU_ ردیف",
+                                    "loadingRecords": "در حال بارگذاری...",
+                                    "processing": "در حال پردازش...",
+                                    "search": "جستجو:",
+                                    "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+                                    "paginate": {
+                                        "first": "اولین",
+                                        "last": "آخرین",
+                                        "next": "بعدی",
+                                        "previous": "قبلی"
+                                    }
+                                },
+                                "columnDefs": [
+                                    { "targets": "_all", "className": "text-center" },
+                                    { "targets": 0, "width": "160px" },
+                                    { "targets": 1, "width": "160px" },
+                                    { "targets": 2, "width": "160px" },
+                                    { "targets": 3, "width": "160px" },
+                                    { "targets": 4, "width": "160px" }
+                                ]
+                            });
                         } else {
                             throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
                         }
