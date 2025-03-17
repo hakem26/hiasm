@@ -354,7 +354,7 @@ foreach ($products as $product) {
             "paging": false,             // فعال کردن صفحه‌بندی
             "autoWidth": true,         // غیرفعال کردن تنظیم خودکار عرض
             "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
-            "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
+            "responsive": true,        // غیرفعال کردن حالت ریسپانسیو
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
