@@ -214,7 +214,7 @@ if (!$partner1_id) {
             <!-- جدول فاکتور -->
             <div class="table-wrapper" id="items_table">
                 <?php if (!empty($items)): ?>
-                    <table class="table table-light responsive-table">
+                    <table class="table table-light responsive-table scrollme">
                         <thead>
                             <tr>
                                 <th>نام محصول</th>
@@ -229,8 +229,8 @@ if (!$partner1_id) {
                                 <tr id="item_row_<?= $index ?>">
                                     <td><?= htmlspecialchars($item['product_name']) ?></td>
                                     <td><?= $item['quantity'] ?></td>
-                                    <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
-                                    <td><?= number_format($item['total_price'], 0) ?> تومان</td>
+                                    <td><?= number_format($item['unit_price'], 0) ?></td>
+                                    <td><?= number_format($item['total_price'], 0) ?></td>
                                     <td>
                                         <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
                                             <i class="fas fa-trash"></i>

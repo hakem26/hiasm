@@ -316,6 +316,10 @@ select {
   width: 100%;
 }
 
+.scrollme {
+  overflow-x: auto;
+}
+
 @media (max-width: 600px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */
