@@ -11,7 +11,6 @@ require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
-    if (!$gregorian_date) return "نامشخص";
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
@@ -89,225 +88,213 @@ if ($selected_year) {
 }
 ?>
 
-<!-- فقط استایل اصلی DataTables -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
 
-<style>
-/* جلوگیری از اسکرول افقی صفحه اصلی */
-body, .container-fluid {
-    overflow-x: hidden !important;
-}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>گزارشات ماهانه</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- اضافه کردن استایل DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="style.css">
 
-/* تنظیمات div اطراف جدول */
-.table-responsive {
-    width: 100%;
-    overflow-x: auto !important; /* اسکرول افقی فقط برای جدول */
-    overflow-y: visible; /* جلوگیری از اسکرول عمودی غیرضروری */
-    -webkit-overflow-scrolling: touch; /* اسکرول روان در دستگاه‌های لمسی */
-}
+    <style>
+        /* وسط‌چین کردن هدر جدول */
+        table.dataTable thead th,
+        table.dataTable thead td {
+            text-align: center !important;
+        }
 
-/* وسط‌چین کردن هدر جدول */
-table.dataTable thead th,
-table.dataTable thead td {
-    text-align: center !important;
-}
+        /* وسط‌چین کردن محتوای ستون‌ها */
+        table.dataTable tbody td {
+            text-align: center !important;
+        }
+    </style>
+</head>
 
-/* وسط‌چین کردن محتوای ستون‌ها */
-table.dataTable tbody td {
-    text-align: center !important;
-    white-space: nowrap !important; /* جلوگیری از چند خطی شدن */
-    overflow: hidden;
-    text-overflow: ellipsis; /* نمایش ... برای متن طولانی */
-}
-</style>
+<body>
+    <div class="container-fluid mt-5">
+        <h5 class="card-title mb-4">گزارشات ماهانه</h5>
 
-<div class="container-fluid mt-5">
-    <h5 class="card-title mb-4">گزارشات ماهانه</h5>
-
-    <!-- فرم فیلترها -->
-    <div class="mb-4">
-        <div class="row g-3">
-            <div class="col-md-3">
-                <label for="year" class="form-label">سال</label>
-                <select name="year" id="year" class="form-select">
-                    <option value="">همه</option>
-                    <?php foreach ($years as $year): ?>
-                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= gregorian_year_to_jalali($year) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+        <!-- فرم فیلترها -->
+        <div class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="year" class="form-label">سال</label>
+                    <select name="year" id="year" class="form-select">
+                        <option value="">همه</option>
+                        <?php foreach ($years as $year): ?>
+                            <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                                <?= gregorian_year_to_jalali($year) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="work_month_id" class="form-label">ماه کاری</label>
+                    <select name="work_month_id" id="work_month_id" class="form-select">
+                        <option value="">انتخاب ماه</option>
+                        <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="user_id" class="form-label">همکار</label>
+                    <select name="user_id" id="user_id" class="form-select">
+                        <option value="">انتخاب همکار</option>
+                        <!-- همکاران اینجا با AJAX بارگذاری می‌شن -->
+                    </select>
+                </div>
             </div>
-            <div class="col-md-3">
-                <label for="work_month_id" class="form-label">ماه کاری</label>
-                <select name="work_month_id" id="work_month_id" class="form-select">
-                    <option value="">انتخاب ماه</option>
-                    <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="user_id" class="form-label">همکار</label>
-                <select name="user_id" id="user_id" class="form-select">
-                    <option value="">انتخاب همکار</option>
-                    <!-- همکاران اینجا با AJAX بارگذاری می‌شن -->
-                </select>
-            </div>
+        </div>
+
+        <!-- جدول گزارشات با DataTables -->
+        <div class="table-responsive" style="overflow-x: auto;">
+            <table id="reportsTable" class="table table-light table-hover display nowrap" style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>ماه کاری</th>
+                        <th>نام همکار</th>
+                        <th>مجموع فروش</th>
+                        <th>وضعیت</th>
+                        <th>مشاهده</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($reports)): ?>
+                        <tr>
+                            <td colspan="5" class="text-center">گزارشی یافت نشد.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($reports as $report): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($report['month_name']) ?></td>
+                                <td><?= htmlspecialchars($report['partner_name']) ?></td>
+                                <td><?= number_format($report['total_sales'], 0, '', ',') ?> تومان</td>
+                                <td><?= $report['status'] ?></td>
+                                <td>
+                                    <a href="print-report-monthly.php?work_month_id=<?= $report['work_month_id'] ?>&partner_id=<?= $report['partner_id'] ?>" class="btn btn-info btn-sm">
+                                        <i class="fas fa-eye"></i> مشاهده
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- جدول گزارشات -->
-    <div class="table-responsive" id="reports-table">
-        <table id="reportsTable" class="table table-light table-hover display" style="width:100%;">
-            <thead>
-                <tr>
-                    <th>ماه کاری</th>
-                    <th>نام همکار</th>
-                    <th>مجموع فروش</th>
-                    <th>وضعیت</th>
-                    <th>مشاهده</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (empty($reports)): ?>
-                    <tr>
-                        <td colspan="5" class="text-center">گزارشی یافت نشد.</td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($reports as $report): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($report['month_name']) ?></td>
-                            <td><?= htmlspecialchars($report['partner_name']) ?></td>
-                            <td><?= number_format($report['total_sales'], 0) ?> تومان</td>
-                            <td><?= $report['status'] ?></td>
-                            <td>
-                                <a href="print-report-monthly.php?work_month_id=<?= $report['work_month_id'] ?>&partner_id=<?= $report['partner_id'] ?>" class="btn btn-info btn-sm">
-                                    <i class="fas fa-eye"></i> مشاهده
-                                </a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+    <!-- اسکریپت‌های مورد نیاز -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    $(document).ready(function() {
-        // تنظیم DataTables برای جدول گزارشات
-        $('#reportsTable').DataTable({
-            "pageLength": 10,           // 10 ردیف در هر صفحه
-            "scrollX": true,            // فعال کردن اسکرول افقی
-            "paging": true,             // فعال کردن صفحه‌بندی
-            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
-            "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
-            "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
-            "language": {
-                "decimal": "",
-                "emptyTable": "داده‌ای در جدول وجود ندارد",
-                "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
-                "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
-                "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
-                "lengthMenu": "نمایش _MENU_ ردیف",
-                "loadingRecords": "در حال بارگذاری...",
-                "processing": "در حال پردازش...",
-                "search": "جستجو:",
-                "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
-                "paginate": {
-                    "first": "اولین",
-                    "last": "آخرین",
-                    "next": "بعدی",
-                    "previous": "قبلی"
-                }
-            },
-            "columnDefs": [
-                { "targets": "_all", "className": "text-center" }, // وسط‌چین کردن همه ستون‌ها
-                { "targets": 0, "width": "160px" }, // ماه کاری
-                { "targets": 1, "width": "160px" }, // نام همکار
-                { "targets": 2, "width": "160px" }, // مجموع فروش
-                { "targets": 3, "width": "160px" }, // وضعیت
-                { "targets": 4, "width": "160px" }  // مشاهده
-            ]
-        });
-
-        // تابع برای بارگذاری ماه‌ها بر اساس سال
-        function loadMonths(year) {
-            console.log('Loading months for year:', year);
-            if (!year) {
-                $('#work_month_id').html('<option value="">انتخاب ماه</option>');
-                $('#user_id').html('<option value="">انتخاب همکار</option>');
-                return;
-            }
-            $.ajax({
-                url: 'get_months.php',
-                type: 'POST',
-                data: { year: year, user_id: <?= json_encode($current_user_id) ?> },
-                success: function(response) {
-                    console.log('Months response:', response);
-                    $('#work_month_id').html(response);
+    <script>
+        $(document).ready(function() {
+            // تنظیمات DataTables
+            $('#reportsTable').DataTable({
+                "pageLength": 10,           // 10 ردیف در هر صفحه
+                "scrollX": true,            // فعال کردن اسکرول افقی
+                "paging": true,             // فعال کردن صفحه‌بندی
+                "autoWidth": true,          // تنظیم خودکار عرض
+                "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
+                "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
+                "language": {
+                    "decimal": "",
+                    "emptyTable": "داده‌ای در جدول وجود ندارد",
+                    "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                    "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+                    "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+                    "lengthMenu": "نمایش _MENU_ ردیف",
+                    "loadingRecords": "در حال بارگذاری...",
+                    "processing": "در حال پردازش...",
+                    "search": "جستجو:",
+                    "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+                    "paginate": {
+                        "first": "اولین",
+                        "last": "آخرین",
+                        "next": "بعدی",
+                        "previous": "قبلی"
+                    }
                 },
-                error: function(xhr, status, error) {
-                    console.error('Error loading months:', error);
-                    $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
-                }
+                "columnDefs": [
+                    { "targets": "_all", "className": "text-start" }, // وسط‌چین کردن همه ستون‌ها
+                    { "targets": 0, "width": "150px" }, // ماه کاری
+                    { "targets": 1, "width": "200px" }, // نام همکار
+                    { "targets": 2, "width": "120px" }, // مجموع فروش
+                    { "targets": 3, "width": "80px" },  // وضعیت
+                    { "targets": 4, "width": "100px" }  // مشاهده
+                ]
             });
-        }
 
-        // تابع برای بارگذاری همکاران بر اساس ماه
-        function loadPartners(month_id) {
-            console.log('Loading partners for month:', month_id);
-            if (!month_id) {
-                $('#user_id').html('<option value="">انتخاب همکار</option>');
-                return;
-            }
-            $.ajax({
-                url: 'get_partners.php',
-                type: 'POST',
-                data: { month_id: month_id, user_id: <?= json_encode($current_user_id) ?> },
-                success: function(response) {
-                    console.log('Partners response:', response);
-                    $('#user_id').html(response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error loading partners:', error);
-                    $('#user_id').html('<option value="">خطا در بارگذاری همکاران</option>');
+            // تابع برای بارگذاری ماه‌ها بر اساس سال
+            function loadMonths(year) {
+                if (!year) {
+                    $('#work_month_id').html('<option value="">انتخاب ماه</option>');
+                    $('#user_id').html('<option value="">انتخاب همکار</option>');
+                    return;
                 }
-            });
-        }
+                $.ajax({
+                    url: 'get_months.php',
+                    type: 'POST',
+                    data: { year: year, user_id: <?= json_encode($current_user_id) ?> },
+                    success: function(response) {
+                        $('#work_month_id').html(response);
+                    },
+                    error: function(xhr, status, error) {
+                        $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
+                    }
+                });
+            }
 
-        // تابع برای بارگذاری گزارش‌ها
-        function loadReports() {
-            console.log('Loading reports...');
-            const year = $('#year').val();
-            const work_month_id = $('#work_month_id').val();
-            const user_id = $('#user_id').val();
+            // تابع برای بارگذاری همکاران بر اساس ماه
+            function loadPartners(month_id) {
+                if (!month_id) {
+                    $('#user_id').html('<option value="">انتخاب همکار</option>');
+                    return;
+                }
+                $.ajax({
+                    url: 'get_partners.php',
+                    type: 'POST',
+                    data: { month_id: month_id, user_id: <?= json_encode($current_user_id) ?> },
+                    success: function(response) {
+                        $('#user_id').html(response);
+                    },
+                    error: function(xhr, status, error) {
+                        $('#user_id').html('<option value="">خطا در بارگذاری همکاران</option>');
+                    }
+                });
+            }
 
-            $.ajax({
-                url: 'get_reports.php',
-                type: 'GET',
-                data: {
-                    year: year,
-                    work_month_id: work_month_id,
-                    user_id: user_id,
-                    report_type: 'monthly'
-                },
-                dataType: 'json',
-                success: function(response) {
-                    console.log('Reports response (raw):', response);
-                    try {
+            // تابع برای بارگذاری گزارش‌ها و به‌روزرسانی جدول
+            function loadReports() {
+                const year = $('#year').val();
+                const work_month_id = $('#work_month_id').val();
+                const user_id = $('#user_id').val();
+
+                $.ajax({
+                    url: 'get_reports.php',
+                    type: 'GET',
+                    data: {
+                        year: year,
+                        work_month_id: work_month_id,
+                        user_id: user_id,
+                        report_type: 'monthly'
+                    },
+                    dataType: 'json',
+                    success: function(response) {
                         if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
-                            console.log('Rendering HTML:', response.html);
-                            $('#reports-table').html(response.html);
-                            // دوباره DataTable را روی جدول جدید اعمال کن
+                            // تخریب جدول قبلی و بازسازی با داده‌های جدید
+                            $('#reportsTable').DataTable().destroy();
+                            $('#reportsTable tbody').html($(response.html).find('tbody').html());
                             $('#reportsTable').DataTable({
-                                "destroy": true, // تخریب جدول قبلی
                                 "pageLength": 10,
                                 "scrollX": true,
                                 "paging": true,
-                                "autoWidth": false,
+                                "autoWidth": true,
                                 "ordering": true,
                                 "responsive": false,
                                 "language": {
@@ -329,58 +316,49 @@ table.dataTable tbody td {
                                     }
                                 },
                                 "columnDefs": [
-                                    { "targets": "_all", "className": "text-center" },
-                                    { "targets": 0, "width": "160px" },
-                                    { "targets": 1, "width": "160px" },
-                                    { "targets": 2, "width": "160px" },
-                                    { "targets": 3, "width": "160px" },
-                                    { "targets": 4, "width": "160px" }
+                                    { "targets": "_all", "className": "text-start" },
+                                    { "targets": 0, "width": "150px" },
+                                    { "targets": 1, "width": "200px" },
+                                    { "targets": 2, "width": "120px" },
+                                    { "targets": 3, "width": "80px" },
+                                    { "targets": 4, "width": "100px" }
                                 ]
                             });
                         } else {
-                            throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
+                            $('#reportsTable').DataTable().clear().draw();
+                            $('#reportsTable tbody').html('<tr><td colspan="5" class="text-center">گزارشی یافت نشد.</td></tr>');
                         }
-                    } catch (e) {
-                        console.error('Error rendering reports:', e);
-                        $('#reports-table').html('<div class="alert alert-danger text-center">خطا در نمایش گزارش‌ها: ' + e.message + '</div>');
+                    },
+                    error: function(xhr, status, error) {
+                        $('#reportsTable').DataTable().clear().draw();
+                        $('#reportsTable tbody').html('<tr><td colspan="5" class="text-center">خطایی در بارگذاری گزارش‌ها رخ داد.</td></tr>');
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
-                    $('#reports-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری گزارش‌ها رخ داد: ' + error + '</div>');
-                }
+                });
+            }
+
+            // بارگذاری اولیه
+            const initial_year = $('#year').val();
+            if (initial_year) {
+                loadMonths(initial_year);
+            }
+
+            // رویدادهای تغییر
+            $('#year').on('change', function() {
+                loadMonths($(this).val());
+                loadReports();
             });
-        }
 
-        // تابع برای بارگذاری همه فیلترها
-        function loadFilters() {
-            const year = $('#year').val();
-            loadMonths(year);
-            loadReports();
-        }
+            $('#work_month_id').on('change', function() {
+                loadPartners($(this).val());
+                loadReports();
+            });
 
-        // بارگذاری اولیه
-        const initial_year = $('#year').val();
-        if (initial_year) {
-            loadMonths(initial_year);
-        }
-        loadReports();
-
-        // رویدادهای تغییر
-        $('#year').on('change', function() {
-            loadFilters();
+            $('#user_id').on('change', function() {
+                loadReports();
+            });
         });
+    </script>
 
-        $('#work_month_id').on('change', function() {
-            const month_id = $(this).val();
-            loadPartners(month_id);
-            loadReports();
-        });
-
-        $('#user_id').on('change', function() {
-            loadReports();
-        });
-    });
-</script>
-
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
+</body>
+</html>
