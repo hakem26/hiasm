@@ -193,4 +193,7 @@ $debtors = $stmt_debtors->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </div>
 </div>
+
+<?php
 require_once 'footer.php';
+?>
