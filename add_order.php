@@ -148,7 +148,6 @@ body, .container-fluid {
 /* تنظیمات ستون‌ها */
 .order-items-table th,
 .order-items-table td {
-    text-align: center !important;
     vertical-align: middle !important;
     white-space: nowrap !important; /* جلوگیری از شکستن متن */
     padding: 8px;
@@ -244,7 +243,7 @@ body, .container-fluid {
                             </tr>
                         <?php endforeach; ?>
                         <tr class="total-row">
-                            <td colspan="2"><strong>جمع کل</strong></td>
+                            <td colspan="2" style=""><strong>جمع کل</strong></td>
                             <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
                         </tr>
                         <tr class="total-row">
