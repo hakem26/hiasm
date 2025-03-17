@@ -320,6 +320,13 @@ select {
   overflow-x: auto;
 }
 
+.card {
+  margin-bottom: 20px;
+}
+canvas {
+  max-height: 300px;
+}
+
 @media (max-width: 600px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */
