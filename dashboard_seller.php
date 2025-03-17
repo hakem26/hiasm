@@ -112,7 +112,29 @@ for ($i = 0; $i < 7; $i++) {
     $sales_data[] = $stmt_day_sales->fetchColumn() ?? 0;
 }
 
-// فروش ماهانه (7 ماه کاری)
+// فروش هفتگی (از شنبه هفته جاری تا شنبه هفته بعد در ماه کاری)
+$start_week = date('Y-m-d', strtotime('sunday this week'));
+$end_week = date('Y-m-d', strtotime('saturday this week'));
+$week_days = [];
+$week_sales_data = [];
+for ($i = 0; $i <= 6; $i++) {
+    $week_date = date('Y-m-d', strtotime("+$i days", strtotime($start_week)));
+    if ($week_date <= $today && $week_date >= $current_start_month) {
+        $jalali_week_date = gregorian_to_jalali_format($week_date);
+        $week_days[] = $jalali_week_date;
+        $stmt_week_sales = $pdo->prepare("
+            SELECT SUM(o.final_amount) AS week_sales
+            FROM Orders o
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            WHERE wd.work_date = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+        ");
+        $stmt_week_sales->execute([$week_date, $current_user_id, $current_user_id]);
+        $week_sales_data[] = $stmt_week_sales->fetchColumn() ?? 0;
+    }
+}
+
+// فروش ماهانه (7 ماه کاری، لحظه‌ای)
 $month_sales_data = [];
 foreach ($work_months as $month) {
     $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
@@ -121,9 +143,9 @@ foreach ($work_months as $month) {
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+        WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?) AND wd.work_date <= ?
     ");
-    $stmt_month_sales->execute([$month['work_month_id'], $current_user_id, $current_user_id]);
+    $stmt_month_sales->execute([$month['work_month_id'], $current_user_id, $current_user_id, $today]);
     $month_sales_data[$month_name] = $stmt_month_sales->fetchColumn() ?? 0;
 }
 
@@ -149,9 +171,9 @@ $stmt_previous_month_sales = $pdo->prepare("
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+    WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?) AND wd.work_date <= ?
 ");
-$stmt_previous_month_sales->execute([$previous_work_month_id, $current_user_id, $current_user_id]);
+$stmt_previous_month_sales->execute([$previous_work_month_id, $current_user_id, $current_user_id, $previous_end_month]);
 $previous_month_sales = $stmt_previous_month_sales->fetchColumn() ?? 0;
 $current_month_sales = $month_sales_data[jalali_month_name(gregorian_to_jalali_format($current_start_month))] ?? 0;
 $growth_month = $current_month_sales - $previous_month_sales;
@@ -188,6 +210,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         <h5 class="card-title">آمار فروش کلی</h5>
         <div class="btn-group mb-3" role="group">
             <button type="button" class="btn btn-primary" onclick="showDailyChart()">روزانه</button>
+            <button type="button" class="btn btn-primary" onclick="showWeeklyChart()">هفتگی</button>
             <button type="button" class="btn btn-primary" onclick="showMonthlyChart()">ماهانه</button>
         </div>
         <canvas id="salesChart"></canvas>
@@ -208,6 +231,37 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                         datasets: [{
                             label: 'فروش (تومان)',
                             data: <?= json_encode(array_reverse($sales_data)) ?>,
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)',
+                                'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)',
+                                'rgba(153, 102, 255, 0.5)', 'rgba(255, 159, 64, 0.5)',
+                                'rgba(199, 199, 199, 0.5)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                                'rgba(199, 199, 199, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: { y: { beginAtZero: true } },
+                        responsive: true
+                    }
+                });
+            }
+
+            function showWeeklyChart() {
+                if (salesChart) salesChart.destroy();
+                salesChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: <?= json_encode(array_reverse($week_days)) ?>,
+                        datasets: [{
+                            label: 'فروش (تومان)',
+                            data: <?= json_encode(array_reverse($week_sales_data)) ?>,
                             backgroundColor: [
                                 'rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)',
                                 'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)',
