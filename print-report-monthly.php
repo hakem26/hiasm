@@ -83,7 +83,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $items_str = [];
         foreach ($items as $item) {
             $quantity = $item['quantity'] == 1 ? '' : '(' . $item['quantity'] . 'عدد)';
-            $items_str[] = "{$item['product_name']} {$quantity}(" . number_format($item['total_price'], 0) . ")";
+            $items_str[] = "{$item['product_name']} {$quantity}(" . number_format($item['total_price']/1000, 0) . ")";
         }
         $items_display = implode(' - ', $items_str);
 
@@ -138,6 +138,7 @@ $total_pages = ceil($total_tables / $tables_per_page);
             width: 297mm;
             height: 210mm;
             padding: 3mm;
+            margin: 0 auto;
             box-sizing: border-box;
             page-break-after: always;
             border: 1px solid #000;
