@@ -19,7 +19,7 @@ function gregorian_to_jalali_format($gregorian_date) {
 // تابع برای دریافت نام ماه شمسی
 function get_jalali_month_name($month) {
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        1 => 'فروردین', 2 => 'اردیبشهت', 3 => 'خرداد',
         4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
         7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
         10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
@@ -105,14 +105,27 @@ if ($selected_year && $selected_month) {
 }
 ?>
 
-<div class="container-fluid mt-5">
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>گزارش فروش</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">گزارش فروش</h5>
 
         <!-- جمع کل‌ها -->
         <div class="mb-4">
-            <p>جمع کل فروش: <span id="total-sales"><?= number_format($total_sales, 0, '', ',') ?> تومان</span></p>
-            <p>جمع کل تخفیفات: <span id="total-discount"><?= number_format($total_discount, 0, '', ',') ?> تومان</span></p>
-            <p>مجموع جلسات آژانس: <span id="total-sessions"><?= $total_sessions ?> جلسه</span></p>
+            <p>جمع کل فروش: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
+            <p>جمع کل تخفیفات: <span id="total-discount"><?= number_format($total_discount, 0) ?></span> تومان</p>
+            <p>مجموع جلسات آژانس: <span id="total-sessions"><?= $total_sessions ?></span> جلسه</p>
         </div>
 
         <!-- فرم فیلترها -->
@@ -158,9 +171,9 @@ if ($selected_year && $selected_month) {
             </div>
         </div>
 
-        <!-- جدول محصولات با DataTables -->
-        <div class="table-responsive" style="overflow-x: auto;">
-            <table id="productsTable" class="table table-light table-hover display nowrap" style="width:100%;">
+        <!-- جدول محصولات -->
+        <div class="table-responsive" id="products-table">
+            <table class="table table-light">
                 <thead>
                     <tr>
                         <th>ردیف</th>
@@ -181,9 +194,9 @@ if ($selected_year && $selected_month) {
                             <tr>
                                 <td><?= $row_number++ ?></td>
                                 <td><?= htmlspecialchars($product['product_name']) ?></td>
-                                <td><?= number_format($product['unit_price'], 0, '', ',') ?> تومان</td>
+                                <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
                                 <td><?= $product['total_quantity'] ?></td>
-                                <td><?= number_format($product['total_price'], 0, '', ',') ?> تومان</td>
+                                <td><?= number_format($product['total_price'], 0) ?> تومان</td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -192,52 +205,14 @@ if ($selected_year && $selected_month) {
         </div>
     </div>
 
-    <!-- اسکریپت‌های مورد نیاز -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-
     <script>
         $(document).ready(function() {
-            // تنظیمات DataTables
-            $('#productsTable').DataTable({
-                "pageLength": 10,           // 10 ردیف در هر صفحه
-                "scrollX": true,            // فعال کردن اسکرول افقی
-                "paging": true,             // فعال کردن صفحه‌بندی
-                "autoWidth": true,          // تنظیم خودکار عرض
-                "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
-                "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
-                "language": {
-                    "decimal": "",
-                    "emptyTable": "داده‌ای در جدول وجود ندارد",
-                    "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
-                    "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
-                    "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
-                    "lengthMenu": "نمایش _MENU_ ردیف",
-                    "loadingRecords": "در حال بارگذاری...",
-                    "processing": "در حال پردازش...",
-                    "search": "جستجو:",
-                    "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
-                    "paginate": {
-                        "first": "اولین",
-                        "last": "آخرین",
-                        "next": "بعدی",
-                        "previous": "قبلی"
-                    }
-                },
-                "columnDefs": [
-                    { "targets": "_all", "className": "text-start" }, // وسط‌چین کردن همه ستون‌ها
-                    { "targets": 0, "width": "50px" },  // ردیف
-                    { "targets": 1, "width": "200px" }, // اقلام
-                    { "targets": 2, "width": "120px" }, // قیمت واحد
-                    { "targets": 3, "width": "80px" },  // تعداد
-                    { "targets": 4, "width": "120px" }  // قیمت کل
-                ]
-            });
-
             // تابع برای بارگذاری ماه‌ها بر اساس سال
             function loadMonths(year) {
                 const selected_user_id = $('#user_id').val() || '<?= $current_user_id ?>';
+                console.log('Loading months for year:', year, 'selected_user_id:', selected_user_id);
                 if (!year) {
                     $('#work_month_id').html('<option value="">انتخاب ماه</option>');
                     $('#view-report-btn').prop('disabled', true);
@@ -248,29 +223,28 @@ if ($selected_year && $selected_month) {
                     type: 'POST',
                     data: { year: year, user_id: selected_user_id },
                     success: function(response) {
+                        console.log('Months response:', response);
                         $('#work_month_id').html(response);
                         $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
                     },
                     error: function(xhr, status, error) {
-                        $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
+                        console.error('Error loading months:', error, 'Status:', status, 'Response:', xhr.responseText);
+                        $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها: ' + error + '</option>');
                         $('#view-report-btn').prop('disabled', true);
                     }
                 });
             }
 
-            // تابع برای بارگذاری محصولات و به‌روزرسانی جدول
+            // تابع برای بارگذاری محصولات
             function loadProducts() {
+                console.log('Loading products...');
                 const year = $('#year').val();
                 const user_id = $('#user_id').val() || '<?= $current_user_id ?>';
                 const work_month_id = $('#work_month_id').val();
 
                 if (!work_month_id) {
-                    $('#productsTable').DataTable().clear().draw();
-                    $('#productsTable tbody').html('<tr><td colspan="5" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr>');
+                    $('#products-table').html('<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th></tr></thead><tbody><tr><td colspan="5" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr></tbody></table>');
                     $('#view-report-btn').prop('disabled', true);
-                    $('#total-sales').text('0 تومان');
-                    $('#total-discount').text('0 تومان');
-                    $('#total-sessions').text('0');
                     return;
                 }
 
@@ -285,67 +259,38 @@ if ($selected_year && $selected_month) {
                     },
                     dataType: 'json',
                     success: function(response) {
-                        if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
-                            // تخریب جدول قبلی و بازسازی با داده‌های جدید
-                            $('#productsTable').DataTable().destroy();
-                            $('#productsTable tbody').html($(response.html).find('tbody').html());
-                            $('#productsTable').DataTable({
-                                "pageLength": 10,
-                                "scrollX": true,
-                                "paging": true,
-                                "autoWidth": true,
-                                "ordering": true,
-                                "responsive": false,
-                                "language": {
-                                    "decimal": "",
-                                    "emptyTable": "داده‌ای در جدول وجود ندارد",
-                                    "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
-                                    "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
-                                    "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
-                                    "lengthMenu": "نمایش _MENU_ ردیف",
-                                    "loadingRecords": "در حال بارگذاری...",
-                                    "processing": "در حال پردازش...",
-                                    "search": "جستجو:",
-                                    "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
-                                    "paginate": {
-                                        "first": "اولین",
-                                        "last": "آخرین",
-                                        "next": "بعدی",
-                                        "previous": "قبلی"
-                                    }
-                                },
-                                "columnDefs": [
-                                    { "targets": "_all", "className": "text-start" },
-                                    { "targets": 0, "width": "50px" },
-                                    { "targets": 1, "width": "200px" },
-                                    { "targets": 2, "width": "120px" },
-                                    { "targets": 3, "width": "80px" },
-                                    { "targets": 4, "width": "120px" }
-                                ]
-                            });
-                            // به‌روزرسانی جمع کل‌ها
-                            $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان' : '0 تومان');
-                            $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' تومان' : '0 تومان');
-                            $('#total-sessions').text(response.total_sessions ? response.total_sessions : 0);
-                            $('#view-report-btn').prop('disabled', false);
-                        } else {
-                            $('#productsTable').DataTable().clear().draw();
-                            $('#productsTable tbody').html('<tr><td colspan="5" class="text-center">محصولی یافت نشد.</td></tr>');
-                            $('#total-sales').text('0 تومان');
-                            $('#total-discount').text('0 تومان');
-                            $('#total-sessions').text('0');
+                        console.log('Products response (raw):', response);
+                        try {
+                            if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
+                                console.log('Rendering HTML:', response.html);
+                                $('#products-table').html(response.html);
+                                // به‌روزرسانی جمع کل‌ها
+                                $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان' : '0 تومان');
+                                $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' تومان' : '0 تومان');
+                                $('#total-sessions').text(response.total_sessions ? response.total_sessions : 0);
+                                $('#view-report-btn').prop('disabled', false);
+                            } else {
+                                throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
+                            }
+                        } catch (e) {
+                            console.error('Error rendering products:', e);
+                            $('#products-table').html('<div class="alert alert-danger text-center">خطا در نمایش محصولات: ' + e.message + '</div>');
                             $('#view-report-btn').prop('disabled', true);
                         }
                     },
                     error: function(xhr, status, error) {
-                        $('#productsTable').DataTable().clear().draw();
-                        $('#productsTable tbody').html('<tr><td colspan="5" class="text-center">خطایی در بارگذاری محصولات رخ داد.</td></tr>');
-                        $('#total-sales').text('0 تومان');
-                        $('#total-discount').text('0 تومان');
-                        $('#total-sessions').text('0');
+                        console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
+                        $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + error + '</div>');
                         $('#view-report-btn').prop('disabled', true);
                     }
                 });
+            }
+
+            // تابع برای بارگذاری همه فیلترها
+            function loadFilters() {
+                const year = $('#year').val();
+                loadMonths(year);
+                loadProducts();
             }
 
             // بارگذاری اولیه
@@ -357,8 +302,7 @@ if ($selected_year && $selected_month) {
 
             // رویدادهای تغییر
             $('#year').on('change', function() {
-                loadMonths($(this).val());
-                loadProducts();
+                loadFilters();
             });
 
             $('#user_id').on('change', function() {
@@ -371,7 +315,7 @@ if ($selected_year && $selected_month) {
 
             $('#work_month_id').on('change', function() {
                 loadProducts();
-                $('#view-report-btn').prop('disabled', $(this).val() === '');
+                $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
             });
 
             // رویداد کلیک دکمه مشاهده
