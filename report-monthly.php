@@ -132,8 +132,8 @@ table th, table td {
     </div>
 
     <!-- جدول گزارشات -->
-    <div class="table-responsive" id="reports-table">
-        <table class="table table-light">
+    <div class="table-responsive">
+        <table class="table table-light" id="reports-table">
             <thead>
                 <tr>
                     <th>ماه کاری</th>
@@ -141,7 +141,7 @@ table th, table td {
                     <th>مجموع فروش</th>
                     <th>وضعیت</th>
                     <th>مشاهده</th>
-                    <th>پرینت</th> <!-- ستون ثابت -->
+                    <th>پرینت</th>
                 </tr>
             </thead>
             <tbody id="reports-body">
@@ -241,12 +241,37 @@ table th, table td {
                 success: function(response) {
                     console.log('Reports response (raw):', response);
                     try {
-                        if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
-                            console.log('Rendering HTML:', response.html);
+                        if (response.success && response.reports && Array.isArray(response.reports)) {
+                            // تولید HTML برای ردیف‌ها
+                            let html = '';
+                            if (response.reports.length === 0) {
+                                html = '<tr><td colspan="6" class="text-center">گزارشی یافت نشد.</td></tr>';
+                            } else {
+                                response.reports.forEach(report => {
+                                    html += `
+                                        <tr>
+                                            <td>${report.month_name}</td>
+                                            <td>${report.partner_name}</td>
+                                            <td>${Number(report.total_sales).toLocaleString('fa')} تومان</td>
+                                            <td>${report.status}</td>
+                                            <td>
+                                                <a href="print-report-monthly.php?work_month_id=${report.work_month_id}&partner_id=${report.partner_id}" class="btn btn-info btn-sm">
+                                                    <i class="fas fa-eye"></i> مشاهده
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <a href="generate_pdf.php?work_month_id=${report.work_month_id}&partner_id=${report.partner_id}" class="btn btn-success btn-sm" target="_blank">
+                                                    <i class="fas fa-print"></i> پرینت
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    `;
+                                });
+                            }
                             // فقط بدنه جدول (tbody) رو به‌روزرسانی می‌کنیم
-                            $('#reports-body').html(response.html);
+                            $('#reports-body').html(html);
                         } else {
-                            throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
+                            throw new Error('داده‌های گزارش‌ها نامعتبر است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
                         }
                     } catch (e) {
                         console.error('Error rendering reports:', e);
