@@ -124,179 +124,102 @@ if (!$partner1_id) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<style>
+/* جلوگیری از اسکرول افقی صفحه اصلی */
+body, .container-fluid {
+    overflow-x: hidden !important;
+}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ثبت فاکتور</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
+/* تنظیمات div اطراف جدول */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto !important; /* اسکرول افقی فقط برای جدول */
+    overflow-y: visible; /* جلوگیری از اسکرول عمودی غیرضروری */
+    -webkit-overflow-scrolling: touch; /* اسکرول روان در دستگاه‌های لمسی */
+}
 
-        .responsive-table {
-            width: 100%;
-            table-layout: auto;
-        }
+/* تنظیمات جدول */
+.order-items-table {
+    width: 100%;
+    min-width: 800px; /* حداقل عرض جدول برای فعال شدن اسکرول */
+    border-collapse: collapse;
+}
 
-        .responsive-table th,
-        .responsive-table td {
-            padding: 8px;
-            text-align: center;
-            white-space: nowrap;
-            min-width: 0;
-        }
+/* تنظیمات ستون‌ها */
+.order-items-table th,
+.order-items-table td {
+    text-align: center !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important; /* جلوگیری از شکستن متن */
+    padding: 8px;
+    min-width: 120px; /* حداقل عرض ستون‌ها */
+}
 
-        @media (max-width: 768px) {
-            .responsive-table {
-                min-width: 600px;
-            }
-        }
-    </style>
-</head>
+/* استایل برای ردیف جمع کل و تخفیف */
+.order-items-table .total-row td {
+    font-weight: bold;
+}
 
-<body>
-    <div class="container-fluid mt-5">
-        <h5 class="card-title mb-4">ثبت فاکتور</h5>
+/* تنظیم عرض ورودی تخفیف */
+.order-items-table .total-row input#discount {
+    width: 150px;
+    margin: 0 auto;
+}
+</style>
 
-        <!-- اطلاعات روز کاری (فقط نمایش) -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <p><strong>تاریخ:</strong> <?= gregorian_to_jalali_format($work_info['work_date']) ?></p>
-                <p><strong>همکار:</strong> <?= htmlspecialchars($partner_name) ?></p>
+<div class="container-fluid mt-5">
+    <h5 class="card-title mb-4">ثبت فاکتور</h5>
+
+    <!-- اطلاعات روز کاری (فقط نمایش) -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>تاریخ:</strong> <?= gregorian_to_jalali_format($work_info['work_date']) ?></p>
+            <p><strong>همکار:</strong> <?= htmlspecialchars($partner_name) ?></p>
+        </div>
+    </div>
+
+    <!-- فرم ثبت فاکتور -->
+    <form id="order-form">
+        <div class="mb-3">
+            <label for="customer_name" class="form-label">نام مشتری</label>
+            <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($customer_name) ?>" required autocomplete="off">
+        </div>
+
+        <!-- انتخاب محصول -->
+        <div class="row g-3 mb-3">
+            <div class="col-12">
+                <label for="product_name" class="form-label">نام محصول</label>
+                <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
+                <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+                <input type="hidden" id="product_id" name="product_id">
+            </div>
+            <div class="col-3">
+                <label for="quantity" class="form-label">تعداد</label>
+                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required autocomplete="off" style="width: 100%;">
+            </div>
+            <div class="col-9">
+                <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
+                <input type="number" class="form-control" id="unit_price" name="unit_price" readonly style="width: 100%;">
+            </div>
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label for="total_price" class="form-label">قیمت کل</label>
+                    <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+                </div>
+                <div class="col-6">
+                    <label for="inventory_quantity" class="form-label">موجودی</label>
+                    <p class="form-control-static" id="inventory_quantity">0</p>
+                </div>
+            </div>
+            <div class="col-12">
+                <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
             </div>
         </div>
 
-        <!-- فرم ثبت فاکتور -->
-        <form id="order-form">
-            <div class="mb-3">
-                <label for="customer_name" class="form-label">نام مشتری</label>
-                <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($customer_name) ?>" required autocomplete="off">
-            </div>
-
-            <!-- انتخاب محصول -->
-            <div class="row g-3 mb-3">
-                <div class="col-12">
-                    <label for="product_name" class="form-label">نام محصول</label>
-                    <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
-                    <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
-                    <input type="hidden" id="product_id" name="product_id">
-                </div>
-                <div class="col-3">
-                    <label for="quantity" class="form-label">تعداد</label>
-                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required autocomplete="off" style="width: 100%;">
-                </div>
-                <div class="col-9">
-                    <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
-                    <input type="number" class="form-control" id="unit_price" name="unit_price" readonly style="width: 100%;">
-                </div>
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <label for="total_price" class="form-label">قیمت کل</label>
-                        <input type="text" class="form-control" id="total_price" name="total_price" readonly>
-                    </div>
-                    <div class="col-6">
-                        <label for="inventory_quantity" class="form-label">موجودی</label>
-                        <p class="form-control-static" id="inventory_quantity">0</p>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
-                </div>
-            </div>
-
-            <!-- جدول فاکتور -->
-            <div class="table-wrapper" id="items_table">
-                <?php if (!empty($items)): ?>
-                    <table class="table table-light responsive-table scrollme">
-                        <thead>
-                            <tr>
-                                <th>نام محصول</th>
-                                <th>تعداد</th>
-                                <th>قیمت واحد</th>
-                                <th>قیمت کل</th>
-                                <th>عملیات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($items as $index => $item): ?>
-                                <tr id="item_row_<?= $index ?>">
-                                    <td><?= htmlspecialchars($item['product_name']) ?></td>
-                                    <td><?= $item['quantity'] ?></td>
-                                    <td><?= number_format($item['unit_price'], 0) ?></td>
-                                    <td><?= number_format($item['total_price'], 0) ?></td>
-                                    <td>
-                                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                            <tr class="total-row">
-                                <td><strong>جمع کل</strong></td>
-                                <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
-                            </tr>
-                            <tr class="total-row">
-                                <td><label for="discount" class="form-label">تخفیف</label></td>
-                                <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
-                                <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
-            </div>
-
-            <!-- نمایش پیش‌فرض برای جمع کل و تخفیف -->
-            <div class="mb-3">
-                <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?> تومان</span></p>
-                <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?> تومان</span></p>
-            </div>
-
-            <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">بستن فاکتور</button>
-        </form>
-    </div>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // تابع برای ارسال درخواست Fetch
-        async function sendRequest(url, data) {
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams(data)
-                });
-                return await response.json();
-            } catch (error) {
-                console.error('Error:', error);
-                return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
-            }
-        }
-
-        // رندر جدول آیتم‌ها
-        function renderItemsTable(data) {
-            const itemsTable = document.getElementById('items_table');
-            const totalAmountDisplay = document.getElementById('total_amount_display');
-            const finalAmountDisplay = document.getElementById('final_amount_display');
-
-            if (!data.items || data.items.length === 0) {
-                itemsTable.innerHTML = '';
-                totalAmountDisplay.textContent = '0 تومان';
-                finalAmountDisplay.textContent = '0 تومان';
-                return;
-            }
-
-            itemsTable.innerHTML = `
-                <table class="table table-light responsive-table">
+        <!-- جدول فاکتور -->
+        <div class="table-wrapper" id="items_table">
+            <?php if (!empty($items)): ?>
+                <table class="table table-light order-items-table">
                     <thead>
                         <tr>
                             <th>نام محصول</th>
@@ -307,239 +230,320 @@ if (!$partner1_id) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${data.items.map((item, index) => `
-                            <tr id="item_row_${index}">
-                                <td>${item.product_name}</td>
-                                <td>${item.quantity}</td>
-                                <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                                <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                        <?php foreach ($items as $index => $item): ?>
+                            <tr id="item_row_<?= $index ?>">
+                                <td><?= htmlspecialchars($item['product_name']) ?></td>
+                                <td><?= $item['quantity'] ?></td>
+                                <td><?= number_format($item['unit_price'], 0) ?></td>
+                                <td><?= number_format($item['total_price'], 0) ?></td>
                                 <td>
-                                    <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
+                                    <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
                             </tr>
-                        `).join('')}
+                        <?php endforeach; ?>
                         <tr class="total-row">
                             <td colspan="4"><strong>جمع کل</strong></td>
-                            <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                            <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
                         </tr>
                         <tr class="total-row">
                             <td colspan="3"><label for="discount" class="form-label">تخفیف</label></td>
-                            <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                            <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
+                            <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
                         </tr>
                     </tbody>
                 </table>
-            `;
+            <?php endif; ?>
+        </div>
 
-            totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-            finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
+        <!-- نمایش پیش‌فرض برای جمع کل و تخفیف -->
+        <div class="mb-3">
+            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?> تومان</span></p>
+            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?> تومان</span></p>
+        </div>
+
+        <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">بستن فاکتور</button>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// تابع برای ارسال درخواست Fetch
+async function sendRequest(url, data) {
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(data)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+        return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+    }
+}
+
+// رندر جدول آیتم‌ها
+function renderItemsTable(data) {
+    const itemsTable = document.getElementById('items_table');
+    const totalAmountDisplay = document.getElementById('total_amount_display');
+    const finalAmountDisplay = document.getElementById('final_amount_display');
+
+    if (!data.items || data.items.length === 0) {
+        itemsTable.innerHTML = '';
+        totalAmountDisplay.textContent = '0 تومان';
+        finalAmountDisplay.textContent = '0 تومان';
+        return;
+    }
+
+    itemsTable.innerHTML = `
+        <table class="table table-light order-items-table">
+            <thead>
+                <tr>
+                    <th>نام محصول</th>
+                    <th>تعداد</th>
+                    <th>قیمت واحد</th>
+                    <th>قیمت کل</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.items.map((item, index) => `
+                    <tr id="item_row_${index}">
+                        <td>${item.product_name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
+                        <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                        <td>
+                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td colspan="4"><strong>جمع کل</strong></td>
+                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="3"><label for="discount" class="form-label">تخفیف</label></td>
+                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
+                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+
+    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
+    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    let initialInventory = 0; // متغیر برای ذخیره موجودی اولیه
+
+    // ساجستشن محصولات با jQuery
+    $('#product_name').on('input', function() {
+        let query = $(this).val();
+        const work_details_id = '<?= htmlspecialchars($work_details_id, ENT_QUOTES, 'UTF-8') ?>';
+        console.log('Debug: Searching with work_details_id = ', work_details_id);
+        if (query.length >= 3) {
+            $.ajax({
+                url: 'get_products.php',
+                type: 'POST',
+                data: { query: query, work_details_id: work_details_id },
+                success: function(response) {
+                    $('#product_suggestions').html(response).show();
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error: ', error);
+                }
+            });
+        } else {
+            $('#product_suggestions').hide();
+        }
+    });
+
+    $(document).on('click', '.product-suggestion', function() {
+        let product = $(this).data('product');
+        $('#product_name').val(product.product_name);
+        $('#product_id').val(product.product_id);
+        $('#unit_price').val(product.unit_price);
+        $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
+        $('#product_suggestions').hide();
+
+        // دریافت موجودی محصول برای همکار ۱ (فقط برای نمایش لیبل)
+        console.log('Fetching inventory for product_id:', product.product_id, 'user_id:', '<?= $partner1_id ?>');
+        $.ajax({
+            url: 'get_inventory.php',
+            type: 'POST',
+            data: { 
+                product_id: product.product_id,
+                user_id: '<?= $partner1_id ?>' // همکار ۱
+            },
+            success: function(response) {
+                console.log('Inventory response (display):', response);
+                if (response.success) {
+                    let inventory = response.data.inventory || 0;
+                    initialInventory = inventory;
+                    $('#inventory_quantity').text(inventory);
+                    $('#quantity').val(1); // مقدار پیش‌فرض تعداد
+                    updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
+                } else {
+                    console.error('Failed to fetch inventory:', response.message);
+                    $('#inventory_quantity').text('0');
+                    alert('خطا در دریافت موجودی: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error: ', error);
+                $('#inventory_quantity').text('0');
+                alert('خطا در دریافت موجودی.');
+            }
+        });
+
+        $('#quantity').focus();
+    });
+
+    // به‌روزرسانی قیمت کل و موجودی با تغییر تعداد
+    $('#quantity').on('input', function() {
+        let quantity = $(this).val();
+        let unit_price = $('#unit_price').val();
+        let total = quantity * unit_price;
+        $('#total_price').val(total.toLocaleString('fa') + ' تومان');
+        updateInventoryDisplay();
+    });
+
+    // تابع برای به‌روزرسانی نمایش موجودی
+    function updateInventoryDisplay() {
+        let quantity = $('#quantity').val();
+        let remainingInventory = initialInventory - quantity;
+        $('#inventory_quantity').text(remainingInventory);
+    }
+
+    // افزودن محصول
+    document.getElementById('add_item_btn').addEventListener('click', async () => {
+        const customer_name = document.getElementById('customer_name').value;
+        const product_id = document.getElementById('product_id').value;
+        const quantity = document.getElementById('quantity').value;
+        const unit_price = document.getElementById('unit_price').value;
+        const discount = document.getElementById('discount')?.value || 0;
+        const work_details_id = '<?= htmlspecialchars($work_details_id, ENT_QUOTES, 'UTF-8') ?>';
+
+        console.log('Debug: Adding item - ProductID:', product_id, 'Quantity:', quantity, 'UnitPrice:', unit_price, 'Partner1_ID:', '<?= $partner1_id ?>');
+
+        if (!customer_name || !product_id || !quantity || !unit_price || quantity <= 0) {
+            alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
+            return;
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            let initialInventory = 0; // متغیر برای ذخیره موجودی اولیه
+        const data = {
+            action: 'add_item',
+            customer_name,
+            product_id,
+            quantity,
+            unit_price,
+            discount,
+            work_details_id,
+            partner1_id: '<?= $partner1_id ?>' // برای کسر موجودی همکار ۱
+        };
 
-            // ساجستشن محصولات با jQuery
-            $('#product_name').on('input', function() {
-                let query = $(this).val();
-                const work_details_id = '<?= htmlspecialchars($work_details_id, ENT_QUOTES, 'UTF-8') ?>';
-                console.log('Debug: Searching with work_details_id = ', work_details_id);
-                if (query.length >= 3) {
-                    $.ajax({
-                        url: 'get_products.php',
-                        type: 'POST',
-                        data: { query: query, work_details_id: work_details_id },
-                        success: function(response) {
-                            $('#product_suggestions').html(response).show();
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('AJAX Error: ', error);
-                        }
-                    });
-                } else {
-                    $('#product_suggestions').hide();
-                }
-            });
+        const addResponse = await sendRequest('ajax_handler.php', data);
+        if (addResponse.success) {
+            renderItemsTable(addResponse.data);
+            document.getElementById('product_name').value = '';
+            document.getElementById('quantity').value = '1';
+            document.getElementById('total_price').value = '';
+            document.getElementById('product_id').value = '';
+            document.getElementById('unit_price').value = '';
+            document.getElementById('inventory_quantity').textContent = '0';
+            initialInventory = 0;
+        } else {
+            alert(addResponse.message);
+        }
+    });
 
-            $(document).on('click', '.product-suggestion', function() {
-                let product = $(this).data('product');
-                $('#product_name').val(product.product_name);
-                $('#product_id').val(product.product_id);
-                $('#unit_price').val(product.unit_price);
-                $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
-                $('#product_suggestions').hide();
-
-                // دریافت موجودی محصول برای همکار ۱ (فقط برای نمایش لیبل)
-                console.log('Fetching inventory for product_id:', product.product_id, 'user_id:', '<?= $partner1_id ?>');
-                $.ajax({
-                    url: 'get_inventory.php',
-                    type: 'POST',
-                    data: { 
-                        product_id: product.product_id,
-                        user_id: '<?= $partner1_id ?>' // همکار ۱
-                    },
-                    success: function(response) {
-                        console.log('Inventory response (display):', response);
-                        if (response.success) {
-                            let inventory = response.data.inventory || 0;
-                            initialInventory = inventory;
-                            $('#inventory_quantity').text(inventory);
-                            $('#quantity').val(1); // مقدار پیش‌فرض تعداد
-                            updateInventoryDisplay(); // به‌روزرسانی نمایش موجودی
-                        } else {
-                            console.error('Failed to fetch inventory:', response.message);
-                            $('#inventory_quantity').text('0');
-                            alert('خطا در دریافت موجودی: ' + response.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error: ', error);
-                        $('#inventory_quantity').text('0');
-                        alert('خطا در دریافت موجودی.');
-                    }
-                });
-
-                $('#quantity').focus();
-            });
-
-            // به‌روزرسانی قیمت کل و موجودی با تغییر تعداد
-            $('#quantity').on('input', function() {
-                let quantity = $(this).val();
-                let unit_price = $('#unit_price').val();
-                let total = quantity * unit_price;
-                $('#total_price').val(total.toLocaleString('fa') + ' تومان');
-                updateInventoryDisplay();
-            });
-
-            // تابع برای به‌روزرسانی نمایش موجودی
-            function updateInventoryDisplay() {
-                let quantity = $('#quantity').val();
-                let remainingInventory = initialInventory - quantity;
-                $('#inventory_quantity').text(remainingInventory);
-            }
-
-            // افزودن محصول
-            document.getElementById('add_item_btn').addEventListener('click', async () => {
-                const customer_name = document.getElementById('customer_name').value;
-                const product_id = document.getElementById('product_id').value;
-                const quantity = document.getElementById('quantity').value;
-                const unit_price = document.getElementById('unit_price').value;
-                const discount = document.getElementById('discount')?.value || 0;
-                const work_details_id = '<?= htmlspecialchars($work_details_id, ENT_QUOTES, 'UTF-8') ?>';
-
-                console.log('Debug: Adding item - ProductID:', product_id, 'Quantity:', quantity, 'UnitPrice:', unit_price, 'Partner1_ID:', '<?= $partner1_id ?>');
-
-                if (!customer_name || !product_id || !quantity || !unit_price || quantity <= 0) {
-                    alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
-                    return;
-                }
-
+    // حذف محصول
+    document.getElementById('items_table').addEventListener('click', async (e) => {
+        if (e.target.closest('.delete-item')) {
+            const index = e.target.closest('.delete-item').getAttribute('data-index');
+            if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
                 const data = {
-                    action: 'add_item',
-                    customer_name,
-                    product_id,
-                    quantity,
-                    unit_price,
-                    discount,
-                    work_details_id,
-                    partner1_id: '<?= $partner1_id ?>' // برای کسر موجودی همکار ۱
-                };
-
-                const addResponse = await sendRequest('ajax_handler.php', data);
-                if (addResponse.success) {
-                    renderItemsTable(addResponse.data);
-                    document.getElementById('product_name').value = '';
-                    document.getElementById('quantity').value = '1';
-                    document.getElementById('total_price').value = '';
-                    document.getElementById('product_id').value = '';
-                    document.getElementById('unit_price').value = '';
-                    document.getElementById('inventory_quantity').textContent = '0';
-                    initialInventory = 0;
-                } else {
-                    alert(addResponse.message);
-                }
-            });
-
-            // حذف محصول
-            document.getElementById('items_table').addEventListener('click', async (e) => {
-                if (e.target.closest('.delete-item')) {
-                    const index = e.target.closest('.delete-item').getAttribute('data-index');
-                    if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
-                        const data = {
-                            action: 'delete_item',
-                            index: index,
-                            partner1_id: '<?= $partner1_id ?>' // برای برگرداندن موجودی همکار ۱
-                        };
-
-                        const response = await sendRequest('ajax_handler.php', data);
-                        if (response.success) {
-                            renderItemsTable(response.data);
-                        } else {
-                            alert(response.message);
-                        }
-                    }
-                }
-            });
-
-            // به‌روزرسانی تخفیف
-            document.getElementById('items_table').addEventListener('input', async (e) => {
-                if (e.target.id === 'discount') {
-                    const discount = e.target.value;
-                    const data = {
-                        action: 'update_discount',
-                        discount
-                    };
-
-                    const response = await sendRequest('ajax_handler.php', data);
-                    if (response.success) {
-                        const discountInput = document.getElementById('discount');
-                        const finalAmountDisplay = document.getElementById('final_amount');
-                        const finalAmountGlobalDisplay = document.getElementById('final_amount_display');
-
-                        if (discountInput) {
-                            discountInput.value = response.data.discount;
-                        }
-                        if (finalAmountDisplay) {
-                            finalAmountDisplay.innerText = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
-                        }
-                        if (finalAmountGlobalDisplay) {
-                            finalAmountGlobalDisplay.textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
-                        }
-                    } else {
-                        alert(response.message);
-                    }
-                }
-            });
-
-            // بستن فاکتور
-            document.getElementById('finalize_order_btn').addEventListener('click', async () => {
-                const customer_name = document.getElementById('customer_name').value;
-                const discount = document.getElementById('discount')?.value || 0;
-
-                if (!customer_name) {
-                    alert('لطفاً نام مشتری را وارد کنید.');
-                    return;
-                }
-
-                const data = {
-                    action: 'finalize_order',
-                    work_details_id: '<?= $work_details_id ?>',
-                    customer_name,
-                    discount,
-                    partner1_id: '<?= $partner1_id ?>' // برای کسر موجودی همکار ۱
+                    action: 'delete_item',
+                    index: index,
+                    partner1_id: '<?= $partner1_id ?>' // برای برگرداندن موجودی همکار ۱
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
-                    alert(response.message);
-                    window.location.href = response.data.redirect;
+                    renderItemsTable(response.data);
                 } else {
                     alert(response.message);
                 }
-            });
-        });
-    </script>
+            }
+        }
+    });
 
-    <?php require_once 'footer.php'; ?>
-</html>
+    // به‌روزرسانی تخفیف
+    document.getElementById('items_table').addEventListener('input', async (e) => {
+        if (e.target.id === 'discount') {
+            const discount = e.target.value;
+            const data = {
+                action: 'update_discount',
+                discount
+            };
+
+            const response = await sendRequest('ajax_handler.php', data);
+            if (response.success) {
+                const discountInput = document.getElementById('discount');
+                const finalAmountDisplay = document.getElementById('final_amount');
+                const finalAmountGlobalDisplay = document.getElementById('final_amount_display');
+
+                if (discountInput) {
+                    discountInput.value = response.data.discount;
+                }
+                if (finalAmountDisplay) {
+                    finalAmountDisplay.innerText = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                }
+                if (finalAmountGlobalDisplay) {
+                    finalAmountGlobalDisplay.textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                }
+            } else {
+                alert(response.message);
+            }
+        }
+    });
+
+    // بستن فاکتور
+    document.getElementById('finalize_order_btn').addEventListener('click', async () => {
+        const customer_name = document.getElementById('customer_name').value;
+        const discount = document.getElementById('discount')?.value || 0;
+
+        if (!customer_name) {
+            alert('لطفاً نام مشتری را وارد کنید.');
+            return;
+        }
+
+        const data = {
+            action: 'finalize_order',
+            work_details_id: '<?= $work_details_id ?>',
+            customer_name,
+            discount,
+            partner1_id: '<?= $partner1_id ?>' // برای کسر موجودی همکار ۱
+        };
+
+        const response = await sendRequest('ajax_handler.php', data);
+        if (response.success) {
+            alert(response.message);
+            window.location.href = response.data.redirect;
+        } else {
+            alert(response.message);
+        }
+    });
+});
+</script>
+
+<?php require_once 'footer.php'; ?>
