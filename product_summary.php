@@ -358,9 +358,8 @@ table.dataTable tbody td {
 <script>
     $(document).ready(function () {
         $('#productsTable').DataTable({
-            "pageLength": 10,           // 10 ردیف در هر صفحه
             "scrollX": true,            // فعال کردن اسکرول افقی
-            "paging": true,             // فعال کردن صفحه‌بندی
+            "paging": false,             // فعال کردن صفحه‌بندی
             "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
             "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
             "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
