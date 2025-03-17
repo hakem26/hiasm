@@ -115,6 +115,9 @@ $total_pages = ceil($total_tables / $tables_per_page);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <title>چاپ گزارش ماهانه</title>
     <style>
         @page {
@@ -135,6 +138,8 @@ $total_pages = ceil($total_tables / $tables_per_page);
             width: 210mm;
             height: 297mm;
             padding: 3mm;
+            font-weight: bold;
+            margin: 0 auto;
             box-sizing: border-box;
             page-break-after: always;
         }
