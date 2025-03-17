@@ -256,15 +256,22 @@ foreach ($products as $product) {
     $total_quantity += $product['total_quantity'];
     $total_amount += $product['total_quantity'] * $product['unit_price'];
 }
-
-// محاسبه جمع کل
-$total_quantity = 0;
-$total_amount = 0;
-foreach ($products as $product) {
-    $total_quantity += $product['total_quantity'];
-    $total_amount += $product['total_quantity'] * $product['unit_price'];
-}
 ?>
+
+<!-- فقط استایل اصلی DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+
+<style>
+/* وسط‌چین کردن هدر و بدنه جدول */
+table.dataTable thead th,
+table.dataTable tbody td {
+    text-align: center !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important; /* جلوگیری از شکستن متن */
+    overflow: hidden;
+    text-overflow: ellipsis; /* نمایش ... برای متن طولانی */
+}
+</style>
 
 <div class="container-fluid">
     <h5 class="card-title mb-4">تجمیع محصولات</h5>
@@ -317,8 +324,8 @@ foreach ($products as $product) {
     </form>
 
     <?php if (!empty($products)): ?>
-        <div class="table-wrapper">
-            <table id="productsTable" class="table table-light table-hover">
+        <div class="table-responsive" style="overflow-x: auto;">
+            <table id="productsTable" class="table table-light table-hover display nowrap" style="width:100%;">
                 <thead>
                     <tr>
                         <th>ردیف</th>
@@ -347,14 +354,16 @@ foreach ($products as $product) {
     <?php endif; ?>
 </div>
 
+<!-- جاوااسکریپت DataTables -->
 <script>
     $(document).ready(function () {
-        $('#productsTable').DataTable({         // 10 ردیف در هر صفحه
+        $('#productsTable').DataTable({
+            "pageLength": 10,           // 10 ردیف در هر صفحه
             "scrollX": true,            // فعال کردن اسکرول افقی
-            "paging": false,             // فعال کردن صفحه‌بندی
-            "autoWidth": true,         // غیرفعال کردن تنظیم خودکار عرض
+            "paging": true,             // فعال کردن صفحه‌بندی
+            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
             "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
-            "responsive": true,        // غیرفعال کردن حالت ریسپانسیو
+            "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
@@ -374,10 +383,11 @@ foreach ($products as $product) {
                 }
             },
             "columnDefs": [
-                { "targets": "_all", "className": "text-center" } // وسط‌چین کردن همه ستون‌ها
-                { "targets": 0, "width": "50px" },  // شناسه
-                { "targets": 1, "width": "200px" }, // نام محصول
-                { "targets": 2, "width": "120px" }  // قیمت واحد
+                { "targets": 0, "width": "60px", "className": "text-center" },  // ردیف
+                { "targets": 1, "width": "200px", "className": "text-center" }, // نام محصول
+                { "targets": 2, "width": "120px", "className": "text-center" }, // قیمت واحد
+                { "targets": 3, "width": "100px", "className": "text-center" }, // تعداد
+                { "targets": 4, "width": "120px", "className": "text-center" }, // قیمت کل
             ]
         });
     });
