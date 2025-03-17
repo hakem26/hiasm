@@ -334,9 +334,9 @@ foreach ($products as $product) {
                         <tr>
                             <td><?= $row++ ?></td>
                             <td><?= htmlspecialchars($product['product_name']) ?></td>
-                            <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
+                            <td><?= number_format($product['unit_price'], 0) ?></td>
                             <td><?= number_format($product['total_quantity'], 0) ?></td>
-                            <td><?= number_format($product['total_quantity'] * $product['unit_price'], 0) ?> تومان</td>
+                            <td><?= number_format($product['total_quantity'] * $product['unit_price'], 0) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -351,7 +351,7 @@ foreach ($products as $product) {
     $(document).ready(function () {
         $('#productsTable').DataTable({         // 10 ردیف در هر صفحه
             "scrollX": true,            // فعال کردن اسکرول افقی
-            "paging": true,             // فعال کردن صفحه‌بندی
+            "paging": false,             // فعال کردن صفحه‌بندی
             "autoWidth": true,         // غیرفعال کردن تنظیم خودکار عرض
             "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
             "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
@@ -375,6 +375,9 @@ foreach ($products as $product) {
             },
             "columnDefs": [
                 { "targets": "_all", "className": "text-center" } // وسط‌چین کردن همه ستون‌ها
+                { "targets": 0, "width": "50px" },  // شناسه
+                { "targets": 1, "width": "200px" }, // نام محصول
+                { "targets": 2, "width": "120px" }  // قیمت واحد
             ]
         });
     });
