@@ -315,7 +315,7 @@ table.dataTable tbody td {
             "pageLength": 10,           // 10 ردیف در هر صفحه
             "scrollX": true,            // فعال کردن اسکرول افقی
             "paging": true,             // فعال کردن صفحه‌بندی
-            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
+            "autoWidth": true,         // غیرفعال کردن تنظیم خودکار عرض
             "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
             "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
             "language": {
@@ -338,9 +338,6 @@ table.dataTable tbody td {
             },
             "columnDefs": [
                 { "targets": "_all", "className": "text-center" }, // وسط‌چین کردن همه ستون‌ها
-                { "targets": 0, "width": "50px" },  // شناسه
-                { "targets": 1, "width": "200px" }, // نام محصول
-                { "targets": 2, "width": "120px" }  // قیمت واحد
                 <?php if ($is_admin): ?>,
                     { "targets": 3, "width": "150px" }  // عملیات
                 <?php endif; ?>
