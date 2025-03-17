@@ -148,14 +148,15 @@ if ($is_admin && $is_partner1) {
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
 
 <style>
-/* وسط‌چین کردن هدر و بدنه جدول */
+/* وسط‌چین کردن هدر جدول */
 table.dataTable thead th,
+table.dataTable thead td {
+    text-align: center !important;
+}
+
+/* وسط‌چین کردن محتوای ستون‌ها */
 table.dataTable tbody td {
     text-align: center !important;
-    vertical-align: middle !important;
-    white-space: nowrap !important; /* جلوگیری از شکستن متن */
-    overflow: hidden;
-    text-overflow: ellipsis; /* نمایش ... برای متن طولانی */
 }
 </style>
 
@@ -336,17 +337,18 @@ table.dataTable tbody td {
                 }
             },
             "columnDefs": [
-                { "targets": 0, "width": "60px", "className": "text-center" },  // شناسه
-                { "targets": 1, "width": "200px", "className": "text-center" }, // نام محصول
-                { "targets": 2, "width": "120px", "className": "text-center" }, // قیمت واحد
+                { "targets": "_all", "className": "text-center" }, // وسط‌چین کردن همه ستون‌ها
+                { "targets": 0, "width": "50px" },  // شناسه
+                { "targets": 1, "width": "200px" }, // نام محصول
+                { "targets": 2, "width": "120px" }  // قیمت واحد
                 <?php if ($is_admin): ?>,
-                    { "targets": 3, "width": "150px", "className": "text-center" },  // عملیات
+                    { "targets": 3, "width": "150px" }  // عملیات
                 <?php endif; ?>
                 <?php if ($is_seller && $is_partner1): ?>,
-                    { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px", "className": "text-center" },  // موجودی
+                    { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }  // موجودی
                 <?php endif; ?>
                 <?php if ($is_seller): ?>,
-                    { "targets": <?php echo $changes_column_index; ?>, "width": "80px", "className": "text-center" },  // تغییرات
+                    { "targets": <?php echo $changes_column_index; ?>, "width": "80px" }  // تغییرات
                 <?php endif; ?>
             ]
         });
