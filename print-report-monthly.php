@@ -12,167 +12,118 @@ require_once 'jdf.php';
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
-}
-
-// متغیر برای مشخص کردن اینکه خروجی برای PDF هست یا نه
-$is_pdf = isset($is_pdf) ? $is_pdf : false;
-
-// دریافت پارامترها
-$work_month_id = $_GET['work_month_id'] ?? null;
-$partner_id = $_GET['partner_id'] ?? null;
-$current_user_id = $_SESSION['user_id'];
-
-if (!$work_month_id || !$partner_id) {
-    die('پارامترهای مورد نیاز یافت نشد.');
+    return sprintf("%02d/%02d/%04d", $jd, $jm, $jy);
 }
 
 // بررسی دسترسی کاربر
-$stmt_access = $pdo->prepare("
-    SELECT COUNT(*) 
-    FROM Partners p 
-    WHERE p.partner_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
-");
-$stmt_access->execute([$partner_id, $current_user_id, $current_user_id]);
-if ($stmt_access->fetchColumn() == 0) {
-    die('شما به این گزارش دسترسی ندارید.');
+$current_user_id = $_SESSION['user_id'];
+$work_month_id = $_GET['work_month_id'] ?? '';
+$partner_id = $_GET['partner_id'] ?? '';
+
+if (!$work_month_id || !$partner_id) {
+    die('پارامترهای لازم مشخص نشده‌اند.');
 }
 
 // دریافت اطلاعات ماه کاری
-$stmt_month = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
-$stmt_month->execute([$work_month_id]);
-$month = $stmt_month->fetch(PDO::FETCH_ASSOC);
-
-if (!$month) {
-    die('ماه کاری یافت نشد.');
-}
-
-$start_date = gregorian_to_jalali_format($month['start_date']);
-$end_date = gregorian_to_jalali_format($month['end_date']);
-
-// دریافت نام همکاران
-$stmt_partner = $pdo->prepare("
-    SELECT u1.full_name AS user1_name, u2.full_name AS user2_name
-    FROM Partners p
+$stmt = $pdo->prepare("
+    SELECT wm.start_date, wm.end_date, p.user_id1, p.user_id2, u1.full_name AS user1_name, u2.full_name AS user2_name,
+           SUM(o.total_amount) AS total_sales
+    FROM Work_Months wm
+    JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
+    JOIN Partners p ON wd.partner_id = p.partner_id
     LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-    WHERE p.partner_id = ?
+    LEFT JOIN Orders o ON o.work_details_id = wd.id
+    WHERE wm.work_month_id = ? AND p.partner_id = ?
+    GROUP BY wm.work_month_id, p.partner_id
 ");
-$stmt_partner->execute([$partner_id]);
-$partner = $stmt_partner->fetch(PDO::FETCH_ASSOC);
+$stmt->execute([$work_month_id, $partner_id]);
+$month_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$user1_name = $partner['user1_name'] ?? 'نامشخص';
-$user2_name = $partner['user2_name'] ?? 'نامشخص';
+if (!$month_data) {
+    die('ماه کاری یا همکاران یافت نشد.');
+}
+
+$start_date = gregorian_to_jalali_format($month_data['start_date']);
+$end_date = gregorian_to_jalali_format($month_data['end_date']);
+$user1_name = $month_data['user1_name'] ?: 'نامشخص';
+$user2_name = $month_data['user2_name'] ?: 'نامشخص';
+$total_sales = $month_data['total_sales'] ?? 0;
 
 // دریافت روزهای کاری و سفارشات
-$stmt_days = $pdo->prepare("
-    SELECT wd.id, wd.work_date,
-           GROUP_CONCAT(
-               CONCAT(
-                   o.order_id, '|||', 
-                   COALESCE(o.customer_name, ''), '|||', 
-                   COALESCE(o.total_amount, 0), '|||', 
-                   COALESCE(o.discount, 0), '|||', 
-                   COALESCE(o.final_amount, 0), '|||', 
-                   COALESCE(
-                       (SELECT GROUP_CONCAT(
-                           CONCAT(oi.quantity, ' x ', oi.product_name, ' @ ', oi.unit_price) 
-                           SEPARATOR ', '
-                       ) 
-                       FROM Order_Items oi 
-                       WHERE oi.order_id = o.order_id),
-                       ''
-                   )
-               ) 
-               SEPARATOR '---'
-           ) AS order_items,
-           (SELECT GROUP_CONCAT(
-               CONCAT(op.amount, ' (', op.payment_type, ' - ', op.payment_date, ')') 
-               SEPARATOR ', '
-           )
-           FROM Order_Payments op 
-           WHERE op.order_id = o.order_id) AS payments
+$stmt = $pdo->prepare("
+    SELECT wd.id, wd.work_date, o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount
     FROM Work_Details wd
     LEFT JOIN Orders o ON o.work_details_id = wd.id
     WHERE wd.work_month_id = ? AND wd.partner_id = ?
-    GROUP BY wd.id
-    ORDER BY wd.work_date
+    ORDER BY wd.work_date ASC
 ");
-
-try {
-    $stmt_days->execute([$work_month_id, $partner_id]);
-} catch (PDOException $e) {
-    die('خطا در اجرای کوئری: ' . $e->getMessage() . '<br>کوئری: ' . $stmt_days->queryString);
-}
-
+$stmt->execute([$work_month_id, $partner_id]);
 $work_days = [];
-while ($row = $stmt_days->fetch(PDO::FETCH_ASSOC)) {
-    $orders = [];
-    if ($row['order_items']) {
-        $order_items = explode('---', $row['order_items']);
-        $payments = $row['payments'] ? explode(', ', $row['payments']) : [];
-        
-        foreach ($order_items as $index => $item) {
-            if (empty($item)) continue;
-            list($order_id, $customer_name, $total_amount, $discount, $final_amount, $items) = explode('|||', $item);
-            $payment = isset($payments[$index]) ? $payments[$index] : '';
-            $payment_type = $payment_date = '-';
-            if ($payment) {
-                preg_match('/(.+?) \((.+?) - (.+?)\)/', $payment, $matches);
-                if ($matches) {
-                    $payment_type = $matches[2];
-                    $payment_date = gregorian_to_jalali_format($matches[3]);
-                }
-            }
-            $remaining = $final_amount - array_sum(array_map(function($p) {
-                preg_match('/(\d+)/', $p, $matches);
-                return $matches[1] ?? 0;
-            }, array_filter($payments)));
+$current_day = null;
 
-            $orders[] = [
-                'customer_name' => $customer_name,
-                'items' => $items,
-                'total_amount' => $total_amount,
-                'discount' => $discount,
-                'final_amount' => $final_amount,
-                'payment_type' => $payment_type,
-                'payment_date' => $payment_date,
-                'remaining' => $remaining
-            ];
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $work_date = $row['work_date'];
+    if ($current_day !== $work_date) {
+        if ($current_day !== null) {
+            $work_days[] = $day_data;
         }
+        $current_day = $work_date;
+        $day_data = [
+            'work_date' => gregorian_to_jalali_format($work_date),
+            'orders' => []
+        ];
     }
+    if ($row['order_id']) {
+        // دریافت اقلام سفارش
+        $items_stmt = $pdo->prepare("SELECT product_name, quantity, total_price FROM Order_Items WHERE order_id = ?");
+        $items_stmt->execute([$row['order_id']]);
+        $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $work_days[] = [
-        'work_date' => gregorian_to_jalali_format($row['work_date']),
-        'orders' => $orders
-    ];
+        $items_str = [];
+        foreach ($items as $item) {
+            $quantity = $item['quantity'] == 1 ? '' : $item['quantity'] . 'عدد ';
+            $items_str[] = "{$item['product_name']} {$quantity}({$item['total_price']})";
+        }
+        $items_display = implode(' - ', $items_str);
+
+        $day_data['orders'][] = [
+            'customer_name' => $row['customer_name'],
+            'items' => $items_display,
+            'total_amount' => $row['total_amount'],
+            'discount' => $row['discount'],
+            'final_amount' => $row['final_amount'],
+            'payment_type' => 'نقدی', // فعلاً ثابت (برای گزارش‌های بعدی تغییر می‌کنه)
+            'payment_date' => '', // فعلاً خالی
+            'remaining' => 0 // فعلاً صفر
+        ];
+    }
+}
+if ($current_day !== null) {
+    $work_days[] = $day_data;
 }
 
-// محاسبه مجموع فروش
-$total_sales = 0;
-foreach ($work_days as $day) {
-    foreach ($day['orders'] as $order) {
-        $total_sales += $order['total_amount'];
-    }
-}
-
-// تنظیمات صفحه‌بندی برای چاپ
-$tables_per_page = 3; // تعداد جدول‌ها در هر صفحه
+// تنظیمات صفحه‌بندی (2 جدول در هر صفحه)
+$tables_per_page = 2;
 $total_tables = count($work_days);
 $total_pages = ceil($total_tables / $tables_per_page);
 ?>
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <title>چاپ گزارش ماهانه</title>
     <style>
         @page {
-            size: A4 landscape;
+            size: A4;
             margin: 3mm;
+            orientation: landscape;
         }
 
         body {
@@ -187,10 +138,9 @@ $total_pages = ceil($total_tables / $tables_per_page);
             width: 297mm;
             height: 210mm;
             padding: 3mm;
-            font-weight: bold;
-            margin: 0 auto;
             box-sizing: border-box;
             page-break-after: always;
+            border: 1px solid #000;
         }
 
         .header {
@@ -228,14 +178,8 @@ $total_pages = ceil($total_tables / $tables_per_page);
         .col-payment-date { width: auto; white-space: nowrap; }
         .col-remaining { width: auto; white-space: nowrap; }
     </style>
-    <?php if (!$is_pdf): ?>
-    <script>
-        window.onload = function() {
-            window.print();
-        };
-    </script>
-    <?php endif; ?>
 </head>
+
 <body>
     <?php for ($page = 1; $page <= $total_pages; $page++): ?>
         <div class="page">
@@ -301,4 +245,5 @@ $total_pages = ceil($total_tables / $tables_per_page);
         </div>
     <?php endfor; ?>
 </body>
+
 </html>
