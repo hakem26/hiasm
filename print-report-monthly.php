@@ -120,10 +120,11 @@ $total_pages = ceil($total_tables / $tables_per_page);
         @page {
             size: A4;
             margin: 3mm;
+            orientation: landscape;
         }
 
         body {
-            font-family: 'Tahoma', sans-serif;
+            font-family: "Vazirmatn", sans-serif;
             font-size: 10pt;
             margin: 0;
             padding: 0;
