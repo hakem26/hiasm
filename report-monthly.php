@@ -141,10 +141,10 @@ table th, table td {
                     <th>مجموع فروش</th>
                     <th>وضعیت</th>
                     <th>مشاهده</th>
-                    <th>پرینت</th> <!-- ستون جدید -->
+                    <th>پرینت</th> <!-- ستون ثابت -->
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="reports-body">
                 <?php if (empty($reports)): ?>
                     <tr>
                         <td colspan="6" class="text-center">گزارشی یافت نشد.</td>
@@ -243,18 +243,19 @@ table th, table td {
                     try {
                         if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                             console.log('Rendering HTML:', response.html);
-                            $('#reports-table').html(response.html);
+                            // فقط بدنه جدول (tbody) رو به‌روزرسانی می‌کنیم
+                            $('#reports-body').html(response.html);
                         } else {
                             throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
                         }
                     } catch (e) {
                         console.error('Error rendering reports:', e);
-                        $('#reports-table').html('<div class="alert alert-danger text-center">خطا در نمایش گزارش‌ها: ' + e.message + '</div>');
+                        $('#reports-body').html('<tr><td colspan="6" class="text-center">خطا در نمایش گزارش‌ها: ' + e.message + '</td></tr>');
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
-                    $('#reports-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری گزارش‌ها رخ داد: ' + error + '</div>');
+                    $('#reports-body').html('<tr><td colspan="6" class="text-center">خطایی در بارگذاری گزارش‌ها رخ داد: ' + error + '</td></tr>');
                 }
             });
         }
