@@ -76,7 +76,7 @@ $stmt_days = $pdo->prepare("
                    COALESCE(o.final_amount, 0), '|||', 
                    COALESCE(
                        (SELECT GROUP_CONCAT(
-                           CONCAT(oi.quantity, ' x ', oi.item_name, ' @ ', oi.unit_price) 
+                           CONCAT(oi.quantity, ' x ', oi.product_name, ' @ ', oi.unit_price) 
                            SEPARATOR ', '
                        ) 
                        FROM Order_Items oi 
