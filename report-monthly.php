@@ -104,9 +104,8 @@ body, .container-fluid {
 
 /* تنظیمات جدول */
 .monthly-reports-table {
-    width: 100%;
-    min-width: 800px; /* حداقل عرض جدول برای فعال شدن اسکرول */
-    table-layout: auto; /* تنظیم عرض ستون‌ها بر اساس محتوا */
+    width: 800px; /* عرض ثابت جدول */
+    table-layout: fixed; /* ثابت کردن عرض ستون‌ها */
     border-collapse: collapse;
 }
 
@@ -115,11 +114,11 @@ body, .container-fluid {
 .monthly-reports-table td {
     text-align: center !important;
     vertical-align: middle !important;
-    white-space: nowrap !important; /* جلوگیری از دو خط شدن */
+    white-space: nowrap !important; /* جلوگیری از چند خطی شدن */
     overflow: hidden;
     text-overflow: ellipsis; /* نمایش ... برای متن طولانی */
     padding: 8px;
-    min-width: 120px; /* حداقل عرض ستون‌ها */
+    width: 160px; /* عرض ثابت برای هر ستون (800px / 5 ستون) */
 }
 </style>
 
