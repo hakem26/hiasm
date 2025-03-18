@@ -12,6 +12,9 @@ require_once 'jdf.php';
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date)
 {
+    if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $gregorian_date)) {
+        return "تاریخ نامعتبر";
+    }
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
@@ -20,6 +23,9 @@ function gregorian_to_jalali_format($gregorian_date)
 // تابع تبدیل ماه میلادی به نام ماه فارسی
 function jalali_month_name($jalali_date)
 {
+    if (!$jalali_date || !preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $jalali_date)) {
+        return "نامشخص";
+    }
     list($jy, $jm, $jd) = explode('/', $jalali_date);
     $month_names = [
         1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
@@ -40,9 +46,9 @@ $day_names = [
     'شنبه' => 'شنبه', 
     'یکشنبه' => 'یک‌شنبه', 
     'دوشنبه' => 'دوشنبه',
-    'سه شنبه' => 'سه‌شنبه',
+    'سه‌شنبه' => 'سه‌شنبه',
     'چهارشنبه' => 'چهارشنبه', 
-    'پنجشنبه' => 'پنج‌شنبه', 
+    'پنج‌شنبه' => 'پنج‌شنبه', 
     'جمعه' => 'جمعه'
 ];
 $persian_day = $day_names[$day_of_week] ?? 'نامشخص';
@@ -62,11 +68,20 @@ $stmt_current_month = $pdo->query("
     LIMIT 1
 ");
 $current_month = $stmt_current_month->fetch(PDO::FETCH_ASSOC);
-$current_work_month_id = $current_month['work_month_id'] ?? 10;
-$current_start_month = $current_month['start_date'] ?? $today;
-$current_end_month = $current_month['end_date'] ?? $today;
 
-// دریافت 3 ماه کاری قبلی (حذف تکرارها)
+// اگه ماه کاری فعلی پیدا نشد، مقدار پیش‌فرض خالی تنظیم کن
+if ($current_month === false) {
+    $current_month = null;
+    $current_work_month_id = null;
+    $current_start_month = $today;
+    $current_end_month = $today;
+} else {
+    $current_work_month_id = $current_month['work_month_id'];
+    $current_start_month = $current_month['start_date'];
+    $current_end_month = $current_month['end_date'];
+}
+
+// دریافت 3 ماه کاری قبلی
 $stmt_previous_months = $pdo->query("
     SELECT DISTINCT work_month_id, start_date, end_date
     FROM Work_Months
@@ -75,11 +90,18 @@ $stmt_previous_months = $pdo->query("
     LIMIT 3
 ");
 $previous_months = $stmt_previous_months->fetchAll(PDO::FETCH_ASSOC);
-$work_months = array_merge([$current_month], $previous_months);
 
-// فروش ماهانه (با منطق مشابه قبلی)
+// ترکیب ماه‌ها (فقط اگه ماه جاری وجود داشته باشه)
+$work_months = $current_month ? array_merge([$current_month], $previous_months) : $previous_months;
+
+// فروش ماهانه
 $month_sales_data = [];
 foreach ($work_months as $month) {
+    // چک کردن وجود start_date و معتبر بودن آن
+    if (!isset($month['start_date']) || empty($month['start_date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $month['start_date'])) {
+        continue; // اگه تاریخ معتبر نیست، از این ماه رد شو
+    }
+
     $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
     $conditions = [];
     $params = [];
@@ -157,78 +179,84 @@ for ($i = 0; $i < 7; $i++) {
 // فروش هفتگی (همه روزهایی که با امروز هم‌نام هستند در ماه کاری فعلی)
 $week_days = [];
 $week_sales_data = [];
-$start_date = new DateTime($current_start_month);
-$end_date = new DateTime($current_end_month);
-$interval = new DateInterval('P1D');
-$date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
+if ($current_start_month && $current_end_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_end_month)) {
+    $start_date = new DateTime($current_start_month);
+    $end_date = new DateTime($current_end_month);
+    $interval = new DateInterval('P1D');
+    $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
-foreach ($date_range as $date) {
-    $work_date = $date->format('Y-m-d');
-    $day_name = jdate('l', strtotime($work_date));
-    if ($day_name === $day_of_week) {
-        $jalali_date = gregorian_to_jalali_format($work_date);
-        $week_days[] = $jalali_date;
-        $stmt_week_sales = $pdo->prepare("
-            SELECT SUM(o.total_amount) AS week_sales
-            FROM Orders o
-            JOIN Work_Details wd ON o.work_details_id = wd.id
-            JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE wd.work_date = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
-        ");
-        $stmt_week_sales->execute([$work_date, $current_user_id, $current_user_id]);
-        $week_sales_data[] = $stmt_week_sales->fetchColumn() ?? 0;
+    foreach ($date_range as $date) {
+        $work_date = $date->format('Y-m-d');
+        $day_name = jdate('l', strtotime($work_date));
+        if ($day_name === $day_of_week) {
+            $jalali_date = gregorian_to_jalali_format($work_date);
+            $week_days[] = $jalali_date;
+            $stmt_week_sales = $pdo->prepare("
+                SELECT SUM(o.total_amount) AS week_sales
+                FROM Orders o
+                JOIN Work_Details wd ON o.work_details_id = wd.id
+                JOIN Partners p ON wd.partner_id = p.partner_id
+                WHERE wd.work_date = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+            ");
+            $stmt_week_sales->execute([$work_date, $current_user_id, $current_user_id]);
+            $week_sales_data[] = $stmt_week_sales->fetchColumn() ?? 0;
+        }
     }
 }
 
 // فروش ماهانه با همکاران (فقط ماه جاری، همه همکاران)
 $partner_sales = [];
-$stmt_partner_sales = $pdo->prepare("
-    SELECT p.partner_id, 
-           CASE 
-               WHEN p.user_id1 = ? THEN COALESCE(u2.full_name, 'کاربر ناشناس')
-               WHEN p.user_id2 = ? THEN COALESCE(u1.full_name, 'کاربر ناشناس')
-           END AS partner_name,
-           SUM(o.total_amount) AS total_sales,
-           CASE 
-               WHEN p.user_id1 = ? THEN 'member'
-               WHEN p.user_id2 = ? THEN 'leader'
-           END AS role,
-           p.user_id1,
-           p.user_id2
-    FROM Partners p
-    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-    JOIN Work_Details wd ON p.partner_id = wd.partner_id
-    JOIN Orders o ON wd.id = o.work_details_id
-    WHERE wd.work_month_id = ? AND wd.work_date <= ?
-    AND (p.user_id1 = ? OR p.user_id2 = ?)
-    GROUP BY p.partner_id, partner_name, role
-    HAVING total_sales IS NOT NULL
-");
-$stmt_partner_sales->execute([
-    $current_user_id, $current_user_id, // برای partner_name
-    $current_user_id, $current_user_id, // برای role
-    $current_work_month_id, $today,      // برای شرط ماه و تاریخ
-    $current_user_id, $current_user_id  // برای شرط انتخاب همکاران
-]);
-$partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
+if ($current_work_month_id) {
+    $stmt_partner_sales = $pdo->prepare("
+        SELECT p.partner_id, 
+               CASE 
+                   WHEN p.user_id1 = ? THEN COALESCE(u2.full_name, 'کاربر ناشناس')
+                   WHEN p.user_id2 = ? THEN COALESCE(u1.full_name, 'کاربر ناشناس')
+               END AS partner_name,
+               SUM(o.total_amount) AS total_sales,
+               CASE 
+                   WHEN p.user_id1 = ? THEN 'member'
+                   WHEN p.user_id2 = ? THEN 'leader'
+               END AS role,
+               p.user_id1,
+               p.user_id2
+        FROM Partners p
+        LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+        LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+        JOIN Work_Details wd ON p.partner_id = wd.partner_id
+        JOIN Orders o ON wd.id = o.work_details_id
+        WHERE wd.work_month_id = ? AND wd.work_date <= ?
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
+        GROUP BY p.partner_id, partner_name, role
+        HAVING total_sales IS NOT NULL
+    ");
+    $stmt_partner_sales->execute([
+        $current_user_id, $current_user_id, // برای partner_name
+        $current_user_id, $current_user_id, // برای role
+        $current_work_month_id, $today,      // برای شرط ماه و تاریخ
+        $current_user_id, $current_user_id  // برای شرط انتخاب همکاران
+    ]);
+    $partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
 
-// لاگ داده‌ها برای دیباگ
-// var_dump($partners_data);
+    // مرتب‌سازی بر اساس فروش نزولی
+    usort($partners_data, function($a, $b) {
+        return $b['total_sales'] <=> $a['total_sales'];
+    });
 
-// مرتب‌سازی بر اساس فروش نزولی
-usort($partners_data, function($a, $b) {
-    return $b['total_sales'] <=> $a['total_sales'];
-});
-
-// آماده‌سازی داده‌ها برای نمودار همکاران (مبلغ واقعی)
-$partner_labels = [];
-$partner_data = [];
-$partner_colors = [];
-foreach ($partners_data as $partner) {
-    $partner_labels[] = $partner['partner_name'] ?? 'همکار ناشناس';
-    $partner_data[] = $partner['total_sales'];
-    $partner_colors[] = ($partner['role'] === 'leader') ? 'rgba(54, 162, 235, 1)' : 'rgba(153, 102, 255, 1)';
+    // آماده‌سازی داده‌ها برای نمودار همکاران
+    $partner_labels = [];
+    $partner_data = [];
+    $partner_colors = [];
+    foreach ($partners_data as $partner) {
+        $partner_labels[] = $partner['partner_name'] ?? 'همکار ناشناس';
+        $partner_data[] = $partner['total_sales'];
+        $partner_colors[] = ($partner['role'] === 'leader') ? 'rgba(54, 162, 235, 1)' : 'rgba(153, 102, 255, 1)';
+    }
+} else {
+    $partners_data = [];
+    $partner_labels = [];
+    $partner_data = [];
+    $partner_colors = [];
 }
 
 // رشد امروز (مقایسه با هفته قبل)
@@ -308,7 +336,15 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 <!-- فروش با همکاران -->
 <div class="card mt-4">
     <div class="card-body">
-        <h5 class="card-title">فروش با همکاران در ماه <?= jalali_month_name(gregorian_to_jalali_format($current_start_month)) ?></h5>
+        <h5 class="card-title">فروش با همکاران در ماه 
+            <?php 
+            if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+                echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
+            } else {
+                echo "نامشخص";
+            }
+            ?>
+        </h5>
         <div class="btn-group mb-3" role="group">
             <button style="display: none;" type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()"></button>
         </div>
