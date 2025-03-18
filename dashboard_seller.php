@@ -156,27 +156,38 @@ foreach ($date_range as $date) {
     }
 }
 
-// فروش ماهانه (4 ماه کاری، با منطق مشابه work_details.php)
+// فروش ماهانه (با منطق مشابه work_details.php)
 $month_sales_data = [];
 foreach ($work_months as $month) {
     $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
-    $base_query = "SELECT SUM(o.total_amount) AS month_sales 
-                   FROM Orders o 
-                   JOIN Work_Details wd ON o.work_details_id = wd.id 
-                   JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id 
-                   WHERE wd.work_month_id = ? 
-                   AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
-    $params = [$month['work_month_id'], $current_user_id, $current_user_id];
+    $conditions = [];
+    $params = [];
+    $base_query = "SELECT SUM(o.total_amount) AS month_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE 1=1";
+
+    $conditions[] = "wd.work_month_id = ?";
+    $params[] = $month['work_month_id'];
+
+    $conditions[] = "EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+
     if ($month['work_month_id'] == $current_work_month_id) {
-        $base_query .= " AND wd.work_date <= ?";
+        $conditions[] = "wd.work_date <= ?";
         $params[] = $today;
     }
-    $stmt_month_sales = $pdo->prepare($base_query);
+
+    $final_query = $base_query . " AND " . implode(" AND ", $conditions);
+    $stmt_month_sales = $pdo->prepare($final_query);
     $stmt_month_sales->execute($params);
     $sales = $stmt_month_sales->fetchColumn() ?? 0;
     $month_sales_data[$month_name] = $sales;
-    error_log("Month: $month_name, Sales: $sales, Work_Month_ID: {$month['work_month_id']}, Today: $today"); // دیباگ
+    error_log("Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params)); // دیباگ قوی‌تر
 }
+
+// نمایش موقت برای دیباگ
+echo "<pre>";
+echo "Month Sales Data: " . print_r($month_sales_data, true) . "\n";
+echo "</pre>";
 
 // رشد امروز (مقایسه با هفته قبل)
 $last_week_day = date('Y-m-d', strtotime('-7 days'));
