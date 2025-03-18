@@ -311,8 +311,6 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         <h5 class="card-title">فروش با همکاران در ماه <?= jalali_month_name(gregorian_to_jalali_format($current_start_month)) ?></h5>
         <div class="btn-group mb-3" role="group">
             <button type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()">همه</button>
-            <button type="button" class="btn btn-primary" id="leaderBtn" onclick="showLeaders()">سرگروه</button>
-            <button type="button" class="btn btn-primary" id="memberBtn" onclick="showMembers()">زیرگروه</button>
         </div>
         <canvas id="partnerChart"></canvas>
     </div>
@@ -478,84 +476,6 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             }
         });
         console.log('All Partners Chart Loaded', <?= json_encode($partner_labels) ?>, <?= json_encode($partner_data) ?>, <?= json_encode($partner_colors) ?>);
-    }
-
-    function showLeaders() {
-        setActiveButton('leaderBtn', 'leaderBtn');
-        if (partnerChart) {
-            partnerChart.destroy();
-            partnerChart = null;
-        }
-        const leaders = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'leader') ?: []) ?>;
-        const leaderLabels = leaders.map(p => p.partner_name ?? 'همکار ناشناس');
-        const leaderData = leaders.map(p => parseFloat(p.total_sales));
-        const leaderColors = leaders.map(p => 'rgba(54, 162, 235, 1)');
-        if (leaderLabels.length === 0 || leaderData.length === 0) {
-            console.error('No data for leaders chart');
-            return;
-        }
-        partnerChart = new Chart(ctxPartner, {
-            type: 'bar',
-            data: {
-                labels: leaderLabels,
-                datasets: [{
-                    label: 'فروش (تومان)',
-                    data: leaderData,
-                    backgroundColor: leaderColors,
-                    borderColor: leaderColors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                scales: {
-                    x: { beginAtZero: true },
-                    y: { barPercentage: 0.5 }
-                },
-                responsive: true,
-                legend: { display: false }
-            }
-        });
-        console.log('Leaders Chart Loaded', leaderLabels, leaderData, leaderColors);
-    }
-
-    function showMembers() {
-        setActiveButton('memberBtn', 'memberBtn');
-        if (partnerChart) {
-            partnerChart.destroy();
-            partnerChart = null;
-        }
-        const members = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'member') ?: []) ?>;
-        const memberLabels = members.map(p => p.partner_name ?? 'همکار ناشناس');
-        const memberData = members.map(p => parseFloat(p.total_sales));
-        const memberColors = members.map(p => 'rgba(153, 102, 255, 1)');
-        if (memberLabels.length === 0 || memberData.length === 0) {
-            console.error('No data for members chart');
-            return;
-        }
-        partnerChart = new Chart(ctxPartner, {
-            type: 'bar',
-            data: {
-                labels: memberLabels,
-                datasets: [{
-                    label: 'فروش (تومان)',
-                    data: memberData,
-                    backgroundColor: memberColors,
-                    borderColor: memberColors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                scales: {
-                    x: { beginAtZero: true },
-                    y: { barPercentage: 0.5 }
-                },
-                responsive: true,
-                legend: { display: false }
-            }
-        });
-        console.log('Members Chart Loaded', memberLabels, memberData, memberColors);
     }
 
     // نمایش چارت‌های پیش‌فرض
