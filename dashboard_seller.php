@@ -479,3 +479,4 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 <?php
 require_once 'footer.php';
 ?>
+<!--  -->
