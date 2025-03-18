@@ -180,21 +180,19 @@ foreach ($date_range as $date) {
     }
 }
 
-// فروش ماهانه با همکاران (فقط ماه جاری، همه همکاران)
+// فروش ماهانه با همکاران (فقط ماه جاری)
 $partner_sales = [];
 $stmt_partner_sales = $pdo->prepare("
-    SELECT p.partner_id, 
+    SELECT p.partner_id,
            CASE 
                WHEN p.user_id1 = ? THEN COALESCE(u2.full_name, 'کاربر ناشناس')
                WHEN p.user_id2 = ? THEN COALESCE(u1.full_name, 'کاربر ناشناس')
            END AS partner_name,
            SUM(o.total_amount) AS total_sales,
            CASE 
-               WHEN p.user_id1 = ? THEN 'member'
-               WHEN p.user_id2 = ? THEN 'leader'
-           END AS role,
-           p.user_id1,
-           p.user_id2
+               WHEN p.user_id1 != ? THEN 'leader' -- همکار مقابل سرگروه اگه user_id1 نباشه
+               ELSE 'member'
+           END AS role
     FROM Partners p
     LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
@@ -207,19 +205,18 @@ $stmt_partner_sales = $pdo->prepare("
 ");
 $stmt_partner_sales->execute([
     $current_user_id, $current_user_id, // برای partner_name
-    $current_user_id, $current_user_id, // برای role
+    $current_user_id, // برای role
     $current_work_month_id, $today,      // برای شرط ماه و تاریخ
     $current_user_id, $current_user_id  // برای شرط انتخاب همکاران
 ]);
 $partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
 
-// لاگ داده‌ها برای دیباگ
-var_dump($partners_data);
-
-// مرتب‌سازی بر اساس فروش نزولی
-usort($partners_data, function($a, $b) {
-    return $b['total_sales'] <=> $a['total_sales'];
-});
+// حذف تکرارها بر اساس partner_name
+$unique_partners = [];
+foreach ($partners_data as $partner) {
+    $unique_partners[$partner['partner_name']] = $partner;
+}
+$partners_data = array_values($unique_partners);
 
 // آماده‌سازی داده‌ها برای نمودار همکاران (مبلغ واقعی)
 $partner_labels = [];
