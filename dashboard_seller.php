@@ -180,40 +180,54 @@ foreach ($date_range as $date) {
     }
 }
 
-// فروش ماهانه با همکاران (فقط ماه جاری، بدون کاربر لاگین‌شده)
+// فروش ماهانه با همکاران (فقط ماه جاری، همه همکاران)
 $partner_sales = [];
 $stmt_partner_sales = $pdo->prepare("
-    SELECT p.partner_id, COALESCE(u2.full_name, u1.full_name) AS partner_name,
+    SELECT p.partner_id, 
+           CASE 
+               WHEN p.user_id1 = ? THEN COALESCE(u2.full_name, 'کاربر ناشناس')
+               WHEN p.user_id2 = ? THEN COALESCE(u1.full_name, 'کاربر ناشناس')
+           END AS partner_name,
            SUM(o.total_amount) AS total_sales,
-           CASE WHEN p.user_id1 = ? THEN 'leader' ELSE 'member' END AS role
+           CASE 
+               WHEN p.user_id1 = ? THEN 'member'
+               WHEN p.user_id2 = ? THEN 'leader'
+           END AS role,
+           p.user_id1,
+           p.user_id2
     FROM Partners p
     LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
     JOIN Work_Details wd ON p.partner_id = wd.partner_id
     JOIN Orders o ON wd.id = o.work_details_id
     WHERE wd.work_month_id = ? AND wd.work_date <= ?
-    AND p.user_id1 != ? AND p.user_id2 != ?
+    AND (p.user_id1 = ? OR p.user_id2 = ?)
     GROUP BY p.partner_id, partner_name, role
     HAVING total_sales IS NOT NULL
 ");
-$stmt_partner_sales->execute([$current_user_id, $current_work_month_id, $today, $current_user_id, $current_user_id]);
+$stmt_partner_sales->execute([
+    $current_user_id, $current_user_id, // برای partner_name
+    $current_user_id, $current_user_id, // برای role
+    $current_work_month_id, $today,      // برای شرط ماه و تاریخ
+    $current_user_id, $current_user_id  // برای شرط انتخاب همکاران
+]);
 $partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
+
+// لاگ داده‌ها برای دیباگ
+var_dump($partners_data);
 
 // مرتب‌سازی بر اساس فروش نزولی
 usort($partners_data, function($a, $b) {
     return $b['total_sales'] <=> $a['total_sales'];
 });
 
-// محاسبه حداکثر فروش برای مقیاس (فقط برای اطلاعات)
-$max_sales = max(array_column($partners_data, 'total_sales')) ?: 1;
-
-// آماده‌سازی داده‌ها برای نمودار همکاران (مبلغ واقعی به‌جای درصد)
+// آماده‌سازی داده‌ها برای نمودار همکاران (مبلغ واقعی)
 $partner_labels = [];
 $partner_data = [];
 $partner_colors = [];
 foreach ($partners_data as $partner) {
     $partner_labels[] = $partner['partner_name'] ?? 'همکار ناشناس';
-    $partner_data[] = $partner['total_sales']; // مبلغ واقعی به‌جای درصد
+    $partner_data[] = $partner['total_sales'];
     $partner_colors[] = ($partner['role'] === 'leader') ? 'rgba(54, 162, 235, 1)' : 'rgba(153, 102, 255, 1)';
 }
 
@@ -474,7 +488,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         }
         const leaders = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'leader') ?: []) ?>;
         const leaderLabels = leaders.map(p => p.partner_name ?? 'همکار ناشناس');
-        const leaderData = leaders.map(p => p.total_sales);
+        const leaderData = leaders.map(p => parseFloat(p.total_sales));
         const leaderColors = leaders.map(p => 'rgba(54, 162, 235, 1)');
         if (leaderLabels.length === 0 || leaderData.length === 0) {
             console.error('No data for leaders chart');
@@ -513,7 +527,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         }
         const members = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'member') ?: []) ?>;
         const memberLabels = members.map(p => p.partner_name ?? 'همکار ناشناس');
-        const memberData = members.map(p => p.total_sales);
+        const memberData = members.map(p => parseFloat(p.total_sales));
         const memberColors = members.map(p => 'rgba(153, 102, 255, 1)');
         if (memberLabels.length === 0 || memberData.length === 0) {
             console.error('No data for members chart');
