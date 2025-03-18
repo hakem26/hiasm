@@ -54,8 +54,9 @@ $stmt_user->execute([$current_user_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
 $user_name = $user['full_name'] ?? 'کاربر ناشناس';
 
-// دیباگ: بررسی user_id
-error_log("Current User ID: $current_user_id");
+// دیباگ: نمایش مستقیم توی صفحه
+echo "<pre>";
+echo "Current User ID: $current_user_id\n";
 
 // دریافت اطلاعات روز کاری برای امروز
 $stmt_work_details = $pdo->prepare("
@@ -94,9 +95,10 @@ $stmt_current_month = $pdo->query("
     LIMIT 1
 ");
 $current_month = $stmt_current_month->fetch(PDO::FETCH_ASSOC);
-$current_work_month_id = $current_month['work_month_id'] ?? null;
+$current_work_month_id = $current_month['work_month_id'] ?? 10; // فرض 10
 $current_start_month = $current_month['start_date'] ?? $today;
 $current_end_month = $current_month['end_date'] ?? $today;
+echo "Current Work Month ID: $current_work_month_id\n";
 
 // دریافت 3 ماه کاری قبلی
 $stmt_previous_months = $pdo->query("
@@ -171,30 +173,25 @@ foreach ($work_months as $month) {
     $params[] = $current_user_id;
     $params[] = $current_user_id;
 
-    if ($month['work_month_id'] == $current_work_month_id) {
+    // موقتاً شرط تاریخ رو حذف می‌کنیم
+    /* if ($month['work_month_id'] == $current_work_month_id) {
         $conditions[] = "wd.work_date <= ?";
         $params[] = $today;
-    }
+    } */
 
     $final_query = $base_query . " AND " . implode(" AND ", $conditions);
     $stmt_month_sales = $pdo->prepare($final_query);
     $stmt_month_sales->execute($params);
-    $sales = $stmt_month_sales->fetchColumn() ?? 0;
 
-    // تست دستی با مقادیر ثابت برای دیباگ
-    if ($month['work_month_id'] == 10) { // ماه جاری (اسفند 1403)
-        $test_query = "SELECT SUM(o.total_amount) AS test_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE wd.work_month_id = 10 AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = 3 OR p.user_id2 = 3)) AND wd.work_date <= '2025-03-18'";
-        $stmt_test = $pdo->query($test_query);
-        $test_sales = $stmt_test->fetchColumn() ?? 0;
-        error_log("Test Query Result for work_month_id=10: $test_sales");
-    }
+    // نمایش دیباگ توی صفحه
+    $error = $stmt_month_sales->errorInfo();
+    $sales = $stmt_month_sales->fetchColumn() ?? 0;
+    echo "Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params) . ", Error: " . json_encode($error) . "\n";
 
     $month_sales_data[$month_name] = $sales;
-    error_log("Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params));
 }
 
 // نمایش موقت برای دیباگ
-echo "<pre>";
 echo "Month Sales Data: " . print_r($month_sales_data, true) . "\n";
 echo "</pre>";
 
