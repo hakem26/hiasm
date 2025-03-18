@@ -309,11 +309,11 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 <div class="card mt-4">
     <div class="card-body">
         <h5 class="card-title">فروش با همکاران در ماه <?= jalali_month_name(gregorian_to_jalali_format($current_start_month)) ?></h5>
-        <!-- <div class="btn-group mb-3" role="group">
-            <button type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()">همه</button>
-            <button type="button" class="btn btn-primary" id="leaderBtn" onclick="showLeaders()">سرگروه</button>
-            <button type="button" class="btn btn-primary" id="memberBtn" onclick="showMembers()">زیرگروه</button>
-        </div> -->
+        <div class="btn-group mb-3" role="group">
+            <!-- <button type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()">همه</button> -->
+            <!-- <button type="button" class="btn btn-primary" id="leaderBtn" onclick="showLeaders()">سرگروه</button> -->
+            <!-- <button type="button" class="btn btn-primary" id="memberBtn" onclick="showMembers()">زیرگروه</button> -->
+        </div>
         <canvas id="partnerChart"></canvas>
     </div>
 </div>
