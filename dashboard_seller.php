@@ -359,10 +359,10 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         salesChart = new Chart(ctxSales, {
             type: 'bar',
             data: {
-                labels: <?= json_encode(array_keys($month_sales_data)) ?>,
+                labels: [],
                 datasets: [{
                     label: 'فروش (تومان)',
-                    data: <?= json_encode(array_values($month_sales_data)) ?>,
+                    data: [],
                     backgroundColor: [
                         'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
                         'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
@@ -472,11 +472,12 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
     }
 
     // نمایش چارت‌های پیش‌فرض
-    showDailyChart();
-    showAllPartners();
+    document.addEventListener('DOMContentLoaded', function() {
+        showDailyChart();
+        showAllPartners();
+    });
 </script>
 
 <?php
 require_once 'footer.php';
 ?>
-<!--  -->
