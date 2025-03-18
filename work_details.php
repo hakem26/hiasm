@@ -38,6 +38,14 @@ function number_to_day($day_number)
     return $days[$day_number] ?? 'نامشخص';
 }
 
+// تابع تبدیل تاریخ شمسی به میلادی
+function jalali_to_gregorian_format($jalali_date)
+{
+    list($jy, $jm, $jd) = explode('/', $jalali_date);
+    list($gy, $gm, $gd) = jalali_to_gregorian($jy, $jm, $jd);
+    return "$gy-$gm-$gd";
+}
+
 // دریافت سال‌های موجود از دیتابیس (میلادی)
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -153,8 +161,8 @@ if (isset($_GET['work_month_id'])) {
 
                         if (!$existing_detail) {
                             $insert_query = $pdo->prepare("
-                                INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
-                                VALUES (?, ?, ?, ?, ?)
+                                INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id, status) 
+                                VALUES (?, ?, ?, ?, ?, 0)
                             ");
                             $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, $partner['user_id1']]);
                             $work_details_id = $pdo->lastInsertId();
@@ -172,7 +180,9 @@ if (isset($_GET['work_month_id'])) {
                         $total_sales = $sales_query->fetchColumn() ?: 0;
 
                         $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
+                        $status = $existing_detail && isset($existing_detail['status']) ? $existing_detail['status'] : 0;
                         $work_details[] = [
+                            'id' => $work_details_id, // برای استفاده در دکمه‌ها
                             'work_date' => $work_date,
                             'work_day' => number_to_day($adjusted_day_number),
                             'partner_id' => $partner_id,
@@ -181,7 +191,8 @@ if (isset($_GET['work_month_id'])) {
                             'user_id1' => $partner['user_id1'],
                             'user_id2' => $partner['user_id2'],
                             'agency_owner_id' => $agency_owner_id,
-                            'total_sales' => $total_sales
+                            'total_sales' => $total_sales,
+                            'status' => $status
                         ];
                     }
                 }
@@ -267,6 +278,9 @@ if ($selected_year) {
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center text-center mb-3">
             <h5 class="card-title">اطلاعات کاری</h5>
+            <?php if ($is_admin): ?>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkDetailModal">افزودن روز کاری</button>
+            <?php endif; ?>
         </div>
 
         <!-- نمایش مجموع فروش -->
@@ -322,6 +336,9 @@ if ($selected_year) {
                             <th>همکاران</th>
                             <th>جمع کل فروش</th>
                             <th>آژانس</th>
+                            <?php if ($is_admin): ?>
+                                <th>وضعیت</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
@@ -342,6 +359,14 @@ if ($selected_year) {
                                         </option>
                                     </select>
                                 </td>
+                                <?php if ($is_admin): ?>
+                                    <td>
+                                        <button class="btn btn-sm btn-<?= $work['status'] ? 'warning' : 'success' ?> toggle-status" data-id="<?= $work['id'] ?>">
+                                            <?= $work['status'] ? 'غیر تعطیل' : 'تعطیل' ?>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger delete-work" data-id="<?= $work['id'] ?>">حذف</button>
+                                    </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -352,8 +377,119 @@ if ($selected_year) {
         <?php endif; ?>
     </div>
 
+    <!-- مودال افزودن روز کاری -->
+    <?php if ($is_admin): ?>
+        <div class="modal fade" id="addWorkDetailModal" tabindex="-1" aria-labelledby="addWorkDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content bg-light">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addWorkDetailModalLabel">افزودن روز کاری جدید</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addWorkDetailForm" method="POST" action="add_work_detail.php">
+                            <div class="mb-3">
+                                <label for="work_month_id" class="form-label">ماه کاری</label>
+                                <select name="work_month_id" class="form-select" required>
+                                    <option value="">انتخاب ماه</option>
+                                    <?php foreach ($work_months as $month): ?>
+                                        <option value="<?= $month['work_month_id'] ?>">
+                                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                                            <?= gregorian_to_jalali_format($month['end_date']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="work_date" class="form-label">تاریخ (شمسی)</label>
+                                <input type="text" class="form-control persian-date" id="work_date" name="work_date" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="user_id1" class="form-label">همکار اول</label>
+                                <select name="user_id1" class="form-select" required>
+                                    <option value="">انتخاب همکار</option>
+                                    <?php foreach ($partners as $partner): ?>
+                                        <option value="<?= htmlspecialchars($partner['user_id']) ?>">
+                                            <?= htmlspecialchars($partner['full_name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="user_id2" class="form-label">همکار دوم</label>
+                                <select name="user_id2" class="form-select">
+                                    <option value="">انتخاب همکار (اختیاری)</option>
+                                    <?php foreach ($partners as $partner): ?>
+                                        <option value="<?= htmlspecialchars($partner['user_id']) ?>">
+                                            <?= htmlspecialchars($partner['full_name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">ثبت روز کاری</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <script>
         $(document).ready(function () {
+            // Datepicker برای فیلد تاریخ
+            $('.persian-date').persianDatepicker({
+                format: 'YYYY/MM/DD',
+                autoClose: true,
+                calendar: {
+                    persian: {
+                        locale: 'fa',
+                        digits: true
+                    }
+                }
+            });
+
+            // تغییر وضعیت تعطیل/غیر تعطیل
+            $('.toggle-status').click(function () {
+                const workDetailId = $(this).data('id');
+                const button = $(this);
+                
+                $.post('toggle_work_status.php', { work_detail_id: workDetailId }, function (response) {
+                    if (response.success) {
+                        alert('وضعیت با موفقیت ذخیره شد');
+                        if (response.status == 1) {
+                            button.removeClass('btn-success').addClass('btn-warning').text('غیر تعطیل');
+                        } else {
+                            button.removeClass('btn-warning').addClass('btn-success').text('تعطیل');
+                        }
+                    } else {
+                        alert('خطا در تغییر وضعیت: ' + response.message);
+                    }
+                }, 'json').fail(function () {
+                    alert('خطا در اتصال به سرور!');
+                });
+            });
+
+            // حذف روز کاری
+            $('.delete-work').click(function () {
+                if (!confirm('آیا مطمئن هستید که می‌خواهید این روز کاری را حذف کنید؟')) {
+                    return;
+                }
+
+                const workDetailId = $(this).data('id');
+                
+                $.post('delete_work_detail.php', { work_detail_id: workDetailId }, function (response) {
+                    if (response.success) {
+                        alert('روز کاری با موفقیت حذف شد');
+                        location.reload();
+                    } else {
+                        alert('خطا در حذف: ' + response.message);
+                    }
+                }, 'json').fail(function () {
+                    alert('خطا در اتصال به سرور!');
+                });
+            });
+
+            // تغییر آژانس
             $('.agency-select').change(function () {
                 var work_date = $(this).data("id");
                 var partner_id = $(this).data("partner-id");
