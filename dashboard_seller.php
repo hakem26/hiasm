@@ -180,8 +180,17 @@ foreach ($work_months as $month) {
     $stmt_month_sales = $pdo->prepare($final_query);
     $stmt_month_sales->execute($params);
     $sales = $stmt_month_sales->fetchColumn() ?? 0;
+
+    // تست دستی با مقادیر ثابت برای دیباگ
+    if ($month['work_month_id'] == 10) { // ماه جاری (اسفند 1403)
+        $test_query = "SELECT SUM(o.total_amount) AS test_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE wd.work_month_id = 10 AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = 3 OR p.user_id2 = 3)) AND wd.work_date <= '2025-03-18'";
+        $stmt_test = $pdo->query($test_query);
+        $test_sales = $stmt_test->fetchColumn() ?? 0;
+        error_log("Test Query Result for work_month_id=10: $test_sales");
+    }
+
     $month_sales_data[$month_name] = $sales;
-    error_log("Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params)); // دیباگ قوی‌تر
+    error_log("Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params));
 }
 
 // نمایش موقت برای دیباگ
