@@ -249,19 +249,6 @@ if ($selected_year) {
                 <?php endif; ?>
             </div>
         </div>
-        <div class="d-flex justify-content-between align-items-center text-center mb-3">
-            <h5 class="card-title">اطلاعات کاری</h5>
-            <div>
-                <?php if ($is_admin): ?>
-                    <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addWorkDetailModal">افزودن
-                        روز کاری</button>
-                    <?php if (isset($_GET['work_month_id'])): ?>
-                        <button class="btn btn-success auto-update-work-details"
-                            data-work-month-id="<?= $_GET['work_month_id'] ?>">بروزرسانی اتومات روز کاری</button>
-                    <?php endif; ?>
-                <?php endif; ?>
-            </div>
-        </div>
 
         <!-- نمایش مجموع فروش -->
         <div class="mb-3">
