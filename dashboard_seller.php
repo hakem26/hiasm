@@ -40,7 +40,7 @@ $day_names = [
     'شنبه' => 'شنبه', 
     'یکشنبه' => 'یک‌شنبه', 
     'دوشنبه' => 'دوشنبه',
-    'سه شنبه' => 'سه‌شنبه', // اصلاح فرمت نام روز
+    'سه شنبه' => 'سه‌شنبه',
     'چهارشنبه' => 'چهارشنبه', 
     'پنجشنبه' => 'پنج‌شنبه', 
     'جمعه' => 'جمعه'
@@ -138,7 +138,7 @@ $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day')
 foreach ($date_range as $date) {
     $work_date = $date->format('Y-m-d');
     $day_name = jdate('l', strtotime($work_date));
-    if ($day_name === $day_of_week) { // فقط روزهایی که با امروز هم‌نام هستند (مثلاً همه سه‌شنبه‌ها)
+    if ($day_name === $day_of_week) {
         $jalali_date = gregorian_to_jalali_format($work_date);
         $week_days[] = $jalali_date;
         $stmt_week_sales = $pdo->prepare("
@@ -153,19 +153,19 @@ foreach ($date_range as $date) {
     }
 }
 
-// فروش ماهانه (4 ماه کاری، لحظه‌ای)
+// فروش ماهانه (4 ماه کاری، با منطق مشابه work_details.php)
 $month_sales_data = [];
 foreach ($work_months as $month) {
     $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
-    $end_date_for_sales = ($month['work_month_id'] == $current_work_month_id) ? $today : $month['end_date'];
-    $stmt_month_sales = $pdo->prepare("
-        SELECT SUM(o.total_amount) AS month_sales
-        FROM Orders o
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?) AND wd.work_date <= ?
-    ");
-    $stmt_month_sales->execute([$month['work_month_id'], $current_user_id, $current_user_id, $end_date_for_sales]);
+    $end_date_for_sales = ($month['work_month_id'] == $current_work_month_id) ? $today : $month['end_date']; // برای ماه جاری تا امروز، بقیه کل ماه
+    $base_query = "SELECT SUM(o.total_amount) AS month_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE wd.work_month_id = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
+    $params = [$month['work_month_id'], $current_user_id, $current_user_id];
+    if ($month['work_month_id'] == $current_work_month_id) {
+        $base_query .= " AND wd.work_date <= ?";
+        $params[] = $today;
+    }
+    $stmt_month_sales = $pdo->prepare($base_query);
+    $stmt_month_sales->execute($params);
     $month_sales_data[$month_name] = $stmt_month_sales->fetchColumn() ?? 0;
 }
 
@@ -190,10 +190,10 @@ $stmt_previous_month_sales = $pdo->prepare("
     SELECT SUM(o.total_amount) AS previous_month_sales
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?) AND wd.work_date <= ?
+    JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+    WHERE wd.work_month_id = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
 ");
-$stmt_previous_month_sales->execute([$previous_work_month_id, $current_user_id, $current_user_id, $previous_end_month]);
+$stmt_previous_month_sales->execute([$previous_work_month_id, $current_user_id, $current_user_id]);
 $previous_month_sales = $stmt_previous_month_sales->fetchColumn() ?? 0;
 $current_month_sales = $month_sales_data[jalali_month_name(gregorian_to_jalali_format($current_start_month))] ?? 0;
 $growth_month = $current_month_sales - $previous_month_sales;
