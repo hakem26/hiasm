@@ -23,21 +23,6 @@ function gregorian_year_to_jalali($gregorian_year)
     return $jy;
 }
 
-// تابع تبدیل عدد روز به نام روز
-function number_to_day($day_number)
-{
-    $days = [
-        1 => 'شنبه',
-        2 => 'یکشنبه',
-        3 => 'دوشنبه',
-        4 => 'سه‌شنبه',
-        5 => 'چهارشنبه',
-        6 => 'پنجشنبه',
-        7 => 'جمعه'
-    ];
-    return $days[$day_number] ?? 'نامشخص';
-}
-
 // دریافت سال‌های موجود از دیتابیس (میلادی)
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -136,10 +121,8 @@ if (isset($_GET['work_month_id'])) {
 
                 foreach ($date_range as $date) {
                     $work_date = $date->format('Y-m-d');
-                    $day_number_php = (int) date('N', strtotime($work_date));
-                    $adjusted_day_number = ($day_number_php + 5) % 7;
-                    if ($adjusted_day_number == 0)
-                        $adjusted_day_number = 7;
+                    // استفاده از jdate برای محاسبه روز هفته شمسی
+                    $adjusted_day_number = (int) jdate('N', strtotime($work_date));
 
                     if ($partner['stored_day_number'] == $adjusted_day_number) {
                         $detail_query = $pdo->prepare("
@@ -172,14 +155,14 @@ if (isset($_GET['work_month_id'])) {
                         $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
                         $work_details[] = [
                             'work_date' => $work_date,
-                            'work_day' => number_to_day($adjusted_day_number),
+                            'work_day' => jdate('l', strtotime($work_date)), // نام روز به شمسی
                             'partner_id' => $partner_id,
                             'user1' => $partner['user1'],
                             'user2' => $partner['user2'],
                             'user_id1' => $partner['user_id1'],
                             'user_id2' => $partner['user_id2'],
                             'agency_owner_id' => $agency_owner_id,
-                            'total_sales' => $total_sales // جمع کل فروش
+                            'total_sales' => $total_sales
                         ];
                     }
                 }
