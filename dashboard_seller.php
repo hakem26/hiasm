@@ -122,32 +122,34 @@ for ($i = 0; $i < 7; $i++) {
     $sales_data[] = $stmt_day_sales->fetchColumn() ?? 0;
 }
 
-// فروش هفتگی (همه روزهای هفته در ماه کاری فعلی)
+// فروش هفتگی (روزهای مشابه در ماه کاری فعلی)
 $week_days = [];
 $week_sales_data = [];
-$start_of_month = $current_start_month;
-$end_of_month = $current_end_month;
-$start_date = new DateTime($start_of_month);
-$end_date = new DateTime($end_of_month);
-$interval = new DateInterval('P1D');
-$daterange = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
+$stmt_week_dates = $pdo->prepare("
+    SELECT DISTINCT wd.work_date
+    FROM Work_Details wd
+    JOIN Partners p ON wd.partner_id = p.partner_id
+    WHERE wd.work_month_id = ? 
+    AND (p.user_id1 = ? OR p.user_id2 = ?)
+    AND DAYNAME(wd.work_date) = DAYNAME(?)
+    ORDER BY wd.work_date DESC
+");
+$stmt_week_dates->execute([$current_work_month_id, $current_user_id, $current_user_id, $today]);
+$week_dates = $stmt_week_dates->fetchAll(PDO::FETCH_ASSOC);
 
-foreach ($daterange as $date) {
-    $current_date = $date->format('Y-m-d');
-    $day_name = jdate('l', strtotime($current_date));
-    if ($day_name === $day_of_week) { // فقط روزهایی که با امروز هم‌نام هستند (مثلاً همه شنبه‌ها)
-        $jalali_date = gregorian_to_jalali_format($current_date);
-        $week_days[] = $jalali_date;
-        $stmt_week_sales = $pdo->prepare("
-            SELECT SUM(o.final_amount) AS week_sales
-            FROM Orders o
-            JOIN Work_Details wd ON o.work_details_id = wd.id
-            JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE wd.work_date = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
-        ");
-        $stmt_week_sales->execute([$current_date, $current_user_id, $current_user_id]);
-        $week_sales_data[] = $stmt_week_sales->fetchColumn() ?? 0;
-    }
+foreach ($week_dates as $week_date) {
+    $work_date = $week_date['work_date'];
+    $jalali_date = gregorian_to_jalali_format($work_date);
+    $week_days[] = $jalali_date;
+    $stmt_week_sales = $pdo->prepare("
+        SELECT SUM(o.final_amount) AS week_sales
+        FROM Orders o
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_date = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+    ");
+    $stmt_week_sales->execute([$work_date, $current_user_id, $current_user_id]);
+    $week_sales_data[] = $stmt_week_sales->fetchColumn() ?? 0;
 }
 
 // فروش ماهانه (7 ماه کاری، لحظه‌ای)
