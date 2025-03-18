@@ -190,8 +190,8 @@ $stmt_partner_sales = $pdo->prepare("
            END AS partner_name,
            SUM(o.total_amount) AS total_sales,
            CASE 
-               WHEN p.user_id1 != ? THEN 'leader' -- همکار مقابل سرگروه اگه user_id1 نباشه
-               ELSE 'member'
+               WHEN p.user_id1 = ? THEN 'member'
+               WHEN p.user_id2 = ? THEN 'leader'
            END AS role
     FROM Partners p
     LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
@@ -205,7 +205,7 @@ $stmt_partner_sales = $pdo->prepare("
 ");
 $stmt_partner_sales->execute([
     $current_user_id, $current_user_id, // برای partner_name
-    $current_user_id, // برای role
+    $current_user_id, $current_user_id, // برای role
     $current_work_month_id, $today,      // برای شرط ماه و تاریخ
     $current_user_id, $current_user_id  // برای شرط انتخاب همکاران
 ]);
