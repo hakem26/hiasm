@@ -432,13 +432,16 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 
     function showAllPartners() {
         setActiveButton('allBtn', 'allBtn');
-        if (partnerChart) partnerChart.destroy();
+        if (partnerChart) {
+            partnerChart.destroy(); // مطمئن می‌شم چارت قبلی نابود بشه
+            partnerChart = null; // پاک کردن ارجاع
+        }
         if (<?= json_encode($partner_labels) ?>.length === 0 || <?= json_encode($partner_data) ?>.length === 0) {
             console.error('No data for all partners chart');
             return;
         }
         partnerChart = new Chart(ctxPartner, {
-            type: 'horizontalBar',
+            type: 'bar', // تغییر از horizontalBar به bar
             data: {
                 labels: <?= json_encode($partner_labels) ?>,
                 datasets: [{
@@ -450,6 +453,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 }]
             },
             options: {
+                indexAxis: 'y', // برای چارت افقی
                 scales: {
                     x: { beginAtZero: true, max: 100 },
                     y: { barPercentage: 0.5 }
@@ -463,17 +467,20 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 
     function showLeaders() {
         setActiveButton('leaderBtn', 'leaderBtn');
+        if (partnerChart) {
+            partnerChart.destroy();
+            partnerChart = null;
+        }
         const leaders = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'leader')) ?>;
         const leaderLabels = leaders.map(p => p.partner_name ?? 'همکار ناشناس');
         const leaderData = leaders.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
         const leaderColors = leaders.map(p => 'rgba(54, 162, 235, 1)');
-        if (partnerChart) partnerChart.destroy();
         if (leaderLabels.length === 0 || leaderData.length === 0) {
             console.error('No data for leaders chart');
             return;
         }
         partnerChart = new Chart(ctxPartner, {
-            type: 'horizontalBar',
+            type: 'bar',
             data: {
                 labels: leaderLabels,
                 datasets: [{
@@ -485,6 +492,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 }]
             },
             options: {
+                indexAxis: 'y',
                 scales: {
                     x: { beginAtZero: true, max: 100 },
                     y: { barPercentage: 0.5 }
@@ -498,17 +506,20 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 
     function showMembers() {
         setActiveButton('memberBtn', 'memberBtn');
+        if (partnerChart) {
+            partnerChart.destroy();
+            partnerChart = null;
+        }
         const members = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'member')) ?>;
         const memberLabels = members.map(p => p.partner_name ?? 'همکار ناشناس');
         const memberData = members.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
         const memberColors = members.map(p => 'rgba(153, 102, 255, 1)');
-        if (partnerChart) partnerChart.destroy();
         if (memberLabels.length === 0 || memberData.length === 0) {
             console.error('No data for members chart');
             return;
         }
         partnerChart = new Chart(ctxPartner, {
-            type: 'horizontalBar',
+            type: 'bar',
             data: {
                 labels: memberLabels,
                 datasets: [{
@@ -520,6 +531,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 }]
             },
             options: {
+                indexAxis: 'y',
                 scales: {
                     x: { beginAtZero: true, max: 100 },
                     y: { barPercentage: 0.5 }
