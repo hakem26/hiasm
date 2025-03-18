@@ -79,6 +79,9 @@ if ($selected_year) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
+// دیباگ نقش کاربر
+var_dump($is_admin, $_SESSION['role']);
+
 // دریافت لیست همکاران
 if ($is_admin) {
     $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
@@ -216,12 +219,15 @@ usort($filtered_work_details, function ($a, $b) {
     return strcmp($a['work_date'], $b['work_date']);
 });
 
+// دیباگ داده‌ها
+var_dump($filtered_work_details);
+
 // محاسبه مجموع فروش بر اساس فیلترها
 $total_sales_all = 0;
 if ($selected_year) {
     $conditions = [];
     $params = [];
-    $base_query = "SELECT SUM(o.total_amount) as total_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE 1=1";
+    $base_query = "SELECT SUM(o.total_amount) as total_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE wd.status = 0 AND 1=1";
 
     if (!$is_admin) {
         $conditions[] = "EXISTS (
