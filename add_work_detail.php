@@ -25,12 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // تبدیل تاریخ شمسی به میلادی
     $work_date_gregorian = jalali_to_gregorian_format($work_date);
 
-    // محاسبه روز هفته (هماهنگ با تقویم ایرانی)
-    $day_number_php = (int) date('N', strtotime($work_date_gregorian)); // 1 (دوشنبه) تا 7 (یک‌شنبه)
-    $adjusted_day_number = ($day_number_php + 4) % 7; // جابه‌جایی برای تقویم ایرانی
-    if ($adjusted_day_number == 0) {
-        $adjusted_day_number = 7; // اگر نتیجه 0 شد، باید 7 (جمعه) باشد
-    }
+    // محاسبه روز هفته با jdate (تقویم ایرانی)
+    list($jy, $jm, $jd) = explode('/', $work_date);
+    $adjusted_day_number = (int) jdate('w', jalali_to_gregorian($jy, $jm, $jd, true)); // 0 (شنبه) تا 6 (جمعه)
+    $adjusted_day_number = $adjusted_day_number + 1; // تبدیل به 1 (شنبه) تا 7 (جمعه)
 
     // بررسی وجود جفت همکار توی جدول Partners
     $stmt = $pdo->prepare("
