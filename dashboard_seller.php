@@ -171,6 +171,11 @@ foreach ($work_months as $month) {
     $params[] = $current_user_id;
     $params[] = $current_user_id;
 
+    if ($month['work_month_id'] == $current_work_month_id) {
+        $conditions[] = "wd.work_date <= ?";
+        $params[] = $today;
+    }
+
     $final_query = $base_query . " AND " . implode(" AND ", $conditions);
     $stmt_month_sales = $pdo->prepare($final_query);
     $stmt_month_sales->execute($params);
@@ -179,7 +184,6 @@ foreach ($work_months as $month) {
     $sales = $stmt_month_sales->fetchColumn() ?? 0;
     echo "Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params) . ", Error: " . json_encode($error) . "\n";
 
-    // ذخیره فقط اگر فروش بیشتر از صفر باشه
     if ($sales > 0) {
         $month_sales_data[$month_name] = $sales;
     }
@@ -206,6 +210,7 @@ $growth_today_color = $growth_today < 0 ? 'red' : ($growth_today > 0 ? 'green' :
 $growth_today_sign = $growth_today < 0 ? '-' : ($growth_today > 0 ? '+' : '');
 
 // رشد این ماه (مقایسه با ماه قبل)
+$previous_work_month_id = isset($previous_months[0]['work_month_id']) ? $previous_months[0]['work_month_id'] : null;
 $stmt_previous_month_sales = $pdo->prepare("
     SELECT SUM(o.total_amount) AS previous_month_sales
     FROM Orders o
