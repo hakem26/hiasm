@@ -214,7 +214,7 @@ $stmt_partner_sales->execute([
 $partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
 
 // لاگ داده‌ها برای دیباگ
-var_dump($partners_data);
+// var_dump($partners_data);
 
 // مرتب‌سازی بر اساس فروش نزولی
 usort($partners_data, function($a, $b) {
