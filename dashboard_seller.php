@@ -37,8 +37,12 @@ $today_jalali = gregorian_to_jalali_format($today);
 // روز هفته به فارسی
 $day_of_week = jdate('l', strtotime($today));
 $day_names = [
-    'شنبه' => 'شنبه', 'یک‌شنبه' => 'یک‌شنبه', 'دوشنبه' => 'دوشنبه',
-    'سه‌شنبه' => 'سه‌شنبه', 'چهارشنبه' => 'چهارشنبه', 'پنج‌شنبه' => 'پنج‌شنبه',
+    'شنبه' => 'شنبه', 
+    'یکشنبه' => 'یک‌شنبه', 
+    'دوشنبه' => 'دوشنبه',
+    'سه شنبه' => 'سه‌شنبه', // اصلاح فرمت نام روز
+    'چهارشنبه' => 'چهارشنبه', 
+    'پنجشنبه' => 'پنج‌شنبه', 
     'جمعه' => 'جمعه'
 ];
 $persian_day = $day_names[$day_of_week] ?? 'نامشخص';
@@ -65,8 +69,9 @@ $work_details_id = $work_details['work_details_id'] ?? null;
 
 // نفرات امروز (همکار آن کاربر)
 $stmt_partners = $pdo->prepare("
-    SELECT p.partner_id, u2.full_name AS partner_name
+    SELECT p.partner_id, COALESCE(u2.full_name, u1.full_name) AS partner_name
     FROM Partners p
+    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
     LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
     WHERE (p.user_id1 = ? OR p.user_id2 = ?) 
     AND p.partner_id IN (
@@ -133,7 +138,7 @@ $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day')
 foreach ($date_range as $date) {
     $work_date = $date->format('Y-m-d');
     $day_name = jdate('l', strtotime($work_date));
-    if ($day_name === $persian_day) { // فقط روزهایی که با امروز هم‌نام هستند (مثلاً همه شنبه‌ها)
+    if ($day_name === $day_of_week) { // فقط روزهایی که با امروز هم‌نام هستند (مثلاً همه سه‌شنبه‌ها)
         $jalali_date = gregorian_to_jalali_format($work_date);
         $week_days[] = $jalali_date;
         $stmt_week_sales = $pdo->prepare("
