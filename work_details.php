@@ -220,7 +220,7 @@ usort($filtered_work_details, function ($a, $b) {
 });
 
 // دیباگ داده‌ها
-var_dump($filtered_work_details);
+// var_dump($filtered_work_details);
 
 // محاسبه مجموع فروش بر اساس فیلترها
 $total_sales_all = 0;
