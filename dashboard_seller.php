@@ -90,13 +90,13 @@ $current_work_month_id = $current_month['work_month_id'] ?? null;
 $current_start_month = $current_month['start_date'] ?? $today;
 $current_end_month = $current_month['end_date'] ?? $today;
 
-// دریافت 6 ماه کاری قبلی
+// دریافت 3 ماه کاری قبلی
 $stmt_previous_months = $pdo->query("
     SELECT work_month_id, start_date, end_date
     FROM Work_Months
     WHERE end_date < CURDATE()
     ORDER BY end_date DESC
-    LIMIT 6
+    LIMIT 3
 ");
 $previous_months = $stmt_previous_months->fetchAll(PDO::FETCH_ASSOC);
 $work_months = array_merge([$current_month], $previous_months);
@@ -112,7 +112,7 @@ for ($i = 0; $i < 7; $i++) {
     $jalali_date = gregorian_to_jalali_format($date);
     $days[] = $jalali_date;
     $stmt_day_sales = $pdo->prepare("
-        SELECT SUM(o.final_amount) AS day_sales
+        SELECT SUM(o.total_amount) AS day_sales
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
@@ -122,43 +122,39 @@ for ($i = 0; $i < 7; $i++) {
     $sales_data[] = $stmt_day_sales->fetchColumn() ?? 0;
 }
 
-// فروش هفتگی (روزهای مشابه در ماه کاری فعلی)
+// فروش هفتگی (همه روزهایی که با امروز هم‌نام هستند در ماه کاری فعلی)
 $week_days = [];
 $week_sales_data = [];
-$stmt_week_dates = $pdo->prepare("
-    SELECT DISTINCT wd.work_date
-    FROM Work_Details wd
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? 
-    AND (p.user_id1 = ? OR p.user_id2 = ?)
-    AND DAYNAME(wd.work_date) = DAYNAME(?)
-    ORDER BY wd.work_date DESC
-");
-$stmt_week_dates->execute([$current_work_month_id, $current_user_id, $current_user_id, $today]);
-$week_dates = $stmt_week_dates->fetchAll(PDO::FETCH_ASSOC);
+$start_date = new DateTime($current_start_month);
+$end_date = new DateTime($current_end_month);
+$interval = new DateInterval('P1D');
+$date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
-foreach ($week_dates as $week_date) {
-    $work_date = $week_date['work_date'];
-    $jalali_date = gregorian_to_jalali_format($work_date);
-    $week_days[] = $jalali_date;
-    $stmt_week_sales = $pdo->prepare("
-        SELECT SUM(o.final_amount) AS week_sales
-        FROM Orders o
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_date = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
-    ");
-    $stmt_week_sales->execute([$work_date, $current_user_id, $current_user_id]);
-    $week_sales_data[] = $stmt_week_sales->fetchColumn() ?? 0;
+foreach ($date_range as $date) {
+    $work_date = $date->format('Y-m-d');
+    $day_name = jdate('l', strtotime($work_date));
+    if ($day_name === $persian_day) { // فقط روزهایی که با امروز هم‌نام هستند (مثلاً همه شنبه‌ها)
+        $jalali_date = gregorian_to_jalali_format($work_date);
+        $week_days[] = $jalali_date;
+        $stmt_week_sales = $pdo->prepare("
+            SELECT SUM(o.total_amount) AS week_sales
+            FROM Orders o
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            WHERE wd.work_date = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+        ");
+        $stmt_week_sales->execute([$work_date, $current_user_id, $current_user_id]);
+        $week_sales_data[] = $stmt_week_sales->fetchColumn() ?? 0;
+    }
 }
 
-// فروش ماهانه (7 ماه کاری، لحظه‌ای)
+// فروش ماهانه (4 ماه کاری، لحظه‌ای)
 $month_sales_data = [];
 foreach ($work_months as $month) {
     $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
     $end_date_for_sales = ($month['work_month_id'] == $current_work_month_id) ? $today : $month['end_date'];
     $stmt_month_sales = $pdo->prepare("
-        SELECT SUM(o.final_amount) AS month_sales
+        SELECT SUM(o.total_amount) AS month_sales
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
@@ -171,7 +167,7 @@ foreach ($work_months as $month) {
 // رشد امروز (مقایسه با هفته قبل)
 $last_week_day = date('Y-m-d', strtotime('-7 days'));
 $stmt_last_week_sales = $pdo->prepare("
-    SELECT SUM(o.final_amount) AS last_week_sales
+    SELECT SUM(o.total_amount) AS last_week_sales
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
@@ -186,7 +182,7 @@ $growth_today_sign = $growth_today < 0 ? '-' : ($growth_today > 0 ? '+' : '');
 
 // رشد این ماه (مقایسه با ماه قبل)
 $stmt_previous_month_sales = $pdo->prepare("
-    SELECT SUM(o.final_amount) AS previous_month_sales
+    SELECT SUM(o.total_amount) AS previous_month_sales
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
@@ -234,8 +230,8 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         </div>
         <canvas id="salesChart"></canvas>
         <div class="mt-3">
-            <p>رشد امروز: <span style="color: <?= $growth_today_color ?>"><?= $growth_today_sign ?><?= number_format(abs($growth_today), 0) ?> تومان</span></p>
-            <p>رشد این ماه: <span style="color: <?= $growth_month_color ?>"><?= $growth_month_sign ?><?= number_format(abs($growth_month), 0) ?> تومان</span></p>
+            <p>رشد امروز نسبت به <?= $persian_day ?> قبلی: <span style="color: <?= $growth_today_color ?>"><?= $growth_today_sign ?><?= number_format(abs($growth_today), 0) ?> تومان</span></p>
+            <p>رشد این ماه نسبت به ماه کاری قبلی: <span style="color: <?= $growth_month_color ?>"><?= $growth_month_sign ?><?= number_format(abs($growth_month), 0) ?> تومان</span></p>
         </div>
         <style>
             .btn-primary.active {
