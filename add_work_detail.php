@@ -69,6 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // ریدایرکت به صفحه اطلاعات کاری
-    header("Location: work_details.php?year=$selected_year&work_month_id=$work_month_id");
+    header("Location: work_details.php?year=" . date('Y') . "&work_month_id=" . $work_month_id);
+    exit;
+} else {
+    header("Location: work_details.php");
     exit;
 }
