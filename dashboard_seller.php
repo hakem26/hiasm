@@ -54,9 +54,17 @@ $stmt_user->execute([$current_user_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
 $user_name = $user['full_name'] ?? 'کاربر ناشناس';
 
-// دیباگ: نمایش مستقیم توی صفحه
-echo "<pre>";
-echo "Current User ID: $current_user_id\n";
+// دریافت ماه کاری فعلی
+$stmt_current_month = $pdo->query("
+    SELECT work_month_id, start_date, end_date
+    FROM Work_Months
+    WHERE start_date <= CURDATE() AND end_date >= CURDATE()
+    LIMIT 1
+");
+$current_month = $stmt_current_month->fetch(PDO::FETCH_ASSOC);
+$current_work_month_id = $current_month['work_month_id'] ?? 10;
+$current_start_month = $current_month['start_date'] ?? $today;
+$current_end_month = $current_month['end_date'] ?? $today;
 
 // دریافت اطلاعات روز کاری برای امروز
 $stmt_work_details = $pdo->prepare("
@@ -86,31 +94,6 @@ $stmt_partners = $pdo->prepare("
 ");
 $stmt_partners->execute([$current_user_id, $current_user_id, $today]);
 $partners_today = $stmt_partners->fetchAll(PDO::FETCH_ASSOC);
-
-// دریافت ماه کاری فعلی
-$stmt_current_month = $pdo->query("
-    SELECT work_month_id, start_date, end_date
-    FROM Work_Months
-    WHERE start_date <= CURDATE() AND end_date >= CURDATE()
-    LIMIT 1
-");
-$current_month = $stmt_current_month->fetch(PDO::FETCH_ASSOC);
-$current_work_month_id = $current_month['work_month_id'] ?? 10;
-$current_start_month = $current_month['start_date'] ?? $today;
-$current_end_month = $current_month['end_date'] ?? $today;
-echo "Current Work Month ID: $current_work_month_id\n";
-
-// دریافت 3 ماه کاری قبلی (حذف تکرارها)
-$stmt_previous_months = $pdo->query("
-    SELECT DISTINCT work_month_id, start_date, end_date
-    FROM Work_Months
-    WHERE end_date < CURDATE()
-    ORDER BY end_date DESC
-    LIMIT 3
-");
-$previous_months = $stmt_previous_months->fetchAll(PDO::FETCH_ASSOC);
-$work_months = array_merge([$current_month], $previous_months);
-echo "Work Months: " . print_r($work_months, true) . "\n";
 
 // فروش روزانه (7 روز اخیر)
 $days = [];
@@ -156,42 +139,41 @@ foreach ($date_range as $date) {
     }
 }
 
-// فروش ماهانه (با منطق مشابه work_details.php)
-$month_sales_data = [];
-foreach ($work_months as $month) {
-    $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
-    $conditions = [];
-    $params = [];
-    $base_query = "SELECT SUM(o.total_amount) AS month_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE 1=1";
+// فروش ماهانه با همکاران (فقط ماه جاری)
+$partner_sales = [];
+$stmt_partner_sales = $pdo->prepare("
+    SELECT p.partner_id, COALESCE(u2.full_name, u1.full_name) AS partner_name,
+           SUM(o.total_amount) AS total_sales,
+           CASE WHEN p.user_id1 = ? THEN 'leader' ELSE 'member' END AS role
+    FROM Partners p
+    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+    JOIN Work_Details wd ON p.partner_id = wd.partner_id
+    JOIN Orders o ON wd.id = o.work_details_id
+    WHERE wd.work_month_id = ? AND wd.work_date <= ?
+    GROUP BY p.partner_id, partner_name, role
+    HAVING total_sales IS NOT NULL
+");
+$stmt_partner_sales->execute([$current_user_id, $current_work_month_id, $today]);
+$partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
 
-    $conditions[] = "wd.work_month_id = ?";
-    $params[] = $month['work_month_id'];
+// مرتب‌سازی بر اساس فروش نزولی
+usort($partners_data, function($a, $b) {
+    return $b['total_sales'] <=> $a['total_sales'];
+});
 
-    $conditions[] = "EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
+// محاسبه حداکثر فروش برای مقیاس 100%
+$max_sales = max(array_column($partners_data, 'total_sales')) ?: 1; // جلوگیری از تقسیم بر صفر
 
-    if ($month['work_month_id'] == $current_work_month_id) {
-        $conditions[] = "wd.work_date <= ?";
-        $params[] = $today;
-    }
-
-    $final_query = $base_query . " AND " . implode(" AND ", $conditions);
-    $stmt_month_sales = $pdo->prepare($final_query);
-    $stmt_month_sales->execute($params);
-
-    $error = $stmt_month_sales->errorInfo();
-    $sales = $stmt_month_sales->fetchColumn() ?? 0;
-    echo "Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params) . ", Error: " . json_encode($error) . "\n";
-
-    if ($sales > 0) {
-        $month_sales_data[$month_name] = $sales;
-    }
+// آماده‌سازی داده‌ها برای نمودار
+$partner_labels = [];
+$partner_data = [];
+$partner_colors = [];
+foreach ($partners_data as $partner) {
+    $partner_labels[] = $partner['partner_name'] ?? 'همکار ناشناس';
+    $partner_data[] = ($partner['total_sales'] / $max_sales) * 100; // درصد نسبت به حداکثر
+    $partner_colors[] = ($partner['role'] === 'leader') ? 'rgba(54, 162, 235, 1)' : 'rgba(153, 102, 255, 1)';
 }
-
-// نمایش موقت برای دیباگ
-echo "Month Sales Data: " . print_r($month_sales_data, true) . "\n";
-echo "</pre>";
 
 // رشد امروز (مقایسه با هفته قبل)
 $last_week_day = date('Y-m-d', strtotime('-7 days'));
@@ -210,6 +192,13 @@ $growth_today_color = $growth_today < 0 ? 'red' : ($growth_today > 0 ? 'green' :
 $growth_today_sign = $growth_today < 0 ? '-' : ($growth_today > 0 ? '+' : '');
 
 // رشد این ماه (مقایسه با ماه قبل)
+$previous_months = $pdo->query("
+    SELECT DISTINCT work_month_id, start_date, end_date
+    FROM Work_Months
+    WHERE end_date < CURDATE()
+    ORDER BY end_date DESC
+    LIMIT 1
+")->fetchAll(PDO::FETCH_ASSOC);
 $previous_work_month_id = isset($previous_months[0]['work_month_id']) ? $previous_months[0]['work_month_id'] : null;
 $stmt_previous_month_sales = $pdo->prepare("
     SELECT SUM(o.total_amount) AS previous_month_sales
@@ -220,10 +209,11 @@ $stmt_previous_month_sales = $pdo->prepare("
 ");
 $stmt_previous_month_sales->execute([$previous_work_month_id, $current_user_id, $current_user_id]);
 $previous_month_sales = $stmt_previous_month_sales->fetchColumn() ?? 0;
-$current_month_sales = $month_sales_data[jalali_month_name(gregorian_to_jalali_format($current_start_month))] ?? 0;
+$current_month_sales = array_sum(array_column($partners_data, 'total_sales'));
 $growth_month = $current_month_sales - $previous_month_sales;
 $growth_month_color = $growth_month < 0 ? 'red' : ($growth_month > 0 ? 'green' : 'navy');
 $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
+
 ?>
 
 <h2 class="text-center mb-4">داشبورد فروشنده - <?= htmlspecialchars($user_name) ?></h2>
@@ -263,124 +253,228 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             <p>رشد امروز نسبت به <?= $persian_day ?> قبلی: <span style="color: <?= $growth_today_color ?>"><?= $growth_today_sign ?><?= number_format(abs($growth_today), 0) ?> تومان</span></p>
             <p>رشد این ماه نسبت به ماه کاری قبلی: <span style="color: <?= $growth_month_color ?>"><?= $growth_month_sign ?><?= number_format(abs($growth_month), 0) ?> تومان</span></p>
         </div>
-        <style>
-            .btn-primary.active {
-                background-color: #004085 !important; /* رنگ تیره‌تر برای دکمه فعال */
-                border-color: #003366 !important;
-            }
-        </style>
-        <script>
-            let salesChart;
-            const ctx = document.getElementById('salesChart').getContext('2d');
-
-            function setActiveButton(buttonId) {
-                document.querySelectorAll('.btn-group button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                document.getElementById(buttonId).classList.add('active');
-            }
-
-            function showDailyChart() {
-                setActiveButton('dailyBtn');
-                if (salesChart) salesChart.destroy();
-                salesChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode(array_reverse($days)) ?>,
-                        datasets: [{
-                            label: 'فروش (تومان)',
-                            data: <?= json_encode(array_reverse($sales_data)) ?>,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: { y: { beginAtZero: true } },
-                        responsive: true
-                    }
-                });
-            }
-
-            function showWeeklyChart() {
-                setActiveButton('weeklyBtn');
-                if (salesChart) salesChart.destroy();
-                salesChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode(array_reverse($week_days)) ?>,
-                        datasets: [{
-                            label: 'فروش (تومان)',
-                            data: <?= json_encode(array_reverse($week_sales_data)) ?>,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: { y: { beginAtZero: true } },
-                        responsive: true
-                    }
-                });
-            }
-
-            function showMonthlyChart() {
-                setActiveButton('monthlyBtn');
-                if (salesChart) salesChart.destroy();
-                salesChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode(array_keys($month_sales_data)) ?>,
-                        datasets: [{
-                            label: 'فروش (تومان)',
-                            data: <?= json_encode(array_values($month_sales_data)) ?>,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: { y: { beginAtZero: true } },
-                        responsive: true
-                    }
-                });
-            }
-
-            // نمایش چارت روزانه به صورت پیش‌فرض
-            showDailyChart();
-        </script>
     </div>
 </div>
+
+<!-- فروش با همکاران -->
+<div class="card mt-4">
+    <div class="card-body">
+        <h5 class="card-title">فروش با همکاران در ماه <?= jalali_month_name(gregorian_to_jalali_format($current_start_month)) ?></h5>
+        <div class="btn-group mb-3" role="group">
+            <button type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()">همه</button>
+            <button type="button" class="btn btn-primary" id="leaderBtn" onclick="showLeaders()">سرگروه</button>
+            <button type="button" class="btn btn-primary" id="memberBtn" onclick="showMembers()">زیرگروه</button>
+        </div>
+        <canvas id="partnerChart"></canvas>
+    </div>
+</div>
+
+<style>
+    .btn-primary.active {
+        background-color: #004085 !important;
+        border-color: #003366 !important;
+    }
+</style>
+
+<script>
+    let salesChart;
+    let partnerChart;
+    const ctxSales = document.getElementById('salesChart').getContext('2d');
+    const ctxPartner = document.getElementById('partnerChart').getContext('2d');
+
+    function setActiveButton(groupId, buttonId) {
+        document.querySelectorAll(`#${groupId} button`).forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.getElementById(buttonId).classList.add('active');
+    }
+
+    function showDailyChart() {
+        setActiveButton('dailyBtn', 'dailyBtn');
+        if (salesChart) salesChart.destroy();
+        salesChart = new Chart(ctxSales, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode(array_reverse($days)) ?>,
+                datasets: [{
+                    label: 'فروش (تومان)',
+                    data: <?= json_encode(array_reverse($sales_data)) ?>,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: true } },
+                responsive: true
+            }
+        });
+    }
+
+    function showWeeklyChart() {
+        setActiveButton('weeklyBtn', 'weeklyBtn');
+        if (salesChart) salesChart.destroy();
+        salesChart = new Chart(ctxSales, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode(array_reverse($week_days)) ?>,
+                datasets: [{
+                    label: 'فروش (تومان)',
+                    data: <?= json_encode(array_reverse($week_sales_data)) ?>,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: true } },
+                responsive: true
+            }
+        });
+    }
+
+    function showMonthlyChart() {
+        setActiveButton('monthlyBtn', 'monthlyBtn');
+        if (salesChart) salesChart.destroy();
+        salesChart = new Chart(ctxSales, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode(array_keys($month_sales_data)) ?>,
+                datasets: [{
+                    label: 'فروش (تومان)',
+                    data: <?= json_encode(array_values($month_sales_data)) ?>,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: true } },
+                responsive: true
+            }
+        });
+    }
+
+    function showAllPartners() {
+        setActiveButton('allBtn', 'allBtn');
+        if (partnerChart) partnerChart.destroy();
+        partnerChart = new Chart(ctxPartner, {
+            type: 'horizontalBar',
+            data: {
+                labels: <?= json_encode($partner_labels) ?>,
+                datasets: [{
+                    label: 'فروش (درصد)',
+                    data: <?= json_encode($partner_data) ?>,
+                    backgroundColor: <?= json_encode($partner_colors) ?>,
+                    borderColor: <?= json_encode($partner_colors) ?>,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: { beginAtZero: true, max: 100 },
+                    y: { barPercentage: 0.5 }
+                },
+                responsive: true,
+                legend: { display: false }
+            }
+        });
+    }
+
+    function showLeaders() {
+        setActiveButton('leaderBtn', 'leaderBtn');
+        const leaders = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'leader')) ?>;
+        const leaderLabels = leaders.map(p => p.partner_name ?? 'همکار ناشناس');
+        const leaderData = leaders.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
+        const leaderColors = leaders.map(p => 'rgba(54, 162, 235, 1)');
+        if (partnerChart) partnerChart.destroy();
+        partnerChart = new Chart(ctxPartner, {
+            type: 'horizontalBar',
+            data: {
+                labels: leaderLabels,
+                datasets: [{
+                    label: 'فروش (درصد)',
+                    data: leaderData,
+                    backgroundColor: leaderColors,
+                    borderColor: leaderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: { beginAtZero: true, max: 100 },
+                    y: { barPercentage: 0.5 }
+                },
+                responsive: true,
+                legend: { display: false }
+            }
+        });
+    }
+
+    function showMembers() {
+        setActiveButton('memberBtn', 'memberBtn');
+        const members = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'member')) ?>;
+        const memberLabels = members.map(p => p.partner_name ?? 'همکار ناشناس');
+        const memberData = members.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
+        const memberColors = members.map(p => 'rgba(153, 102, 255, 1)');
+        if (partnerChart) partnerChart.destroy();
+        partnerChart = new Chart(ctxPartner, {
+            type: 'horizontalBar',
+            data: {
+                labels: memberLabels,
+                datasets: [{
+                    label: 'فروش (درصد)',
+                    data: memberData,
+                    backgroundColor: memberColors,
+                    borderColor: memberColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: { beginAtZero: true, max: 100 },
+                    y: { barPercentage: 0.5 }
+                },
+                responsive: true,
+                legend: { display: false }
+            }
+        });
+    }
+
+    // نمایش چارت‌های پیش‌فرض
+    showDailyChart();
+    showAllPartners();
+</script>
 
 <?php
 require_once 'footer.php';
