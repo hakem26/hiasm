@@ -8,6 +8,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 require_once 'db.php';
 require_once 'jdf.php';
 
+// فعال کردن نمایش خطاها برای دیباگ (بعد از تست می‌تونی غیرفعالش کنی)
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', 'error.log');
+
 if (!isset($_POST['work_month_id'])) {
     echo json_encode(['success' => false, 'message' => 'شناسه ماه کاری مشخص نشده است']);
     exit;
@@ -50,10 +55,10 @@ try {
         // تبدیل تاریخ میلادی به شمسی برای محاسبه روز هفته
         list($gy, $gm, $gd) = explode('-', $work_date);
         list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        $adjusted_day_number = (int) jdate('w', jmaketime(0, 0, 0, $jm, $jd, $jy)) + 1; // 1 (شنبه) تا 7 (جمعه)
+        $adjusted_day_number = (int) jdate('w', jmktime(0, 0, 0, $jm, $jd, $jy)) + 1; // 1 (شنبه) تا 7 (جمعه)
 
-        // لگاری برای دیباگ (فعال کن برای تست)
-        var_dump("Date: $work_date, Adjusted Day: $adjusted_day_number");
+        // لگاری برای دیباگ (به جای var_dump از error_log استفاده می‌کنیم)
+        error_log("Date: $work_date, Adjusted Day: $adjusted_day_number\n", 3, "debug.log");
 
         foreach ($partners_in_work as $partner) {
             $partner_id = $partner['partner_id'];
@@ -80,6 +85,7 @@ try {
     echo json_encode(['success' => true, 'message' => 'روز کاری‌ها با موفقیت به‌روزرسانی شدند']);
     exit;
 } catch (Exception $e) {
+    error_log("Error in auto_update_work_details.php: " . $e->getMessage() . "\n", 3, "error.log");
     echo json_encode(['success' => false, 'message' => 'خطا در به‌روزرسانی: ' . $e->getMessage()]);
     exit;
 }
