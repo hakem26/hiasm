@@ -66,6 +66,47 @@ $current_work_month_id = $current_month['work_month_id'] ?? 10;
 $current_start_month = $current_month['start_date'] ?? $today;
 $current_end_month = $current_month['end_date'] ?? $today;
 
+// دریافت 3 ماه کاری قبلی (حذف تکرارها)
+$stmt_previous_months = $pdo->query("
+    SELECT DISTINCT work_month_id, start_date, end_date
+    FROM Work_Months
+    WHERE end_date < CURDATE()
+    ORDER BY end_date DESC
+    LIMIT 3
+");
+$previous_months = $stmt_previous_months->fetchAll(PDO::FETCH_ASSOC);
+$work_months = array_merge([$current_month], $previous_months);
+
+// فروش ماهانه (با منطق مشابه قبلی)
+$month_sales_data = [];
+foreach ($work_months as $month) {
+    $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
+    $conditions = [];
+    $params = [];
+    $base_query = "SELECT SUM(o.total_amount) AS month_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE 1=1";
+
+    $conditions[] = "wd.work_month_id = ?";
+    $params[] = $month['work_month_id'];
+
+    $conditions[] = "EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+
+    if ($month['work_month_id'] == $current_work_month_id) {
+        $conditions[] = "wd.work_date <= ?";
+        $params[] = $today;
+    }
+
+    $final_query = $base_query . " AND " . implode(" AND ", $conditions);
+    $stmt_month_sales = $pdo->prepare($final_query);
+    $stmt_month_sales->execute($params);
+    $sales = $stmt_month_sales->fetchColumn() ?? 0;
+
+    if ($sales > 0) {
+        $month_sales_data[$month_name] = $sales;
+    }
+}
+
 // دریافت اطلاعات روز کاری برای امروز
 $stmt_work_details = $pdo->prepare("
     SELECT id AS work_details_id
@@ -165,7 +206,7 @@ usort($partners_data, function($a, $b) {
 // محاسبه حداکثر فروش برای مقیاس 100%
 $max_sales = max(array_column($partners_data, 'total_sales')) ?: 1; // جلوگیری از تقسیم بر صفر
 
-// آماده‌سازی داده‌ها برای نمودار
+// آماده‌سازی داده‌ها برای نمودار همکاران
 $partner_labels = [];
 $partner_data = [];
 $partner_colors = [];
@@ -192,13 +233,6 @@ $growth_today_color = $growth_today < 0 ? 'red' : ($growth_today > 0 ? 'green' :
 $growth_today_sign = $growth_today < 0 ? '-' : ($growth_today > 0 ? '+' : '');
 
 // رشد این ماه (مقایسه با ماه قبل)
-$previous_months = $pdo->query("
-    SELECT DISTINCT work_month_id, start_date, end_date
-    FROM Work_Months
-    WHERE end_date < CURDATE()
-    ORDER BY end_date DESC
-    LIMIT 1
-")->fetchAll(PDO::FETCH_ASSOC);
 $previous_work_month_id = isset($previous_months[0]['work_month_id']) ? $previous_months[0]['work_month_id'] : null;
 $stmt_previous_month_sales = $pdo->prepare("
     SELECT SUM(o.total_amount) AS previous_month_sales
@@ -319,11 +353,16 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 responsive: true
             }
         });
+        console.log('Daily Chart Loaded', <?= json_encode(array_reverse($days)) ?>, <?= json_encode(array_reverse($sales_data)) ?>);
     }
 
     function showWeeklyChart() {
         setActiveButton('weeklyBtn', 'weeklyBtn');
         if (salesChart) salesChart.destroy();
+        if (<?= json_encode($week_days) ?>.length === 0 || <?= json_encode($week_sales_data) ?>.length === 0) {
+            console.error('No data for weekly chart');
+            return;
+        }
         salesChart = new Chart(ctxSales, {
             type: 'bar',
             data: {
@@ -351,18 +390,23 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 responsive: true
             }
         });
+        console.log('Weekly Chart Loaded', <?= json_encode(array_reverse($week_days)) ?>, <?= json_encode(array_reverse($week_sales_data)) ?>);
     }
 
     function showMonthlyChart() {
         setActiveButton('monthlyBtn', 'monthlyBtn');
         if (salesChart) salesChart.destroy();
+        if (Object.keys(<?= json_encode($month_sales_data) ?>).length === 0) {
+            console.error('No data for monthly chart');
+            return;
+        }
         salesChart = new Chart(ctxSales, {
             type: 'bar',
             data: {
-                labels: [],
+                labels: <?= json_encode(array_keys($month_sales_data)) ?>,
                 datasets: [{
                     label: 'فروش (تومان)',
-                    data: [],
+                    data: <?= json_encode(array_values($month_sales_data)) ?>,
                     backgroundColor: [
                         'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
                         'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
@@ -383,11 +427,16 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 responsive: true
             }
         });
+        console.log('Monthly Chart Loaded', <?= json_encode(array_keys($month_sales_data)) ?>, <?= json_encode(array_values($month_sales_data)) ?>);
     }
 
     function showAllPartners() {
         setActiveButton('allBtn', 'allBtn');
         if (partnerChart) partnerChart.destroy();
+        if (<?= json_encode($partner_labels) ?>.length === 0 || <?= json_encode($partner_data) ?>.length === 0) {
+            console.error('No data for all partners chart');
+            return;
+        }
         partnerChart = new Chart(ctxPartner, {
             type: 'horizontalBar',
             data: {
@@ -409,6 +458,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 legend: { display: false }
             }
         });
+        console.log('All Partners Chart Loaded', <?= json_encode($partner_labels) ?>, <?= json_encode($partner_data) ?>, <?= json_encode($partner_colors) ?>);
     }
 
     function showLeaders() {
@@ -418,6 +468,10 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         const leaderData = leaders.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
         const leaderColors = leaders.map(p => 'rgba(54, 162, 235, 1)');
         if (partnerChart) partnerChart.destroy();
+        if (leaderLabels.length === 0 || leaderData.length === 0) {
+            console.error('No data for leaders chart');
+            return;
+        }
         partnerChart = new Chart(ctxPartner, {
             type: 'horizontalBar',
             data: {
@@ -439,6 +493,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 legend: { display: false }
             }
         });
+        console.log('Leaders Chart Loaded', leaderLabels, leaderData, leaderColors);
     }
 
     function showMembers() {
@@ -448,6 +503,10 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         const memberData = members.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
         const memberColors = members.map(p => 'rgba(153, 102, 255, 1)');
         if (partnerChart) partnerChart.destroy();
+        if (memberLabels.length === 0 || memberData.length === 0) {
+            console.error('No data for members chart');
+            return;
+        }
         partnerChart = new Chart(ctxPartner, {
             type: 'horizontalBar',
             data: {
@@ -469,12 +528,17 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 legend: { display: false }
             }
         });
+        console.log('Members Chart Loaded', memberLabels, memberData, memberColors);
     }
 
     // نمایش چارت‌های پیش‌فرض
     document.addEventListener('DOMContentLoaded', function() {
-        showDailyChart();
-        showAllPartners();
+        try {
+            showDailyChart();
+            showAllPartners();
+        } catch (e) {
+            console.error('Error loading default charts:', e);
+        }
     });
 </script>
 
