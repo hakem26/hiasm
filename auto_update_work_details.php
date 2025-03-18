@@ -45,36 +45,33 @@ try {
     $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
     // همگام‌سازی و ذخیره‌سازی داده‌ها
-    $processed_partners = [];
     foreach ($date_range as $date) {
         $work_date = $date->format('Y-m-d');
         // تبدیل تاریخ میلادی به شمسی و محاسبه روز هفته
         list($gy, $gm, $gd) = explode('-', $work_date);
         $adjusted_day_number = (int) jdate('w', mktime(0, 0, 0, $gm, $gd, $gy)) + 1; // 1 (شنبه) تا 7 (جمعه)
 
-        // بررسی وجود روز کاری برای این تاریخ
-        $detail_query = $pdo->prepare("
-            SELECT * FROM Work_Details 
-            WHERE work_date = ? AND work_month_id = ?
-        ");
-        $detail_query->execute([$work_date, $work_month_id]);
-        $existing_details = $detail_query->fetchAll(PDO::FETCH_ASSOC);
+        // لگاری برای دیباگ
+        // var_dump("Processing date: $work_date, Day: $adjusted_day_number");
 
-        if (empty($existing_details)) {
-            // اگه هنوز روز کاری برای این تاریخ ساخته نشده، برای همه جفت‌ها چک کن
-            foreach ($partners_in_work as $partner) {
-                $partner_id = $partner['partner_id'];
-                if (!in_array($partner_id, $processed_partners)) {
-                    $processed_partners[] = $partner_id;
+        foreach ($partners_in_work as $partner) {
+            $partner_id = $partner['partner_id'];
+            $stored_day_number = $partner['stored_day_number'];
 
-                    if ($partner['stored_day_number'] == $adjusted_day_number) {
-                        $insert_query = $pdo->prepare("
-                            INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id, status) 
-                            VALUES (?, ?, ?, ?, ?, 0)
-                        ");
-                        $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, null]);
-                    }
-                }
+            // چک کردن وجود ردیف برای این تاریخ و partner_id
+            $detail_query = $pdo->prepare("
+                SELECT * FROM Work_Details 
+                WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
+            ");
+            $detail_query->execute([$work_date, $work_month_id, $partner_id]);
+            $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
+
+            if (!$existing_detail && $stored_day_number == $adjusted_day_number) {
+                $insert_query = $pdo->prepare("
+                    INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id, status) 
+                    VALUES (?, ?, ?, ?, ?, 0)
+                ");
+                $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, null]);
             }
         }
     }
