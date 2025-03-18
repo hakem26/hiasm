@@ -54,6 +54,9 @@ $stmt_user->execute([$current_user_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
 $user_name = $user['full_name'] ?? 'کاربر ناشناس';
 
+// دیباگ: بررسی user_id
+error_log("Current User ID: $current_user_id");
+
 // دریافت اطلاعات روز کاری برای امروز
 $stmt_work_details = $pdo->prepare("
     SELECT id AS work_details_id
@@ -157,8 +160,12 @@ foreach ($date_range as $date) {
 $month_sales_data = [];
 foreach ($work_months as $month) {
     $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
-    $end_date_for_sales = ($month['work_month_id'] == $current_work_month_id) ? $today : $month['end_date']; // برای ماه جاری تا امروز، بقیه کل ماه
-    $base_query = "SELECT SUM(o.total_amount) AS month_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE wd.work_month_id = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
+    $base_query = "SELECT SUM(o.total_amount) AS month_sales 
+                   FROM Orders o 
+                   JOIN Work_Details wd ON o.work_details_id = wd.id 
+                   JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id 
+                   WHERE wd.work_month_id = ? 
+                   AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
     $params = [$month['work_month_id'], $current_user_id, $current_user_id];
     if ($month['work_month_id'] == $current_work_month_id) {
         $base_query .= " AND wd.work_date <= ?";
@@ -166,7 +173,9 @@ foreach ($work_months as $month) {
     }
     $stmt_month_sales = $pdo->prepare($base_query);
     $stmt_month_sales->execute($params);
-    $month_sales_data[$month_name] = $stmt_month_sales->fetchColumn() ?? 0;
+    $sales = $stmt_month_sales->fetchColumn() ?? 0;
+    $month_sales_data[$month_name] = $sales;
+    error_log("Month: $month_name, Sales: $sales, Work_Month_ID: {$month['work_month_id']}, Today: $today"); // دیباگ
 }
 
 // رشد امروز (مقایسه با هفته قبل)
