@@ -80,7 +80,7 @@ $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
 // دیباگ نقش کاربر
-var_dump($is_admin, $_SESSION['role']);
+// var_dump($is_admin, $_SESSION['role']);
 
 // دریافت لیست همکاران
 if ($is_admin) {
