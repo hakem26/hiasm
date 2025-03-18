@@ -238,9 +238,29 @@ if ($selected_year) {
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center text-center mb-3">
             <h5 class="card-title">اطلاعات کاری</h5>
-            <?php if ($is_admin): ?>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkDetailModal">افزودن روز کاری</button>
-            <?php endif; ?>
+            <div>
+                <?php if ($is_admin): ?>
+                    <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addWorkDetailModal">افزودن
+                        روز کاری</button>
+                    <?php if (isset($_GET['work_month_id'])): ?>
+                        <button class="btn btn-success auto-update-work-details"
+                            data-work-month-id="<?= $_GET['work_month_id'] ?>">بروزرسانی اتومات روز کاری</button>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center text-center mb-3">
+            <h5 class="card-title">اطلاعات کاری</h5>
+            <div>
+                <?php if ($is_admin): ?>
+                    <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addWorkDetailModal">افزودن
+                        روز کاری</button>
+                    <?php if (isset($_GET['work_month_id'])): ?>
+                        <button class="btn btn-success auto-update-work-details"
+                            data-work-month-id="<?= $_GET['work_month_id'] ?>">بروزرسانی اتومات روز کاری</button>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
         </div>
 
         <!-- نمایش مجموع فروش -->
@@ -310,8 +330,9 @@ if ($selected_year) {
                                 <td><?= number_format($work['total_sales'], 0) ?></td>
                                 <td>
                                     <select class="select-wdt form-select agency-select" data-id="<?= $work['work_date'] ?>"
-                                            data-partner-id="<?= $work['partner_id'] ?>">
-                                        <option value="" <?= is_null($work['agency_owner_id']) ? 'selected' : '' ?>>انتخاب کنید</option>
+                                        data-partner-id="<?= $work['partner_id'] ?>">
+                                        <option value="" <?= is_null($work['agency_owner_id']) ? 'selected' : '' ?>>انتخاب کنید
+                                        </option>
                                         <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($work['user1']) ?>
                                         </option>
@@ -322,7 +343,8 @@ if ($selected_year) {
                                 </td>
                                 <?php if ($is_admin): ?>
                                     <td>
-                                        <button class="btn btn-sm btn-<?= $work['status'] ? 'warning' : 'success' ?> toggle-status" data-id="<?= $work['id'] ?>">
+                                        <button class="btn btn-sm btn-<?= $work['status'] ? 'warning' : 'success' ?> toggle-status"
+                                            data-id="<?= $work['id'] ?>">
                                             <?= $work['status'] ? 'غیر تعطیل' : 'تعطیل' ?>
                                         </button>
                                         <button class="btn btn-sm btn-danger delete-work" data-id="<?= $work['id'] ?>">حذف</button>
@@ -340,7 +362,8 @@ if ($selected_year) {
 
     <!-- مودال افزودن روز کاری -->
     <?php if ($is_admin): ?>
-        <div class="modal fade" id="addWorkDetailModal" tabindex="-1" aria-labelledby="addWorkDetailModalLabel" aria-hidden="true">
+        <div class="modal fade" id="addWorkDetailModal" tabindex="-1" aria-labelledby="addWorkDetailModalLabel"
+            aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content bg-light">
                     <div class="modal-header">
@@ -363,7 +386,8 @@ if ($selected_year) {
                             </div>
                             <div class="mb-3">
                                 <label for="work_date" class="form-label">تاریخ (شمسی)</label>
-                                <input type="text" class="form-control persian-date" id="work_date" name="work_date" required>
+                                <input type="text" class="form-control persian-date" id="work_date" name="work_date"
+                                    required>
                             </div>
                             <div class="mb-3">
                                 <label for="user_id1" class="form-label">همکار اول</label>
@@ -413,7 +437,7 @@ if ($selected_year) {
             $('.toggle-status').click(function () {
                 const workDetailId = $(this).data('id');
                 const button = $(this);
-                
+
                 $.post('toggle_work_status.php', { work_detail_id: workDetailId }, function (response) {
                     if (response.success) {
                         alert('وضعیت با موفقیت ذخیره شد');
@@ -437,7 +461,7 @@ if ($selected_year) {
                 }
 
                 const workDetailId = $(this).data('id');
-                
+
                 $.post('delete_work_detail.php', { work_detail_id: workDetailId }, function (response) {
                     if (response.success) {
                         alert('روز کاری با موفقیت حذف شد');
@@ -463,6 +487,22 @@ if ($selected_year) {
                 }, function (response) {
                     alert(response);
                 });
+            });
+        });
+
+        // بروزرسانی خودکار روز کاری‌ها
+        $('.auto-update-work-details').click(function () {
+            const workMonthId = $(this).data('work-month-id');
+
+            $.post('auto_update_work_details.php', { work_month_id: workMonthId }, function (response) {
+                if (response.success) {
+                    alert('روز کاری‌ها با موفقیت به‌روزرسانی شدند');
+                    location.reload();
+                } else {
+                    alert('خطا در به‌روزرسانی: ' + response.message);
+                }
+            }, 'json').fail(function () {
+                alert('خطا در اتصال به سرور!');
             });
         });
     </script>
