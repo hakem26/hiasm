@@ -79,9 +79,6 @@ if ($selected_year) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-// دیباگ نقش کاربر
-// var_dump($is_admin, $_SESSION['role']);
-
 // دریافت لیست همکاران
 if ($is_admin) {
     $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
@@ -108,98 +105,58 @@ if (isset($_GET['work_month_id'])) {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        $start_date = new DateTime($month['start_date']);
-        $end_date = new DateTime($month['end_date']);
-        $interval = new DateInterval('P1D');
-        $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
-
-        // دریافت همه جفت‌های همکار از Partners
+        // مستقیماً از Work_Details داده‌ها رو بکشیم
         if ($is_admin) {
-            $partner_query = $pdo->prepare("
-                SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
+            $details_query = $pdo->prepare("
+                SELECT wd.id, wd.work_date, wd.work_day, wd.partner_id, wd.agency_owner_id, wd.status, 
+                       u1.user_id AS user_id1, u1.full_name AS user1,
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
-                FROM Partners p
+                FROM Work_Details wd
+                JOIN Partners p ON wd.partner_id = p.partner_id
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                GROUP BY p.partner_id
+                WHERE wd.work_month_id = ? AND wd.status = 0
             ");
-            $partner_query->execute();
+            $details_query->execute([$work_month_id]);
         } else {
-            $partner_query = $pdo->prepare("
-                SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
+            $details_query = $pdo->prepare("
+                SELECT wd.id, wd.work_date, wd.work_day, wd.partner_id, wd.agency_owner_id, wd.status, 
+                       u1.user_id AS user_id1, u1.full_name AS user1,
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
-                FROM Partners p
+                FROM Work_Details wd
+                JOIN Partners p ON wd.partner_id = p.partner_id
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u1.role = 'seller'
-                GROUP BY p.partner_id
+                WHERE wd.work_month_id = ? AND wd.status = 0
+                AND (p.user_id1 = ? OR p.user_id2 = ?)
             ");
-            $partner_query->execute([$current_user_id, $current_user_id]);
+            $details_query->execute([$work_month_id, $current_user_id, $current_user_id]);
         }
-        $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
+        $work_details_raw = $details_query->fetchAll(PDO::FETCH_ASSOC);
 
-        // همگام‌سازی و ذخیره‌سازی داده‌ها
-        $processed_partners = [];
-        foreach ($partners_in_work as $partner) {
-            $partner_id = $partner['partner_id'];
-            if (!in_array($partner_id, $processed_partners)) {
-                $processed_partners[] = $partner_id;
+        foreach ($work_details_raw as $detail) {
+            // محاسبه جمع کل فروش برای این روز کاری
+            $sales_query = $pdo->prepare("
+                SELECT SUM(total_amount) as total_sales 
+                FROM Orders 
+                WHERE work_details_id = ?
+            ");
+            $sales_query->execute([$detail['id']]);
+            $total_sales = $sales_query->fetchColumn() ?: 0;
 
-                foreach ($date_range as $date) {
-                    $work_date = $date->format('Y-m-d');
-                    // محاسبه روز هفته با جابه‌جایی درست
-                    $day_number_php = (int) date('N', strtotime($work_date));
-                    $adjusted_day_number = ($day_number_php + 1) % 7;
-                    if ($adjusted_day_number == 0) {
-                        $adjusted_day_number = 7;
-                    }
-
-                    if ($partner['stored_day_number'] == $adjusted_day_number) {
-                        $detail_query = $pdo->prepare("
-                            SELECT * FROM Work_Details 
-                            WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
-                        ");
-                        $detail_query->execute([$work_date, $work_month_id, $partner_id]);
-                        $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
-
-                        if (!$existing_detail) {
-                            $insert_query = $pdo->prepare("
-                                INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id, status) 
-                                VALUES (?, ?, ?, ?, ?, 0)
-                            ");
-                            $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, $partner['user_id1']]);
-                            $work_details_id = $pdo->lastInsertId();
-                        } else {
-                            $work_details_id = $existing_detail['id'];
-                        }
-
-                        // محاسبه جمع کل فروش برای این روز کاری
-                        $sales_query = $pdo->prepare("
-                            SELECT SUM(total_amount) as total_sales 
-                            FROM Orders 
-                            WHERE work_details_id = ?
-                        ");
-                        $sales_query->execute([$work_details_id]);
-                        $total_sales = $sales_query->fetchColumn() ?: 0;
-
-                        $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
-                        $status = $existing_detail && isset($existing_detail['status']) ? $existing_detail['status'] : 0;
-                        $work_details[] = [
-                            'id' => $work_details_id, // برای استفاده در دکمه‌ها
-                            'work_date' => $work_date,
-                            'work_day' => number_to_day($adjusted_day_number),
-                            'partner_id' => $partner_id,
-                            'user1' => $partner['user1'],
-                            'user2' => $partner['user2'],
-                            'user_id1' => $partner['user_id1'],
-                            'user_id2' => $partner['user_id2'],
-                            'agency_owner_id' => $agency_owner_id,
-                            'total_sales' => $total_sales,
-                            'status' => $status
-                        ];
-                    }
-                }
-            }
+            $work_details[] = [
+                'id' => $detail['id'],
+                'work_date' => $detail['work_date'],
+                'work_day' => number_to_day($detail['work_day']),
+                'partner_id' => $detail['partner_id'],
+                'user1' => $detail['user1'],
+                'user2' => $detail['user2'],
+                'user_id1' => $detail['user_id1'],
+                'user_id2' => $detail['user_id2'],
+                'agency_owner_id' => $detail['agency_owner_id'],
+                'total_sales' => $total_sales,
+                'status' => $detail['status']
+            ];
         }
     }
 }
@@ -218,9 +175,6 @@ if (!empty($selected_partner_id)) {
 usort($filtered_work_details, function ($a, $b) {
     return strcmp($a['work_date'], $b['work_date']);
 });
-
-// دیباگ داده‌ها
-// var_dump($filtered_work_details);
 
 // محاسبه مجموع فروش بر اساس فیلترها
 $total_sales_all = 0;
@@ -356,7 +310,8 @@ if ($selected_year) {
                                 <td><?= number_format($work['total_sales'], 0) ?></td>
                                 <td>
                                     <select class="select-wdt form-select agency-select" data-id="<?= $work['work_date'] ?>"
-                                        data-partner-id="<?= $work['partner_id'] ?>">
+                                            data-partner-id="<?= $work['partner_id'] ?>">
+                                        <option value="" <?= is_null($work['agency_owner_id']) ? 'selected' : '' ?>>انتخاب کنید</option>
                                         <option value="<?= $work['user_id1'] ?>" <?= $work['agency_owner_id'] == $work['user_id1'] ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($work['user1']) ?>
                                         </option>
