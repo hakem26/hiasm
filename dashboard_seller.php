@@ -180,7 +180,7 @@ foreach ($date_range as $date) {
     }
 }
 
-// فروش ماهانه با همکاران (فقط ماه جاری)
+// فروش ماهانه با همکاران (فقط ماه جاری، بدون کاربر لاگین‌شده)
 $partner_sales = [];
 $stmt_partner_sales = $pdo->prepare("
     SELECT p.partner_id, COALESCE(u2.full_name, u1.full_name) AS partner_name,
@@ -192,10 +192,11 @@ $stmt_partner_sales = $pdo->prepare("
     JOIN Work_Details wd ON p.partner_id = wd.partner_id
     JOIN Orders o ON wd.id = o.work_details_id
     WHERE wd.work_month_id = ? AND wd.work_date <= ?
+    AND p.user_id1 != ? AND p.user_id2 != ?
     GROUP BY p.partner_id, partner_name, role
     HAVING total_sales IS NOT NULL
 ");
-$stmt_partner_sales->execute([$current_user_id, $current_work_month_id, $today]);
+$stmt_partner_sales->execute([$current_user_id, $current_work_month_id, $today, $current_user_id, $current_user_id]);
 $partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
 
 // مرتب‌سازی بر اساس فروش نزولی
@@ -203,16 +204,16 @@ usort($partners_data, function($a, $b) {
     return $b['total_sales'] <=> $a['total_sales'];
 });
 
-// محاسبه حداکثر فروش برای مقیاس 100%
-$max_sales = max(array_column($partners_data, 'total_sales')) ?: 1; // جلوگیری از تقسیم بر صفر
+// محاسبه حداکثر فروش برای مقیاس (فقط برای اطلاعات)
+$max_sales = max(array_column($partners_data, 'total_sales')) ?: 1;
 
-// آماده‌سازی داده‌ها برای نمودار همکاران
+// آماده‌سازی داده‌ها برای نمودار همکاران (مبلغ واقعی به‌جای درصد)
 $partner_labels = [];
 $partner_data = [];
 $partner_colors = [];
 foreach ($partners_data as $partner) {
     $partner_labels[] = $partner['partner_name'] ?? 'همکار ناشناس';
-    $partner_data[] = ($partner['total_sales'] / $max_sales) * 100; // درصد نسبت به حداکثر
+    $partner_data[] = $partner['total_sales']; // مبلغ واقعی به‌جای درصد
     $partner_colors[] = ($partner['role'] === 'leader') ? 'rgba(54, 162, 235, 1)' : 'rgba(153, 102, 255, 1)';
 }
 
@@ -433,19 +434,19 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
     function showAllPartners() {
         setActiveButton('allBtn', 'allBtn');
         if (partnerChart) {
-            partnerChart.destroy(); // مطمئن می‌شم چارت قبلی نابود بشه
-            partnerChart = null; // پاک کردن ارجاع
+            partnerChart.destroy();
+            partnerChart = null;
         }
         if (<?= json_encode($partner_labels) ?>.length === 0 || <?= json_encode($partner_data) ?>.length === 0) {
             console.error('No data for all partners chart');
             return;
         }
         partnerChart = new Chart(ctxPartner, {
-            type: 'bar', // تغییر از horizontalBar به bar
+            type: 'bar',
             data: {
                 labels: <?= json_encode($partner_labels) ?>,
                 datasets: [{
-                    label: 'فروش (درصد)',
+                    label: 'فروش (تومان)',
                     data: <?= json_encode($partner_data) ?>,
                     backgroundColor: <?= json_encode($partner_colors) ?>,
                     borderColor: <?= json_encode($partner_colors) ?>,
@@ -453,9 +454,9 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
                 }]
             },
             options: {
-                indexAxis: 'y', // برای چارت افقی
+                indexAxis: 'y',
                 scales: {
-                    x: { beginAtZero: true, max: 100 },
+                    x: { beginAtZero: true },
                     y: { barPercentage: 0.5 }
                 },
                 responsive: true,
@@ -471,9 +472,9 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             partnerChart.destroy();
             partnerChart = null;
         }
-        const leaders = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'leader')) ?>;
+        const leaders = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'leader') ?: []) ?>;
         const leaderLabels = leaders.map(p => p.partner_name ?? 'همکار ناشناس');
-        const leaderData = leaders.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
+        const leaderData = leaders.map(p => p.total_sales);
         const leaderColors = leaders.map(p => 'rgba(54, 162, 235, 1)');
         if (leaderLabels.length === 0 || leaderData.length === 0) {
             console.error('No data for leaders chart');
@@ -484,7 +485,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             data: {
                 labels: leaderLabels,
                 datasets: [{
-                    label: 'فروش (درصد)',
+                    label: 'فروش (تومان)',
                     data: leaderData,
                     backgroundColor: leaderColors,
                     borderColor: leaderColors,
@@ -494,7 +495,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             options: {
                 indexAxis: 'y',
                 scales: {
-                    x: { beginAtZero: true, max: 100 },
+                    x: { beginAtZero: true },
                     y: { barPercentage: 0.5 }
                 },
                 responsive: true,
@@ -510,9 +511,9 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             partnerChart.destroy();
             partnerChart = null;
         }
-        const members = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'member')) ?>;
+        const members = <?= json_encode(array_filter($partners_data, fn($p) => $p['role'] === 'member') ?: []) ?>;
         const memberLabels = members.map(p => p.partner_name ?? 'همکار ناشناس');
-        const memberData = members.map(p => (p.total_sales / <?= $max_sales ?>) * 100);
+        const memberData = members.map(p => p.total_sales);
         const memberColors = members.map(p => 'rgba(153, 102, 255, 1)');
         if (memberLabels.length === 0 || memberData.length === 0) {
             console.error('No data for members chart');
@@ -523,7 +524,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             data: {
                 labels: memberLabels,
                 datasets: [{
-                    label: 'فروش (درصد)',
+                    label: 'فروش (تومان)',
                     data: memberData,
                     backgroundColor: memberColors,
                     borderColor: memberColors,
@@ -533,7 +534,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             options: {
                 indexAxis: 'y',
                 scales: {
-                    x: { beginAtZero: true, max: 100 },
+                    x: { beginAtZero: true },
                     y: { barPercentage: 0.5 }
                 },
                 responsive: true,
