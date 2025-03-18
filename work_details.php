@@ -127,62 +127,64 @@ if (isset($_GET['work_month_id'])) {
         }
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
-// همگام‌سازی و ذخیره‌سازی داده‌ها
-$processed_partners = [];
-foreach ($partners_in_work as $partner) {
-    $partner_id = $partner['partner_id'];
-    if (!in_array($partner_id, $processed_partners)) {
-        $processed_partners[] = $partner_id;
+        // همگام‌سازی و ذخیره‌سازی داده‌ها
+        $processed_partners = [];
+        foreach ($partners_in_work as $partner) {
+            $partner_id = $partner['partner_id'];
+            if (!in_array($partner_id, $processed_partners)) {
+                $processed_partners[] = $partner_id;
 
-        foreach ($date_range as $date) {
-            $work_date = $date->format('Y-m-d');
-            // محاسبه روز هفته با جابه‌جایی درست
-            $day_number_php = (int) date('N', strtotime($work_date));
-            $adjusted_day_number = ($day_number_php + 1) % 7;
-            if ($adjusted_day_number == 0) {
-                $adjusted_day_number = 7;
-            }
+                foreach ($date_range as $date) {
+                    $work_date = $date->format('Y-m-d');
+                    // محاسبه روز هفته با جابه‌جایی درست
+                    $day_number_php = (int) date('N', strtotime($work_date));
+                    $adjusted_day_number = ($day_number_php + 1) % 7;
+                    if ($adjusted_day_number == 0) {
+                        $adjusted_day_number = 7;
+                    }
 
-            if ($partner['stored_day_number'] == $adjusted_day_number) {
-                $detail_query = $pdo->prepare("
-                    SELECT * FROM Work_Details 
-                    WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
-                ");
-                $detail_query->execute([$work_date, $work_month_id, $partner_id]);
-                $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
+                    if ($partner['stored_day_number'] == $adjusted_day_number) {
+                        $detail_query = $pdo->prepare("
+                            SELECT * FROM Work_Details 
+                            WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
+                        ");
+                        $detail_query->execute([$work_date, $work_month_id, $partner_id]);
+                        $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
 
-                if (!$existing_detail) {
-                    $insert_query = $pdo->prepare("
-                        INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
-                        VALUES (?, ?, ?, ?, ?)
-                    ");
-                    $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, $partner['user_id1']]);
-                    $work_details_id = $pdo->lastInsertId();
-                } else {
-                    $work_details_id = $existing_detail['id'];
+                        if (!$existing_detail) {
+                            $insert_query = $pdo->prepare("
+                                INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id) 
+                                VALUES (?, ?, ?, ?, ?)
+                            ");
+                            $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, $partner['user_id1']]);
+                            $work_details_id = $pdo->lastInsertId();
+                        } else {
+                            $work_details_id = $existing_detail['id'];
+                        }
+
+                        // محاسبه جمع کل فروش برای این روز کاری
+                        $sales_query = $pdo->prepare("
+                            SELECT SUM(total_amount) as total_sales 
+                            FROM Orders 
+                            WHERE work_details_id = ?
+                        ");
+                        $sales_query->execute([$work_details_id]);
+                        $total_sales = $sales_query->fetchColumn() ?: 0;
+
+                        $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
+                        $work_details[] = [
+                            'work_date' => $work_date,
+                            'work_day' => number_to_day($adjusted_day_number),
+                            'partner_id' => $partner_id,
+                            'user1' => $partner['user1'],
+                            'user2' => $partner['user2'],
+                            'user_id1' => $partner['user_id1'],
+                            'user_id2' => $partner['user_id2'],
+                            'agency_owner_id' => $agency_owner_id,
+                            'total_sales' => $total_sales
+                        ];
+                    }
                 }
-
-                // محاسبه جمع کل فروش برای این روز کاری
-                $sales_query = $pdo->prepare("
-                    SELECT SUM(total_amount) as total_sales 
-                    FROM Orders 
-                    WHERE work_details_id = ?
-                ");
-                $sales_query->execute([$work_details_id]);
-                $total_sales = $sales_query->fetchColumn() ?: 0;
-
-                $agency_owner_id = $existing_detail && isset($existing_detail['agency_owner_id']) ? $existing_detail['agency_owner_id'] : $partner['user_id1'];
-                $work_details[] = [
-                    'work_date' => $work_date,
-                    'work_day' => number_to_day($adjusted_day_number),
-                    'partner_id' => $partner_id,
-                    'user1' => $partner['user1'],
-                    'user2' => $partner['user2'],
-                    'user_id1' => $partner['user_id1'],
-                    'user_id2' => $partner['user_id2'],
-                    'agency_owner_id' => $agency_owner_id,
-                    'total_sales' => $total_sales
-                ];
             }
         }
     }
