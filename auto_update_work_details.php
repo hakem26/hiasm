@@ -47,12 +47,12 @@ try {
     // همگام‌سازی و ذخیره‌سازی داده‌ها
     foreach ($date_range as $date) {
         $work_date = $date->format('Y-m-d');
-        // تبدیل تاریخ میلادی به شمسی و محاسبه روز هفته
-        list($gy, $gm, $gd) = explode('-', $work_date);
-        $adjusted_day_number = (int) jdate('w', mktime(0, 0, 0, $gm, $gd, $gy)) + 1; // 1 (شنبه) تا 7 (جمعه)
+        // محاسبه روز هفته با jdate با استفاده از تاریخ میلادی
+        $timestamp = strtotime($work_date);
+        $adjusted_day_number = (int) jdate('w', $timestamp) + 1; // 1 (شنبه) تا 7 (جمعه)
 
-        // لگاری برای دیباگ
-        // var_dump("Processing date: $work_date, Day: $adjusted_day_number");
+        // لگاری برای دیباگ (فعال کن برای تست)
+        // var_dump("Date: $work_date, Adjusted Day: $adjusted_day_number");
 
         foreach ($partners_in_work as $partner) {
             $partner_id = $partner['partner_id'];
