@@ -95,14 +95,14 @@ $stmt_current_month = $pdo->query("
     LIMIT 1
 ");
 $current_month = $stmt_current_month->fetch(PDO::FETCH_ASSOC);
-$current_work_month_id = $current_month['work_month_id'] ?? 10; // فرض 10
+$current_work_month_id = $current_month['work_month_id'] ?? 10;
 $current_start_month = $current_month['start_date'] ?? $today;
 $current_end_month = $current_month['end_date'] ?? $today;
 echo "Current Work Month ID: $current_work_month_id\n";
 
-// دریافت 3 ماه کاری قبلی
+// دریافت 3 ماه کاری قبلی (حذف تکرارها)
 $stmt_previous_months = $pdo->query("
-    SELECT work_month_id, start_date, end_date
+    SELECT DISTINCT work_month_id, start_date, end_date
     FROM Work_Months
     WHERE end_date < CURDATE()
     ORDER BY end_date DESC
@@ -110,9 +110,7 @@ $stmt_previous_months = $pdo->query("
 ");
 $previous_months = $stmt_previous_months->fetchAll(PDO::FETCH_ASSOC);
 $work_months = array_merge([$current_month], $previous_months);
-$previous_work_month_id = isset($previous_months[0]) ? $previous_months[0]['work_month_id'] : null;
-$previous_start_month = isset($previous_months[0]) ? $previous_months[0]['start_date'] : date('Y-m-d', strtotime('-1 month', strtotime($current_start_month)));
-$previous_end_month = isset($previous_months[0]) ? $previous_months[0]['end_date'] : date('Y-m-d', strtotime('-1 day', strtotime($current_start_month)));
+echo "Work Months: " . print_r($work_months, true) . "\n";
 
 // فروش روزانه (7 روز اخیر)
 $days = [];
@@ -173,22 +171,18 @@ foreach ($work_months as $month) {
     $params[] = $current_user_id;
     $params[] = $current_user_id;
 
-    // موقتاً شرط تاریخ رو حذف می‌کنیم
-    /* if ($month['work_month_id'] == $current_work_month_id) {
-        $conditions[] = "wd.work_date <= ?";
-        $params[] = $today;
-    } */
-
     $final_query = $base_query . " AND " . implode(" AND ", $conditions);
     $stmt_month_sales = $pdo->prepare($final_query);
     $stmt_month_sales->execute($params);
 
-    // نمایش دیباگ توی صفحه
     $error = $stmt_month_sales->errorInfo();
     $sales = $stmt_month_sales->fetchColumn() ?? 0;
     echo "Debug - Month: $month_name, Work_Month_ID: {$month['work_month_id']}, Sales: $sales, Query: $final_query, Params: " . json_encode($params) . ", Error: " . json_encode($error) . "\n";
 
-    $month_sales_data[$month_name] = $sales;
+    // ذخیره فقط اگر فروش بیشتر از صفر باشه
+    if ($sales > 0) {
+        $month_sales_data[$month_name] = $sales;
+    }
 }
 
 // نمایش موقت برای دیباگ
