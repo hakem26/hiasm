@@ -29,6 +29,7 @@ try {
     $start_date = new DateTime($month['start_date']);
     $end_date = new DateTime($month['end_date']);
     $interval = new DateInterval('P1D');
+    // اطمینان از اینکه end_date هم شامل شود
     $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
 
     // دریافت همه جفت‌های همکار از Partners
@@ -52,12 +53,13 @@ try {
 
             foreach ($date_range as $date) {
                 $work_date = $date->format('Y-m-d');
-                $day_number_php = (int) date('N', strtotime($work_date));
-                $adjusted_day_number = ($day_number_php + 1) % 7;
+                $day_number_php = (int) date('N', strtotime($work_date)); // 1 (دوشنبه) تا 7 (یک‌شنبه)
+                $adjusted_day_number = ($day_number_php + 4) % 7; // جابه‌جایی برای تقویم ایرانی
                 if ($adjusted_day_number == 0) {
-                    $adjusted_day_number = 7;
+                    $adjusted_day_number = 7; // اگر نتیجه 0 شد، باید 7 (جمعه) باشد
                 }
 
+                // چک کردن تطابق روز
                 if ($partner['stored_day_number'] == $adjusted_day_number) {
                     $detail_query = $pdo->prepare("
                         SELECT * FROM Work_Details 
@@ -78,7 +80,7 @@ try {
         }
     }
 
-    echo json_encode(['success' => true]);
+    echo json_encode(['success' => true, 'message' => 'روز کاری‌ها با موفقیت به‌روزرسانی شدند']);
     exit;
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'message' => 'خطا در به‌روزرسانی: ' . $e->getMessage()]);

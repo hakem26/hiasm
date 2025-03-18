@@ -25,11 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // تبدیل تاریخ شمسی به میلادی
     $work_date_gregorian = jalali_to_gregorian_format($work_date);
 
-    // محاسبه روز هفته
-    $day_number_php = (int) date('N', strtotime($work_date_gregorian));
-    $adjusted_day_number = ($day_number_php + 1) % 7;
+    // محاسبه روز هفته (هماهنگ با تقویم ایرانی)
+    $day_number_php = (int) date('N', strtotime($work_date_gregorian)); // 1 (دوشنبه) تا 7 (یک‌شنبه)
+    $adjusted_day_number = ($day_number_php + 4) % 7; // جابه‌جایی برای تقویم ایرانی
     if ($adjusted_day_number == 0) {
-        $adjusted_day_number = 7;
+        $adjusted_day_number = 7; // اگر نتیجه 0 شد، باید 7 (جمعه) باشد
     }
 
     // بررسی وجود جفت همکار توی جدول Partners
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id, status) 
             VALUES (?, ?, ?, ?, ?, 0)
         ");
-        $stmt->execute([$work_month_id, $work_date_gregorian, $adjusted_day_number, $partner_id, $user_id1]);
+        $stmt->execute([$work_month_id, $work_date_gregorian, $adjusted_day_number, $partner_id, null]);
     }
 
     // ریدایرکت به صفحه اطلاعات کاری
@@ -75,3 +75,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: work_details.php");
     exit;
 }
+?>
