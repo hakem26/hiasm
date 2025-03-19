@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 
@@ -8,25 +9,34 @@ function gregorian_to_jalali_format($gregorian_date) {
     return "$jy/$jm/$jd";
 }
 
-$month_id = $_POST['month_id'];
-$partner_id = $_POST['partner_id'];
-$user_id = $_POST['user_id'];
+$year = $_POST['year'] ?? '';
+$work_month_id = $_POST['work_month_id'] ?? 'all';
+$partner_id = $_POST['partner_id'] ?? 'all';
+$current_user_id = $_SESSION['user_id'] ?? null;
 
-$stmt = $pdo->prepare("
-    SELECT wd.id AS work_details_id, wd.work_date, 
-           u1.full_name AS partner_name, 
-           u2.full_name AS agency_owner_name
-    FROM Work_Details wd
-    JOIN Users u1 ON u1.user_id = wd.partner_id
-    JOIN Users u2 ON u2.user_id = wd.agency_owner_id
-    WHERE wd.work_month_id = ? AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-    AND (wd.partner_id = ? OR wd.agency_owner_id = ?)
-    ORDER BY wd.work_date ASC
-");
-$stmt->execute([$month_id, $user_id, $user_id, $partner_id, $partner_id]);
-$work_days = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-echo '<option value="">انتخاب روز</option>';
-foreach ($work_days as $day) {
-    echo "<option value='{$day['work_details_id']}'>" . gregorian_to_jalali_format($day['work_date']) . " ({$day['partner_name']} - {$day['agency_owner_name']})</option>";
+if (!$year || !$current_user_id || $work_month_id === 'all' || $partner_id === 'all') {
+    echo '';
+    exit;
 }
+
+$query = "
+    SELECT DISTINCT wd.work_date
+    FROM Work_Details wd
+    JOIN Partners p ON wd.partner_id = p.partner_id
+    JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+    WHERE YEAR(wm.start_date) = ?
+    AND wd.work_month_id = ?
+    AND (p.user_id1 = ? OR p.user_id2 = ?)
+    AND (p.user_id1 = ? OR p.user_id2 = ?)
+    ORDER BY wd.work_date DESC
+";
+$params = [$year, $work_month_id, $current_user_id, $current_user_id, $partner_id, $partner_id];
+
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
+$work_dates = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+foreach ($work_dates as $date) {
+    echo "<option value='$date'>" . gregorian_to_jalali_format($date) . "</option>";
+}
+?>
