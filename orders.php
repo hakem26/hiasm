@@ -21,6 +21,20 @@ function gregorian_year_to_jalali($gregorian_year)
     return $jy;
 }
 
+// تابع محاسبه روز هفته (شمسی)
+function calculate_day_of_week($work_date)
+{
+    $reference_date = '2025-03-01'; // 1403/12/1 که شنبه است
+    $reference_timestamp = strtotime($reference_date);
+    $current_timestamp = strtotime($work_date);
+    $days_diff = ($current_timestamp - $reference_timestamp) / (60 * 60 * 24);
+    $adjusted_day_number = ($days_diff % 7 + 1);
+    if ($adjusted_day_number <= 0) {
+        $adjusted_day_number += 7;
+    }
+    return $adjusted_day_number; // 1 (شنبه) تا 7 (جمعه)
+}
+
 function number_to_day($day_number)
 {
     $days = [
@@ -86,14 +100,10 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        $start_date = new DateTime($month['start_date']);
-        $end_date = new DateTime($month['end_date']);
-        $interval = new DateInterval('P1D');
-        $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
-
+        // دریافت برنامه کاری همکارها
         if ($is_admin) {
             $partner_query = $pdo->prepare("
-                SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
+                SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
@@ -103,7 +113,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
             $partner_query->execute();
         } else {
             $partner_query = $pdo->prepare("
-                SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
+                SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
                 FROM Partners p
                 JOIN Users u1 ON p.user_id1 = u1.user_id
@@ -115,42 +125,34 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
         }
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
-        $processed_partners = [];
-        foreach ($partners_in_work as $partner) {
-            $partner_id = $partner['partner_id'];
-            if (!in_array($partner_id, $processed_partners)) {
-                $processed_partners[] = $partner_id;
+        // دریافت روزهای کاری از Work_Details
+        $details_query = $pdo->prepare("
+            SELECT wd.id, wd.work_date, wd.partner_id, 
+                   u1.full_name AS user1, u2.full_name AS user2,
+                   u1.user_id AS user_id1, u2.user_id AS user_id2
+            FROM Work_Details wd
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Users u1 ON p.user_id1 = u1.user_id
+            LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+            WHERE wd.work_month_id = ?
+        ");
+        $details_query->execute([$selected_work_month_id]);
+        $work_details_raw = $details_query->fetchAll(PDO::FETCH_ASSOC);
 
-                foreach ($date_range as $date) {
-                    $work_date = $date->format('Y-m-d');
-                    $day_number_php = (int) date('N', strtotime($work_date));
-                    $adjusted_day_number = ($day_number_php + 5) % 7;
-                    if ($adjusted_day_number == 0)
-                        $adjusted_day_number = 7;
+        foreach ($work_details_raw as $detail) {
+            $work_date = $detail['work_date'];
+            $day_number = calculate_day_of_week($work_date);
 
-                    if ($partner['stored_day_number'] == $adjusted_day_number) {
-                        $detail_query = $pdo->prepare("
-                            SELECT * FROM Work_Details 
-                            WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
-                        ");
-                        $detail_query->execute([$work_date, $selected_work_month_id, $partner_id]);
-                        $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
-
-                        if ($existing_detail) {
-                            $work_details[] = [
-                                'work_details_id' => $existing_detail['id'],
-                                'work_date' => $work_date,
-                                'work_day' => number_to_day($adjusted_day_number),
-                                'partner_id' => $partner_id,
-                                'user1' => $partner['user1'],
-                                'user2' => $partner['user2'],
-                                'user_id1' => $partner['user_id1'],
-                                'user_id2' => $partner['user_id2']
-                            ];
-                        }
-                    }
-                }
-            }
+            $work_details[] = [
+                'work_details_id' => $detail['id'],
+                'work_date' => $work_date,
+                'work_day' => number_to_day($day_number),
+                'partner_id' => $detail['partner_id'],
+                'user1' => $detail['user1'],
+                'user2' => $detail['user2'] ?: 'نامشخص',
+                'user_id1' => $detail['user_id1'],
+                'user_id2' => $detail['user_id2']
+            ];
         }
 
         if ($selected_partner_id && $selected_partner_id != 'all') {
