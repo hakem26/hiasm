@@ -463,9 +463,9 @@ if ($is_admin && $is_partner1) {
             "pageLength": 10,           // 10 ردیف در هر صفحه
             "scrollX": true,            // فعال کردن اسکرول افقی
             "paging": true,             // فعال کردن صفحه‌بندی
-            "autoWidth": true,         // غیرفعال کردن تنظیم خودکار عرض
+            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
             "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
-            "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
+            "responsive": true,         // فعال کردن حالت ریسپانسیو (چون توی هدر داری از dataTables.responsive.min.js استفاده می‌کنی)
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
@@ -485,20 +485,19 @@ if ($is_admin && $is_partner1) {
                 }
             },
             "columnDefs": [
-                { "targets": "_all", "className": "text-start" }, // وسط‌چین کردن همه ستون‌ها
                 { "targets": 0, "width": "50px" },  // شناسه
                 { "targets": 1, "width": "200px" }, // نام محصول
                 { "targets": 2, "width": "120px" }, // قیمت واحد
-                <?php if ($is_admin): ?>,
+                <?php if ($is_admin): ?>
                     { "targets": 3, "width": "100px" },  // موجودی مدیر
                     { "targets": 4, "width": "100px" },  // سود همکار
                     { "targets": 5, "width": "100px" },  // تخصیص به همکار
                     { "targets": 6, "width": "150px" }   // عملیات
                 <?php endif; ?>
-                <?php if ($is_seller && $is_partner1): ?>,
+                <?php if ($is_seller && $is_partner1): ?>
                     { "targets": <?php echo $is_admin ? 7 : 3; ?>, "width": "100px" }  // موجودی شما
                 <?php endif; ?>
-                <?php if ($is_seller): ?>,
+                <?php if ($is_seller): ?>
                     { "targets": <?php echo $changes_column_index; ?>, "width": "80px" }  // تغییرات
                 <?php endif; ?>
             ]
