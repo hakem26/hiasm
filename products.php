@@ -218,22 +218,6 @@ if ($is_admin && $is_partner1) {
 }
 ?>
 
-<!-- فقط استایل اصلی DataTables -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-
-<style>
-/* وسط‌چین کردن هدر جدول */
-table.dataTable thead th,
-table.dataTable thead td {
-    text-align: center !important;
-}
-
-/* وسط‌چین کردن محتوای ستون‌ها */
-table.dataTable tbody td {
-    text-align: center !important;
-}
-</style>
-
 <div class="container-fluid">
     <h5 class="card-title">مدیریت محصولات</h5>
     <br>
