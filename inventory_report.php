@@ -73,26 +73,6 @@ $stmt_transactions = $pdo->prepare($transactions_query);
 $stmt_transactions->execute($params);
 $transactions = $stmt_transactions->fetchAll(PDO::FETCH_ASSOC);
 ?>
-
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گزارش انبارگردانی</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-    <style>
-        table.dataTable thead th,
-        table.dataTable thead td {
-            text-align: center !important;
-        }
-        table.dataTable tbody td {
-            text-align: center !important;
-        }
-    </style>
-</head>
-<body>
     <div class="container-fluid">
         <h5 class="card-title mb-4">گزارش انبارگردانی</h5>
 
