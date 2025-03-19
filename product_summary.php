@@ -258,21 +258,6 @@ foreach ($products as $product) {
 }
 ?>
 
-<!-- فقط استایل اصلی DataTables -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-
-<style>
-/* وسط‌چین کردن هدر و بدنه جدول */
-table.dataTable thead th,
-table.dataTable tbody td {
-    text-align: center !important;
-    vertical-align: middle !important;
-    white-space: nowrap !important; /* جلوگیری از شکستن متن */
-    overflow: hidden;
-    text-overflow: ellipsis; /* نمایش ... برای متن طولانی */
-}
-</style>
-
 <div class="container-fluid">
     <h5 class="card-title mb-4">تجمیع محصولات</h5>
     <p class="mb-4">تعداد کل: <?= number_format($total_quantity, 0) ?> - مبلغ کل: <?= number_format($total_amount, 0) ?>

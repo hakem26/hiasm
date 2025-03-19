@@ -42,6 +42,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <script src="assets/js/dataTables.responsive.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- فقط استایل اصلی DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
     <style>
@@ -50,12 +52,17 @@ $current_page = basename($_SERVER['PHP_SELF']);
             text-align: center !important;
             vertical-align: middle !important;
         }
+
+        /* وسط‌چین کردن هدر و بدنه جدول */
         table.dataTable thead th,
-        table.dataTable thead td {
-            text-align: center !important;
-        }
         table.dataTable tbody td {
             text-align: center !important;
+            vertical-align: middle !important;
+            white-space: nowrap !important;
+            /* جلوگیری از شکستن متن */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* نمایش ... برای متن طولانی */
         }
     </style>
 </head>
@@ -125,8 +132,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </ul>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>"
-                    href="orders.php">
+                <a class="nav-link <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>" href="orders.php">
                     <i class="fas fa-shopping-cart"></i>
                     <span>سفارشات</span>
                 </a>
