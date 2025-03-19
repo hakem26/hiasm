@@ -50,6 +50,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
             text-align: center !important;
             vertical-align: middle !important;
         }
+        table.dataTable thead th,
+        table.dataTable thead td {
+            text-align: center !important;
+        }
+        table.dataTable tbody td {
+            text-align: center !important;
+        }
     </style>
 </head>
 

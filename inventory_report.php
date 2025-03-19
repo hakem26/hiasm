@@ -11,9 +11,23 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 function gregorian_to_jalali_format($gregorian_date)
 {
-    if (!$gregorian_date)
+    // چک کردن اینکه تاریخ خالی یا null نباشه
+    if (empty($gregorian_date) || $gregorian_date === '0000-00-00 00:00:00') {
         return "نامشخص";
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    }
+
+    // جدا کردن تاریخ و زمان (چون transaction_date یه TIMESTAMP هست)
+    $date_parts = explode(' ', $gregorian_date);
+    $date = $date_parts[0]; // فقط تاریخ (مثلاً 2025-03-20)
+
+    // جدا کردن سال، ماه، روز
+    list($gy, $gm, $gd) = explode('-', $date);
+
+    // چک کردن اینکه مقادیر عددی و معتبر باشن
+    if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd) || $gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
+        return "نامشخص";
+    }
+
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
@@ -73,6 +87,7 @@ $stmt_transactions = $pdo->prepare($transactions_query);
 $stmt_transactions->execute($params);
 $transactions = $stmt_transactions->fetchAll(PDO::FETCH_ASSOC);
 ?>
+
     <div class="container-fluid">
         <h5 class="card-title mb-4">گزارش انبارگردانی</h5>
 
