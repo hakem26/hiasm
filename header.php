@@ -46,7 +46,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
-    <style>
+    <!-- <style>
         #productsTable th,
         #productsTable td {
             text-align: center !important;
@@ -64,7 +64,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
             text-overflow: ellipsis;
             /* نمایش ... برای متن طولانی */
         }
-    </style>
+    </style> -->
 </head>
 
 <body>
