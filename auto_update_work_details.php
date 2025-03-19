@@ -56,13 +56,25 @@ if (isset($_POST['work_month_id'])) {
             exit;
         }
 
-        // حذف ردیف‌های قبلی برای این ماه
-        $delete_query = $pdo->prepare("DELETE FROM Work_Details WHERE work_month_id = ?");
-        $delete_query->execute([$work_month_id]);
+        // دریافت روزهای کاری موجود برای این ماه
+        $existing_dates_query = $pdo->prepare("SELECT work_date FROM Work_Details WHERE work_month_id = ?");
+        $existing_dates_query->execute([$work_month_id]);
+        $existing_dates = array_column($existing_dates_query->fetchAll(PDO::FETCH_ASSOC), 'work_date');
 
-        // محاسبه و ذخیره روزها
+        // دیباگ: بررسی روزهای موجود
+        error_log("Debug: Existing dates = " . json_encode($existing_dates) . "\n", 3, "debug.log");
+
+        // محاسبه و ذخیره روزها (فقط برای روزهایی که وجود ندارن)
         $current_date = $start_date;
+        $new_records_added = 0;
         while (strtotime($current_date) <= strtotime($end_date)) {
+            // اگه این تاریخ قبلاً ثبت شده، ردش کن
+            if (in_array($current_date, $existing_dates)) {
+                error_log("Debug: Skipping $current_date (already exists)\n", 3, "debug.log");
+                $current_date = date('Y-m-d', strtotime($current_date . ' +1 day'));
+                continue;
+            }
+
             // محاسبه روز هفته
             $day_of_week = calculate_day_of_week($current_date);
 
@@ -86,13 +98,18 @@ if (isset($_POST['work_month_id'])) {
                 // ثبت روز کاری
                 $insert_query = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner_id, status) VALUES (?, ?, ?, 0)");
                 $insert_query->execute([$work_month_id, $current_date, $partner_id]);
+                $new_records_added++;
             }
 
             // روز بعد
             $current_date = date('Y-m-d', strtotime($current_date . ' +1 day'));
         }
 
-        echo json_encode(['success' => true, 'message' => 'روز کاری‌ها با موفقیت به‌روزرسانی شدند']);
+        if ($new_records_added > 0) {
+            echo json_encode(['success' => true, 'message' => "$new_records_added روز کاری جدید با موفقیت اضافه شدند"]);
+        } else {
+            echo json_encode(['success' => true, 'message' => 'هیچ روز کاری جدیدی برای اضافه کردن یافت نشد']);
+        }
     } else {
         echo json_encode(['success' => false, 'message' => 'ماه کاری نامعتبر است']);
     }

@@ -438,7 +438,7 @@ if ($selected_year) {
                             button.removeClass('btn-warning').addClass('btn-success').text('تعطیل');
                         }
                     } else {
-                        alert('خطا در تغییر وضعیت: ' + response.message);
+                        alert('خطا: ' + response.message);
                     }
                 }, 'json').fail(function () {
                     alert('خطا در اتصال به سرور!');
@@ -458,7 +458,7 @@ if ($selected_year) {
                         alert('روز کاری با موفقیت حذف شد');
                         location.reload();
                     } else {
-                        alert('خطا در حذف: ' + response.message);
+                        alert('خطا: ' + response.message);
                     }
                 }, 'json').fail(function () {
                     alert('خطا در اتصال به سرور!');
@@ -479,21 +479,21 @@ if ($selected_year) {
                     alert(response);
                 });
             });
-        });
 
-        // بروزرسانی خودکار روز کاری‌ها
-        $('.auto-update-work-details').click(function () {
-            const workMonthId = $(this).data('work-month-id');
+            // بروزرسانی خودکار روز کاری‌ها
+            $('.auto-update-work-details').click(function () {
+                const workMonthId = $(this).data('work-month-id');
 
-            $.post('auto_update_work_details.php', { work_month_id: workMonthId }, function (response) {
-                if (response.success) {
-                    alert('روز کاری‌ها با موفقیت به‌روزرسانی شدند');
-                    location.reload();
-                } else {
-                    alert('خطا در به‌روزرسانی: ' + response.message);
-                }
-            }, 'json').fail(function () {
-                alert('خطا در اتصال به سرور!');
+                $.post('auto_update_work_details.php', { work_month_id: workMonthId }, function (response) {
+                    if (response.success) {
+                        alert(response.message);
+                        location.reload();
+                    } else {
+                        alert('خطا: ' + response.message);
+                    }
+                }, 'json').fail(function () {
+                    alert('خطا در اتصال به سرور!');
+                });
             });
         });
     </script>
