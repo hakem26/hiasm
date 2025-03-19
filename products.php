@@ -460,20 +460,20 @@ if ($is_admin && $is_partner1) {
 <script>
     $(document).ready(function () {
         $('#productsTable').DataTable({
-            "pageLength": 10,           // 10 ردیف در هر صفحه
-            "scrollX": true,            // فعال کردن اسکرول افقی
-            "scrollCollapse": true,     // اجازه می‌ده اسکرول افقی با عرض صفحه تنظیم بشه
-            "paging": true,             // فعال کردن صفحه‌بندی
-            "autoWidth": false,         // غیرفعال کردن تنظیم خودکار عرض
-            "ordering": true,           // فعال کردن مرتب‌سازی ستون‌ها
-            "responsive": false,        // غیرفعال کردن حالت ریسپانسیو
+            "pageLength": 10, // 10 ردیف در هر صفحه
+            "scrollX": true, // فعال کردن اسکرول افقی
+            "scrollCollapse": true, // اجازه می‌دهد اسکرول افقی با عرض صفحه تنظیم بشه
+            "paging": true, // فعال کردن صفحه‌بندی
+            "autoWidth": true, // غیرفعال کردن تنظیم خودکار عرض
+            "ordering": true, // فعال کردن مرتب‌سازی ستون‌ها
+            "responsive": false, // غیرفعال کردن حالت ریسپانسیو
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
-                "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                "info": "نمایش START تا END از TOTAL ردیف",
                 "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
-                "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
-                "lengthMenu": "نمایش _MENU_ ردیف",
+                "infoFiltered": "(فیلتر شده از MAX ردیف کل)",
+                "lengthMenu": "نمایش MENU ردیف",
                 "loadingRecords": "در حال بارگذاری...",
                 "processing": "در حال پردازش...",
                 "search": "جستجو:",
@@ -485,22 +485,25 @@ if ($is_admin && $is_partner1) {
                     "previous": "قبلی"
                 }
             },
-"columnDefs": [
-                 { "targets": "_all", "className": "text-right" }, // وسط‌چین کردن همه ستون‌ها
-                 { "targets": "_all", "className": "text-start" }, // وسط‌چین کردن همه ستون‌ها
-                 { "targets": 0, "width": "50px" },  // شناسه
-                 { "targets": 1, "width": "200px" }, // نام محصول
-                 { "targets": 2, "width": "120px" }  // قیمت واحد
-                 <?php if ($is_admin): ?>,
-                     { "targets": 3, "width": "150px" }  // عملیات
-                 <?php endif; ?>
-                 <?php if ($is_seller && $is_partner1): ?>,
-                     { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }  // موجودی
-                 <?php endif; ?>
-                 <?php if ($is_seller): ?>,
-                     { "targets": <?php echo $changes_column_index; ?>, "width": "80px" }  // تغییرات
-                 <?php endif; ?>
-             ]
+            "columnDefs": [
+                { "targets": "_all", "className": "text-right" }, // وسط‌چین کردن همه ستون‌ها
+                { "targets": "_all", "className": "text-start" }, // وسط‌چین کردن همه ستون‌ها
+                { "targets": 0, "width": "50px" },  // شناسه
+                { "targets": 1, "width": "200px" }, // نام محصول
+                { "targets": 2, "width": "120px" }  // قیمت واحد
+                <?php if ($is_admin): ?>,
+                    { "targets": 3, "width": "150px" }  // موجودی مدیر
+                    { "targets": 4, "width": "100px" }  // سود همکار
+                    { "targets": 5, "width": "150px" }  // تخصیص به همکار
+                    { "targets": 6, "width": "150px" }  // عملیات
+                <?php endif; ?>
+                <?php if ($is_seller && $is_partner1): ?>,
+                    { "targets": <?php echo $is_admin ? 7 : 3; ?>, "width": "100px" }  // موجودی شما
+                <?php endif; ?>
+                <?php if ($is_seller): ?>,
+                    { "targets": <?php echo $changes_column_index; ?>, "width": "80px" }  // تغییرات
+                <?php endif; ?>
+            ]
         });
     });
 </script>
