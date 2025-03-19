@@ -4,11 +4,11 @@ require_once 'db.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 
-$response = ['success' => false, 'message' => '', 'html' => '', 'total_sales' => 0, 'total_discount' => 0, 'total_sessions' => 0];
+$response = ['success' => false, 'message' => '', 'html' => '', 'total_sales' => 0, 'total_quantity' => 0];
 
 $year = $_GET['year'] ?? '';
-$partner_id = $_GET['partner_id'] ?? 'all';
 $work_month_id = $_GET['work_month_id'] ?? 'all';
+$partner_id = $_GET['partner_id'] ?? 'all';
 $work_date = $_GET['work_date'] ?? 'all';
 $current_user_id = $_SESSION['user_id'] ?? null;
 
@@ -19,11 +19,12 @@ if (!$year || !$current_user_id) {
 }
 
 try {
-    // جمع کل فروش و تخفیف
+    // جمع کل فروش و تعداد کل محصولات
     $query = "
         SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
-               COALESCE(SUM(o.discount), 0) AS total_discount
+               COALESCE(SUM(oi.quantity), 0) AS total_quantity
         FROM Orders o
+        JOIN Order_Items oi ON o.order_id = oi.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
@@ -32,15 +33,15 @@ try {
     ";
     $params = [$year, $current_user_id, $current_user_id];
 
+    if ($work_month_id !== 'all') {
+        $query .= " AND wd.work_month_id = ?";
+        $params[] = $work_month_id;
+    }
+
     if ($partner_id !== 'all') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $partner_id;
         $params[] = $partner_id;
-    }
-
-    if ($work_month_id !== 'all') {
-        $query .= " AND wd.work_month_id = ?";
-        $params[] = $work_month_id;
     }
 
     if ($work_date !== 'all') {
@@ -52,39 +53,7 @@ try {
     $stmt->execute($params);
     $summary = $stmt->fetch(PDO::FETCH_ASSOC);
     $response['total_sales'] = $summary['total_sales'] ?? 0;
-    $response['total_discount'] = $summary['total_discount'] ?? 0;
-
-    // تعداد جلسات
-    $query = "
-        SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
-        FROM Work_Details wd
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-    ";
-    $params = [$year, $current_user_id, $current_user_id];
-
-    if ($partner_id !== 'all') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $params[] = $partner_id;
-        $params[] = $partner_id;
-    }
-
-    if ($work_month_id !== 'all') {
-        $query .= " AND wd.work_month_id = ?";
-        $params[] = $work_month_id;
-    }
-
-    if ($work_date !== 'all') {
-        $query .= " AND wd.work_date = ?";
-        $params[] = $work_date;
-    }
-
-    $stmt = $pdo->prepare($query);
-    $stmt->execute($params);
-    $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
-    $response['total_sessions'] = $sessions['total_sessions'] ?? 0;
+    $response['total_quantity'] = $summary['total_quantity'] ?? 0;
 
     // لیست محصولات
     $query = "
@@ -99,15 +68,15 @@ try {
     ";
     $params = [$year, $current_user_id, $current_user_id];
 
+    if ($work_month_id !== 'all') {
+        $query .= " AND wd.work_month_id = ?";
+        $params[] = $work_month_id;
+    }
+
     if ($partner_id !== 'all') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $partner_id;
         $params[] = $partner_id;
-    }
-
-    if ($work_month_id !== 'all') {
-        $query .= " AND wd.work_month_id = ?";
-        $params[] = $work_month_id;
     }
 
     if ($work_date !== 'all') {
