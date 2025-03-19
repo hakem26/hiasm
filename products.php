@@ -52,28 +52,62 @@ if ($is_admin && isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     }
 }
 
-// پردازش به‌روزرسانی موجودی (فقط برای همکار ۱)
-if ($is_seller && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_inventory'])) {
+// پردازش به‌روزرسانی موجودی مدیر
+if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_admin_inventory'])) {
     $product_id = (int) $_POST['product_id'];
     $new_quantity = (int) $_POST['new_quantity'];
-    $current_user_id = $_SESSION['user_id'];
 
-    // چک کن که آیا کاربر همکار ۱ هست
-    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ?");
-    $stmt_check->execute([$current_user_id]);
-    $is_partner1 = $stmt_check->fetchColumn() > 0;
+    try {
+        $stmt = $pdo->prepare("INSERT INTO Admin_Inventory (product_id, quantity) VALUES (?, ?) 
+                             ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+        $stmt->execute([$product_id, $new_quantity]);
+        echo "<script>alert('موجودی مدیر با موفقیت به‌روزرسانی شد!'); window.location.href='products.php';</script>";
+    } catch (Exception $e) {
+        echo "<script>alert('خطا در به‌روزرسانی موجودی: " . $e->getMessage() . "');</script>";
+    }
+}
 
-    if ($is_partner1) {
-        try {
-            $stmt = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                 ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-            $stmt->execute([$current_user_id, $product_id, $new_quantity]);
-            echo "<script>alert('موجودی با موفقیت به‌روزرسانی شد!'); window.location.href='products.php';</script>";
-        } catch (Exception $e) {
-            echo "<script>alert('خطا در به‌روزرسانی موجودی: " . $e->getMessage() . "');</script>";
+// پردازش تخصیص موجودی به همکار 1
+if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['allocate_inventory'])) {
+    $product_id = (int) $_POST['product_id'];
+    $user_id = (int) $_POST['user_id'];
+    $quantity = (int) $_POST['quantity'];
+    $work_month_id = (int) $_POST['work_month_id'];
+
+    try {
+        // بررسی موجودی مدیر
+        $admin_inventory_query = $pdo->prepare("SELECT quantity FROM Admin_Inventory WHERE product_id = ?");
+        $admin_inventory_query->execute([$product_id]);
+        $admin_inventory = $admin_inventory_query->fetch(PDO::FETCH_ASSOC);
+        $admin_quantity = $admin_inventory ? $admin_inventory['quantity'] : 0;
+
+        if ($admin_quantity < $quantity) {
+            echo "<script>alert('موجودی مدیر کافی نیست! موجودی فعلی: $admin_quantity'); window.location.href='products.php';</script>";
+            exit;
         }
-    } else {
-        echo "<script>alert('شما دسترسی به ویرایش موجودی ندارید!');</script>";
+
+        // کسر از موجودی مدیر
+        $update_admin_query = $pdo->prepare("UPDATE Admin_Inventory SET quantity = quantity - ? WHERE product_id = ?");
+        $update_admin_query->execute([$quantity, $product_id]);
+
+        // اضافه کردن به موجودی همکار 1
+        $update_user_query = $pdo->prepare("
+            INSERT INTO Inventory (user_id, product_id, quantity) 
+            VALUES (?, ?, ?) 
+            ON DUPLICATE KEY UPDATE quantity = quantity + ?
+        ");
+        $update_user_query->execute([$user_id, $product_id, $quantity, $quantity]);
+
+        // ثبت تراکنش
+        $transaction_query = $pdo->prepare("
+            INSERT INTO Inventory_Transactions (product_id, user_id, quantity, work_month_id) 
+            VALUES (?, ?, ?, ?)
+        ");
+        $transaction_query->execute([$product_id, $user_id, $quantity, $work_month_id]);
+
+        echo "<script>alert('موجودی با موفقیت تخصیص داده شد!'); window.location.href='products.php';</script>";
+    } catch (Exception $e) {
+        echo "<script>alert('خطا در تخصیص موجودی: " . $e->getMessage() . "');</script>";
     }
 }
 
@@ -98,7 +132,18 @@ try {
     }
     unset($product);
 
-    // دریافت موجودی برای همکار ۱
+    // دریافت موجودی مدیر
+    if ($is_admin) {
+        foreach ($products as &$product) {
+            $stmt = $pdo->prepare("SELECT quantity FROM Admin_Inventory WHERE product_id = ?");
+            $stmt->execute([$product['product_id']]);
+            $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+            $product['admin_inventory'] = $inventory ? $inventory['quantity'] : 0;
+        }
+        unset($product);
+    }
+
+    // دریافت موجودی برای همکار 1
     $current_user_id = $_SESSION['user_id'];
     $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ?");
     $stmt_check->execute([$current_user_id]);
@@ -133,6 +178,20 @@ try {
     }
 } catch (Exception $e) {
     echo "<!-- خطا در کوئری محصولات: " . $e->getMessage() . " -->";
+}
+
+// دریافت کاربران همکار 1 و ماه‌های کاری برای تخصیص
+$partner1_users = [];
+$work_months = [];
+if ($is_admin) {
+    $partner1_query = $pdo->query("SELECT DISTINCT u.user_id, u.full_name 
+                                   FROM Users u 
+                                   JOIN Partners p ON u.user_id = p.user_id1 
+                                   WHERE u.role = 'seller'");
+    $partner1_users = $partner1_query->fetchAll(PDO::FETCH_ASSOC);
+
+    $work_months_query = $pdo->query("SELECT work_month_id, start_date, end_date FROM Work_Months ORDER BY start_date DESC");
+    $work_months = $work_months_query->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // محاسبه اندیس ستون "تغییرات" قبل از جاوااسکریپت
@@ -186,10 +245,12 @@ table.dataTable tbody td {
                         <th>نام محصول</th>
                         <th>قیمت واحد (تومان)</th>
                         <?php if ($is_admin): ?>
+                            <th>موجودی مدیر</th>
+                            <th>تخصیص به همکار</th>
                             <th>عملیات</th>
                         <?php endif; ?>
                         <?php if ($is_seller && $is_partner1): ?>
-                            <th>موجودی</th>
+                            <th>موجودی شما</th>
                         <?php endif; ?>
                         <?php if ($is_seller): ?>
                             <th>تغییرات</th>
@@ -209,6 +270,17 @@ table.dataTable tbody td {
                             </td>
                             <?php if ($is_admin): ?>
                                 <td>
+                                    <span id="admin_inventory_<?= $product['product_id'] ?>"><?= $product['admin_inventory'] ?></span>
+                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#adminInventoryModal_<?= $product['product_id'] ?>">
+                                        تغییر
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#allocateModal_<?= $product['product_id'] ?>">
+                                        تخصیص
+                                    </button>
+                                </td>
+                                <td>
                                     <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
                                     <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
                                     <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
@@ -217,9 +289,6 @@ table.dataTable tbody td {
                             <?php if ($is_seller && $is_partner1): ?>
                                 <td>
                                     <span id="inventory_<?= $product['product_id'] ?>"><?= $product['inventory'] ?></span>
-                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#inventoryModal_<?= $product['product_id'] ?>">
-                                        تغییر
-                                    </button>
                                 </td>
                             <?php endif; ?>
                             <?php if ($is_seller): ?>
@@ -235,14 +304,14 @@ table.dataTable tbody td {
             </table>
         </div>
 
-        <!-- Inventory Modal -->
-        <?php if ($is_seller && $is_partner1): ?>
+        <!-- Admin Inventory Modal -->
+        <?php if ($is_admin): ?>
             <?php foreach ($products as $product): ?>
-                <div class="modal fade" id="inventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="inventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                <div class="modal fade" id="adminInventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="adminInventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="inventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="adminInventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی مدیر برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
@@ -252,7 +321,52 @@ table.dataTable tbody td {
                                         <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد جدید</label>
                                         <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>" name="new_quantity" min="0" required>
                                     </div>
-                                    <button type="submit" name="update_inventory" class="btn btn-primary">ذخیره</button>
+                                    <button type="submit" name="update_admin_inventory" class="btn btn-primary">ذخیره</button>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Allocate Inventory Modal -->
+                <div class="modal fade" id="allocateModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="allocateModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="allocateModalLabel_<?= $product['product_id'] ?>">تخصیص موجودی برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form method="POST">
+                                    <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+                                    <div class="mb-3">
+                                        <label for="user_id_<?= $product['product_id'] ?>" class="form-label">همکار 1</label>
+                                        <select class="form-select" id="user_id_<?= $product['product_id'] ?>" name="user_id" required>
+                                            <option value="">انتخاب کنید</option>
+                                            <?php foreach ($partner1_users as $user): ?>
+                                                <option value="<?= $user['user_id'] ?>"><?= htmlspecialchars($user['full_name']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="quantity_<?= $product['product_id'] ?>" class="form-label">تعداد</label>
+                                        <input type="number" class="form-control" id="quantity_<?= $product['product_id'] ?>" name="quantity" min="1" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="work_month_id_<?= $product['product_id'] ?>" class="form-label">ماه کاری</label>
+                                        <select class="form-select" id="work_month_id_<?= $product['product_id'] ?>" name="work_month_id" required>
+                                            <option value="">انتخاب کنید</option>
+                                            <?php foreach ($work_months as $month): ?>
+                                                <option value="<?= $month['work_month_id'] ?>">
+                                                    <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <button type="submit" name="allocate_inventory" class="btn btn-primary">تخصیص</button>
                                 </form>
                             </div>
                             <div class="modal-footer">
@@ -342,10 +456,12 @@ table.dataTable tbody td {
                 { "targets": 1, "width": "200px" }, // نام محصول
                 { "targets": 2, "width": "120px" }  // قیمت واحد
                 <?php if ($is_admin): ?>,
-                    { "targets": 3, "width": "150px" }  // عملیات
+                    { "targets": 3, "width": "100px" },  // موجودی مدیر
+                    { "targets": 4, "width": "100px" },  // تخصیص به همکار
+                    { "targets": 5, "width": "150px" }   // عملیات
                 <?php endif; ?>
                 <?php if ($is_seller && $is_partner1): ?>,
-                    { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }  // موجودی
+                    { "targets": <?php echo $is_admin ? 6 : 3; ?>, "width": "100px" }  // موجودی شما
                 <?php endif; ?>
                 <?php if ($is_seller): ?>,
                     { "targets": <?php echo $changes_column_index; ?>, "width": "80px" }  // تغییرات

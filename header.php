@@ -166,6 +166,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <span>مالی</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
+                            href="inventory_report.php">
+                            <i class="fas fa-warehouse"></i>
+                            <span>موجودی</span>
+                        </a>
+                    </li>
                 </ul>
             </li>
 
