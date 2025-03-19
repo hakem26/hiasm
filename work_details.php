@@ -123,7 +123,7 @@ if (isset($_GET['work_month_id'])) {
                 JOIN Partners p ON wd.partner_id = p.partner_id
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE wd.work_month_id = ? AND wd.status = 0
+                WHERE wd.work_month_id = ?
             ");
             $details_query->execute([$work_month_id]);
         } else {
@@ -135,12 +135,17 @@ if (isset($_GET['work_month_id'])) {
                 JOIN Partners p ON wd.partner_id = p.partner_id
                 JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE wd.work_month_id = ? AND wd.status = 0
-                AND (p.user_id1 = ? OR p.user_id2 = ?)
+                WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
             ");
             $details_query->execute([$work_month_id, $current_user_id, $current_user_id]);
         }
         $work_details_raw = $details_query->fetchAll(PDO::FETCH_ASSOC);
+
+        // دیباگ: بررسی داده‌های خام
+        error_log("Debug: work_details_raw count = " . count($work_details_raw) . "\n", 3, "debug.log");
+        foreach ($work_details_raw as $debug_row) {
+            error_log("Debug: work_date = " . $debug_row['work_date'] . ", partner_id = " . $debug_row['partner_id'] . ", status = " . $debug_row['status'] . ", work_month_id = " . $work_month_id . "\n", 3, "debug.log");
+        }
 
         foreach ($work_details_raw as $detail) {
             // محاسبه جمع کل فروش برای این روز کاری
@@ -158,7 +163,7 @@ if (isset($_GET['work_month_id'])) {
             $work_details[] = [
                 'id' => $detail['id'],
                 'work_date' => $detail['work_date'],
-                'work_day' => $work_day, // استفاده از مقدار محاسبه‌شده
+                'work_day' => $work_day,
                 'partner_id' => $detail['partner_id'],
                 'user1' => $detail['user1'],
                 'user2' => $detail['user2'],
@@ -172,15 +177,17 @@ if (isset($_GET['work_month_id'])) {
     }
 }
 
-// فیلتر بر اساس همکار
+// فیلتر بر اساس همکار (موقتاً غیرفعال)
 $selected_partner_id = $_GET['user_id'] ?? '';
 $filtered_work_details = $work_details;
+/*
 if (!empty($selected_partner_id)) {
     $user_id = (int) $selected_partner_id;
     $filtered_work_details = array_filter($work_details, function ($detail) use ($user_id) {
         return $detail['user_id1'] == $user_id || $detail['user_id2'] == $user_id;
     });
 }
+*/
 
 // مرتب‌سازی بر اساس work_date
 usort($filtered_work_details, function ($a, $b) {
