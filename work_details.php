@@ -23,19 +23,27 @@ function gregorian_year_to_jalali($gregorian_year)
     return $jy;
 }
 
-// تابع تبدیل عدد روز به نام روز
-function number_to_day($day_number)
+// تابع محاسبه روز هفته به صورت دستی
+function calculate_day_of_week($work_date)
 {
+    $reference_date = '2025-03-01'; // 1403/12/1 که شنبه است
+    $reference_timestamp = strtotime($reference_date);
+    $current_timestamp = strtotime($work_date);
+    $days_diff = ($current_timestamp - $reference_timestamp) / (60 * 60 * 24); // تفاوت به روز
+    $adjusted_day_number = ($days_diff % 7 + 1); // 1 (شنبه) تا 7 (جمعه)
+    if ($adjusted_day_number <= 0) {
+        $adjusted_day_number += 7;
+    }
     $days = [
         1 => 'شنبه',
-        2 => 'یکشنبه',
+        2 => 'یک‌شنبه',
         3 => 'دوشنبه',
         4 => 'سه‌شنبه',
         5 => 'چهارشنبه',
-        6 => 'پنجشنبه',
+        6 => 'پنج‌شنبه',
         7 => 'جمعه'
     ];
-    return $days[$day_number] ?? 'نامشخص';
+    return $days[$adjusted_day_number];
 }
 
 // تابع تبدیل تاریخ شمسی به میلادی
@@ -105,10 +113,10 @@ if (isset($_GET['work_month_id'])) {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        // مستقیماً از Work_Details داده‌ها رو بکشیم
+        // مستقیماً از Work_Details داده‌ها رو بکشیم (بدون work_day)
         if ($is_admin) {
             $details_query = $pdo->prepare("
-                SELECT wd.id, wd.work_date, wd.work_day, wd.partner_id, wd.agency_owner_id, wd.status, 
+                SELECT wd.id, wd.work_date, wd.partner_id, wd.agency_owner_id, wd.status, 
                        u1.user_id AS user_id1, u1.full_name AS user1,
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
                 FROM Work_Details wd
@@ -120,7 +128,7 @@ if (isset($_GET['work_month_id'])) {
             $details_query->execute([$work_month_id]);
         } else {
             $details_query = $pdo->prepare("
-                SELECT wd.id, wd.work_date, wd.work_day, wd.partner_id, wd.agency_owner_id, wd.status, 
+                SELECT wd.id, wd.work_date, wd.partner_id, wd.agency_owner_id, wd.status, 
                        u1.user_id AS user_id1, u1.full_name AS user1,
                        COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
                 FROM Work_Details wd
@@ -144,10 +152,13 @@ if (isset($_GET['work_month_id'])) {
             $sales_query->execute([$detail['id']]);
             $total_sales = $sales_query->fetchColumn() ?: 0;
 
+            // محاسبه روز هفته به صورت پویا
+            $work_day = calculate_day_of_week($detail['work_date']);
+
             $work_details[] = [
                 'id' => $detail['id'],
                 'work_date' => $detail['work_date'],
-                'work_day' => number_to_day($detail['work_day']),
+                'work_day' => $work_day, // استفاده از مقدار محاسبه‌شده
                 'partner_id' => $detail['partner_id'],
                 'user1' => $detail['user1'],
                 'user2' => $detail['user2'],
