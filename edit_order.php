@@ -411,11 +411,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $.ajax({
                 url: 'get_inventory.php',
                 type: 'POST',
-                data: { 
+                data: {
                     product_id: product.product_id,
                     user_id: '<?= $partner1_id ?>'
                 },
-                success: function(response) {
+                success: function (response) {
                     console.log('Inventory response (display):', response);
                     if (response.success) {
                         let inventory = response.data.inventory || 0;
@@ -429,7 +429,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         alert('خطا در دریافت موجودی: ' + response.message);
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error('AJAX Error: ', error);
                     $('#inventory_quantity').text('0');
                     alert('خطا در دریافت موجودی.');
@@ -506,8 +506,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // حذف محصول
         function deleteProduct(index) {
             if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
-                $(`#productRow_${index}`).remove();
-                updateTotals();
+                // دریافت اطلاعات محصول برای برگرداندن موجودی
+                const productName = $(`#productRow_${index}`).find('input[name^="products["][name$="[name]"]').val();
+                const quantity = parseInt($(`#productRow_${index}`).find('input[name^="products["][name$="[quantity]"]').val());
+
+                // ارسال درخواست AJAX برای برگرداندن موجودی
+                $.ajax({
+                    url: 'update_inventory.php',
+                    type: 'POST',
+                    data: {
+                        product_name: productName,
+                        quantity: quantity,
+                        user_id: '<?= $partner1_id ?>',
+                        action: 'add' // برای اضافه کردن به موجودی
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            $(`#productRow_${index}`).remove();
+                            updateTotals();
+                        } else {
+                            alert('خطا در به‌روزرسانی موجودی: ' + response.message);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('AJAX Error: ', error);
+                        alert('خطا در به‌روزرسانی موجودی.');
+                    }
+                });
             }
         }
 
@@ -549,4 +574,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>

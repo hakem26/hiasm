@@ -7,11 +7,20 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once 'db.php';
 
+// بررسی نقش کاربر
+$is_admin = ($_SESSION['role'] === 'admin');
+if ($is_admin) {
+    $_SESSION['message'] = ['type' => 'danger', 'text' => 'شما به عنوان مدیر اجازه حذف سفارش را ندارید.'];
+    header("Location: orders.php");
+    exit;
+}
+
 $current_user_id = $_SESSION['user_id'];
 $order_id = $_GET['order_id'] ?? '';
 
 if (!$order_id) {
-    echo "<script>alert('شناسه سفارش مشخص نشده است.'); window.location.href='orders.php';</script>";
+    $_SESSION['message'] = ['type' => 'danger', 'text' => 'شناسه سفارش مشخص نشده است.'];
+    header("Location: orders.php");
     exit;
 }
 
@@ -27,7 +36,8 @@ $stmt->execute([$order_id, $current_user_id, $current_user_id]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$order) {
-    echo "<script>alert('سفارش یافت نشد یا شما دسترسی حذف آن را ندارید.'); window.location.href='orders.php';</script>";
+    $_SESSION['message'] = ['type' => 'danger', 'text' => 'سفارش یافت نشد یا شما دسترسی حذف آن را ندارید.'];
+    header("Location: orders.php");
     exit;
 }
 
@@ -38,7 +48,8 @@ $partner_data = $stmt_partner->fetch(PDO::FETCH_ASSOC);
 $partner1_id = $partner_data['user_id1'] ?? null;
 
 if (!$partner1_id) {
-    echo "<script>alert('همکار ۱ یافت نشد.'); window.location.href='orders.php';</script>";
+    $_SESSION['message'] = ['type' => 'danger', 'text' => 'همکار ۱ یافت نشد.'];
+    header("Location: orders.php");
     exit;
 }
 
@@ -83,8 +94,13 @@ try {
     $stmt->execute([$order_id]);
 
     $pdo->commit();
-    echo "<script>alert('سفارش با موفقیت حذف شد.'); window.location.href='orders.php';</script>";
+    $_SESSION['message'] = ['type' => 'success', 'text' => 'سفارش با موفقیت حذف شد.'];
+    header("Location: orders.php");
+    exit;
 } catch (Exception $e) {
     $pdo->rollBack();
-    echo "<script>alert('خطا در حذف سفارش: " . $e->getMessage() . "'); window.location.href='orders.php';</script>";
+    $_SESSION['message'] = ['type' => 'danger', 'text' => 'خطا در حذف سفارش: ' . $e->getMessage()];
+    header("Location: orders.php");
+    exit;
 }
+?>

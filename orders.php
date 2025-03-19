@@ -269,58 +269,13 @@ $stmt_orders->execute($params);
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سفارشات</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
-        integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-    <style>
-        .table-wrapper {
-            overflow-x: auto; /* اسکرول افقی برای کل جدول */
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 800px; /* حداقل عرض برای فعال شدن اسکرول افقی */
-        }
-
-        th,
-        td {
-            text-align: center; /* سنتر کردن محتوا */
-            vertical-align: middle; /* هم‌تراز عمودی */
-            padding: 8px;
-            white-space: nowrap; /* جلوگیری از شکستن متن */
-            min-width: 100px; /* حداقل عرض برای هر ستون */
-        }
-
-        th {
-            background-color: #f8f9fa;
-            position: sticky; /* ثابت نگه داشتن th */
-            top: 0;
-            z-index: 1; /* اولویت بالاتر برای نمایش */
-        }
-
-        .table-responsive {
-            display: block;
-            width: 100%;
-            overflow-x: auto;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container-fluid">
+<div class="container-fluid">
+    <?php if (isset($_SESSION['message'])): ?>
+        <div class="alert alert-<?= $_SESSION['message']['type'] ?> text-center">
+            <?= htmlspecialchars($_SESSION['message']['text']) ?>
+        </div>
+        <?php unset($_SESSION['message']); ?>
+    <?php endif; ?>
         <h5 class="card-title mb-4">لیست سفارشات</h5>
 
         <form method="GET" class="row g-3 mb-3">
