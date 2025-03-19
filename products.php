@@ -484,7 +484,23 @@ if ($is_admin && $is_partner1) {
                     "next": "بعدی",
                     "previous": "قبلی"
                 }
-            }
+            },
+"columnDefs": [
+                 { "targets": "_all", "className": "text-right" }, // وسط‌چین کردن همه ستون‌ها
+                 { "targets": "_all", "className": "text-start" }, // وسط‌چین کردن همه ستون‌ها
+                 { "targets": 0, "width": "50px" },  // شناسه
+                 { "targets": 1, "width": "200px" }, // نام محصول
+                 { "targets": 2, "width": "120px" }  // قیمت واحد
+                 <?php if ($is_admin): ?>,
+                     { "targets": 3, "width": "150px" }  // عملیات
+                 <?php endif; ?>
+                 <?php if ($is_seller && $is_partner1): ?>,
+                     { "targets": <?php echo $is_admin ? 4 : 3; ?>, "width": "100px" }  // موجودی
+                 <?php endif; ?>
+                 <?php if ($is_seller): ?>,
+                     { "targets": <?php echo $changes_column_index; ?>, "width": "80px" }  // تغییرات
+                 <?php endif; ?>
+             ]
         });
     });
 </script>
