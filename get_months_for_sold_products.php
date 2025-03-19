@@ -10,7 +10,6 @@ function gregorian_to_jalali_format($gregorian_date) {
 }
 
 $year = $_POST['year'] ?? '';
-$partner_id = $_POST['partner_id'] ?? 'all';
 $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$year || !$current_user_id) {
@@ -25,16 +24,9 @@ $query = "
     JOIN Partners p ON wd.partner_id = p.partner_id
     WHERE YEAR(wm.start_date) = ?
     AND (p.user_id1 = ? OR p.user_id2 = ?)
+    ORDER BY wm.start_date DESC
 ";
 $params = [$year, $current_user_id, $current_user_id];
-
-if ($partner_id !== 'all') {
-    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params[] = $partner_id;
-    $params[] = $partner_id;
-}
-
-$query .= " ORDER BY wm.start_date DESC";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
