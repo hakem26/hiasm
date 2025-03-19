@@ -1,107 +1,102 @@
 <?php
 session_start();
+require_once 'db.php';
+require_once 'jdf.php';
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     echo json_encode(['success' => false, 'message' => 'دسترسی غیرمجاز']);
     exit;
 }
 
-require_once 'db.php';
-require_once 'jdf.php';
-
-// فعال کردن لاگ خطاها
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', 'error.log');
-
-if (!isset($_POST['work_month_id'])) {
-    echo json_encode(['success' => false, 'message' => 'شناسه ماه کاری مشخص نشده است']);
-    exit;
+// تابع محاسبه روز هفته (شمسی)
+function calculate_day_of_week($work_date)
+{
+    $reference_date = '2025-03-01'; // 1403/12/1 که شنبه است
+    $reference_timestamp = strtotime($reference_date);
+    $current_timestamp = strtotime($work_date);
+    $days_diff = ($current_timestamp - $reference_timestamp) / (60 * 60 * 24);
+    $adjusted_day_number = ($days_diff % 7 + 1);
+    if ($adjusted_day_number <= 0) {
+        $adjusted_day_number += 7;
+    }
+    return $adjusted_day_number; // 1 (شنبه) تا 7 (جمعه)
 }
 
-$work_month_id = (int) $_POST['work_month_id'];
+if (isset($_POST['work_month_id'])) {
+    $work_month_id = (int) $_POST['work_month_id'];
 
-try {
-    // دریافت اطلاعات ماه کاری
+    // دیباگ: بررسی work_month_id
+    error_log("Debug: auto_update_work_details - work_month_id = $work_month_id\n", 3, "debug.log");
+
+    // دریافت محدوده تاریخ ماه کاری
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
-    if (!$month) {
-        echo json_encode(['success' => false, 'message' => 'ماه کاری یافت نشد']);
-        exit;
-    }
+    if ($month) {
+        $start_date = $month['start_date'];
+        $end_date = $month['end_date'];
 
-    $start_date = new DateTime($month['start_date']);
-    $end_date = new DateTime($month['end_date']);
-    $interval = new DateInterval('P1D');
-    // اطمینان از اینکه end_date هم شامل شود
-    $date_range = new DatePeriod($start_date, $interval, $end_date->modify('+1 day'));
+        // دیباگ: بررسی تاریخ‌ها
+        error_log("Debug: start_date = $start_date, end_date = $end_date\n", 3, "debug.log");
 
-    // دریافت همه جفت‌های همکار از Partners
-    $partner_query = $pdo->prepare("
-        SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
-               COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
-        FROM Partners p
-        JOIN Users u1 ON p.user_id1 = u1.user_id
-        LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-        GROUP BY p.partner_id
-    ");
-    $partner_query->execute();
-    $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
+        // دریافت برنامه کاری همکارها
+        $schedules_query = $pdo->query("SELECT ps.partner_id, ps.day_of_week, p.user_id1, p.user_id2, u1.full_name AS user1, u2.full_name AS user2
+                                        FROM Partner_Schedule ps
+                                        JOIN Partners p ON ps.partner_id = p.partner_id
+                                        LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+                                        LEFT JOIN Users u2 ON p.user_id2 = u2.user_id");
+        $schedules = $schedules_query->fetchAll(PDO::FETCH_ASSOC);
 
-    // تعریف تخصیص همکارها به روزها (به جای ستون work_day)
-    $partner_days = [
-        1 => [1], // روز شنبه: partner_id = 1 (مثلاً "مهری طارمی - شیدا جوهری")
-        2 => [2], // روز یک‌شنبه: partner_id = 2 (مثلاً "سهیلا قاسمی - شیدا جوهری")
-        3 => [],  // روز دوشنبه: بدون همکار
-        4 => [],  // روز سه‌شنبه: بدون همکار
-        5 => [3], // روز چهارشنبه: partner_id = 3 (مثلاً "شیدا جوهری - مرضیه عبادی")
-        6 => [],  // روز پنج‌شنبه: بدون همکار
-        7 => []   // روز جمعه: بدون همکار
-    ];
+        // دیباگ: بررسی برنامه‌ها
+        error_log("Debug: Schedules = " . json_encode($schedules) . "\n", 3, "debug.log");
 
-    // همگام‌سازی و ذخیره‌سازی داده‌ها
-    foreach ($date_range as $date) {
-        $work_date = $date->format('Y-m-d');
-        // محاسبه روز هفته با date('N') و تبدیل به تقویم ایرانی
-        $timestamp = strtotime($work_date);
-        $day_number_miladi = (int) date('N', $timestamp); // 1 (دوشنبه) تا 7 (یک‌شنبه)
-        // تبدیل به تقویم ایرانی (1: شنبه تا 7: جمعه)
-        $adjusted_day_number = ($day_number_miladi + 5) % 7;
-        if ($adjusted_day_number == 0) {
-            $adjusted_day_number = 7; // اگر 0 شد، 7 (جمعه) بشه
+        if (empty($schedules)) {
+            echo json_encode(['success' => false, 'message' => 'هیچ برنامه کاری برای همکارها تعریف نشده است']);
+            exit;
         }
 
-        // دیباگ
-        error_log("Date: $work_date, Miladi Day: $day_number_miladi, Adjusted Day: $adjusted_day_number\n", 3, "debug.log");
+        // حذف ردیف‌های قبلی برای این ماه
+        $delete_query = $pdo->prepare("DELETE FROM Work_Details WHERE work_month_id = ?");
+        $delete_query->execute([$work_month_id]);
 
-        // تخصیص همکارها بر اساس روز هفته
-        if (isset($partner_days[$adjusted_day_number]) && !empty($partner_days[$adjusted_day_number])) {
-            foreach ($partner_days[$adjusted_day_number] as $partner_id) {
-                // چک کردن وجود ردیف برای این تاریخ و partner_id
-                $detail_query = $pdo->prepare("
-                    SELECT * FROM Work_Details 
-                    WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
-                ");
-                $detail_query->execute([$work_date, $work_month_id, $partner_id]);
-                $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
+        // محاسبه و ذخیره روزها
+        $current_date = $start_date;
+        while (strtotime($current_date) <= strtotime($end_date)) {
+            // محاسبه روز هفته
+            $day_of_week = calculate_day_of_week($current_date);
 
-                if (!$existing_detail) {
-                    $insert_query = $pdo->prepare("
-                        INSERT INTO Work_Details (work_month_id, work_date, partner_id, agency_owner_id, status) 
-                        VALUES (?, ?, ?, ?, 0)
-                    ");
-                    $insert_query->execute([$work_month_id, $work_date, $partner_id, null]);
-                }
+            // دیباگ: بررسی روز هفته
+            $days_of_week = [1 => 'شنبه', 2 => 'یک‌شنبه', 3 => 'دوشنبه', 4 => 'سه‌شنبه', 5 => 'چهارشنبه', 6 => 'پنج‌شنبه', 7 => 'جمعه'];
+            error_log("Debug: Date $current_date is " . $days_of_week[$day_of_week] . "\n", 3, "debug.log");
+
+            // پیدا کردن جفت‌های همکار برای این روز
+            $partners_for_day = array_filter($schedules, function($schedule) use ($day_of_week) {
+                return $schedule['day_of_week'] == $day_of_week;
+            });
+
+            foreach ($partners_for_day as $partner) {
+                $partner_id = $partner['partner_id'];
+                $user1 = $partner['user1'] ?: 'نامشخص';
+                $user2 = $partner['user2'] ?: 'نامشخص';
+
+                // دیباگ: نمایش جفت‌های همکار
+                error_log("Debug: Assigning $user1 and $user2 for $current_date\n", 3, "debug.log");
+
+                // ثبت روز کاری
+                $insert_query = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner_id, status) VALUES (?, ?, ?, 0)");
+                $insert_query->execute([$work_month_id, $current_date, $partner_id]);
             }
-        }
-    }
 
-    echo json_encode(['success' => true, 'message' => 'روز کاری‌ها با موفقیت به‌روزرسانی شدند']);
-    exit;
-} catch (Exception $e) {
-    error_log("Error in auto_update_work_details.php: " . $e->getMessage() . "\n", 3, "error.log");
-    echo json_encode(['success' => false, 'message' => 'خطا در به‌روزرسانی: ' . $e->getMessage()]);
-    exit;
+            // روز بعد
+            $current_date = date('Y-m-d', strtotime($current_date . ' +1 day'));
+        }
+
+        echo json_encode(['success' => true, 'message' => 'روز کاری‌ها با موفقیت به‌روزرسانی شدند']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'ماه کاری نامعتبر است']);
+    }
+} else {
+    echo json_encode(['success' => false, 'message' => 'شناسه ماه کاری ارسال نشده است']);
 }
 ?>

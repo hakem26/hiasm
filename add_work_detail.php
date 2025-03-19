@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // دیباگ: بررسی مقادیر ارسالی
     error_log("Debug: user_id1 = $user_id1, user_id2 = " . ($user_id2 ?? 'NULL') . "\n", 3, "debug.log");
 
-    // پیدا کردن partner_id بر اساس user_id1 و user_id2
+    // پیدا کردن partner_id یا ساختن جفت جدید
     $partner_query = $pdo->prepare("
         SELECT partner_id 
         FROM Partners 
@@ -35,39 +35,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $partner = $partner_query->fetch(PDO::FETCH_ASSOC);
     $partner_id = $partner ? $partner['partner_id'] : null;
 
-    // دیباگ: بررسی نتیجه کوئری
+    if (!$partner_id) {
+        // جفت جدید بساز
+        $insert_partner_query = $pdo->prepare("
+            INSERT INTO Partners (user_id1, user_id2) 
+            VALUES (?, ?)
+        ");
+        $insert_partner_query->execute([$user_id1, $user_id2]);
+        $partner_id = $pdo->lastInsertId();
+
+        error_log("Debug: Created new partner_id = $partner_id\n", 3, "debug.log");
+    }
+
+    // دیباگ: بررسی partner_id
     error_log("Debug: partner_id = " . ($partner_id ?? 'NULL') . "\n", 3, "debug.log");
 
-    if ($partner_id) {
-        // بررسی اینکه آیا این تاریخ قبلاً ثبت شده یا نه
-        $check_query = $pdo->prepare("
-            SELECT id 
-            FROM Work_Details 
-            WHERE work_month_id = ? AND work_date = ?
-        ");
-        $check_query->execute([$work_month_id, $work_date]);
-        if ($check_query->fetch()) {
-            echo "این تاریخ قبلاً ثبت شده است.";
-            exit;
-        }
-
-        // ثبت روز کاری جدید
-        $insert_query = $pdo->prepare("
-            INSERT INTO Work_Details (work_month_id, work_date, partner_id, status) 
-            VALUES (?, ?, ?, 0)
-        ");
-        $insert_query->execute([$work_month_id, $work_date, $partner_id]);
-
-        header("Location: work_details.php?work_month_id=$work_month_id");
+    // بررسی اینکه آیا این تاریخ قبلاً ثبت شده یا نه
+    $check_query = $pdo->prepare("
+        SELECT id 
+        FROM Work_Details 
+        WHERE work_month_id = ? AND work_date = ?
+    ");
+    $check_query->execute([$work_month_id, $work_date]);
+    if ($check_query->fetch()) {
+        echo "این تاریخ قبلاً ثبت شده است.";
         exit;
-    } else {
-        // دیباگ: بررسی جدول Partners
-        $all_partners_query = $pdo->query("SELECT * FROM Partners");
-        $all_partners = $all_partners_query->fetchAll(PDO::FETCH_ASSOC);
-        error_log("Debug: All Partners = " . json_encode($all_partners) . "\n", 3, "debug.log");
-
-        echo "همکار موردنظر یافت نشد.";
     }
+
+    // ثبت روز کاری جدید
+    $insert_query = $pdo->prepare("
+        INSERT INTO Work_Details (work_month_id, work_date, partner_id, status) 
+        VALUES (?, ?, ?, 0)
+    ");
+    $insert_query->execute([$work_month_id, $work_date, $partner_id]);
+
+    header("Location: work_details.php?work_month_id=$work_month_id");
+    exit;
 } else {
     echo "درخواست نامعتبر است.";
 }
