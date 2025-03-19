@@ -113,38 +113,24 @@ if (isset($_GET['work_month_id'])) {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        // مستقیماً از Work_Details داده‌ها رو بکشیم (بدون work_day)
-        if ($is_admin) {
-            $details_query = $pdo->prepare("
-                SELECT wd.id, wd.work_date, wd.partner_id, wd.agency_owner_id, wd.status, 
-                       u1.user_id AS user_id1, u1.full_name AS user1,
-                       COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
-                FROM Work_Details wd
-                JOIN Partners p ON wd.partner_id = p.partner_id
-                JOIN Users u1 ON p.user_id1 = u1.user_id
-                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE wd.work_month_id = ?
-            ");
-            $details_query->execute([$work_month_id]);
-        } else {
-            $details_query = $pdo->prepare("
-                SELECT wd.id, wd.work_date, wd.partner_id, wd.agency_owner_id, wd.status, 
-                       u1.user_id AS user_id1, u1.full_name AS user1,
-                       COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
-                FROM Work_Details wd
-                JOIN Partners p ON wd.partner_id = p.partner_id
-                JOIN Users u1 ON p.user_id1 = u1.user_id
-                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
-            ");
-            $details_query->execute([$work_month_id, $current_user_id, $current_user_id]);
-        }
+        // کوئری ساده‌تر برای دیباگ
+        $details_query = $pdo->prepare("
+            SELECT wd.*, p.*, u1.user_id AS user_id1, u1.full_name AS user1,
+                   COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
+            FROM Work_Details wd
+            LEFT JOIN Partners p ON wd.partner_id = p.partner_id
+            LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+            LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+            WHERE wd.work_month_id = ?
+        ");
+        $details_query->execute([$work_month_id]);
         $work_details_raw = $details_query->fetchAll(PDO::FETCH_ASSOC);
 
         // دیباگ: بررسی داده‌های خام
+        error_log("Debug: work_month_id = $work_month_id", 3, "debug.log");
         error_log("Debug: work_details_raw count = " . count($work_details_raw) . "\n", 3, "debug.log");
         foreach ($work_details_raw as $debug_row) {
-            error_log("Debug: work_date = " . $debug_row['work_date'] . ", partner_id = " . $debug_row['partner_id'] . ", status = " . $debug_row['status'] . ", work_month_id = " . $work_month_id . "\n", 3, "debug.log");
+            error_log("Debug: work_date = " . $debug_row['work_date'] . ", partner_id = " . $debug_row['partner_id'] . ", status = " . $debug_row['status'] . ", work_month_id = " . $debug_row['work_month_id'] . "\n", 3, "debug.log");
         }
 
         foreach ($work_details_raw as $detail) {
@@ -199,7 +185,7 @@ $total_sales_all = 0;
 if ($selected_year) {
     $conditions = [];
     $params = [];
-    $base_query = "SELECT SUM(o.total_amount) as total_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE wd.status = 0 AND 1=1";
+    $base_query = "SELECT SUM(o.total_amount) as total_sales FROM Orders o JOIN Work_Details wd ON o.work_details_id = wd.id JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id WHERE 1=1";
 
     if (!$is_admin) {
         $conditions[] = "EXISTS (
