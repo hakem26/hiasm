@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 require_once 'db.php';
 require_once 'jdf.php';
 
-// فعال کردن نمایش خطاها برای دیباگ (بعد از تست می‌تونی غیرفعالش کنی)
+// فعال کردن لاگ خطاها
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', 'error.log');
@@ -39,7 +39,7 @@ try {
 
     // دریافت همه جفت‌های همکار از Partners
     $partner_query = $pdo->prepare("
-        SELECT p.partner_id, p.work_day AS stored_day_number, u1.user_id AS user_id1, u1.full_name AS user1, 
+        SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
                COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
         FROM Partners p
         JOIN Users u1 ON p.user_id1 = u1.user_id
@@ -49,35 +49,50 @@ try {
     $partner_query->execute();
     $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
+    // تعریف تخصیص همکارها به روزها (به جای ستون work_day)
+    $partner_days = [
+        1 => [1], // روز شنبه: partner_id = 1 (مثلاً "مهری طارمی - شیدا جوهری")
+        2 => [2], // روز یک‌شنبه: partner_id = 2 (مثلاً "سهیلا قاسمی - شیدا جوهری")
+        3 => [],  // روز دوشنبه: بدون همکار
+        4 => [],  // روز سه‌شنبه: بدون همکار
+        5 => [3], // روز چهارشنبه: partner_id = 3 (مثلاً "شیدا جوهری - مرضیه عبادی")
+        6 => [],  // روز پنج‌شنبه: بدون همکار
+        7 => []   // روز جمعه: بدون همکار
+    ];
+
     // همگام‌سازی و ذخیره‌سازی داده‌ها
     foreach ($date_range as $date) {
         $work_date = $date->format('Y-m-d');
-        // تبدیل تاریخ میلادی به شمسی برای محاسبه روز هفته
-        list($gy, $gm, $gd) = explode('-', $work_date);
-        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        $adjusted_day_number = (int) jdate('w', jmktime(0, 0, 0, $jm, $jd, $jy)) + 1; // 1 (شنبه) تا 7 (جمعه)
+        // محاسبه روز هفته با date('N') و تبدیل به تقویم ایرانی
+        $timestamp = strtotime($work_date);
+        $day_number_miladi = (int) date('N', $timestamp); // 1 (دوشنبه) تا 7 (یک‌شنبه)
+        // تبدیل به تقویم ایرانی (1: شنبه تا 7: جمعه)
+        $adjusted_day_number = ($day_number_miladi + 5) % 7;
+        if ($adjusted_day_number == 0) {
+            $adjusted_day_number = 7; // اگر 0 شد، 7 (جمعه) بشه
+        }
 
-        // لگاری برای دیباگ (به جای var_dump از error_log استفاده می‌کنیم)
-        error_log("Date: $work_date, Adjusted Day: $adjusted_day_number\n", 3, "debug.log");
+        // دیباگ
+        error_log("Date: $work_date, Miladi Day: $day_number_miladi, Adjusted Day: $adjusted_day_number\n", 3, "debug.log");
 
-        foreach ($partners_in_work as $partner) {
-            $partner_id = $partner['partner_id'];
-            $stored_day_number = $partner['stored_day_number'];
-
-            // چک کردن وجود ردیف برای این تاریخ و partner_id
-            $detail_query = $pdo->prepare("
-                SELECT * FROM Work_Details 
-                WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
-            ");
-            $detail_query->execute([$work_date, $work_month_id, $partner_id]);
-            $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
-
-            if (!$existing_detail && $stored_day_number == $adjusted_day_number) {
-                $insert_query = $pdo->prepare("
-                    INSERT INTO Work_Details (work_month_id, work_date, work_day, partner_id, agency_owner_id, status) 
-                    VALUES (?, ?, ?, ?, ?, 0)
+        // تخصیص همکارها بر اساس روز هفته
+        if (isset($partner_days[$adjusted_day_number]) && !empty($partner_days[$adjusted_day_number])) {
+            foreach ($partner_days[$adjusted_day_number] as $partner_id) {
+                // چک کردن وجود ردیف برای این تاریخ و partner_id
+                $detail_query = $pdo->prepare("
+                    SELECT * FROM Work_Details 
+                    WHERE work_date = ? AND work_month_id = ? AND partner_id = ?
                 ");
-                $insert_query->execute([$work_month_id, $work_date, $adjusted_day_number, $partner_id, null]);
+                $detail_query->execute([$work_date, $work_month_id, $partner_id]);
+                $existing_detail = $detail_query->fetch(PDO::FETCH_ASSOC);
+
+                if (!$existing_detail) {
+                    $insert_query = $pdo->prepare("
+                        INSERT INTO Work_Details (work_month_id, work_date, partner_id, agency_owner_id, status) 
+                        VALUES (?, ?, ?, ?, 0)
+                    ");
+                    $insert_query->execute([$work_month_id, $work_date, $partner_id, null]);
+                }
             }
         }
     }

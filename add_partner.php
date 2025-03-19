@@ -10,12 +10,11 @@ require_once 'db.php';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user_id1 = $_POST['user_id1'];
     $user_id2 = $_POST['user_id2'];
-    $work_day = $_POST['work_day'];
 
     try {
         // افزودن همکار جدید به جدول Partners
-        $stmt = $pdo->prepare("INSERT INTO Partners (user_id1, user_id2, work_day) VALUES (?, ?, ?)");
-        $stmt->execute([$user_id1, $user_id2, $work_day]);
+        $stmt = $pdo->prepare("INSERT INTO Partners (user_id1, user_id2) VALUES (?, ?)");
+        $stmt->execute([$user_id1, $user_id2]);
 
         // هدایت به صفحه همکاران
         header("Location: partners.php");

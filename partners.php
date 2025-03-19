@@ -38,7 +38,6 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <th>ردیف</th>
                 <th>همکار 1</th>
                 <th>همکار 2</th>
-                <th>روز هفته</th>
                 <th>عملیات</th>
             </tr>
         </thead>
@@ -48,9 +47,8 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?php echo $row++; ?></td>
                 <td><?php echo $partner['full_name1'] ?: '-'; ?></td>
                 <td><?php echo $partner['full_name2'] ?: '-'; ?></td>
-                <td><?php echo $partner['work_day'] ?: '-'; ?></td>
                 <td>
-                    <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user1="<?php echo $partner['user_id1']; ?>" data-user2="<?php echo $partner['user_id2']; ?>" data-work-day="<?php echo $partner['work_day']; ?>">
+                    <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" data-partner-id="<?php echo $partner['partner_id']; ?>" data-user1="<?php echo $partner['user_id1']; ?>" data-user2="<?php echo $partner['user_id2']; ?>">
                         ویرایش
                     </button>
                     <button class="btn btn-danger btn-sm" onclick="confirmDeletePartner(<?php echo $partner['partner_id']; ?>)">
@@ -92,19 +90,6 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="add_work_day" class="form-label">روز هفته</label>
-                        <select class="form-select" id="add_work_day" name="work_day" required>
-                            <option value="">انتخاب کنید</option>
-                            <option value="1">شنبه</option>
-                            <option value="2">یکشنبه</option>
-                            <option value="3">دوشنبه</option>
-                            <option value="4">سه‌شنبه</option>
-                            <option value="5">چهارشنبه</option>
-                            <option value="6">پنجشنبه</option>
-                            <option value="7">جمعه</option>
-                        </select>
-                    </div>
                     <button type="submit" class="btn btn-primary">ثبت همکار</button>
                 </form>
             </div>
@@ -141,19 +126,6 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="edit_work_day" class="form-label">روز هفته</label>
-                        <select class="form-select" id="edit_work_day" name="work_day" required>
-                            <option value="">انتخاب کنید</option>
-                            <option value="شنبه">شنبه</option>
-                            <option value="یک‌شنبه">یک‌شنبه</option>
-                            <option value="دوشنبه">دوشنبه</option>
-                            <option value="سه‌شنبه">سه‌شنبه</option>
-                            <option value="چهارشنبه">چهارشنبه</option>
-                            <option value="پنج‌شنبه">پنج‌شنبه</option>
-                            <option value="جمعه">جمعه</option>
-                        </select>
-                    </div>
                     <button type="submit" class="btn btn-primary">بروزرسانی همکار</button>
                 </form>
             </div>
@@ -172,12 +144,10 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                 const partnerId = button.getAttribute('data-partner-id');
                 const user1 = button.getAttribute('data-user1');
                 const user2 = button.getAttribute('data-user2');
-                const workDay = button.getAttribute('data-work-day');
 
                 document.getElementById('edit_partner_id').value = partnerId;
                 document.getElementById('edit_user_id1').value = user1 || '';
                 document.getElementById('edit_user_id2').value = user2 || '';
-                document.getElementById('edit_work_day').value = workDay || '';
             });
         });
 
