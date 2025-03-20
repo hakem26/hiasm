@@ -78,23 +78,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <!-- <span class="navbar-text">صفحه <?php echo $page_name; ?></span> -->
             </div>
             <h6 class="navbar-text mx-auto" style="color: #690974;"><?php echo $jalali_date; ?></h6>
-            <!-- <div class="dropdown ms-3">
-                <a href="#" class="text-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user-circle fa-2x" style="color: #690974;"></i>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li class="dropdown-item"><?php echo htmlspecialchars($full_name); ?></li>
-                    <li class="dropdown-item"><?php echo $role; ?></li>
-                    <li>
-                        <hr class="dropdown-divider">
-                    </li>
-                    <!-- <li class="dropdown-item"><i class="fas fa-cog me-2"></i> تنظیمات</li> -->
-                    <li class="dropdown-item">
-                        <a href="logout.php" class="text-decoration-none text-dark"><i
-                                class="fas fa-sign-out-alt me-2"></i> خروج</a>
-                    </li>
-                </ul>
-            </div> -->
         </div>
     </nav>
 
