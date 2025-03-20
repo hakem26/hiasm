@@ -227,10 +227,12 @@ if ($is_admin && $is_partner1) {
                 <input type="text" class="form-control" name="product_name" placeholder="نام محصول" required>
             </div>
             <div class="col-auto">
-                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01" required>
+                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01"
+                    required>
             </div>
             <div class="col-auto">
-                <input type="number" class="form-control" name="partner_profit" placeholder="سود همکار (درصد)" step="0.01" value="0.00">
+                <input type="number" class="form-control" name="partner_profit" placeholder="سود همکار (درصد)" step="0.01"
+                    value="0.00">
             </div>
             <div class="col-auto">
                 <button type="submit" name="add_product" class="btn btn-primary">افزودن محصول</button>
@@ -240,7 +242,8 @@ if ($is_admin && $is_partner1) {
 
     <?php if (!empty($products)): ?>
         <div class="table-responsive" style="overflow-x: auto; width: 100%;">
-            <table id="productsTable" class="table table-light table-hover display nowrap" style="width: 100%; min-width: 1200px;">
+            <table id="productsTable" class="table table-light table-hover display nowrap"
+                style="width: 100%; min-width: 1200px;">
                 <thead>
                     <tr>
                         <th>شناسه</th>
@@ -273,26 +276,34 @@ if ($is_admin && $is_partner1) {
                             </td>
                             <?php if ($is_admin): ?>
                                 <td>
-                                    <span id="admin_inventory_<?= $product['product_id'] ?>"><?= $product['admin_inventory'] ?></span>
-                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#adminInventoryModal_<?= $product['product_id'] ?>">
+                                    <span
+                                        id="admin_inventory_<?= $product['product_id'] ?>"><?= $product['admin_inventory'] ?></span>
+                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal"
+                                        data-bs-target="#adminInventoryModal_<?= $product['product_id'] ?>">
                                         تغییر
                                     </button>
                                 </td>
                                 <td>
-                                    <span id="partner_profit_<?= $product['product_id'] ?>"><?= number_format($product['partner_profit'], 2) ?></span>
-                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#partnerProfitModal_<?= $product['product_id'] ?>">
+                                    <span
+                                        id="partner_profit_<?= $product['product_id'] ?>"><?= number_format($product['partner_profit'], 2) ?></span>
+                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal"
+                                        data-bs-target="#partnerProfitModal_<?= $product['product_id'] ?>">
                                         تغییر
                                     </button>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#allocateModal_<?= $product['product_id'] ?>">
+                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#allocateModal_<?= $product['product_id'] ?>">
                                         تخصیص
                                     </button>
                                 </td>
                                 <td>
-                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
-                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
-                                    <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
+                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>"
+                                        class="btn btn-warning btn-sm">ویرایش</a>
+                                    <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
+                                    <a href="manage_price.php?product_id=<?= $product['product_id'] ?>"
+                                        class="btn btn-info btn-sm">مدیریت قیمت</a>
                                 </td>
                             <?php endif; ?>
                             <?php if ($is_seller && $is_partner1): ?>
@@ -302,7 +313,8 @@ if ($is_admin && $is_partner1) {
                             <?php endif; ?>
                             <?php if ($is_seller): ?>
                                 <td>
-                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#priceModal_<?= $product['product_id'] ?>">
+                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#priceModal_<?= $product['product_id'] ?>">
                                         تغییرات
                                     </button>
                                 </td>
@@ -316,19 +328,23 @@ if ($is_admin && $is_partner1) {
         <!-- Admin Inventory Modal -->
         <?php if ($is_admin): ?>
             <?php foreach ($products as $product): ?>
-                <div class="modal fade" id="adminInventoryModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="adminInventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                <div class="modal fade" id="adminInventoryModal_<?= $product['product_id'] ?>" tabindex="-1"
+                    aria-labelledby="adminInventoryModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="adminInventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی مدیر برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="adminInventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی
+                                    مدیر برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <form method="POST">
                                     <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                     <div class="mb-3">
-                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد جدید</label>
-                                        <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>" name="new_quantity" min="0" required>
+                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد
+                                            جدید</label>
+                                        <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>"
+                                            name="new_quantity" min="0" required>
                                     </div>
                                     <button type="submit" name="update_admin_inventory" class="btn btn-primary">ذخیره</button>
                                 </form>
@@ -341,19 +357,24 @@ if ($is_admin && $is_partner1) {
                 </div>
 
                 <!-- Partner Profit Modal -->
-                <div class="modal fade" id="partnerProfitModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="partnerProfitModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                <div class="modal fade" id="partnerProfitModal_<?= $product['product_id'] ?>" tabindex="-1"
+                    aria-labelledby="partnerProfitModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="partnerProfitModalLabel_<?= $product['product_id'] ?>">ویرایش سود همکار برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="partnerProfitModalLabel_<?= $product['product_id'] ?>">ویرایش سود همکار
+                                    برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <form method="POST">
                                     <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                     <div class="mb-3">
-                                        <label for="partner_profit_<?= $product['product_id'] ?>" class="form-label">سود همکار (درصد)</label>
-                                        <input type="number" class="form-control" id="partner_profit_<?= $product['product_id'] ?>" name="partner_profit" step="0.01" min="0" value="<?= $product['partner_profit'] ?>" required>
+                                        <label for="partner_profit_<?= $product['product_id'] ?>" class="form-label">سود همکار
+                                            (درصد)</label>
+                                        <input type="number" class="form-control" id="partner_profit_<?= $product['product_id'] ?>"
+                                            name="partner_profit" step="0.01" min="0" value="<?= $product['partner_profit'] ?>"
+                                            required>
                                     </div>
                                     <button type="submit" name="update_partner_profit" class="btn btn-primary">ذخیره</button>
                                 </form>
@@ -366,11 +387,13 @@ if ($is_admin && $is_partner1) {
                 </div>
 
                 <!-- Allocate Inventory Modal -->
-                <div class="modal fade" id="allocateModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="allocateModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                <div class="modal fade" id="allocateModal_<?= $product['product_id'] ?>" tabindex="-1"
+                    aria-labelledby="allocateModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="allocateModalLabel_<?= $product['product_id'] ?>">تخصیص موجودی برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="allocateModalLabel_<?= $product['product_id'] ?>">تخصیص موجودی برای
+                                    <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
@@ -378,24 +401,29 @@ if ($is_admin && $is_partner1) {
                                     <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                     <div class="mb-3">
                                         <label for="user_id_<?= $product['product_id'] ?>" class="form-label">همکار 1</label>
-                                        <select class="form-select" id="user_id_<?= $product['product_id'] ?>" name="user_id" required>
+                                        <select class="form-select" id="user_id_<?= $product['product_id'] ?>" name="user_id"
+                                            required>
                                             <option value="">انتخاب کنید</option>
                                             <?php foreach ($partner1_users as $user): ?>
-                                                <option value="<?= $user['user_id'] ?>"><?= htmlspecialchars($user['full_name']) ?></option>
+                                                <option value="<?= $user['user_id'] ?>"><?= htmlspecialchars($user['full_name']) ?>
+                                                </option>
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
                                     <div class="mb-3">
                                         <label for="quantity_<?= $product['product_id'] ?>" class="form-label">تعداد</label>
-                                        <input type="number" class="form-control" id="quantity_<?= $product['product_id'] ?>" name="quantity" min="1" required>
+                                        <input type="number" class="form-control" id="quantity_<?= $product['product_id'] ?>"
+                                            name="quantity" min="1" required>
                                     </div>
                                     <div class="mb-3">
                                         <label for="work_month_id_<?= $product['product_id'] ?>" class="form-label">ماه کاری</label>
-                                        <select class="form-select" id="work_month_id_<?= $product['product_id'] ?>" name="work_month_id" required>
+                                        <select class="form-select" id="work_month_id_<?= $product['product_id'] ?>"
+                                            name="work_month_id" required>
                                             <option value="">انتخاب کنید</option>
                                             <?php foreach ($work_months as $month): ?>
                                                 <option value="<?= $month['work_month_id'] ?>">
-                                                    <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
+                                                    <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                                                    <?= gregorian_to_jalali_format($month['end_date']) ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
@@ -415,11 +443,13 @@ if ($is_admin && $is_partner1) {
         <!-- Price History Modal -->
         <?php if ($is_seller): ?>
             <?php foreach ($products as $product): ?>
-                <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1" aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                <div class="modal fade" id="priceModal_<?= $product['product_id'] ?>" tabindex="-1"
+                    aria-labelledby="priceModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای
+                                    <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
@@ -470,8 +500,10 @@ if ($is_admin && $is_partner1) {
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
+                "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
                 "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
-                "infoFiltered": "(فیلتر شده از MAX ردیف کل)",
+                "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+                "lengthMenu": "نمایش _MENU_ ردیف",
                 "loadingRecords": "در حال بارگذاری...",
                 "processing": "در حال پردازش...",
                 "search": "جستجو:",
