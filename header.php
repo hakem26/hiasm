@@ -100,7 +100,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
     <!-- منوی کناری -->
     <div class="sidebar collapsed"> <!-- پیش‌فرض باریک (collapsed) -->
-        <ul class="nav flex-column">
+        <ul class="nav">
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
                     href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
@@ -151,13 +151,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <span>گزارشات</span>
                 </a>
                 <ul class="collapse list-unstyled show" id="reportsSubmenu"> <!-- پیش‌فرض باز -->
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'report-daily.php' ? 'active' : ''; ?>"
-                            href="report-monthly.php">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span>ماهانه</span>
-                        </a>
-                    </li>
+                    <?php if ($_SESSION['role'] === 'seller'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page == 'report-daily.php' ? 'active' : ''; ?>"
+                                href="report-monthly.php">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>ماهانه</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'report-summary.php' ? 'active' : ''; ?>"
                             href="report-summary.php">
@@ -210,6 +212,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     </a>
                 </li>
             <?php endif; ?>
+            <li class="nav-item">
+                <a href="logout.php" class="text-decoration-none text-dark"><i class="fas fa-sign-out-alt me-2"></i>
+                    خروج</a>
+            </li>
         </ul>
     </div>
 
