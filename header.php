@@ -91,6 +91,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <span>داشبورد</span>
                 </a>
             </li>
+            <hr class="sidebar-divider">
             <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#productsSubmenu"
                     aria-expanded="true" aria-controls="productsSubmenu"> <!-- پیش‌فرض باز -->
@@ -114,6 +115,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     </li>
                 </ul>
             </li>
+            <hr class="sidebar-divider">
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>" href="orders.php">
                     <i class="fas fa-shopping-cart"></i>
@@ -127,6 +129,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <span>اطلاعات کار</span>
                 </a>
             </li>
+            <hr class="sidebar-divider">
             <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu"
                     aria-expanded="true" aria-controls="reportsSubmenu"> <!-- پیش‌فرض باز -->
@@ -173,7 +176,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     </li>
                 </ul>
             </li>
-
+            <hr class="sidebar-divider">
             <!-- ادمین -->
             <?php if ($_SESSION['role'] === 'admin'): ?>
                 <li class="nav-item">
