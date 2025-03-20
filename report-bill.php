@@ -33,8 +33,11 @@ function gregorian_year_to_jalali($gregorian_year) {
     return $jy;
 }
 
-// بررسی نقش کاربر (فقط برای همکار عادی)
+// بررسی نقش کاربر
 $current_user_id = $_SESSION['user_id'];
+$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
+$stmt->execute([$current_user_id]);
+$user_role = $stmt->fetchColumn();
 
 // دریافت سال‌های موجود از دیتابیس (میلادی)
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
@@ -48,6 +51,7 @@ $current_year = date('Y');
 $selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
 $selected_month = $_GET['work_month_id'] ?? '';
 $display_filter = $_GET['display_filter'] ?? 'all'; // پیش‌فرض "همه"
+$partner_role_filter = $_GET['partner_role'] ?? 'all'; // پیش‌فرض "همه"
 
 // متغیرهای جمع کل
 $total_invoices = 0;    // جمع کل فاکتورها (فروش - تخفیف)
@@ -57,26 +61,60 @@ $bills = [];            // لیست فاکتورها برای جدول
 
 if ($selected_year && $selected_month) {
     // جمع کل فاکتورها (فروش - تخفیف)
-    $stmt = $pdo->prepare("
+    $query = "
         SELECT COALESCE(SUM(o.total_amount - o.discount), 0) AS total_invoices
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = ?
-    ");
-    $stmt->execute([$selected_month, $current_user_id]);
+        WHERE wd.work_month_id = ?
+    ";
+    $params = [$selected_month];
+
+    if ($user_role !== 'admin') {
+        if ($partner_role_filter === 'all') {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $current_user_id;
+            $params[] = $current_user_id;
+        } elseif ($partner_role_filter === 'partner1') {
+            $query .= " AND p.user_id1 = ?";
+            $params[] = $current_user_id;
+        } elseif ($partner_role_filter === 'partner2') {
+            $query .= " AND p.user_id2 = ?";
+            $params[] = $current_user_id;
+        }
+    }
+
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
     $total_invoices = $stmt->fetchColumn() ?? 0;
 
     // مجموع پرداختی‌ها (از جدول Order_Payments)
-    $stmt = $pdo->prepare("
+    $query = "
         SELECT COALESCE(SUM(op.amount), 0) AS total_payments
         FROM Order_Payments op
         JOIN Orders o ON op.order_id = o.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = ?
-    ");
-    $stmt->execute([$selected_month, $current_user_id]);
+        WHERE wd.work_month_id = ?
+    ";
+    $params = [$selected_month];
+
+    if ($user_role !== 'admin') {
+        if ($partner_role_filter === 'all') {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $current_user_id;
+            $params[] = $current_user_id;
+        } elseif ($partner_role_filter === 'partner1') {
+            $query .= " AND p.user_id1 = ?";
+            $params[] = $current_user_id;
+        } elseif ($partner_role_filter === 'partner2') {
+            $query .= " AND p.user_id2 = ?";
+            $params[] = $current_user_id;
+        }
+    }
+
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
     $total_payments = $stmt->fetchColumn() ?? 0;
 
     // مانده بدهی
@@ -90,12 +128,32 @@ if ($selected_year && $selected_month) {
                    SELECT SUM(op.amount) 
                    FROM Order_Payments op 
                    WHERE op.order_id = o.order_id
-               ), 0)) AS remaining_debt
+               ), 0)) AS remaining_debt,
+               u1.full_name AS partner1_name,
+               u2.full_name AS partner2_name
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+        JOIN Users u1 ON p.user_id1 = u1.user_id
+        JOIN Users u2 ON p.user_id2 = u2.user_id
+        WHERE wd.work_month_id = ?
     ";
+    $params = [$selected_month];
+
+    if ($user_role !== 'admin') {
+        if ($partner_role_filter === 'all') {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $current_user_id;
+            $params[] = $current_user_id;
+        } elseif ($partner_role_filter === 'partner1') {
+            $query .= " AND p.user_id1 = ?";
+            $params[] = $current_user_id;
+        } elseif ($partner_role_filter === 'partner2') {
+            $query .= " AND p.user_id2 = ?";
+            $params[] = $current_user_id;
+        }
+    }
+
     if ($display_filter === 'debtors') {
         $query .= " AND (o.total_amount - o.discount - COALESCE((
                    SELECT SUM(op.amount) 
@@ -106,7 +164,7 @@ if ($selected_year && $selected_month) {
     $query .= " ORDER BY o.created_at DESC";
 
     $stmt = $pdo->prepare($query);
-    $stmt->execute([$selected_month, $current_user_id]);
+    $stmt->execute($params);
     $bills = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
@@ -151,6 +209,14 @@ if ($selected_year && $selected_month) {
                     </div>
                 </div>
                 <div class="col-md-3">
+                    <label for="partner_role" class="form-label">نقش همکار</label>
+                    <select name="partner_role" id="partner_role" class="form-select">
+                        <option value="all" <?= $partner_role_filter === 'all' ? 'selected' : '' ?>>همه</option>
+                        <option value="partner1" <?= $partner_role_filter === 'partner1' ? 'selected' : '' ?>>همکار ۱</option>
+                        <option value="partner2" <?= $partner_role_filter === 'partner2' ? 'selected' : '' ?>>همکار ۲</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label for="display_filter" class="form-label">نمایش</label>
                     <select name="display_filter" id="display_filter" class="form-select">
                         <option value="all" <?= $display_filter === 'all' ? 'selected' : '' ?>>همه</option>
@@ -174,6 +240,9 @@ if ($selected_year && $selected_month) {
                     <tr>
                         <th>تاریخ</th>
                         <th>نام مشتری</th>
+                        <?php if ($user_role === 'seller' || $user_role === 'admin'): ?>
+                            <th>همکاران</th>
+                        <?php endif; ?>
                         <th>مبلغ فاکتور</th>
                         <th>مانده بدهی</th>
                     </tr>
@@ -181,13 +250,16 @@ if ($selected_year && $selected_month) {
                 <tbody>
                     <?php if (empty($bills)): ?>
                         <tr>
-                            <td colspan="4" class="text-center">فاکتوری یافت نشد.</td>
+                            <td colspan="<?= $user_role === 'seller' || $user_role === 'admin' ? 5 : 4 ?>" class="text-center">فاکتوری یافت نشد.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($bills as $bill): ?>
                             <tr>
                                 <td><?= gregorian_to_jalali_format($bill['order_date']) ?></td>
                                 <td><?= htmlspecialchars($bill['customer_name']) ?></td>
+                                <?php if ($user_role === 'seller' || $user_role === 'admin'): ?>
+                                    <td><?= htmlspecialchars($bill['partner1_name']) . ' - ' . htmlspecialchars($bill['partner2_name']) ?></td>
+                                <?php endif; ?>
                                 <td><?= number_format($bill['invoice_amount'], 0) ?> تومان</td>
                                 <td><?= number_format($bill['remaining_debt'], 0) ?> تومان</td>
                             </tr>
@@ -211,9 +283,9 @@ if ($selected_year && $selected_month) {
                     return;
                 }
                 $.ajax({
-                    url: 'get_months.php',
+                    url: 'get_months_for_bills.php',
                     type: 'POST',
-                    data: { year: year, user_id: <?= json_encode($current_user_id) ?> },
+                    data: { year: year },
                     success: function(response) {
                         console.log('Months response:', response);
                         $('#work_month_id').html(response);
@@ -233,9 +305,10 @@ if ($selected_year && $selected_month) {
                 const year = $('#year').val();
                 const work_month_id = $('#work_month_id').val();
                 const display_filter = $('#display_filter').val();
+                const partner_role = $('#partner_role').val();
 
                 if (!work_month_id) {
-                    $('#bills-table').html('<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><th>مبلغ فاکتور</th><th>مانده بدهی</th></tr></thead><tbody><tr><td colspan="4" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr></tbody></table>');
+                    $('#bills-table').html('<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><?= $user_role === 'seller' || $user_role === 'admin' ? '<th>همکاران</th>' : '' ?><th>مبلغ فاکتور</th><th>مانده بدهی</th></tr></thead><tbody><tr><td colspan="<?= $user_role === 'seller' || $user_role === 'admin' ? 5 : 4 ?>" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr></tbody></table>');
                     $('#summary').hide();
                     return;
                 }
@@ -248,7 +321,7 @@ if ($selected_year && $selected_month) {
                         year: year,
                         work_month_id: work_month_id,
                         display_filter: display_filter,
-                        user_id: <?= json_encode($current_user_id) ?>
+                        partner_role: partner_role
                     },
                     dataType: 'json',
                     success: function(response) {
@@ -304,6 +377,10 @@ if ($selected_year && $selected_month) {
                 loadBills();
             });
 
+            $('#partner_role').on('change', function() {
+                loadBills();
+            });
+
             $('#display_filter').on('change', function() {
                 loadBills();
             });
@@ -311,3 +388,5 @@ if ($selected_year && $selected_month) {
     </script>
 
     <?php require_once 'footer.php'; ?>
+</body>
+</html>
