@@ -11,6 +11,11 @@ if (!$year || !$current_user_id || $work_month_id === 'all') {
     exit;
 }
 
+// بررسی نقش کاربر
+$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
+$stmt->execute([$current_user_id]);
+$user_role = $stmt->fetchColumn();
+
 $query = "
     SELECT DISTINCT u.user_id, u.full_name
     FROM Users u
@@ -19,11 +24,18 @@ $query = "
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
     WHERE YEAR(wm.start_date) = ?
     AND wd.work_month_id = ?
-    AND (p.user_id1 = ? OR p.user_id2 = ?)
-    AND u.user_id != ?
-    ORDER BY u.full_name
 ";
-$params = [$year, $work_month_id, $current_user_id, $current_user_id, $current_user_id];
+$params = [$year, $work_month_id];
+
+if ($user_role !== 'admin') {
+    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+    $query .= " AND u.user_id != ?";
+    $params[] = $current_user_id;
+}
+
+$query .= " ORDER BY u.full_name";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);

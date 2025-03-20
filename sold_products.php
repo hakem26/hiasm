@@ -52,7 +52,6 @@ $current_jalali_year = gregorian_year_to_jalali($current_gregorian_year); // م�
 $selected_year = $_GET['year'] ?? $current_gregorian_year; // پیش‌فرض: سال جاری میلادی
 $selected_month = $_GET['work_month_id'] ?? 'all'; // پیش‌فرض: "همه"
 $selected_partner_id = $_GET['partner_id'] ?? 'all'; // پیش‌فرض: "همه"
-$selected_work_date = $_GET['work_date'] ?? 'all'; // پیش‌فرض: "همه"
 
 // جمع کل فروش و تعداد کل محصولات
 $total_sales = 0;
@@ -67,9 +66,15 @@ try {
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE YEAR(wm.start_date) = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
     ";
-    $params = [$selected_year, $current_user_id, $current_user_id];
+    $params = [$selected_year];
+
+    // برای کاربران غیر مدیر، فقط همکارانی که با کاربر لاگین‌شده همکاری کردن
+    if ($user_role !== 'admin') {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+    }
 
     if ($selected_month !== 'all') {
         $query .= " AND wd.work_month_id = ?";
@@ -80,11 +85,6 @@ try {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $selected_partner_id;
         $params[] = $selected_partner_id;
-    }
-
-    if ($selected_work_date !== 'all') {
-        $query .= " AND wd.work_date = ?";
-        $params[] = $selected_work_date;
     }
 
     $stmt = $pdo->prepare($query);
@@ -107,9 +107,14 @@ try {
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE YEAR(wm.start_date) = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
     ";
-    $params = [$selected_year, $current_user_id, $current_user_id];
+    $params = [$selected_year];
+
+    if ($user_role !== 'admin') {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+    }
 
     if ($selected_month !== 'all') {
         $query .= " AND wd.work_month_id = ?";
@@ -120,11 +125,6 @@ try {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $selected_partner_id;
         $params[] = $selected_partner_id;
-    }
-
-    if ($selected_work_date !== 'all') {
-        $query .= " AND wd.work_date = ?";
-        $params[] = $selected_work_date;
     }
 
     $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
@@ -146,10 +146,16 @@ if ($selected_year) {
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
         JOIN Partners p ON wd.partner_id = p.partner_id
         WHERE YEAR(wm.start_date) = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-        ORDER BY wm.start_date DESC
     ";
-    $params = [$selected_year, $current_user_id, $current_user_id];
+    $params = [$selected_year];
+
+    if ($user_role !== 'admin') {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+    }
+
+    $query .= " ORDER BY wm.start_date DESC";
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -166,57 +172,24 @@ if ($selected_year && $selected_month !== 'all') {
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE YEAR(wm.start_date) = ?
         AND wd.work_month_id = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-        AND u.user_id != ?
-        ORDER BY u.full_name
     ";
-    $params = [$selected_year, $selected_month, $current_user_id, $current_user_id, $current_user_id];
+    $params = [$selected_year, $selected_month];
+
+    if ($user_role !== 'admin') {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+        $query .= " AND u.user_id != ?";
+        $params[] = $current_user_id;
+    }
+
+    $query .= " ORDER BY u.full_name";
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
-
-// دریافت لیست روزهای کاری برای فیلتر
-$work_dates = [];
-if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all') {
-    $query = "
-        SELECT DISTINCT wd.work_date
-        FROM Work_Details wd
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
-        AND wd.work_month_id = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-        ORDER BY wd.work_date DESC
-    ";
-    $params = [$selected_year, $selected_month, $current_user_id, $current_user_id, $selected_partner_id, $selected_partner_id];
-    $stmt = $pdo->prepare($query);
-    $stmt->execute($params);
-    $work_dates = $stmt->fetchAll(PDO::FETCH_COLUMN);
-}
 ?>
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لیست محصولات فروخته‌شده</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .summary-text {
-            margin: 20px 0;
-            font-size: 16px;
-            font-weight: bold;
-        }
-    </style>
-</head>
-
-<body>
     <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">لیست محصولات فروخته‌شده</h5>
 
@@ -229,7 +202,7 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
         <!-- فرم فیلترها -->
         <div class="mb-4">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label for="year" class="form-label">سال</label>
                     <select name="year" id="year" class="form-select">
                         <?php foreach ($years as $year): ?>
@@ -239,7 +212,7 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <select name="work_month_id" id="work_month_id" class="form-select">
                         <option value="all" <?= $selected_month === 'all' ? 'selected' : '' ?>>همه</option>
@@ -250,24 +223,13 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label for="partner_id" class="form-label">همکار</label>
                     <select name="partner_id" id="partner_id" class="form-select">
                         <option value="all" <?= $selected_partner_id === 'all' ? 'selected' : '' ?>>همه</option>
                         <?php foreach ($partners as $partner): ?>
                             <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($partner['full_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="work_date" class="form-label">روز کاری</label>
-                    <select name="work_date" id="work_date" class="form-select">
-                        <option value="all" <?= $selected_work_date === 'all' ? 'selected' : '' ?>>همه</option>
-                        <?php foreach ($work_dates as $date): ?>
-                            <option value="<?= $date ?>" <?= $selected_work_date == $date ? 'selected' : '' ?>>
-                                <?= gregorian_to_jalali_format($date) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -318,7 +280,6 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
                 if (!year) {
                     $('#work_month_id').html('<option value="all">همه</option>');
                     $('#partner_id').html('<option value="all">همه</option>');
-                    $('#work_date').html('<option value="all">همه</option>');
                     return;
                 }
                 $.ajax({
@@ -328,13 +289,11 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
                     success: function(response) {
                         $('#work_month_id').html('<option value="all">همه</option>' + response);
                         $('#partner_id').html('<option value="all">همه</option>');
-                        $('#work_date').html('<option value="all">همه</option>');
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading months:', error);
                         $('#work_month_id').html('<option value="all">همه</option>');
                         $('#partner_id').html('<option value="all">همه</option>');
-                        $('#work_date').html('<option value="all">همه</option>');
                     }
                 });
             }
@@ -343,7 +302,6 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
             function loadPartners(year, work_month_id) {
                 if (!year || work_month_id === 'all') {
                     $('#partner_id').html('<option value="all">همه</option>');
-                    $('#work_date').html('<option value="all">همه</option>');
                     return;
                 }
                 $.ajax({
@@ -352,32 +310,10 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
                     data: { year: year, work_month_id: work_month_id },
                     success: function(response) {
                         $('#partner_id').html('<option value="all">همه</option>' + response);
-                        $('#work_date').html('<option value="all">همه</option>');
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading partners:', error);
                         $('#partner_id').html('<option value="all">همه</option>');
-                        $('#work_date').html('<option value="all">همه</option>');
-                    }
-                });
-            }
-
-            // تابع برای بارگذاری روزهای کاری بر اساس سال، ماه و همکار
-            function loadWorkDates(year, work_month_id, partner_id) {
-                if (!year || work_month_id === 'all' || partner_id === 'all') {
-                    $('#work_date').html('<option value="all">همه</option>');
-                    return;
-                }
-                $.ajax({
-                    url: 'get_work_dates.php',
-                    type: 'POST',
-                    data: { year: year, work_month_id: work_month_id, partner_id: partner_id },
-                    success: function(response) {
-                        $('#work_date').html('<option value="all">همه</option>' + response);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading work dates:', error);
-                        $('#work_date').html('<option value="all">همه</option>');
                     }
                 });
             }
@@ -387,7 +323,6 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
                 const year = $('#year').val();
                 const work_month_id = $('#work_month_id').val();
                 const partner_id = $('#partner_id').val();
-                const work_date = $('#work_date').val();
 
                 $.ajax({
                     url: 'get_sold_products.php',
@@ -395,8 +330,7 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
                     data: {
                         year: year,
                         work_month_id: work_month_id,
-                        partner_id: partner_id,
-                        work_date: work_date
+                        partner_id: partner_id
                     },
                     dataType: 'json',
                     success: function(response) {
@@ -420,7 +354,6 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
             if (initial_year) {
                 loadMonths(initial_year);
                 loadPartners(initial_year, $('#work_month_id').val());
-                loadWorkDates(initial_year, $('#work_month_id').val(), $('#partner_id').val());
             }
             loadProducts();
 
@@ -439,19 +372,9 @@ if ($selected_year && $selected_month !== 'all' && $selected_partner_id !== 'all
             });
 
             $('#partner_id').on('change', function() {
-                const year = $('#year').val();
-                const work_month_id = $('#work_month_id').val();
-                const partner_id = $(this).val();
-                loadWorkDates(year, work_month_id, partner_id);
-                loadProducts();
-            });
-
-            $('#work_date').on('change', function() {
                 loadProducts();
             });
         });
     </script>
 
     <?php require_once 'footer.php'; ?>
-</body>
-</html>

@@ -9,7 +9,6 @@ $response = ['success' => false, 'message' => '', 'html' => '', 'total_sales' =>
 $year = $_GET['year'] ?? '';
 $work_month_id = $_GET['work_month_id'] ?? 'all';
 $partner_id = $_GET['partner_id'] ?? 'all';
-$work_date = $_GET['work_date'] ?? 'all';
 $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$year || !$current_user_id) {
@@ -17,6 +16,11 @@ if (!$year || !$current_user_id) {
     echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit;
 }
+
+// بررسی نقش کاربر
+$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
+$stmt->execute([$current_user_id]);
+$user_role = $stmt->fetchColumn();
 
 try {
     // جمع کل فروش و تعداد کل محصولات
@@ -29,9 +33,14 @@ try {
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE YEAR(wm.start_date) = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
     ";
-    $params = [$year, $current_user_id, $current_user_id];
+    $params = [$year];
+
+    if ($user_role !== 'admin') {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+    }
 
     if ($work_month_id !== 'all') {
         $query .= " AND wd.work_month_id = ?";
@@ -42,11 +51,6 @@ try {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $partner_id;
         $params[] = $partner_id;
-    }
-
-    if ($work_date !== 'all') {
-        $query .= " AND wd.work_date = ?";
-        $params[] = $work_date;
     }
 
     $stmt = $pdo->prepare($query);
@@ -64,9 +68,14 @@ try {
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE YEAR(wm.start_date) = ?
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
     ";
-    $params = [$year, $current_user_id, $current_user_id];
+    $params = [$year];
+
+    if ($user_role !== 'admin') {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+    }
 
     if ($work_month_id !== 'all') {
         $query .= " AND wd.work_month_id = ?";
@@ -77,11 +86,6 @@ try {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $partner_id;
         $params[] = $partner_id;
-    }
-
-    if ($work_date !== 'all') {
-        $query .= " AND wd.work_date = ?";
-        $params[] = $work_date;
     }
 
     $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";

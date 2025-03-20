@@ -17,16 +17,27 @@ if (!$year || !$current_user_id) {
     exit;
 }
 
+// بررسی نقش کاربر
+$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
+$stmt->execute([$current_user_id]);
+$user_role = $stmt->fetchColumn();
+
 $query = "
     SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
     FROM Work_Months wm
     JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
     JOIN Partners p ON wd.partner_id = p.partner_id
     WHERE YEAR(wm.start_date) = ?
-    AND (p.user_id1 = ? OR p.user_id2 = ?)
-    ORDER BY wm.start_date DESC
 ";
-$params = [$year, $current_user_id, $current_user_id];
+$params = [$year];
+
+if ($user_role !== 'admin') {
+    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+}
+
+$query .= " ORDER BY wm.start_date DESC";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
