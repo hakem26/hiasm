@@ -123,8 +123,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'product_summary.php' ? 'active' : ''; ?>"
-                            href="product_summary.php">
+                        <a class="nav-link <?php echo $current_page == 'sold_products.php' ? 'active' : ''; ?>"
+                            href="sold_products.php">
                             <i class="fas fa-chart-bar"></i>
                             <span>تجمیع</span>
                         </a>
