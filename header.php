@@ -215,21 +215,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 const sidebar = document.querySelector('.sidebar');
 
                 sidebarToggle.addEventListener('click', () => {
-                    if (window.innerWidth <= 768) {
+                    if (window.innerWidth <= 600) {
                         // در موبایل: کامل باز یا بسته می‌شه
                         sidebar.classList.toggle('open');
                         if (!sidebar.classList.contains('open')) {
                             sidebar.classList.remove('collapsed'); // مطمئن می‌شیم در حالت بسته کامل بسته بشه
                         }
                     } else {
-                        // در دسکتاپ و تا 768px: حالت باریک یا باز
+                        // در دسکتاپ و تا 600px: حالت باریک یا باز
                         sidebar.classList.toggle('collapsed');
                         document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
                     }
                 });
 
                 // تنظیم اولیه منو به حالت باریک (collapsed) در دسکتاپ
-                if (window.innerWidth > 768) {
+                if (window.innerWidth > 600) {
                     sidebar.classList.add('collapsed');
                 }
             });
