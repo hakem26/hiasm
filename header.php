@@ -83,7 +83,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
     <!-- منوی کناری -->
     <div class="sidebar collapsed"> <!-- پیش‌فرض باریک (collapsed) -->
-        <ul class="nav">
+        <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
                     href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
