@@ -516,8 +516,7 @@ if ($is_admin && $is_partner1) {
                 }
             },
             "columnDefs": [
-                { "targets": "_all", "className": "text-right" }, // وسط‌چین کردن همه ستون‌ها
-                { "targets": "_all", "className": "text-start" } // وسط‌چین کردن همه ستون‌ها
+                { "targets": "_all", "className": "text-center" }, // وسط‌چین کردن همه ستون‌ها
             ]
         });
     });
