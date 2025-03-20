@@ -470,10 +470,8 @@ if ($is_admin && $is_partner1) {
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
-                "info": "نمایش START تا END از TOTAL ردیف",
                 "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
                 "infoFiltered": "(فیلتر شده از MAX ردیف کل)",
-                "lengthMenu": "نمایش MENU ردیف",
                 "loadingRecords": "در حال بارگذاری...",
                 "processing": "در حال پردازش...",
                 "search": "جستجو:",
