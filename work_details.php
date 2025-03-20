@@ -96,10 +96,10 @@ if ($is_admin) {
         SELECT DISTINCT u.user_id, u.full_name 
         FROM Partners p
         JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
-        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.role = 'seller'
+        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.role = 'seller' AND u.user_id != ?
         ORDER BY u.full_name
     ");
-    $partners_query->execute([$current_user_id, $current_user_id]);
+    $partners_query->execute([$current_user_id, $current_user_id, $current_user_id]);
     $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -113,8 +113,8 @@ if (isset($_GET['work_month_id'])) {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        // کوئری ساده‌تر برای دیباگ
-        $details_query = $pdo->prepare("
+        // کوئری برای دریافت اطلاعات کاری با شرط محدود کردن برای کاربران غیر ادمین
+        $query = "
             SELECT wd.*, p.*, u1.user_id AS user_id1, u1.full_name AS user1,
                    COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
             FROM Work_Details wd
@@ -122,8 +122,17 @@ if (isset($_GET['work_month_id'])) {
             LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
             LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
             WHERE wd.work_month_id = ?
-        ");
-        $details_query->execute([$work_month_id]);
+        ";
+        $params = [$work_month_id];
+
+        if (!$is_admin) {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $current_user_id;
+            $params[] = $current_user_id;
+        }
+
+        $details_query = $pdo->prepare($query);
+        $details_query->execute($params);
         $work_details_raw = $details_query->fetchAll(PDO::FETCH_ASSOC);
 
         // دیباگ: بررسی داده‌های خام
@@ -163,17 +172,15 @@ if (isset($_GET['work_month_id'])) {
     }
 }
 
-// فیلتر بر اساس همکار (موقتاً غیرفعال)
+// فیلتر بر اساس همکار
 $selected_partner_id = $_GET['user_id'] ?? '';
 $filtered_work_details = $work_details;
-/*
 if (!empty($selected_partner_id)) {
     $user_id = (int) $selected_partner_id;
     $filtered_work_details = array_filter($work_details, function ($detail) use ($user_id) {
         return $detail['user_id1'] == $user_id || $detail['user_id2'] == $user_id;
     });
 }
-*/
 
 // مرتب‌سازی بر اساس work_date
 usort($filtered_work_details, function ($a, $b) {
@@ -224,22 +231,7 @@ if ($selected_year) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اطلاعات کاری</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
-        integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
-    <div class="container-fluid">
+<div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center text-center mb-3">
             <h5 class="card-title">اطلاعات کاری</h5>
             <div>
