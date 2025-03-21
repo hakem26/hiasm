@@ -34,17 +34,34 @@ $stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
 $stmt->execute([$current_user_id]);
 $user_role = $stmt->fetchColumn();
 
-// دریافت سال‌های موجود از دیتابیس (میلادی)
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت تاریخ‌های شروع از Work_Months برای تعیین سال‌های شمسی
+$stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_date DESC");
+$work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// تنظیم سال پیش‌فرض (سال جاری شمسی)
-$current_gregorian_year = date('Y');
-$current_jalali_year = get_persian_year();
-$selected_year = $_GET['year'] ?? $current_gregorian_year; // پیش‌فرض: سال جاری میلادی
+// محاسبه سال‌های شمسی بر اساس تاریخ‌های start_date
+$years = [];
+foreach ($work_months_data as $month) {
+    $jalali_year = get_persian_year($month['start_date']);
+    $years[] = $jalali_year;
+}
+$years = array_unique($years);
+rsort($years); // مرتب‌سازی نزولی (جدیدترین سال اول)
+
+// تنظیم سال پیش‌فرض (جدیدترین سال شمسی)
+$selected_year = $_GET['year'] ?? $years[0]; // پیش‌فرض: جدیدترین سال شمسی
 $selected_month = $_GET['work_month_id'] ?? 'all'; // پیش‌فرض: "همه"
 $selected_partner_id = $_GET['partner_id'] ?? 'all'; // پیش‌فرض: "همه"
+
+// پیدا کردن سال‌های میلادی معادل سال شمسی انتخاب‌شده
+$gregorian_years = [];
+foreach ($work_months_data as $month) {
+    $jalali_year = get_persian_year($month['start_date']);
+    if ($jalali_year == $selected_year) {
+        $gregorian_year = date('Y', strtotime($month['start_date']));
+        $gregorian_years[] = $gregorian_year;
+    }
+}
+$gregorian_years = array_unique($gregorian_years);
 
 // جمع کل فروش و تعداد کل محصولات
 $total_sales = 0;
@@ -58,9 +75,9 @@ try {
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
+        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
     ";
-    $params = [$selected_year];
+    $params = $gregorian_years;
 
     if ($user_role !== 'admin') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -98,9 +115,9 @@ try {
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
+        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
     ";
-    $params = [$selected_year];
+    $params = $gregorian_years;
 
     if ($user_role !== 'admin') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -137,9 +154,9 @@ if ($selected_year) {
         FROM Work_Months wm
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE YEAR(wm.start_date) = ?
+        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
     ";
-    $params = [$selected_year];
+    $params = $gregorian_years;
 
     if ($user_role !== 'admin') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -159,13 +176,13 @@ if ($selected_year && $selected_month !== 'all') {
     $query = "
         SELECT DISTINCT u.user_id, u.full_name
         FROM Users u
-        JOIN Partners p ON (u.user_id = p.user_id1 OR p.user_id = p.user_id2)
-        JOIN Work_Details wd ON p.partner_id = wd partner_id
+        JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
+        JOIN Work_Details wd ON p.partner_id = wd.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
+        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
         AND wd.work_month_id = ?
     ";
-    $params = [$selected_year, $selected_month];
+    $params = array_merge($gregorian_years, [$selected_month]);
 
     if ($user_role !== 'admin') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -199,7 +216,7 @@ if ($selected_year && $selected_month !== 'all') {
                 <select name="year" id="year" class="form-select">
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= get_persian_year("$year-06-01") ?> <!-- تغییر به 06-01 برای تبدیل درست -->
+                            <?= $year ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

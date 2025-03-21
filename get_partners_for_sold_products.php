@@ -41,7 +41,7 @@ $user_role = $stmt->fetchColumn();
 $query = "
     SELECT DISTINCT u.user_id, u.full_name
     FROM Users u
-    JOIN Partners p ON (u.user_id = p.user_id1 OR p.user_id = p.user_id2)
+    JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
     JOIN Work_Details wd ON p.partner_id = wd.partner_id
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
     WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
