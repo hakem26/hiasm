@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
-require_once 'persian_year.php'; // اضافه کردن فایل persian_year.php
+require_once 'persian_year.php'; // فایل persian_year.php که شامل get_persian_year() است
 
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
@@ -39,7 +39,7 @@ $stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_
 $work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = [];
 foreach ($work_months_data as $month) {
-    $jalali_year = get_jalali_year_from_date($month['start_date']);
+    $jalali_year = get_persian_year($month['start_date']); // تغییر به get_persian_year()
     $years[] = $jalali_year;
 }
 $years = array_unique($years);
@@ -68,7 +68,7 @@ try {
     // فیلتر بر اساس سال شمسی
     $gregorian_years = [];
     foreach ($work_months_data as $month) {
-        $jalali_year = get_jalali_year_from_date($month['start_date']);
+        $jalali_year = get_persian_year($month['start_date']); // تغییر به get_persian_year()
         if ($jalali_year == $selected_year) {
             $gregorian_year = date('Y', strtotime($month['start_date']));
             $gregorian_years[] = $gregorian_year;
