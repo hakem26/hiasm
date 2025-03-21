@@ -66,17 +66,37 @@ foreach ($months as $month) {
 sort($years, SORT_NUMERIC);
 $years = array_reverse($years); // مرتب‌سازی نزولی
 
-// تنظیم پیش‌فرض سال به سال آخرین ماه کاری
-$default_year = $years[0] ?? 'all'; // اولین سال توی لیست (آخرین سال شمسی)
-$selected_year = $_GET['year'] ?? $default_year;
+// محاسبه سال جاری شمسی
+$current_gregorian_year = date('Y'); // 2025
+$current_jalali_year = gregorian_to_jalali($current_gregorian_year, 1, 1)[0]; // 1404
+
+// تنظیم پیش‌فرض به نزدیک‌ترین سال به سال جاری
+$selected_year = $_GET['year'] ?? null;
+if (!$selected_year) {
+    $closest_year = $years[0] ?? $current_jalali_year;
+    foreach ($years as $year) {
+        if (abs($year - $current_jalali_year) < abs($closest_year - $current_jalali_year)) {
+            $closest_year = $year;
+        }
+    }
+    $selected_year = $closest_year;
+}
 
 $work_months = [];
-if ($selected_year && $selected_year != 'all') {
+if ($selected_year) {
     // محاسبه بازه میلادی برای سال شمسی انتخاب‌شده
     $gregorian_start_year = $selected_year - 579;
     $gregorian_end_year = $gregorian_start_year + 1;
-    $start_date = "$gregorian_start_year-03-20";
-    $end_date = "$gregorian_end_year-03-20";
+    $start_date = "$gregorian_start_year-03-21";
+    $end_date = "$gregorian_end_year-03-21";
+
+    if ($selected_year == 1404) {
+        $start_date = "2025-03-21";
+        $end_date = "2026-03-21";
+    } elseif ($selected_year == 1403) {
+        $start_date = "2024-03-20";
+        $end_date = "2025-03-21";
+    }
 
     $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND start_date < ? ORDER BY start_date DESC");
     $stmt_months->execute([$start_date, $end_date]);
@@ -87,67 +107,50 @@ $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
 $partners = [];
-if ($is_admin) {
-    $partners_query = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
-    $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $partners_query = $pdo->prepare("
-        SELECT DISTINCT u.user_id, u.full_name 
-        FROM Partners p
-        JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
-        WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u.user_id != ? AND u.role = 'seller'
-        ORDER BY u.full_name
-    ");
-    $partners_query->execute([$current_user_id, $current_user_id, $current_user_id]);
-    $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
-}
-
 $work_details = [];
-$orders = [];
-$selected_work_month_id = $_GET['work_month_id'] ?? 'all';
-$selected_partner_id = $_GET['user_id'] ?? 'all';
-$selected_work_day_id = $_GET['work_day_id'] ?? 'all';
+$selected_work_month_id = $_GET['work_month_id'] ?? null;
+$selected_partner_id = $_GET['user_id'] ?? null;
+$selected_work_day_id = $_GET['work_day_id'] ?? null;
 $page = (int) ($_GET['page'] ?? 1);
 $per_page = 10;
 
-if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
-    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
-    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
-}
-
-if ($selected_work_month_id && $selected_work_month_id != 'all') {
+// فقط اگه ماه کاری انتخاب شده باشه، همکاران و روزها رو بگیریم
+if ($selected_work_month_id) {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        // دریافت برنامه کاری همکارها
+        // دریافت همکاران برای ماه کاری انتخاب‌شده
         if ($is_admin) {
-            $partner_query = $pdo->prepare("
-                SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
-                       COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
-                FROM Partners p
-                JOIN Users u1 ON p.user_id1 = u1.user_id
-                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                GROUP BY p.partner_id
+            $partners_query = $pdo->prepare("
+                SELECT DISTINCT u.user_id, u.full_name 
+                FROM Work_Details wd
+                JOIN Partners p ON wd.partner_id = p.partner_id
+                JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
+                WHERE wd.work_month_id = ? AND u.role = 'seller'
+                ORDER BY u.full_name
             ");
-            $partner_query->execute();
+            $partners_query->execute([$selected_work_month_id]);
         } else {
-            $partner_query = $pdo->prepare("
-                SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
-                       COALESCE(u2.user_id, u1.user_id) AS user_id2, COALESCE(u2.full_name, u1.full_name) AS user2
-                FROM Partners p
-                JOIN Users u1 ON p.user_id1 = u1.user_id
-                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE (p.user_id1 = ? OR p.user_id2 = ?) AND u1.role = 'seller'
-                GROUP BY p.partner_id
+            $partners_query = $pdo->prepare("
+                SELECT DISTINCT u.user_id, u.full_name 
+                FROM Work_Details wd
+                JOIN Partners p ON wd.partner_id = p.partner_id
+                JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
+                WHERE wd.work_month_id = ? 
+                AND (p.user_id1 = ? OR p.user_id2 = ?) 
+                AND u.user_id != ? 
+                AND u.role = 'seller'
+                ORDER BY u.full_name
             ");
-            $partner_query->execute([$current_user_id, $current_user_id]);
+            $partners_query->execute([$selected_work_month_id, $current_user_id, $current_user_id, $current_user_id]);
         }
-        $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
+        $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 
-        // دریافت روزهای کاری از Work_Details
-        $details_query = $pdo->prepare("
+        // دریافت روزهای کاری برای ماه و همکار انتخاب‌شده
+        $details_query_params = [$selected_work_month_id];
+        $details_query = "
             SELECT wd.id, wd.work_date, wd.partner_id, 
                    u1.full_name AS user1, u2.full_name AS user2,
                    u1.user_id AS user_id1, u2.user_id AS user_id2
@@ -156,8 +159,22 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
             JOIN Users u1 ON p.user_id1 = u1.user_id
             LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
             WHERE wd.work_month_id = ?
-        ");
-        $details_query->execute([$selected_work_month_id]);
+        ";
+
+        if ($selected_partner_id) {
+            $details_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $details_query_params[] = $selected_partner_id;
+            $details_query_params[] = $selected_partner_id;
+        }
+
+        if (!$is_admin) {
+            $details_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $details_query_params[] = $current_user_id;
+            $details_query_params[] = $current_user_id;
+        }
+
+        $details_query = $pdo->prepare($details_query);
+        $details_query->execute($details_query_params);
         $work_details_raw = $details_query->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($work_details_raw as $detail) {
@@ -175,13 +192,6 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
                 'user_id2' => $detail['user_id2']
             ];
         }
-
-        if ($selected_partner_id && $selected_partner_id != 'all') {
-            $filtered_work_details = array_filter($work_details, function ($detail) use ($selected_partner_id) {
-                return $detail['user_id1'] == $selected_partner_id || $detail['user_id2'] == $selected_partner_id;
-            });
-            $work_details = array_values($filtered_work_details);
-        }
     }
 }
 
@@ -193,7 +203,6 @@ $orders_query = "
            wd.work_date, ";
 
 if ($is_admin) {
-    // برای ادمین: نمایش نام هر دو همکار
     $orders_query .= "
         (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
          FROM Partners p
@@ -201,7 +210,6 @@ if ($is_admin) {
          LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
          WHERE p.partner_id = wd.partner_id) AS partners_names, ";
 } else {
-    // برای فروشنده: نمایش نام همکار مقابل
     $orders_query .= "
         COALESCE(
             (SELECT CASE 
@@ -226,11 +234,8 @@ $orders_query .= "
 $conditions = [];
 $params = [];
 if (!$is_admin) {
-    // پارامترها فقط برای فروشنده نیازه
-    $params[] = $current_user_id; // برای user_id1 توی partner_name
-    $params[] = $current_user_id; // برای user_id2 توی partner_name
-
-    // محدود کردن دسترسی برای کاربران فروشنده
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
     $conditions[] = "EXISTS (
         SELECT 1 FROM Partners p 
         WHERE p.partner_id = wd.partner_id 
@@ -240,22 +245,29 @@ if (!$is_admin) {
     $params[] = $current_user_id;
 }
 
-if ($selected_year && $selected_year != 'all') {
+if ($selected_year) {
     $gregorian_start_year = $selected_year - 579;
     $gregorian_end_year = $gregorian_start_year + 1;
-    $start_date = "$gregorian_start_year-03-20";
-    $end_date = "$gregorian_end_year-03-20";
+    $start_date = "$gregorian_start_year-03-21";
+    $end_date = "$gregorian_end_year-03-21";
+    if ($selected_year == 1404) {
+        $start_date = "2025-03-21";
+        $end_date = "2026-03-21";
+    } elseif ($selected_year == 1403) {
+        $start_date = "2024-03-20";
+        $end_date = "2025-03-21";
+    }
     $conditions[] = "wd.work_date >= ? AND wd.work_date < ?";
     $params[] = $start_date;
     $params[] = $end_date;
 }
 
-if ($selected_work_month_id && $selected_work_month_id != 'all') {
+if ($selected_work_month_id) {
     $conditions[] = "wd.work_month_id = ?";
     $params[] = $selected_work_month_id;
 }
 
-if ($selected_partner_id && $selected_partner_id != 'all') {
+if ($selected_partner_id) {
     $conditions[] = "EXISTS (
         SELECT 1 FROM Partners p 
         WHERE p.partner_id = wd.partner_id 
@@ -265,7 +277,7 @@ if ($selected_partner_id && $selected_partner_id != 'all') {
     $params[] = $selected_partner_id;
 }
 
-if ($selected_work_day_id && $selected_work_day_id != 'all') {
+if ($selected_work_day_id) {
     $conditions[] = "wd.id = ?";
     $params[] = $selected_work_day_id;
 }
@@ -307,7 +319,6 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         <form method="GET" class="row g-3 mb-3">
             <div class="col-auto">
                 <select name="year" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
                             <?= $year ?>
@@ -317,7 +328,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             </div>
             <div class="col-auto">
                 <select name="work_month_id" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
+                    <option value="" <?= !$selected_work_month_id ? 'selected' : '' ?>>انتخاب ماه</option>
                     <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
                             <?= gregorian_to_jalali_format($month['start_date']) ?> تا
@@ -328,7 +339,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             </div>
             <div class="col-auto">
                 <select name="user_id" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
+                    <option value="" <?= !$selected_partner_id ? 'selected' : '' ?>>انتخاب همکار</option>
                     <?php foreach ($partners as $partner): ?>
                         <option value="<?= htmlspecialchars($partner['user_id']) ?>"
                             <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
@@ -339,7 +350,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             </div>
             <div class="col-auto">
                 <select name="work_day_id" class="form-select" onchange="this.form.submit()">
-                    <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
+                    <option value="" <?= !$selected_work_day_id ? 'selected' : '' ?>>انتخاب روز</option>
                     <?php foreach ($work_details as $day): ?>
                         <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
                             <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> -
@@ -350,7 +361,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </form>
 
-        <?php if (!$is_admin && $selected_work_day_id && $selected_work_day_id != 'all'): ?>
+        <?php if (!$is_admin && $selected_work_day_id): ?>
             <div class="mb-3">
                 <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش
                     جدید</a>
@@ -445,10 +456,10 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <script>
         $(document).ready(function () {
             $('#ordersTable').DataTable({
-                responsive: false,  // غیرفعال کردن واکنش‌گرایی
-                scrollX: true,     // فعال کردن اسکرول افقی برای کل جدول
-                autoWidth: false,  // جلوگیری از تغییر عرض خودکار
-                paging: false,     // غیرفعال کردن دکمه‌های قبلی و بعدی دیتاتیبل
+                responsive: false,
+                scrollX: true,
+                autoWidth: false,
+                paging: false,
                 ordering: false,
                 info: true,
                 searching: false,
