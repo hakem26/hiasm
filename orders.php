@@ -8,21 +8,22 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_format($gregorian_date, $return_year_only = false) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    if ($return_year_only) {
-        return $jy;
-    }
     return "$jy/$jm/$jd";
 }
 
-function gregorian_year_to_jalali($gregorian_year) {
+function gregorian_year_to_jalali($gregorian_year)
+{
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
 
-function calculate_day_of_week($work_date) {
+// تابع محاسبه روز هفته (شمسی)
+function calculate_day_of_week($work_date)
+{
     $reference_date = '2025-03-01'; // 1403/12/1 که شنبه است
     $reference_timestamp = strtotime($reference_date);
     $current_timestamp = strtotime($work_date);
@@ -31,10 +32,11 @@ function calculate_day_of_week($work_date) {
     if ($adjusted_day_number <= 0) {
         $adjusted_day_number += 7;
     }
-    return $adjusted_day_number;
+    return $adjusted_day_number; // 1 (شنبه) تا 7 (جمعه)
 }
 
-function number_to_day($day_number) {
+function number_to_day($day_number)
+{
     $days = [
         1 => 'شنبه',
         2 => 'یکشنبه',
@@ -47,7 +49,6 @@ function number_to_day($day_number) {
     return $days[$day_number] ?? 'نامشخص';
 }
 
-// دریافت سال‌ها از دیتابیس
 $stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
 $years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = array_column($years_db, 'year');
@@ -62,14 +63,10 @@ $years = array_reverse($years); // مرتب‌سازی نزولی
 
 $selected_year = $_GET['year'] ?? 'all';
 
-// دریافت ماه‌های کاری
 $work_months = [];
 if ($selected_year && $selected_year != 'all') {
     $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
     $stmt_months->execute([$selected_year]);
-    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
     $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -100,13 +97,18 @@ $selected_work_day_id = $_GET['work_day_id'] ?? 'all';
 $page = (int) ($_GET['page'] ?? 1);
 $per_page = 10;
 
-// دریافت روزها فقط وقتی ماه انتخاب شده
+if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
+    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
+    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
+}
+
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
+        // دریافت برنامه کاری همکارها
         if ($is_admin) {
             $partner_query = $pdo->prepare("
                 SELECT p.partner_id, u1.user_id AS user_id1, u1.full_name AS user1, 
@@ -131,6 +133,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
         }
         $partners_in_work = $partner_query->fetchAll(PDO::FETCH_ASSOC);
 
+        // دریافت روزهای کاری از Work_Details
         $details_query = $pdo->prepare("
             SELECT wd.id, wd.work_date, wd.partner_id, 
                    u1.full_name AS user1, u2.full_name AS user2,
@@ -169,7 +172,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     }
 }
 
-// کوئری سفارشات
+// دریافت سفارش‌ها با نام همکار
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
            SUM(op.amount) AS paid_amount,
@@ -177,6 +180,7 @@ $orders_query = "
            wd.work_date, ";
 
 if ($is_admin) {
+    // برای ادمین: نمایش نام هر دو همکار
     $orders_query .= "
         (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
          FROM Partners p
@@ -184,6 +188,7 @@ if ($is_admin) {
          LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
          WHERE p.partner_id = wd.partner_id) AS partners_names, ";
 } else {
+    // برای فروشنده: نمایش نام همکار مقابل
     $orders_query .= "
         COALESCE(
             (SELECT CASE 
@@ -203,14 +208,16 @@ $orders_query .= "
            wd.id AS work_details_id
     FROM Orders o
     LEFT JOIN Order_Payments op ON o.order_id = op.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    LEFT JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id";
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
 
 $conditions = [];
 $params = [];
 if (!$is_admin) {
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
+    // پارامترها فقط برای فروشنده نیازه
+    $params[] = $current_user_id; // برای user_id1 توی partner_name
+    $params[] = $current_user_id; // برای user_id2 توی partner_name
+
+    // محدود کردن دسترسی برای کاربران فروشنده
     $conditions[] = "EXISTS (
         SELECT 1 FROM Partners p 
         WHERE p.partner_id = wd.partner_id 
@@ -221,7 +228,7 @@ if (!$is_admin) {
 }
 
 if ($selected_year && $selected_year != 'all') {
-    $conditions[] = "YEAR(wm.start_date) = ?";
+    $conditions[] = "YEAR(wd.work_date) = ?";
     $params[] = $selected_year;
 }
 
@@ -257,6 +264,7 @@ if ($is_admin) {
     $orders_query .= ", partner_name";
 }
 
+// تعداد کل فاکتورها
 $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
 $stmt_count->execute($params);
 $total_orders = $stmt_count->fetchColumn();
@@ -276,190 +284,190 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         </div>
         <?php unset($_SESSION['message']); ?>
     <?php endif; ?>
-    <h5 class="card-title mb-4">لیست سفارشات</h5>
+        <h5 class="card-title mb-4">لیست سفارشات</h5>
 
-    <form method="GET" class="row g-3 mb-3">
-        <div class="col-auto">
-            <select name="year" class="form-select" onchange="this.form.submit()">
-                <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
-                <?php foreach ($years as $year): ?>
-                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                        <?= gregorian_year_to_jalali($year) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-auto">
-            <select name="work_month_id" class="form-select" onchange="this.form.submit()">
-                <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
-                <?php foreach ($work_months as $month): ?>
-                    <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
-                        <?= gregorian_to_jalali_format($month['start_date']) ?> تا
-                        <?= gregorian_to_jalali_format($month['end_date']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-auto">
-            <select name="user_id" class="form-select" onchange="this.form.submit()">
-                <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
-                <?php foreach ($partners as $partner): ?>
-                    <option value="<?= htmlspecialchars($partner['user_id']) ?>"
-                        <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($partner['full_name']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-auto">
-            <select name="work_day_id" class="form-select" onchange="this.form.submit()">
-                <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
-                <?php foreach ($work_details as $day): ?>
-                    <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
-                        <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> -
-                        <?= $day['user2'] ?>)
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-    </form>
-
-    <?php if (!$is_admin && $selected_work_day_id && $selected_work_day_id != 'all'): ?>
-        <div class="mb-3">
-            <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش
-                جدید</a>
-        </div>
-    <?php endif; ?>
-
-    <?php if (!empty($orders)): ?>
-        <div>
-            <table id="ordersTable" class="table table-light table-hover">
-                <thead>
-                    <tr>
-                        <th>تاریخ</th>
-                        <th><?= $is_admin ? 'همکاران' : 'نام همکار' ?></th>
-                        <th>شماره فاکتور</th>
-                        <th>نام مشتری</th>
-                        <th>مبلغ کل فاکتور</th>
-                        <th>مبلغ پرداختی</th>
-                        <th>مانده حساب</th>
-                        <?php if (!$is_admin): ?>
-                            <th>فاکتور</th>
-                            <th>اطلاعات پرداخت</th>
-                        <?php endif; ?>
-                        <th>پرینت</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($orders as $order): ?>
-                        <tr>
-                            <td><?= $order['work_date'] ? gregorian_to_jalali_format($order['work_date']) : 'نامشخص' ?></td>
-                            <td><?= htmlspecialchars($is_admin ? $order['partners_names'] : $order['partner_name']) ?></td>
-                            <td><?= $order['order_id'] ?></td>
-                            <td><?= htmlspecialchars($order['customer_name']) ?></td>
-                            <td><?= number_format($order['total_amount'], 0) ?></td>
-                            <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
-                            <td><?= number_format($order['remaining_amount'], 0) ?></td>
-                            <?php if (!$is_admin): ?>
-                                <td>
-                                    <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
-                                        class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
-                                        onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
-                                </td>
-                                <td>
-                                    <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
-                                        class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                </td>
-                            <?php endif; ?>
-                            <td>
-                                <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>"
-                                    class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
-                            </td>
-                        </tr>
+        <form method="GET" class="row g-3 mb-3">
+            <div class="col-auto">
+                <select name="year" class="form-select" onchange="this.form.submit()">
+                    <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
+                    <?php foreach ($years as $year): ?>
+                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                            <?= gregorian_year_to_jalali($year) ?>
+                        </option>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="work_month_id" class="form-select" onchange="this.form.submit()">
+                    <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
+                    <?php foreach ($work_months as $month): ?>
+                        <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
+                            <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                            <?= gregorian_to_jalali_format($month['end_date']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="user_id" class="form-select" onchange="this.form.submit()">
+                    <option value="all" <?= $selected_partner_id == 'all' ? 'selected' : '' ?>>همه همکاران</option>
+                    <?php foreach ($partners as $partner): ?>
+                        <option value="<?= htmlspecialchars($partner['user_id']) ?>"
+                            <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($partner['full_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="work_day_id" class="form-select" onchange="this.form.submit()">
+                    <option value="all" <?= $selected_work_day_id == 'all' ? 'selected' : '' ?>>همه روزها</option>
+                    <?php foreach ($work_details as $day): ?>
+                        <option value="<?= $day['work_details_id'] ?>" <?= $selected_work_day_id == $day['work_details_id'] ? 'selected' : '' ?>>
+                            <?= gregorian_to_jalali_format($day['work_date']) ?> (<?= $day['user1'] ?> -
+                            <?= $day['user2'] ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </form>
 
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center mt-3">
-                <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                    <a class="page-link"
-                        href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
-                </li>
-                <?php
-                $start_page = max(1, $page - 2);
-                $end_page = min($total_pages, $page + 2);
-                for ($i = $start_page; $i <= $end_page; $i++): ?>
-                    <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                        <a class="page-link"
-                            href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
-                    </li>
-                <?php endfor; ?>
-                <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                    <a class="page-link"
-                        href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
-                </li>
-            </ul>
-        </nav>
-
-        <?php if ($total_orders > $per_page): ?>
-            <div class="text-center mt-3">
-                <button id="loadMoreBtn" class="btn btn-secondary">نمایش فاکتورهای بیشتر</button>
+        <?php if (!$is_admin && $selected_work_day_id && $selected_work_day_id != 'all'): ?>
+            <div class="mb-3">
+                <a href="add_order.php?work_details_id=<?= $selected_work_day_id ?>" class="btn btn-primary">ثبت سفارش
+                    جدید</a>
             </div>
         <?php endif; ?>
-    <?php else: ?>
-        <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
-    <?php endif; ?>
-</div>
 
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script>
-    $(document).ready(function () {
-        $('#ordersTable').DataTable({
-            responsive: false,
-            scrollX: true,
-            autoWidth: false,
-            paging: false,
-            ordering: false,
-            info: true,
-            searching: false,
-            "language": {
-                "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                "infoEmpty": "هیچ فاکتوری یافت نشد",
-                "zeroRecords": "هیچ فاکتوری یافت نشد",
-                "lengthMenu": "نمایش _MENU_ ردیف",
-                "paginate": {
-                    "previous": "قبلی",
-                    "next": "بعدی"
+        <?php if (!empty($orders)): ?>
+            <div>
+                <table id="ordersTable" class="table table-light table-hover">
+                    <thead>
+                        <tr>
+                            <th>تاریخ</th>
+                            <th><?= $is_admin ? 'همکاران' : 'نام همکار' ?></th>
+                            <th>شماره فاکتور</th>
+                            <th>نام مشتری</th>
+                            <th>مبلغ کل فاکتور</th>
+                            <th>مبلغ پرداختی</th>
+                            <th>مانده حساب</th>
+                            <?php if (!$is_admin): ?>
+                                <th>فاکتور</th>
+                                <th>اطلاعات پرداخت</th>
+                            <?php endif; ?>
+                            <th>پرینت</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($orders as $order): ?>
+                            <tr>
+                                <td><?= $order['work_date'] ? gregorian_to_jalali_format($order['work_date']) : 'نامشخص' ?></td>
+                                <td><?= htmlspecialchars($is_admin ? $order['partners_names'] : $order['partner_name']) ?></td>
+                                <td><?= $order['order_id'] ?></td>
+                                <td><?= htmlspecialchars($order['customer_name']) ?></td>
+                                <td><?= number_format($order['total_amount'], 0) ?></td>
+                                <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
+                                <td><?= number_format($order['remaining_amount'], 0) ?></td>
+                                <?php if (!$is_admin): ?>
+                                    <td>
+                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
+                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
+                                            onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                    </td>
+                                    <td>
+                                        <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
+                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                    </td>
+                                <?php endif; ?>
+                                <td>
+                                    <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>"
+                                        class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mt-3">
+                    <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                        <a class="page-link"
+                            href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
+                    </li>
+                    <?php
+                    $start_page = max(1, $page - 2);
+                    $end_page = min($total_pages, $page + 2);
+                    for ($i = $start_page; $i <= $end_page; $i++): ?>
+                        <li class="page-item <?= $i == $page ? 'active' : '' ?>">
+                            <a class="page-link"
+                                href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
+                        </li>
+                    <?php endfor; ?>
+                    <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
+                        <a class="page-link"
+                            href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <?php if ($total_orders > $per_page): ?>
+                <div class="text-center mt-3">
+                    <button id="loadMoreBtn" class="btn btn-secondary">نمایش فاکتورهای بیشتر</button>
+                </div>
+            <?php endif; ?>
+        <?php else: ?>
+            <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
+        <?php endif; ?>
+    </div>
+
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#ordersTable').DataTable({
+                responsive: false,  // غیرفعال کردن واکنش‌گرایی
+                scrollX: true,     // فعال کردن اسکرول افقی برای کل جدول
+                autoWidth: false,  // جلوگیری از تغییر عرض خودکار
+                paging: false,     // غیرفعال کردن دکمه‌های قبلی و بعدی دیتاتیبل
+                ordering: false,
+                info: true,
+                searching: false,
+                "language": {
+                    "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
+                    "infoEmpty": "هیچ فاکتوری یافت نشد",
+                    "zeroRecords": "هیچ فاکتوری یافت نشد",
+                    "lengthMenu": "نمایش _MENU_ ردیف",
+                    "paginate": {
+                        "previous": "قبلی",
+                        "next": "بعدی"
+                    }
                 }
-            }
-        });
+            });
 
-        $('#loadMoreBtn').on('click', function () {
-            let table = $('#ordersTable').DataTable();
-            table.page.len(50).draw();
-            $(this).hide();
-        });
+            $('#loadMoreBtn').on('click', function () {
+                let table = $('#ordersTable').DataTable();
+                table.page.len(50).draw();
+                $(this).hide();
+            });
 
-        $('select[name="year"]').change(function () {
-            this.form.submit();
-        });
+            $('select[name="year"]').change(function () {
+                this.form.submit();
+            });
 
-        $('select[name="work_month_id"]').change(function () {
-            this.form.submit();
-        });
+            $('select[name="work_month_id"]').change(function () {
+                this.form.submit();
+            });
 
-        $('select[name="user_id"]').change(function () {
-            this.form.submit();
-        });
+            $('select[name="user_id"]').change(function () {
+                this.form.submit();
+            });
 
-        $('select[name="work_day_id"]').change(function () {
-            this.form.submit();
+            $('select[name="work_day_id"]').change(function () {
+                this.form.submit();
+            });
         });
-    });
-</script>
+    </script>
 
-<?php require_once 'footer.php'; ?>
+    <?php require_once 'footer.php'; ?>
