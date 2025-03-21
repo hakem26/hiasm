@@ -18,6 +18,25 @@ if (!$jalali_year || !$current_user_id) {
     exit;
 }
 
+// پیدا کردن work_month_idهایی که توی سال شمسی انتخاب‌شده هستن
+$selected_work_month_ids = [];
+$stmt = $pdo->query("SELECT work_month_id, start_date FROM Work_Months");
+$all_work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+foreach ($all_work_months as $month) {
+    $jalali_year_from_date = get_persian_year($month['start_date']);
+    if ($jalali_year_from_date == $jalali_year) {
+        $selected_work_month_ids[] = $month['work_month_id'];
+    }
+}
+
+// لاگ برای دیباگ
+error_log("Selected work_month_ids in get_months: " . print_r($selected_work_month_ids, true));
+
+if (empty($selected_work_month_ids)) {
+    echo '';
+    exit;
+}
+
 // بررسی نقش کاربر
 $stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
 $stmt->execute([$current_user_id]);
@@ -28,9 +47,9 @@ $query = "
     FROM Work_Months wm
     JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
+    WHERE wm.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
 ";
-$params = [$jalali_year];
+$params = $selected_work_month_ids;
 
 if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";

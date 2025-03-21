@@ -1,5 +1,5 @@
 <?php
-session_start(); // اضافه کردن session_start برای دسترسی به $_SESSION
+session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
@@ -11,6 +11,25 @@ $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$jalali_year || !$current_user_id) {
     echo json_encode(['success' => false, 'message' => 'پارامترهای لازم ارائه نشده‌اند']);
+    exit;
+}
+
+// پیدا کردن work_month_idهایی که توی سال شمسی انتخاب‌شده هستن
+$selected_work_month_ids = [];
+$stmt = $pdo->query("SELECT work_month_id, start_date FROM Work_Months");
+$all_work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+foreach ($all_work_months as $month) {
+    $jalali_year_from_date = get_persian_year($month['start_date']);
+    if ($jalali_year_from_date == $jalali_year) {
+        $selected_work_month_ids[] = $month['work_month_id'];
+    }
+}
+
+// لاگ برای دیباگ
+error_log("Selected work_month_ids in get_sold_products: " . print_r($selected_work_month_ids, true));
+
+if (empty($selected_work_month_ids)) {
+    echo json_encode(['success' => false, 'message' => 'سال انتخاب‌شده معتبر نیست']);
     exit;
 }
 
@@ -29,9 +48,9 @@ $query = "
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-    WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
+    WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
 ";
-$params = [$jalali_year];
+$params = $selected_work_month_ids;
 
 if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -68,9 +87,9 @@ $query = "
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-    WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
+    WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
 ";
-$params = [$jalali_year];
+$params = $selected_work_month_ids;
 
 if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
