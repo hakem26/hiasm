@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
-require_once 'persian_year.php'; // فایل persian_year.php که شامل get_persian_year() است
+require_once 'persian_year.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
@@ -34,20 +34,15 @@ $stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
 $stmt->execute([$current_user_id]);
 $user_role = $stmt->fetchColumn();
 
-// دریافت سال‌های موجود از دیتابیس (بر اساس سال شمسی)
-$stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_date DESC");
-$work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = [];
-foreach ($work_months_data as $month) {
-    $jalali_year = get_persian_year($month['start_date']);
-    $years[] = $jalali_year;
-}
-$years = array_unique($years);
-rsort($years);
+// دریافت سال‌های موجود از دیتابیس (میلادی)
+$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
+$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$years = array_column($years_db, 'year');
 
 // تنظیم سال پیش‌فرض (سال جاری شمسی)
-$current_jalali_year = get_persian_current_year();
-$selected_year = $_GET['year'] ?? $current_jalali_year; // پیش‌فرض: سال جاری شمسی
+$current_gregorian_year = date('Y');
+$current_jalali_year = get_persian_year();
+$selected_year = $_GET['year'] ?? $current_gregorian_year; // پیش‌فرض: سال جاری میلادی
 $selected_month = $_GET['work_month_id'] ?? 'all'; // پیش‌فرض: "همه"
 $selected_partner_id = $_GET['partner_id'] ?? 'all'; // پیش‌فرض: "همه"
 
@@ -63,47 +58,25 @@ try {
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+        WHERE YEAR(wm.start_date) = ?
     ";
-    $conditions = [];
-    $params = [];
+    $params = [$selected_year];
 
-    // فیلتر بر اساس سال شمسی
-    $gregorian_years = [];
-    foreach ($work_months_data as $month) {
-        $jalali_year = get_persian_year($month['start_date']);
-        if ($jalali_year == $selected_year) {
-            $gregorian_year = date('Y', strtotime($month['start_date']));
-            $gregorian_years[] = $gregorian_year;
-        }
-    }
-    $gregorian_years = array_unique($gregorian_years);
-    if (!empty($gregorian_years)) {
-        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
-        $params = array_merge($params, $gregorian_years);
-    } else {
-        $conditions[] = "1=0"; // هیچ داده‌ای نمایش داده نشود اگر سال شمسی معتبر نباشد
-    }
-
-    // برای کاربران غیر مدیر، فقط همکارانی که با کاربر لاگین‌شده همکاری کردن
     if ($user_role !== 'admin') {
-        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
     }
 
     if ($selected_month !== 'all') {
-        $conditions[] = "wd.work_month_id = ?";
+        $query .= " AND wd.work_month_id = ?";
         $params[] = $selected_month;
     }
 
     if ($selected_partner_id !== 'all') {
-        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $selected_partner_id;
         $params[] = $selected_partner_id;
-    }
-
-    if (!empty($conditions)) {
-        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $stmt = $pdo->prepare($query);
@@ -125,37 +98,25 @@ try {
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+        WHERE YEAR(wm.start_date) = ?
     ";
-    $conditions = [];
-    $params = [];
-
-    // فیلتر بر اساس سال شمسی
-    if (!empty($gregorian_years)) {
-        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
-        $params = array_merge($params, $gregorian_years);
-    } else {
-        $conditions[] = "1=0";
-    }
+    $params = [$selected_year];
 
     if ($user_role !== 'admin') {
-        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
     }
 
     if ($selected_month !== 'all') {
-        $conditions[] = "wd.work_month_id = ?";
+        $query .= " AND wd.work_month_id = ?";
         $params[] = $selected_month;
     }
 
     if ($selected_partner_id !== 'all') {
-        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $selected_partner_id;
         $params[] = $selected_partner_id;
-    }
-
-    if (!empty($conditions)) {
-        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
@@ -176,26 +137,14 @@ if ($selected_year) {
         FROM Work_Months wm
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
         JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE YEAR(wm.start_date) = ?
     ";
-    $conditions = [];
-    $params = [];
-
-    // فیلتر بر اساس سال شمسی
-    if (!empty($gregorian_years)) {
-        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
-        $params = array_merge($params, $gregorian_years);
-    } else {
-        $conditions[] = "1=0";
-    }
+    $params = [$selected_year];
 
     if ($user_role !== 'admin') {
-        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
-    }
-
-    if (!empty($conditions)) {
-        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $query .= " ORDER BY wm.start_date DESC";
@@ -213,31 +162,17 @@ if ($selected_year && $selected_month !== 'all') {
         JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
         JOIN Work_Details wd ON p.partner_id = wd.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+        WHERE YEAR(wm.start_date) = ?
+        AND wd.work_month_id = ?
     ";
-    $conditions = [];
-    $params = [];
-
-    // فیلتر بر اساس سال شمسی
-    if (!empty($gregorian_years)) {
-        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
-        $params = array_merge($params, $gregorian_years);
-    } else {
-        $conditions[] = "1=0";
-    }
-
-    $conditions[] = "wd.work_month_id = ?";
-    $params[] = $selected_month;
+    $params = [$selected_year, $selected_month];
 
     if ($user_role !== 'admin') {
-        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
-        $conditions[] = "u.user_id != ?";
+        $query .= " AND u.user_id != ?";
         $params[] = $current_user_id;
-    }
-
-    if (!empty($conditions)) {
-        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $query .= " ORDER BY u.full_name";
@@ -264,7 +199,7 @@ if ($selected_year && $selected_month !== 'all') {
                 <select name="year" id="year" class="form-select">
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= $year ?>
+                            <?= get_persian_year("$year-01-01") ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -435,4 +370,3 @@ if ($selected_year && $selected_month !== 'all') {
 </script>
 
 <?php require_once 'footer.php'; ?>
-<!--  -->
