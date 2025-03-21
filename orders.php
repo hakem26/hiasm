@@ -8,10 +8,6 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali($gy, $gm, $gd) {
-    return jdtogregorian(gregoriantojd($gm, $gd, $gy));
-}
-
 function gregorian_to_jalali_format($gregorian_date, $return_year_only = false) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
