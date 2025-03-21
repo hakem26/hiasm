@@ -49,24 +49,37 @@ function number_to_day($day_number)
     return $days[$day_number] ?? 'نامشخص';
 }
 
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت همه ماه‌ها برای استخراج سال‌های شمسی
+$stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC");
+$months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// اضافه کردن سال جاری (2025 = 1404) اگه توی دیتابیس نیست
-$current_year = date('Y'); // 2025
-if (!in_array($current_year, $years)) {
-    $years[] = $current_year;
+$years = [];
+foreach ($months as $month) {
+    $start_date = $month['start_date'];
+    list($gy, $gm, $gd) = explode('-', $start_date);
+    $jalali_date = gregorian_to_jalali($gy, $gm, $gd);
+    $jalali_year = $jalali_date[0]; // سال شمسی
+    if (!in_array($jalali_year, $years)) {
+        $years[] = $jalali_year;
+    }
 }
 sort($years, SORT_NUMERIC);
 $years = array_reverse($years); // مرتب‌سازی نزولی
 
-$selected_year = $_GET['year'] ?? 'all';
+// تنظیم پیش‌فرض سال به سال آخرین ماه کاری
+$default_year = $years[0] ?? 'all'; // اولین سال توی لیست (آخرین سال شمسی)
+$selected_year = $_GET['year'] ?? $default_year;
 
 $work_months = [];
 if ($selected_year && $selected_year != 'all') {
-    $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
-    $stmt_months->execute([$selected_year]);
+    // محاسبه بازه میلادی برای سال شمسی انتخاب‌شده
+    $gregorian_start_year = $selected_year - 579;
+    $gregorian_end_year = $gregorian_start_year + 1;
+    $start_date = "$gregorian_start_year-03-20";
+    $end_date = "$gregorian_end_year-03-20";
+
+    $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND start_date < ? ORDER BY start_date DESC");
+    $stmt_months->execute([$start_date, $end_date]);
     $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -228,8 +241,13 @@ if (!$is_admin) {
 }
 
 if ($selected_year && $selected_year != 'all') {
-    $conditions[] = "YEAR(wd.work_date) = ?";
-    $params[] = $selected_year;
+    $gregorian_start_year = $selected_year - 579;
+    $gregorian_end_year = $gregorian_start_year + 1;
+    $start_date = "$gregorian_start_year-03-20";
+    $end_date = "$gregorian_end_year-03-20";
+    $conditions[] = "wd.work_date >= ? AND wd.work_date < ?";
+    $params[] = $start_date;
+    $params[] = $end_date;
 }
 
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
@@ -292,7 +310,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= gregorian_year_to_jalali($year) ?>
+                            <?= $year ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
