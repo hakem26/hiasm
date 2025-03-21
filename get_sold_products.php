@@ -1,4 +1,5 @@
 <?php
+session_start(); // اضافه کردن session_start برای دسترسی به $_SESSION
 require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
@@ -10,32 +11,6 @@ $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$jalali_year || !$current_user_id) {
     echo json_encode(['success' => false, 'message' => 'پارامترهای لازم ارائه نشده‌اند']);
-    exit;
-}
-
-// دریافت همه تاریخ‌های شروع از Work_Months
-$stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months");
-$work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// لاگ برای دیباگ
-error_log("Work_Months data in get_sold_products: " . print_r($work_months_data, true));
-
-// پیدا کردن سال‌های میلادی معادل سال شمسی
-$gregorian_years = [];
-foreach ($work_months_data as $month) {
-    $year_jalali = get_persian_year($month['start_date']);
-    if ($year_jalali == $jalali_year) {
-        $gregorian_year = date('Y', strtotime($month['start_date']));
-        $gregorian_years[] = $gregorian_year;
-    }
-}
-$gregorian_years = array_unique($gregorian_years);
-
-// لاگ برای دیباگ
-error_log("Jalali year in get_sold_products: $jalali_year, Gregorian years: " . print_r($gregorian_years, true));
-
-if (empty($gregorian_years)) {
-    echo json_encode(['success' => false, 'message' => 'سال انتخاب‌شده معتبر نیست']);
     exit;
 }
 
@@ -54,9 +29,9 @@ $query = "
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-    WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+    WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
 ";
-$params = $gregorian_years;
+$params = [$jalali_year];
 
 if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -93,9 +68,9 @@ $query = "
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-    WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+    WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
 ";
-$params = $gregorian_years;
+$params = [$jalali_year];
 
 if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";

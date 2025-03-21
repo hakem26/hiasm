@@ -13,26 +13,6 @@ if (!$jalali_year || !$current_user_id || $work_month_id === 'all') {
     exit;
 }
 
-// دریافت همه تاریخ‌های شروع از Work_Months
-$stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months");
-$work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// پیدا کردن سال‌های میلادی معادل سال شمسی
-$gregorian_years = [];
-foreach ($work_months_data as $month) {
-    $year_jalali = get_persian_year($month['start_date']);
-    if ($year_jalali == $jalali_year) {
-        $gregorian_year = date('Y', strtotime($month['start_date']));
-        $gregorian_years[] = $gregorian_year;
-    }
-}
-$gregorian_years = array_unique($gregorian_years);
-
-if (empty($gregorian_years)) {
-    echo '';
-    exit;
-}
-
 // بررسی نقش کاربر
 $stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
 $stmt->execute([$current_user_id]);
@@ -44,10 +24,10 @@ $query = "
     JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
     JOIN Work_Details wd ON p.partner_id = wd.partner_id
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-    WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+    WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
     AND wd.work_month_id = ?
 ";
-$params = array_merge($gregorian_years, [$work_month_id]);
+$params = [$jalali_year, $work_month_id];
 
 if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";

@@ -58,26 +58,10 @@ $selected_year = $_GET['year'] ?? ($years[0] ?? null); // پیش‌فرض: جد�
 $selected_month = $_GET['work_month_id'] ?? 'all'; // پیش‌فرض: "همه"
 $selected_partner_id = $_GET['partner_id'] ?? 'all'; // پیش‌فرض: "همه"
 
-// پیدا کردن سال‌های میلادی معادل سال شمسی انتخاب‌شده
-$gregorian_years = [];
-if ($selected_year) {
-    foreach ($work_months_data as $month) {
-        $jalali_year = get_persian_year($month['start_date']);
-        if ($jalali_year == $selected_year) {
-            $gregorian_year = date('Y', strtotime($month['start_date']));
-            $gregorian_years[] = $gregorian_year;
-        }
-    }
-}
-$gregorian_years = array_unique($gregorian_years);
-
-// لاگ برای دیباگ
-error_log("Selected year: $selected_year, Gregorian years: " . print_r($gregorian_years, true));
-
 // جمع کل فروش و تعداد کل محصولات
 $total_sales = 0;
 $total_quantity = 0;
-if (!empty($gregorian_years)) {
+if ($selected_year) {
     try {
         $query = "
             SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
@@ -87,9 +71,9 @@ if (!empty($gregorian_years)) {
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
             JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-            WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+            WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
         ";
-        $params = $gregorian_years;
+        $params = [$selected_year];
 
         if ($user_role !== 'admin') {
             $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -123,7 +107,7 @@ if (!empty($gregorian_years)) {
 
 // لیست محصولات فروخته‌شده
 $products = [];
-if (!empty($gregorian_years)) {
+if ($selected_year) {
     try {
         $query = "
             SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_price
@@ -132,9 +116,9 @@ if (!empty($gregorian_years)) {
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
             JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-            WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+            WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
         ";
-        $params = $gregorian_years;
+        $params = [$selected_year];
 
         if ($user_role !== 'admin') {
             $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -169,15 +153,15 @@ if (!empty($gregorian_years)) {
 
 // دریافت لیست ماه‌های کاری برای فیلتر
 $work_months = [];
-if (!empty($gregorian_years)) {
+if ($selected_year) {
     $query = "
         SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date
         FROM Work_Months wm
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+        WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
     ";
-    $params = $gregorian_years;
+    $params = [$selected_year];
 
     if ($user_role !== 'admin') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
@@ -196,17 +180,17 @@ if (!empty($gregorian_years)) {
 
 // دریافت لیست همکاران برای فیلتر
 $partners = [];
-if (!empty($gregorian_years) && $selected_month !== 'all') {
+if ($selected_year && $selected_month !== 'all') {
     $query = "
         SELECT DISTINCT u.user_id, u.full_name
         FROM Users u
         JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
         JOIN Work_Details wd ON p.partner_id = wd.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+        WHERE ? = (SELECT jdf.gregorian_to_jalali(YEAR(wm.start_date), MONTH(wm.start_date), DAY(wm.start_date))[1])
         AND wd.work_month_id = ?
     ";
-    $params = array_merge($gregorian_years, [$selected_month]);
+    $params = [$selected_year, $selected_month];
 
     if ($user_role !== 'admin') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
