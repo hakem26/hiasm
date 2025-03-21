@@ -8,6 +8,10 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
+function gregorian_to_jalali($gy, $gm, $gd) {
+    return jdtogregorian(gregoriantojd($gm, $gd, $gy));
+}
+
 function gregorian_to_jalali_format($gregorian_date, $return_year_only = false) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
@@ -20,25 +24,6 @@ function gregorian_to_jalali_format($gregorian_date, $return_year_only = false) 
 function gregorian_year_to_jalali($gregorian_year) {
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
-}
-
-function jalali_year_to_gregorian($jalali_year) {
-    list($gy, $gm, $gd) = jalali_to_gregorian($jalali_year, 1, 1);
-    return $gy;
-}
-
-function get_jalali_years_range($start_jalali_year = 1400) {
-    $current_gregorian_year = date('Y');
-    $current_jalali_year = gregorian_year_to_jalali($current_gregorian_year);
-    $end_jalali_year = $current_jalali_year + 1;
-
-    $years = [];
-    for ($jy = $start_jalali_year; $jy <= $end_jalali_year; $jy++) {
-        $gy = jalali_year_to_gregorian($jy);
-        $years[$gy] = $jy;
-    }
-    krsort($years);
-    return $years;
 }
 
 function calculate_day_of_week($work_date) {
@@ -66,21 +51,27 @@ function number_to_day($day_number) {
     return $days[$day_number] ?? 'نامشخص';
 }
 
-$years = get_jalali_years_range();
-$current_year = date('Y');
+// دریافت سال‌ها از دیتابیس
+$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
+$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$years = array_column($years_db, 'year');
+
+// اضافه کردن سال جاری (2025 = 1404) اگه توی دیتابیس نیست
+$current_year = date('Y'); // 2025
+if (!in_array($current_year, $years)) {
+    $years[] = $current_year;
+}
+sort($years, SORT_NUMERIC);
+$years = array_reverse($years); // مرتب‌سازی نزولی
+
 $selected_year = $_GET['year'] ?? 'all';
 
+// دریافت ماه‌های کاری
 $work_months = [];
 if ($selected_year && $selected_year != 'all') {
-    $selected_jalali_year = gregorian_year_to_jalali($selected_year);
-    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
-    $all_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($all_months as $month) {
-        $start_jalali_year = gregorian_to_jalali_format($month['start_date'], true);
-        if ($start_jalali_year == $selected_jalali_year) {
-            $work_months[] = $month;
-        }
-    }
+    $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE YEAR(start_date) = ? ORDER BY start_date DESC");
+    $stmt_months->execute([$selected_year]);
+    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 } else {
     $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
     $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
@@ -113,11 +104,7 @@ $selected_work_day_id = $_GET['work_day_id'] ?? 'all';
 $page = (int) ($_GET['page'] ?? 1);
 $per_page = 10;
 
-if ($selected_work_month_id == 'all' || !$selected_work_month_id) {
-    $stmt_months = $pdo->query("SELECT * FROM Work_Months ORDER BY start_date DESC");
-    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
-}
-
+// دریافت روزها فقط وقتی ماه انتخاب شده
 if ($selected_work_month_id && $selected_work_month_id != 'all') {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
@@ -186,6 +173,7 @@ if ($selected_work_month_id && $selected_work_month_id != 'all') {
     }
 }
 
+// کوئری سفارشات
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
            SUM(op.amount) AS paid_amount,
@@ -219,7 +207,8 @@ $orders_query .= "
            wd.id AS work_details_id
     FROM Orders o
     LEFT JOIN Order_Payments op ON o.order_id = op.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
+    LEFT JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id";
 
 $conditions = [];
 $params = [];
@@ -236,7 +225,7 @@ if (!$is_admin) {
 }
 
 if ($selected_year && $selected_year != 'all') {
-    $conditions[] = "YEAR(wd.work_date) = ?";
+    $conditions[] = "YEAR(wm.start_date) = ?";
     $params[] = $selected_year;
 }
 
@@ -297,9 +286,9 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         <div class="col-auto">
             <select name="year" class="form-select" onchange="this.form.submit()">
                 <option value="all" <?= $selected_year == 'all' ? 'selected' : '' ?>>همه سال‌ها</option>
-                <?php foreach ($years as $gregorian_year => $jalali_year): ?>
-                    <option value="<?= $gregorian_year ?>" <?= $selected_year == $gregorian_year ? 'selected' : '' ?>>
-                        <?= $jalali_year ?>
+                <?php foreach ($years as $year): ?>
+                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                        <?= gregorian_year_to_jalali($year) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
