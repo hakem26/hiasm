@@ -22,6 +22,9 @@ if (!$jalali_year || !$current_user_id) {
 $stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months");
 $work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// لاگ برای دیباگ
+error_log("Work_Months data in get_months: " . print_r($work_months_data, true));
+
 // پیدا کردن سال‌های میلادی معادل سال شمسی
 $gregorian_years = [];
 foreach ($work_months_data as $month) {
@@ -32,6 +35,9 @@ foreach ($work_months_data as $month) {
     }
 }
 $gregorian_years = array_unique($gregorian_years);
+
+// لاگ برای دیباگ
+error_log("Jalali year: $jalali_year, Gregorian years in get_months: " . print_r($gregorian_years, true));
 
 if (empty($gregorian_years)) {
     echo '';
@@ -64,7 +70,13 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// لاگ برای دیباگ
+error_log("Months result: " . print_r($months, true));
+
+$output = '';
 foreach ($months as $month) {
-    echo "<option value='{$month['work_month_id']}'>" . gregorian_to_jalali_format($month['start_date']) . " تا " . gregorian_to_jalali_format($month['end_date']) . "</option>";
+    $output .= "<option value='{$month['work_month_id']}'>" . gregorian_to_jalali_format($month['start_date']) . " تا " . gregorian_to_jalali_format($month['end_date']) . "</option>";
 }
+
+echo $output;
 ?>

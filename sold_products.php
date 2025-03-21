@@ -38,6 +38,9 @@ $user_role = $stmt->fetchColumn();
 $stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_date DESC");
 $work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// لاگ برای دیباگ
+error_log("Work_Months start_date: " . print_r($work_months_data, true));
+
 // محاسبه سال‌های شمسی بر اساس تاریخ‌های start_date
 $years = [];
 foreach ($work_months_data as $month) {
@@ -47,108 +50,126 @@ foreach ($work_months_data as $month) {
 $years = array_unique($years);
 rsort($years); // مرتب‌سازی نزولی (جدیدترین سال اول)
 
+// لاگ برای دیباگ
+error_log("Jalali years: " . print_r($years, true));
+
 // تنظیم سال پیش‌فرض (جدیدترین سال شمسی)
-$selected_year = $_GET['year'] ?? $years[0]; // پیش‌فرض: جدیدترین سال شمسی
+$selected_year = $_GET['year'] ?? ($years[0] ?? null); // پیش‌فرض: جدیدترین سال شمسی
 $selected_month = $_GET['work_month_id'] ?? 'all'; // پیش‌فرض: "همه"
 $selected_partner_id = $_GET['partner_id'] ?? 'all'; // پیش‌فرض: "همه"
 
 // پیدا کردن سال‌های میلادی معادل سال شمسی انتخاب‌شده
 $gregorian_years = [];
-foreach ($work_months_data as $month) {
-    $jalali_year = get_persian_year($month['start_date']);
-    if ($jalali_year == $selected_year) {
-        $gregorian_year = date('Y', strtotime($month['start_date']));
-        $gregorian_years[] = $gregorian_year;
+if ($selected_year) {
+    foreach ($work_months_data as $month) {
+        $jalali_year = get_persian_year($month['start_date']);
+        if ($jalali_year == $selected_year) {
+            $gregorian_year = date('Y', strtotime($month['start_date']));
+            $gregorian_years[] = $gregorian_year;
+        }
     }
 }
 $gregorian_years = array_unique($gregorian_years);
 
+// لاگ برای دیباگ
+error_log("Selected year: $selected_year, Gregorian years: " . print_r($gregorian_years, true));
+
 // جمع کل فروش و تعداد کل محصولات
 $total_sales = 0;
 $total_quantity = 0;
-try {
-    $query = "
-        SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
-               COALESCE(SUM(oi.quantity), 0) AS total_quantity
-        FROM Orders o
-        JOIN Order_Items oi ON o.order_id = oi.order_id
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
-    ";
-    $params = $gregorian_years;
+if (!empty($gregorian_years)) {
+    try {
+        $query = "
+            SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
+                   COALESCE(SUM(oi.quantity), 0) AS total_quantity
+            FROM Orders o
+            JOIN Order_Items oi ON o.order_id = oi.order_id
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+            WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+        ";
+        $params = $gregorian_years;
 
-    if ($user_role !== 'admin') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $params[] = $current_user_id;
-        $params[] = $current_user_id;
+        if ($user_role !== 'admin') {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $current_user_id;
+            $params[] = $current_user_id;
+        }
+
+        if ($selected_month !== 'all') {
+            $query .= " AND wd.work_month_id = ?";
+            $params[] = $selected_month;
+        }
+
+        if ($selected_partner_id !== 'all') {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $selected_partner_id;
+            $params[] = $selected_partner_id;
+        }
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+        $total_sales = $summary['total_sales'] ?? 0;
+        $total_quantity = $summary['total_quantity'] ?? 0;
+
+        // لاگ برای دیباگ
+        error_log("Total sales and quantity: " . print_r($summary, true));
+    } catch (Exception $e) {
+        error_log("Error fetching total sales and quantity: " . $e->getMessage());
     }
-
-    if ($selected_month !== 'all') {
-        $query .= " AND wd.work_month_id = ?";
-        $params[] = $selected_month;
-    }
-
-    if ($selected_partner_id !== 'all') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $params[] = $selected_partner_id;
-        $params[] = $selected_partner_id;
-    }
-
-    $stmt = $pdo->prepare($query);
-    $stmt->execute($params);
-    $summary = $stmt->fetch(PDO::FETCH_ASSOC);
-    $total_sales = $summary['total_sales'] ?? 0;
-    $total_quantity = $summary['total_quantity'] ?? 0;
-} catch (Exception $e) {
-    error_log("Error fetching total sales and quantity: " . $e->getMessage());
 }
 
 // لیست محصولات فروخته‌شده
 $products = [];
-try {
-    $query = "
-        SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_price
-        FROM Order_Items oi
-        JOIN Orders o ON oi.order_id = o.order_id
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
-    ";
-    $params = $gregorian_years;
+if (!empty($gregorian_years)) {
+    try {
+        $query = "
+            SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_price
+            FROM Order_Items oi
+            JOIN Orders o ON oi.order_id = o.order_id
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+            WHERE YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")
+        ";
+        $params = $gregorian_years;
 
-    if ($user_role !== 'admin') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $params[] = $current_user_id;
-        $params[] = $current_user_id;
+        if ($user_role !== 'admin') {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $current_user_id;
+            $params[] = $current_user_id;
+        }
+
+        if ($selected_month !== 'all') {
+            $query .= " AND wd.work_month_id = ?";
+            $params[] = $selected_month;
+        }
+
+        if ($selected_partner_id !== 'all') {
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $selected_partner_id;
+            $params[] = $selected_partner_id;
+        }
+
+        $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // لاگ برای دیباگ
+        error_log("Products: " . print_r($products, true));
+    } catch (Exception $e) {
+        error_log("Error fetching sold products: " . $e->getMessage());
+        $products = [];
     }
-
-    if ($selected_month !== 'all') {
-        $query .= " AND wd.work_month_id = ?";
-        $params[] = $selected_month;
-    }
-
-    if ($selected_partner_id !== 'all') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $params[] = $selected_partner_id;
-        $params[] = $selected_partner_id;
-    }
-
-    $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
-
-    $stmt = $pdo->prepare($query);
-    $stmt->execute($params);
-    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    error_log("Error fetching sold products: " . $e->getMessage());
-    $products = [];
 }
 
 // دریافت لیست ماه‌های کاری برای فیلتر
 $work_months = [];
-if ($selected_year) {
+if (!empty($gregorian_years)) {
     $query = "
         SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date
         FROM Work_Months wm
@@ -168,11 +189,14 @@ if ($selected_year) {
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // لاگ برای دیباگ
+    error_log("Work months: " . print_r($work_months, true));
 }
 
 // دریافت لیست همکاران برای فیلتر
 $partners = [];
-if ($selected_year && $selected_month !== 'all') {
+if (!empty($gregorian_years) && $selected_month !== 'all') {
     $query = "
         SELECT DISTINCT u.user_id, u.full_name
         FROM Users u
@@ -196,6 +220,9 @@ if ($selected_year && $selected_month !== 'all') {
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // لاگ برای دیباگ
+    error_log("Partners: " . print_r($partners, true));
 }
 ?>
 
@@ -291,16 +318,18 @@ if ($selected_year && $selected_month !== 'all') {
                 $('#partner_id').html('<option value="all">همه</option>');
                 return;
             }
+            console.log('Loading months for year:', year); // لاگ برای دیباگ
             $.ajax({
                 url: 'get_months_for_sold_products.php',
                 type: 'POST',
                 data: { year: year },
                 success: function(response) {
+                    console.log('Months response:', response); // لاگ برای دیباگ
                     $('#work_month_id').html('<option value="all">همه</option>' + response);
                     $('#partner_id').html('<option value="all">همه</option>');
                 },
                 error: function(xhr, status, error) {
-                    console.error('Error loading months:', error);
+                    console.error('Error loading months:', error, xhr.responseText);
                     $('#work_month_id').html('<option value="all">همه</option>');
                     $('#partner_id').html('<option value="all">همه</option>');
                 }
@@ -313,15 +342,17 @@ if ($selected_year && $selected_month !== 'all') {
                 $('#partner_id').html('<option value="all">همه</option>');
                 return;
             }
+            console.log('Loading partners for year:', year, 'and month:', work_month_id); // لاگ برای دیباگ
             $.ajax({
                 url: 'get_partners_for_sold_products.php',
                 type: 'POST',
                 data: { year: year, work_month_id: work_month_id },
                 success: function(response) {
+                    console.log('Partners response:', response); // لاگ برای دیباگ
                     $('#partner_id').html('<option value="all">همه</option>' + response);
                 },
                 error: function(xhr, status, error) {
-                    console.error('Error loading partners:', error);
+                    console.error('Error loading partners:', error, xhr.responseText);
                     $('#partner_id').html('<option value="all">همه</option>');
                 }
             });
@@ -333,6 +364,7 @@ if ($selected_year && $selected_month !== 'all') {
             const work_month_id = $('#work_month_id').val();
             const partner_id = $('#partner_id').val();
 
+            console.log('Loading products for year:', year, 'month:', work_month_id, 'partner:', partner_id); // لاگ برای دیباگ
             $.ajax({
                 url: 'get_sold_products.php',
                 type: 'GET',
@@ -343,6 +375,7 @@ if ($selected_year && $selected_month !== 'all') {
                 },
                 dataType: 'json',
                 success: function(response) {
+                    console.log('Products response:', response); // لاگ برای دیباگ
                     if (response.success) {
                         $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
                         $('#total-sales').text(new Intl.NumberFormat('fa-IR').format(response.total_sales));
