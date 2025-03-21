@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
+require_once 'persian_year.php'; // اضافه کردن فایل persian_year.php
 
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
@@ -27,31 +28,26 @@ function get_jalali_month_name($month) {
     return $month_names[$month] ?? '';
 }
 
-// تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
-    return $jy;
-}
-
 // بررسی نقش کاربر
 $current_user_id = $_SESSION['user_id'];
 $stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
 $stmt->execute([$current_user_id]);
 $user_role = $stmt->fetchColumn();
 
-// دریافت سال‌های موجود از دیتابیس (میلادی)
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت سال‌های موجود از دیتابیس (بر اساس سال شمسی)
+$stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_date DESC");
+$work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$years = [];
+foreach ($work_months_data as $month) {
+    $jalali_year = get_jalali_year_from_date($month['start_date']);
+    $years[] = $jalali_year;
+}
+$years = array_unique($years);
+rsort($years);
 
 // تنظیم سال پیش‌فرض (سال جاری شمسی)
-$current_gregorian_year = date('Y'); // مثلاً 2025
-$current_jalali_year = gregorian_year_to_jalali($current_gregorian_year); // مثلاً 1403
-
-// دریافت مقادیر فیلترها
-$selected_year = $_GET['year'] ?? $current_gregorian_year; // پیش‌فرض: سال جاری میلادی
-$selected_month = $_GET['work_month_id'] ?? 'all'; // پیش‌فرض: "همه"
-$selected_partner_id = $_GET['partner_id'] ?? 'all'; // پیش‌فرض: "همه"
+$current_jalali_year = get_persian_current_year(); // استفاده از تابع persian_year.php
+$selected_year = $_GET['year'] ?? $current_jalali_year; // پیش‌فرض: سال جاری شمسی
 
 // جمع کل فروش و تعداد کل محصولات
 $total_sales = 0;
@@ -65,26 +61,47 @@ try {
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
     ";
-    $params = [$selected_year];
+    $conditions = [];
+    $params = [];
+
+    // فیلتر بر اساس سال شمسی
+    $gregorian_years = [];
+    foreach ($work_months_data as $month) {
+        $jalali_year = get_jalali_year_from_date($month['start_date']);
+        if ($jalali_year == $selected_year) {
+            $gregorian_year = date('Y', strtotime($month['start_date']));
+            $gregorian_years[] = $gregorian_year;
+        }
+    }
+    $gregorian_years = array_unique($gregorian_years);
+    if (!empty($gregorian_years)) {
+        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
+        $params = array_merge($params, $gregorian_years);
+    } else {
+        $conditions[] = "1=0"; // هیچ داده‌ای نمایش داده نشود اگر سال شمسی معتبر نباشد
+    }
 
     // برای کاربران غیر مدیر، فقط همکارانی که با کاربر لاگین‌شده همکاری کردن
     if ($user_role !== 'admin') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
     }
 
     if ($selected_month !== 'all') {
-        $query .= " AND wd.work_month_id = ?";
+        $conditions[] = "wd.work_month_id = ?";
         $params[] = $selected_month;
     }
 
     if ($selected_partner_id !== 'all') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $selected_partner_id;
         $params[] = $selected_partner_id;
+    }
+
+    if (!empty($conditions)) {
+        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $stmt = $pdo->prepare($query);
@@ -106,25 +123,37 @@ try {
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
     ";
-    $params = [$selected_year];
+    $conditions = [];
+    $params = [];
+
+    // فیلتر بر اساس سال شمسی
+    if (!empty($gregorian_years)) {
+        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
+        $params = array_merge($params, $gregorian_years);
+    } else {
+        $conditions[] = "1=0";
+    }
 
     if ($user_role !== 'admin') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
     }
 
     if ($selected_month !== 'all') {
-        $query .= " AND wd.work_month_id = ?";
+        $conditions[] = "wd.work_month_id = ?";
         $params[] = $selected_month;
     }
 
     if ($selected_partner_id !== 'all') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $selected_partner_id;
         $params[] = $selected_partner_id;
+    }
+
+    if (!empty($conditions)) {
+        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
@@ -145,14 +174,26 @@ if ($selected_year) {
         FROM Work_Months wm
         JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE YEAR(wm.start_date) = ?
     ";
-    $params = [$selected_year];
+    $conditions = [];
+    $params = [];
+
+    // فیلتر بر اساس سال شمسی
+    if (!empty($gregorian_years)) {
+        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
+        $params = array_merge($params, $gregorian_years);
+    } else {
+        $conditions[] = "1=0";
+    }
 
     if ($user_role !== 'admin') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
+    }
+
+    if (!empty($conditions)) {
+        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $query .= " ORDER BY wm.start_date DESC";
@@ -170,17 +211,31 @@ if ($selected_year && $selected_month !== 'all') {
         JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
         JOIN Work_Details wd ON p.partner_id = wd.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE YEAR(wm.start_date) = ?
-        AND wd.work_month_id = ?
     ";
-    $params = [$selected_year, $selected_month];
+    $conditions = [];
+    $params = [];
+
+    // فیلتر بر اساس سال شمسی
+    if (!empty($gregorian_years)) {
+        $conditions[] = "YEAR(wm.start_date) IN (" . implode(',', array_fill(0, count($gregorian_years), '?')) . ")";
+        $params = array_merge($params, $gregorian_years);
+    } else {
+        $conditions[] = "1=0";
+    }
+
+    $conditions[] = "wd.work_month_id = ?";
+    $params[] = $selected_month;
 
     if ($user_role !== 'admin') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $conditions[] = "(p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
         $params[] = $current_user_id;
-        $query .= " AND u.user_id != ?";
+        $conditions[] = "u.user_id != ?";
         $params[] = $current_user_id;
+    }
+
+    if (!empty($conditions)) {
+        $query .= " WHERE " . implode(" AND ", $conditions);
     }
 
     $query .= " ORDER BY u.full_name";
@@ -190,191 +245,191 @@ if ($selected_year && $selected_month !== 'all') {
 }
 ?>
 
-    <div class="container-fluid mt-5">
-        <h5 class="card-title mb-4">لیست محصولات فروخته‌شده</h5>
+<div class="container-fluid mt-5">
+    <h5 class="card-title mb-4">لیست محصولات فروخته‌شده</h5>
 
-        <!-- نمایش جمع کل‌ها -->
-        <div class="summary-text">
-            <p>تعداد کل: <span id="total-quantity"><?= number_format($total_quantity, 0) ?></span> عدد</p>
-            <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
-        </div>
+    <!-- نمایش جمع کل‌ها -->
+    <div class="summary-text">
+        <p>تعداد کل: <span id="total-quantity"><?= number_format($total_quantity, 0) ?></span> عدد</p>
+        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
+    </div>
 
-        <!-- فرم فیلترها -->
-        <div class="mb-4">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="year" class="form-label">سال</label>
-                    <select name="year" id="year" class="form-select">
-                        <?php foreach ($years as $year): ?>
-                            <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                                <?= gregorian_year_to_jalali($year) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="work_month_id" class="form-label">ماه کاری</label>
-                    <select name="work_month_id" id="work_month_id" class="form-select">
-                        <option value="all" <?= $selected_month === 'all' ? 'selected' : '' ?>>همه</option>
-                        <?php foreach ($work_months as $month): ?>
-                            <option value="<?= $month['work_month_id'] ?>" <?= $selected_month == $month['work_month_id'] ? 'selected' : '' ?>>
-                                <?= gregorian_to_jalali_format($month['start_date']) . ' تا ' . gregorian_to_jalali_format($month['end_date']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="partner_id" class="form-label">همکار</label>
-                    <select name="partner_id" id="partner_id" class="form-select">
-                        <option value="all" <?= $selected_partner_id === 'all' ? 'selected' : '' ?>>همه</option>
-                        <?php foreach ($partners as $partner): ?>
-                            <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($partner['full_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+    <!-- فرم فیلترها -->
+    <div class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="year" class="form-label">سال</label>
+                <select name="year" id="year" class="form-select">
+                    <?php foreach ($years as $year): ?>
+                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                            <?= $year ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
-        </div>
-
-        <!-- جدول محصولات -->
-        <div class="table-responsive" id="products-table">
-            <table class="table table-light">
-                <thead>
-                    <tr>
-                        <th>ردیف</th>
-                        <th>اقلام</th>
-                        <th>قیمت واحد</th>
-                        <th>تعداد</th>
-                        <th>قیمت کل</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($products)): ?>
-                        <tr>
-                            <td colspan="5" class="text-center">محصولی یافت نشد.</td>
-                        </tr>
-                    <?php else: ?>
-                        <?php $row_number = 1; ?>
-                        <?php foreach ($products as $product): ?>
-                            <tr>
-                                <td><?= $row_number++ ?></td>
-                                <td><?= htmlspecialchars($product['product_name']) ?></td>
-                                <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
-                                <td><?= $product['total_quantity'] ?></td>
-                                <td><?= number_format($product['total_price'], 0) ?> تومان</td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+            <div class="col-md-4">
+                <label for="work_month_id" class="form-label">ماه کاری</label>
+                <select name="work_month_id" id="work_month_id" class="form-select">
+                    <option value="all" <?= $selected_month === 'all' ? 'selected' : '' ?>>همه</option>
+                    <?php foreach ($work_months as $month): ?>
+                        <option value="<?= $month['work_month_id'] ?>" <?= $selected_month == $month['work_month_id'] ? 'selected' : '' ?>>
+                            <?= gregorian_to_jalali_format($month['start_date']) . ' تا ' . gregorian_to_jalali_format($month['end_date']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="partner_id" class="form-label">همکار</label>
+                <select name="partner_id" id="partner_id" class="form-select">
+                    <option value="all" <?= $selected_partner_id === 'all' ? 'selected' : '' ?>>همه</option>
+                    <?php foreach ($partners as $partner): ?>
+                        <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($partner['full_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            // تابع برای بارگذاری ماه‌ها بر اساس سال
-            function loadMonths(year) {
-                if (!year) {
+    <!-- جدول محصولات -->
+    <div class="table-responsive" id="products-table">
+        <table class="table table-light">
+            <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>اقلام</th>
+                    <th>قیمت واحد</th>
+                    <th>تعداد</th>
+                    <th>قیمت کل</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($products)): ?>
+                    <tr>
+                        <td colspan="5" class="text-center">محصولی یافت نشد.</td>
+                    </tr>
+                <?php else: ?>
+                    <?php $row_number = 1; ?>
+                    <?php foreach ($products as $product): ?>
+                        <tr>
+                            <td><?= $row_number++ ?></td>
+                            <td><?= htmlspecialchars($product['product_name']) ?></td>
+                            <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
+                            <td><?= $product['total_quantity'] ?></td>
+                            <td><?= number_format($product['total_price'], 0) ?> تومان</td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // تابع برای بارگذاری ماه‌ها بر اساس سال
+        function loadMonths(year) {
+            if (!year) {
+                $('#work_month_id').html('<option value="all">همه</option>');
+                $('#partner_id').html('<option value="all">همه</option>');
+                return;
+            }
+            $.ajax({
+                url: 'get_months_for_sold_products.php',
+                type: 'POST',
+                data: { year: year },
+                success: function(response) {
+                    $('#work_month_id').html('<option value="all">همه</option>' + response);
+                    $('#partner_id').html('<option value="all">همه</option>');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading months:', error);
                     $('#work_month_id').html('<option value="all">همه</option>');
                     $('#partner_id').html('<option value="all">همه</option>');
-                    return;
                 }
-                $.ajax({
-                    url: 'get_months_for_sold_products.php',
-                    type: 'POST',
-                    data: { year: year },
-                    success: function(response) {
-                        $('#work_month_id').html('<option value="all">همه</option>' + response);
-                        $('#partner_id').html('<option value="all">همه</option>');
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading months:', error);
-                        $('#work_month_id').html('<option value="all">همه</option>');
-                        $('#partner_id').html('<option value="all">همه</option>');
-                    }
-                });
-            }
+            });
+        }
 
-            // تابع برای بارگذاری همکاران بر اساس سال و ماه
-            function loadPartners(year, work_month_id) {
-                if (!year || work_month_id === 'all') {
+        // تابع برای بارگذاری همکاران بر اساس سال و ماه
+        function loadPartners(year, work_month_id) {
+            if (!year || work_month_id === 'all') {
+                $('#partner_id').html('<option value="all">همه</option>');
+                return;
+            }
+            $.ajax({
+                url: 'get_partners_for_sold_products.php',
+                type: 'POST',
+                data: { year: year, work_month_id: work_month_id },
+                success: function(response) {
+                    $('#partner_id').html('<option value="all">همه</option>' + response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading partners:', error);
                     $('#partner_id').html('<option value="all">همه</option>');
-                    return;
                 }
-                $.ajax({
-                    url: 'get_partners_for_sold_products.php',
-                    type: 'POST',
-                    data: { year: year, work_month_id: work_month_id },
-                    success: function(response) {
-                        $('#partner_id').html('<option value="all">همه</option>' + response);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading partners:', error);
-                        $('#partner_id').html('<option value="all">همه</option>');
+            });
+        }
+
+        // تابع برای بارگذاری محصولات و جمع کل‌ها
+        function loadProducts() {
+            const year = $('#year').val();
+            const work_month_id = $('#work_month_id').val();
+            const partner_id = $('#partner_id').val();
+
+            $.ajax({
+                url: 'get_sold_products.php',
+                type: 'GET',
+                data: {
+                    year: year,
+                    work_month_id: work_month_id,
+                    partner_id: partner_id
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
+                        $('#total-sales').text(new Intl.NumberFormat('fa-IR').format(response.total_sales));
+                        $('#products-table').html(response.html);
+                    } else {
+                        $('#products-table').html('<div class="alert alert-danger text-center">خطا: ' + response.message + '</div>');
                     }
-                });
-            }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
+                    $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + error + '</div>');
+                }
+            });
+        }
 
-            // تابع برای بارگذاری محصولات و جمع کل‌ها
-            function loadProducts() {
-                const year = $('#year').val();
-                const work_month_id = $('#work_month_id').val();
-                const partner_id = $('#partner_id').val();
+        // بارگذاری اولیه
+        const initial_year = $('#year').val();
+        if (initial_year) {
+            loadMonths(initial_year);
+            loadPartners(initial_year, $('#work_month_id').val());
+        }
+        loadProducts();
 
-                $.ajax({
-                    url: 'get_sold_products.php',
-                    type: 'GET',
-                    data: {
-                        year: year,
-                        work_month_id: work_month_id,
-                        partner_id: partner_id
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.success) {
-                            $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
-                            $('#total-sales').text(new Intl.NumberFormat('fa-IR').format(response.total_sales));
-                            $('#products-table').html(response.html);
-                        } else {
-                            $('#products-table').html('<div class="alert alert-danger text-center">خطا: ' + response.message + '</div>');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
-                        $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + error + '</div>');
-                    }
-                });
-            }
-
-            // بارگذاری اولیه
-            const initial_year = $('#year').val();
-            if (initial_year) {
-                loadMonths(initial_year);
-                loadPartners(initial_year, $('#work_month_id').val());
-            }
+        // رویدادهای تغییر
+        $('#year').on('change', function() {
+            const year = $(this).val();
+            loadMonths(year);
             loadProducts();
-
-            // رویدادهای تغییر
-            $('#year').on('change', function() {
-                const year = $(this).val();
-                loadMonths(year);
-                loadProducts();
-            });
-
-            $('#work_month_id').on('change', function() {
-                const year = $('#year').val();
-                const work_month_id = $(this).val();
-                loadPartners(year, work_month_id);
-                loadProducts();
-            });
-
-            $('#partner_id').on('change', function() {
-                loadProducts();
-            });
         });
-    </script>
 
-    <?php require_once 'footer.php'; ?>
+        $('#work_month_id').on('change', function() {
+            const year = $('#year').val();
+            const work_month_id = $(this).val();
+            loadPartners(year, work_month_id);
+            loadProducts();
+        });
+
+        $('#partner_id').on('change', function() {
+            loadProducts();
+        });
+    });
+</script>
+
+<?php require_once 'footer.php'; ?>
