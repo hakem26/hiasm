@@ -39,15 +39,17 @@ $stmt = $pdo->query("SELECT DISTINCT start_date FROM Work_Months ORDER BY start_
 $work_months_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = [];
 foreach ($work_months_data as $month) {
-    $jalali_year = get_persian_year($month['start_date']); // تغییر به get_persian_year()
+    $jalali_year = get_persian_year($month['start_date']);
     $years[] = $jalali_year;
 }
 $years = array_unique($years);
 rsort($years);
 
 // تنظیم سال پیش‌فرض (سال جاری شمسی)
-$current_jalali_year = get_persian_current_year(); // استفاده از تابع persian_year.php
+$current_jalali_year = get_persian_current_year();
 $selected_year = $_GET['year'] ?? $current_jalali_year; // پیش‌فرض: سال جاری شمسی
+$selected_month = $_GET['work_month_id'] ?? 'all'; // پیش‌فرض: "همه"
+$selected_partner_id = $_GET['partner_id'] ?? 'all'; // پیش‌فرض: "همه"
 
 // جمع کل فروش و تعداد کل محصولات
 $total_sales = 0;
@@ -68,7 +70,7 @@ try {
     // فیلتر بر اساس سال شمسی
     $gregorian_years = [];
     foreach ($work_months_data as $month) {
-        $jalali_year = get_persian_year($month['start_date']); // تغییر به get_persian_year()
+        $jalali_year = get_persian_year($month['start_date']);
         if ($jalali_year == $selected_year) {
             $gregorian_year = date('Y', strtotime($month['start_date']));
             $gregorian_years[] = $gregorian_year;
