@@ -159,8 +159,8 @@ if ($selected_year && $selected_month !== 'all') {
     $query = "
         SELECT DISTINCT u.user_id, u.full_name
         FROM Users u
-        JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
-        JOIN Work_Details wd ON p.partner_id = wd.partner_id
+        JOIN Partners p ON (u.user_id = p.user_id1 OR p.user_id = p.user_id2)
+        JOIN Work_Details wd ON p.partner_id = wd partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE YEAR(wm.start_date) = ?
         AND wd.work_month_id = ?
@@ -199,7 +199,7 @@ if ($selected_year && $selected_month !== 'all') {
                 <select name="year" id="year" class="form-select">
                     <?php foreach ($years as $year): ?>
                         <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                            <?= get_persian_year("$year-01-01") ?>
+                            <?= get_persian_year("$year-06-01") ?> <!-- تغییر به 06-01 برای تبدیل درست -->
                         </option>
                     <?php endforeach; ?>
                 </select>
