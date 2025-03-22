@@ -168,6 +168,15 @@ if ($selected_year) {
             'status' => $status
         ];
     }
+
+    // دیباگ
+    if (empty($reports)) {
+        error_log("report-monthly.php: No reports found for year $selected_year, work_month_id " . ($_GET['work_month_id'] ?? 'none') . ", user_id " . ($_GET['user_id'] ?? 'none'));
+    } else {
+        foreach ($reports as $report) {
+            error_log("report-monthly.php: Found report: work_month_id = {$report['work_month_id']}, partner_name = {$report['partner_name']}, total_sales = {$report['total_sales']}");
+        }
+    }
 }
 ?>
 
@@ -282,8 +291,10 @@ if ($selected_year) {
                         const selectedMonth = $('#work_month_id').val();
                         if (selectedMonth) {
                             loadPartners(selectedMonth);
+                        } else {
+                            $('#user_id').html('<option value="">انتخاب همکار</option>');
+                            loadReports();
                         }
-                        loadReports();
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading months:', error);
@@ -298,6 +309,7 @@ if ($selected_year) {
                 console.log('Loading partners for month:', month_id);
                 if (!month_id) {
                     $('#user_id').html('<option value="">انتخاب همکار</option>');
+                    loadReports();
                     return;
                 }
                 $.ajax({
@@ -312,6 +324,7 @@ if ($selected_year) {
                     error: function(xhr, status, error) {
                         console.error('Error loading partners:', error);
                         $('#user_id').html('<option value="">خطا در بارگذاری همکاران</option>');
+                        loadReports();
                     }
                 });
             }
@@ -322,6 +335,7 @@ if ($selected_year) {
                 const year = $('#year').val();
                 const work_month_id = $('#work_month_id').val();
                 const user_id = $('#user_id').val();
+                console.log('Report params:', { year: year, work_month_id: work_month_id, user_id: user_id });
 
                 $.ajax({
                     url: 'get_reports.php',
