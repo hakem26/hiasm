@@ -169,20 +169,7 @@ if ($selected_year && $selected_month) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گزارش بدهی</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
-    <div class="container-fluid mt-5">
+<div class="container-fluid mt-5">
         <h5 class="card-title mb-4">گزارش بدهی</h5>
 
         <!-- فیلترها -->
@@ -388,5 +375,3 @@ if ($selected_year && $selected_month) {
     </script>
 
     <?php require_once 'footer.php'; ?>
-</body>
-</html>
