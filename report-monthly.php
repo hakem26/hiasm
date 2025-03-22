@@ -74,9 +74,34 @@ if ($selected_year) {
         $end_date = "2025-03-21";
     }
 
-    $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND start_date < ? ORDER BY start_date DESC");
-    $stmt_months->execute([$start_date, $end_date]);
+    $query = "
+        SELECT DISTINCT wm.work_month_id, wm.start_date, wm.end_date 
+        FROM Work_Months wm
+        JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wm.start_date >= ? AND wm.start_date < ?
+        AND (p.user_id1 = ? OR p.user_id2 = ? OR wd.agency_owner_id = ?)
+        ORDER BY wm.start_date DESC
+    ";
+    $params = [$start_date, $end_date, $current_user_id, $current_user_id, $current_user_id];
+    if ($is_admin && isset($_GET['user_id']) && $_GET['user_id']) {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = (int) $_GET['user_id'];
+        $params[] = (int) $_GET['user_id'];
+    }
+
+    $stmt_months = $pdo->prepare($query);
+    $stmt_months->execute($params);
     $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
+
+    // دیباگ
+    if (empty($work_months)) {
+        error_log("report-monthly.php: No months found for year $selected_year. Start date: $start_date, End date: $end_date");
+    } else {
+        foreach ($work_months as $month) {
+            error_log("report-monthly.php: Found month: work_month_id = {$month['work_month_id']}, start_date = {$month['start_date']}, end_date = {$month['end_date']}");
+        }
+    }
 }
 
 // دریافت گزارش‌های ماهانه (برای بارگذاری اولیه)
@@ -95,7 +120,7 @@ if ($selected_year) {
         $end_date = "2025-03-21";
     }
 
-    $stmt = $pdo->prepare("
+    $query = "
         SELECT wm.work_month_id, wm.start_date, wm.end_date, p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name,
                COUNT(DISTINCT wd.work_date) AS days_worked,
                (SELECT COUNT(DISTINCT work_date) FROM Work_Details WHERE work_month_id = wm.work_month_id) AS total_days,
@@ -106,11 +131,25 @@ if ($selected_year) {
         LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
         LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
         LEFT JOIN Orders o ON o.work_details_id = wd.id
-        WHERE wm.start_date >= ? AND wm.start_date < ? AND (p.user_id1 = ? OR p.user_id2 = ?)
-        GROUP BY wm.work_month_id, p.partner_id
-        ORDER BY wm.start_date DESC
-    ");
-    $stmt->execute([$start_date, $end_date, $current_user_id, $current_user_id]);
+        WHERE wm.start_date >= ? AND wm.start_date < ?
+        AND (p.user_id1 = ? OR p.user_id2 = ? OR wd.agency_owner_id = ?)
+    ";
+    $params = [$start_date, $end_date, $current_user_id, $current_user_id, $current_user_id];
+
+    if (isset($_GET['work_month_id']) && $_GET['work_month_id']) {
+        $query .= " AND wm.work_month_id = ?";
+        $params[] = (int) $_GET['work_month_id'];
+    }
+
+    if (isset($_GET['user_id']) && $_GET['user_id']) {
+        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $params[] = (int) $_GET['user_id'];
+        $params[] = (int) $_GET['user_id'];
+    }
+
+    $query .= " GROUP BY wm.work_month_id, p.partner_id ORDER BY wm.start_date DESC";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $start_date_jalali = gregorian_to_jalali_format($row['start_date']);
         list($jy, $jm, $jd) = explode('/', $start_date_jalali);
@@ -230,6 +269,7 @@ if ($selected_year) {
                 if (!year) {
                     $('#work_month_id').html('<option value="">انتخاب ماه</option>');
                     $('#user_id').html('<option value="">انتخاب همکار</option>');
+                    loadReports();
                     return;
                 }
                 $.ajax({
@@ -248,6 +288,7 @@ if ($selected_year) {
                     error: function(xhr, status, error) {
                         console.error('Error loading months:', error);
                         $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
+                        loadReports();
                     }
                 });
             }
@@ -266,6 +307,7 @@ if ($selected_year) {
                     success: function(response) {
                         console.log('Partners response:', response);
                         $('#user_id').html(response);
+                        loadReports();
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading partners:', error);
@@ -316,8 +358,9 @@ if ($selected_year) {
             const initial_year = $('#year').val();
             if (initial_year) {
                 loadMonths(initial_year);
+            } else {
+                loadReports();
             }
-            loadReports();
 
             // رویدادهای تغییر
             $('#year').on('change', function() {
@@ -328,7 +371,6 @@ if ($selected_year) {
             $('#work_month_id').on('change', function() {
                 const month_id = $(this).val();
                 loadPartners(month_id);
-                loadReports();
             });
 
             $('#user_id').on('change', function() {
