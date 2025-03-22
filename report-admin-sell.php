@@ -151,7 +151,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گزارش فروش ادمین</title>
+    <title>گزارش فروش</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -159,7 +159,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
 
 <body>
     <div class="container-fluid mt-5">
-        <h5 class="card-title mb-4">گزارش فروش ادمین</h5>
+        <h5 class="card-title mb-4">گزارش فروش</h5>
 
         <!-- جمع کل‌ها -->
         <div class="mb-4">
@@ -183,28 +183,37 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label for="user_id" class="form-label">همکار</label>
-                    <select name="user_id" id="user_id" class="form-select">
-                        <option value="all" <?= $selected_user_id === 'all' ? 'selected' : '' ?>>همه</option>
-                        <?php
-                        $stmt = $pdo->query("SELECT user_id, full_name FROM Users WHERE role = 'seller' ORDER BY full_name");
-                        while ($user = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                            echo '<option value="' . $user['user_id'] . '" ' . ($selected_user_id == $user['user_id'] ? 'selected' : '') . '>' . htmlspecialchars($user['full_name']) . '</option>';
-                        }
-                        ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <div class="input-group">
                         <select name="work_month_id" id="work_month_id" class="form-select">
                             <option value="">انتخاب ماه</option>
                             <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
                         </select>
-                        <button id="view-report-btn" class="btn btn-info" disabled>
-                            <i class="fas fa-eye"></i> مشاهده
-                        </button>
                     </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="user_id" class="form-label">همکار</label>
+                    <select name="user_id" id="user_id" class="form-select">
+                        <option value="all" <?= $selected_user_id === 'all' ? 'selected' : '' ?>>همه</option>
+                        <?php
+                        // فقط همکارهایی که توی جدول Partners وجود دارن (چه به عنوان user_id1 یا user_id2)
+                        $stmt = $pdo->query("
+                            SELECT DISTINCT u.user_id, u.full_name 
+                            FROM Users u
+                            JOIN Partners p ON u.user_id = p.user_id1 OR u.user_id = p.user_id2
+                            WHERE u.role = 'seller'
+                            ORDER BY u.full_name
+                        ");
+                        while ($user = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                            echo '<option value="' . $user['user_id'] . '" ' . ($selected_user_id == $user['user_id'] ? 'selected' : '') . '>' . htmlspecialchars($user['full_name']) . '</option>';
+                        }
+                        ?>
+                    </select>
+                </div>
+                <div class="col-md-3 align-self-end">
+                    <button id="view-report-btn" class="btn btn-info" disabled>
+                        <i class="fas fa-eye"></i> مشاهده
+                    </button>
                 </div>
             </div>
         </div>
