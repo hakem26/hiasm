@@ -37,11 +37,12 @@ function gregorian_to_jalali_format($gregorian_date)
 }
 
 // تابع برای دریافت سال شمسی از تاریخ میلادی
-function get_jalali_year($gregorian_date) {
+function get_jalali_year($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    $gy = (int)$gy;
-    $gm = (int)$gm;
-    $gd = (int)$gd;
+    $gy = (int) $gy;
+    $gm = (int) $gm;
+    $gd = (int) $gd;
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return $jy;
 }
@@ -54,7 +55,7 @@ $years_jalali = [];
 $year_mapping = []; // برای نگاشت سال شمسی به بازه تاریخ
 foreach ($months as $month) {
     $jalali_year = get_jalali_year($month['start_date']);
-    $gregorian_year = (int)date('Y', strtotime($month['start_date']));
+    $gregorian_year = (int) date('Y', strtotime($month['start_date']));
     if (!in_array($jalali_year, $years_jalali)) {
         $years_jalali[] = $jalali_year;
         $year_mapping[$jalali_year] = [
@@ -172,7 +173,8 @@ error_log("inventory_report.php: Transactions fetched: " . count($transactions))
                 <option value="all" <?= $selected_work_month_id == 'all' ? 'selected' : '' ?>>همه ماه‌ها</option>
                 <?php foreach ($work_months as $month): ?>
                     <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
-                        <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
+                        <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                        <?= gregorian_to_jalali_format($month['end_date']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -253,7 +255,10 @@ error_log("inventory_report.php: Transactions fetched: " . count($transactions))
                     "next": "بعدی",
                     "previous": "قبلی"
                 }
-            }
+            },
+            "columnDefs": [
+                { "targets": "_all", "className": "text-center" }, // وسط‌چین کردن همه ستون‌ها
+            ]
         });
     });
 </script>
