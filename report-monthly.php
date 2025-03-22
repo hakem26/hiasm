@@ -9,16 +9,11 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali($gregorian_date) {
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return [$jy, $jm, $jd];
-}
-
+// تابع تبدیل تاریخ میلادی به شمسی (استفاده از تابع jdf.php)
 function gregorian_to_jalali_format($gregorian_date) {
-    $jalali_date = gregorian_to_jalali($gregorian_date);
-    return sprintf("%04d/%02d/%02d", $jalali_date[0], $jalali_date[1], $jalali_date[2]);
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd); // تابع از jdf.php
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 // تابع برای دریافت نام ماه شمسی
@@ -42,8 +37,8 @@ $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $years = [];
 foreach ($months as $month) {
-    $jalali_date = gregorian_to_jalali($month['start_date']);
-    $jalali_year = $jalali_date[0]; // سال شمسی
+    list($jy, $jm, $jd) = gregorian_to_jalali($month['start_date']); // تابع از jdf.php
+    $jalali_year = $jy; // سال شمسی
     if (!in_array($jalali_year, $years)) {
         $years[] = $jalali_year;
     }
@@ -62,7 +57,7 @@ if (!$selected_year) {
 
 error_log("report-monthly.php: Selected year: $selected_year");
 
-// برای بارگذاری اولیه، گزارش‌ها رو فعلاً خالی می‌ذاریم تا بعد از اصلاح get_reports.php پر بشن
+// برای بارگذاری اولیه، گزارش‌ها رو فعلاً خالی می‌ذاریم
 $reports = [];
 ?>
 

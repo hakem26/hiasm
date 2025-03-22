@@ -3,15 +3,10 @@ session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali($gregorian_date) {
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return [$jy, $jm, $jd];
-}
-
 function gregorian_to_jalali_format($gregorian_date) {
-    $jalali_date = gregorian_to_jalali($gregorian_date);
-    return sprintf("%04d/%02d/%02d", $jalali_date[0], $jalali_date[1], $jalali_date[2]);
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd); // تابع از jdf.php
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 $year_jalali = isset($_POST['year']) ? (int) $_POST['year'] : null;
