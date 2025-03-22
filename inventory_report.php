@@ -115,8 +115,9 @@ if ($user_role === 'admin') {
 
 // دریافت تراکنش‌ها
 $transactions_query = "
-    SELECT it.*, u.full_name, wm.start_date, wm.end_date 
+    SELECT it.*, p.product_name, u.full_name, wm.start_date, wm.end_date 
     FROM Inventory_Transactions it
+    JOIN Products p ON it.product_id = p.product_id
     JOIN Users u ON it.user_id = u.user_id
     JOIN Work_Months wm ON it.work_month_id = wm.work_month_id";
 
