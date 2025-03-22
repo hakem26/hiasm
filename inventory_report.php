@@ -192,8 +192,8 @@ error_log("inventory_report.php: Transactions fetched: " . count($transactions))
     </form>
 
     <?php if (!empty($transactions)): ?>
-        <div class="table-responsive">
-            <table id="transactionsTable" class="table table-light table-hover">
+        <div class="table-responsive" style="overflow-x: auto; width: 100%;">
+            <table id="transactionsTable" class="table table-light table-hover display nowrap" style="width: 100%; min-width: 800px;">
                 <thead>
                     <tr>
                         <th>تاریخ</th>
@@ -229,49 +229,15 @@ error_log("inventory_report.php: Transactions fetched: " . count($transactions))
 </div>
 
 <style>
-    /* تنظیمات RTL و وسط‌چین کردن متن‌ها */
-    #transactionsTable th,
-    #transactionsTable td {
-        text-align: center !important;
-        vertical-align: middle !important;
-    }
-
-    /* تنظیم عرض ستون‌ها */
-    #transactionsTable th:nth-child(1),
-    #transactionsTable td:nth-child(1) {
-        width: 15%; /* تاریخ */
-    }
-    #transactionsTable th:nth-child(2),
-    #transactionsTable td:nth-child(2) {
-        width: 25%; /* ماه کاری */
-    }
-    <?php if ($user_role === 'admin'): ?>
-    #transactionsTable th:nth-child(3),
-    #transactionsTable td:nth-child(3) {
-        width: 20%; /* کاربر */
-    }
-    #transactionsTable th:nth-child(4),
-    #transactionsTable td:nth-child(4) {
-        width: 30%; /* محصول */
-    }
-    #transactionsTable th:nth-child(5),
-    #transactionsTable td:nth-child(5) {
-        width: 10%; /* تعداد */
-    }
-    <?php else: ?>
-    #transactionsTable th:nth-child(3),
-    #transactionsTable td:nth-child(3) {
-        width: 50%; /* محصول */
-    }
-    #transactionsTable th:nth-child(4),
-    #transactionsTable td:nth-child(4) {
-        width: 10%; /* تعداد */
-    }
-    <?php endif; ?>
-
     /* اطمینان از RTL بودن جدول */
     #transactionsTable {
         direction: rtl !important;
+    }
+
+    /* تنظیمات برای دیتاتیبل */
+    #transactionsTable_wrapper {
+        width: 100%;
+        overflow-x: auto;
     }
 </style>
 
@@ -280,9 +246,13 @@ error_log("inventory_report.php: Transactions fetched: " . count($transactions))
 <script>
     $(document).ready(function () {
         $('#transactionsTable').DataTable({
-            "scrollX": true,
-            "paging": true,
-            "ordering": true,
+            "pageLength": 10, // 10 ردیف در هر صفحه
+            "scrollX": true, // فعال کردن اسکرول افقی
+            "scrollCollapse": true, // اجازه می‌دهد اسکرول افقی با عرض صفحه تنظیم بشه
+            "paging": true, // فعال کردن صفحه‌بندی
+            "autoWidth": true, // فعال کردن تنظیم خودکار عرض
+            "ordering": true, // فعال کردن مرتب‌سازی ستون‌ها
+            "responsive": false, // غیرفعال کردن حالت ریسپانسیو
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
@@ -301,10 +271,9 @@ error_log("inventory_report.php: Transactions fetched: " . count($transactions))
                     "previous": "قبلی"
                 }
             },
-            // تنظیمات RTL برای دیتاتیبل
-            "rtl": true,
-            // غیرفعال کردن تنظیم خودکار عرض ستون‌ها
-            "autoWidth": false
+            "columnDefs": [
+                { "targets": "_all", "className": "text-center" } // وسط‌چین کردن همه ستون‌ها
+            ]
         });
     });
 </script>
