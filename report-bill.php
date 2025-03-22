@@ -16,6 +16,16 @@ function gregorian_to_jalali_format($gregorian_date) {
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
+// تابع برای دریافت سال شمسی از تاریخ میلادی
+function get_jalali_year($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    $gy = (int)$gy;
+    $gm = (int)$gm;
+    $gd = (int)$gd;
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return $jy;
+}
+
 // تابع برای دریافت نام ماه شمسی
 function get_jalali_month_name($month) {
     $month_names = [
@@ -27,28 +37,47 @@ function get_jalali_month_name($month) {
     return $month_names[$month] ?? '';
 }
 
-// تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
-    return $jy;
-}
-
 // بررسی نقش کاربر
 $current_user_id = $_SESSION['user_id'];
 $stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
 $stmt->execute([$current_user_id]);
 $user_role = $stmt->fetchColumn();
 
-// دریافت سال‌های موجود از دیتابیس (میلادی)
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت همه ماه‌ها برای استخراج سال‌های شمسی
+$stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC");
+$months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
-$current_year = date('Y');
+$years_jalali = [];
+$year_mapping = []; // برای نگاشت سال شمسی به بازه تاریخ
+foreach ($months as $month) {
+    $jalali_year = get_jalali_year($month['start_date']);
+    $gregorian_year = (int)date('Y', strtotime($month['start_date']));
+    if (!in_array($jalali_year, $years_jalali)) {
+        $years_jalali[] = $jalali_year;
+        $year_mapping[$jalali_year] = [
+            'start_date' => "$gregorian_year-03-21",
+            'end_date' => ($gregorian_year + 1) . "-03-21"
+        ];
+        if ($jalali_year == 1404) {
+            $year_mapping[$jalali_year]['start_date'] = "2025-03-21";
+            $year_mapping[$jalali_year]['end_date'] = "2026-03-21";
+        } elseif ($jalali_year == 1403) {
+            $year_mapping[$jalali_year]['start_date'] = "2024-03-20";
+            $year_mapping[$jalali_year]['end_date'] = "2025-03-21";
+        }
+    }
+}
+sort($years_jalali, SORT_NUMERIC);
+$years_jalali = array_reverse($years_jalali); // مرتب‌سازی نزولی
+
+// دیباگ سال‌ها
+error_log("report-bill.php: Available years (jalali): " . implode(", ", $years_jalali));
+
+// تنظیم پیش‌فرض به جدیدترین سال شمسی
+$current_jalali_year = get_jalali_year(date('Y-m-d'));
+$selected_year_jalali = $_GET['year'] ?? (in_array($current_jalali_year, $years_jalali) ? $current_jalali_year : (!empty($years_jalali) ? $years_jalali[0] : null));
 
 // دریافت پارامترهای انتخاب‌شده
-$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
 $selected_month = $_GET['work_month_id'] ?? '';
 $display_filter = $_GET['display_filter'] ?? 'all'; // پیش‌فرض "همه"
 $partner_role_filter = $_GET['partner_role'] ?? 'all'; // پیش‌فرض "همه"
@@ -59,16 +88,21 @@ $total_payments = 0;    // مجموع پرداختی‌ها
 $total_debt = 0;        // مانده بدهی
 $bills = [];            // لیست فاکتورها برای جدول
 
-if ($selected_year && $selected_month) {
+if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_year_jalali])) {
+    $start_date = $year_mapping[$selected_year_jalali]['start_date'];
+    $end_date = $year_mapping[$selected_year_jalali]['end_date'];
+
     // جمع کل فاکتورها (فروش - تخفیف)
     $query = "
         SELECT COALESCE(SUM(o.total_amount - o.discount), 0) AS total_invoices
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
+        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE wd.work_month_id = ?
+        AND wm.start_date >= ? AND wm.start_date < ?
     ";
-    $params = [$selected_month];
+    $params = [$selected_month, $start_date, $end_date];
 
     if ($user_role !== 'admin') {
         if ($partner_role_filter === 'all') {
@@ -95,9 +129,11 @@ if ($selected_year && $selected_month) {
         JOIN Orders o ON op.order_id = o.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
+        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE wd.work_month_id = ?
+        AND wm.start_date >= ? AND wm.start_date < ?
     ";
-    $params = [$selected_month];
+    $params = [$selected_month, $start_date, $end_date];
 
     if ($user_role !== 'admin') {
         if ($partner_role_filter === 'all') {
@@ -136,9 +172,11 @@ if ($selected_year && $selected_month) {
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Users u1 ON p.user_id1 = u1.user_id
         JOIN Users u2 ON p.user_id2 = u2.user_id
+        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE wd.work_month_id = ?
+        AND wm.start_date >= ? AND wm.start_date < ?
     ";
-    $params = [$selected_month];
+    $params = [$selected_month, $start_date, $end_date];
 
     if ($user_role !== 'admin') {
         if ($partner_role_filter === 'all') {
@@ -166,212 +204,215 @@ if ($selected_year && $selected_month) {
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $bills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // دیباگ
+    error_log("report-bill.php: Total Invoices: $total_invoices, Total Payments: $total_payments, Total Debt: $total_debt, Bills Count: " . count($bills));
 }
 ?>
 
 <div class="container-fluid mt-5">
-        <h5 class="card-title mb-4">گزارش بدهی</h5>
+    <h5 class="card-title mb-4">گزارش بدهی</h5>
 
-        <!-- فیلترها -->
-        <div class="mb-4">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label for="year" class="form-label">سال</label>
-                    <select name="year" id="year" class="form-select">
-                        <option value="">همه</option>
-                        <?php foreach ($years as $year): ?>
-                            <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                                <?= gregorian_year_to_jalali($year) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="work_month_id" class="form-label">ماه کاری</label>
-                    <div class="input-group">
-                        <select name="work_month_id" id="work_month_id" class="form-select">
-                            <option value="">انتخاب ماه</option>
-                            <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <label for="partner_role" class="form-label">نقش همکار</label>
-                    <select name="partner_role" id="partner_role" class="form-select">
-                        <option value="all" <?= $partner_role_filter === 'all' ? 'selected' : '' ?>>همه</option>
-                        <option value="partner1" <?= $partner_role_filter === 'partner1' ? 'selected' : '' ?>>همکار ۱</option>
-                        <option value="partner2" <?= $partner_role_filter === 'partner2' ? 'selected' : '' ?>>همکار ۲</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="display_filter" class="form-label">نمایش</label>
-                    <select name="display_filter" id="display_filter" class="form-select">
-                        <option value="all" <?= $display_filter === 'all' ? 'selected' : '' ?>>همه</option>
-                        <option value="debtors" <?= $display_filter === 'debtors' ? 'selected' : '' ?>>بدهکاران</option>
+    <!-- فیلترها -->
+    <div class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label for="year" class="form-label">سال</label>
+                <select name="year" id="year" class="form-select">
+                    <option value="">همه</option>
+                    <?php foreach ($years_jalali as $year): ?>
+                        <option value="<?= $year ?>" <?= $selected_year_jalali == $year ? 'selected' : '' ?>>
+                            <?= $year ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="work_month_id" class="form-label">ماه کاری</label>
+                <div class="input-group">
+                    <select name="work_month_id" id="work_month_id" class="form-select">
+                        <option value="">انتخاب ماه</option>
+                        <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
                     </select>
                 </div>
             </div>
-        </div>
-
-        <!-- اطلاعات اضافی (بعد از انتخاب ماه) -->
-        <div id="summary" class="mb-4" style="display: <?= $selected_month ? 'block' : 'none' ?>;">
-            <p>جمع کل فاکتورها: <strong><?= number_format($total_invoices, 0) ?> تومان</strong></p>
-            <p>مجموع پرداختی‌ها: <strong><?= number_format($total_payments, 0) ?> تومان</strong></p>
-            <p>مانده بدهی‌ها: <strong><?= number_format($total_debt, 0) ?> تومان</strong></p>
-        </div>
-
-        <!-- جدول فاکتورها -->
-        <div class="table-responsive" id="bills-table">
-            <table class="table table-light">
-                <thead>
-                    <tr>
-                        <th>تاریخ</th>
-                        <th>نام مشتری</th>
-                        <?php if ($user_role === 'seller' || $user_role === 'admin'): ?>
-                            <th>همکاران</th>
-                        <?php endif; ?>
-                        <th>مبلغ فاکتور</th>
-                        <th>مانده بدهی</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($bills)): ?>
-                        <tr>
-                            <td colspan="<?= $user_role === 'seller' || $user_role === 'admin' ? 5 : 4 ?>" class="text-center">فاکتوری یافت نشد.</td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($bills as $bill): ?>
-                            <tr>
-                                <td><?= gregorian_to_jalali_format($bill['order_date']) ?></td>
-                                <td><?= htmlspecialchars($bill['customer_name']) ?></td>
-                                <?php if ($user_role === 'seller' || $user_role === 'admin'): ?>
-                                    <td><?= htmlspecialchars($bill['partner1_name']) . ' - ' . htmlspecialchars($bill['partner2_name']) ?></td>
-                                <?php endif; ?>
-                                <td><?= number_format($bill['invoice_amount'], 0) ?> تومان</td>
-                                <td><?= number_format($bill['remaining_debt'], 0) ?> تومان</td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+            <div class="col-md-3">
+                <label for="partner_role" class="form-label">نقش همکار</label>
+                <select name="partner_role" id="partner_role" class="form-select">
+                    <option value="all" <?= $partner_role_filter === 'all' ? 'selected' : '' ?>>همه</option>
+                    <option value="partner1" <?= $partner_role_filter === 'partner1' ? 'selected' : '' ?>>همکار ۱</option>
+                    <option value="partner2" <?= $partner_role_filter === 'partner2' ? 'selected' : '' ?>>همکار ۲</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="display_filter" class="form-label">نمایش</label>
+                <select name="display_filter" id="display_filter" class="form-select">
+                    <option value="all" <?= $display_filter === 'all' ? 'selected' : '' ?>>همه</option>
+                    <option value="debtors" <?= $display_filter === 'debtors' ? 'selected' : '' ?>>بدهکاران</option>
+                </select>
+            </div>
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            // تابع برای بارگذاری ماه‌ها بر اساس سال
-            function loadMonths(year) {
-                console.log('Loading months for year:', year);
-                if (!year) {
-                    $('#work_month_id').html('<option value="">انتخاب ماه</option>');
+    <!-- اطلاعات اضافی (بعد از انتخاب ماه) -->
+    <div id="summary" class="mb-4" style="display: <?= $selected_month ? 'block' : 'none' ?>;">
+        <p>جمع کل فاکتورها: <strong><?= number_format($total_invoices, 0) ?> تومان</strong></p>
+        <p>مجموع پرداختی‌ها: <strong><?= number_format($total_payments, 0) ?> تومان</strong></p>
+        <p>مانده بدهی‌ها: <strong><?= number_format($total_debt, 0) ?> تومان</strong></p>
+    </div>
+
+    <!-- جدول فاکتورها -->
+    <div class="table-responsive" id="bills-table">
+        <table class="table table-light">
+            <thead>
+                <tr>
+                    <th>تاریخ</th>
+                    <th>نام مشتری</th>
+                    <?php if ($user_role === 'seller' || $user_role === 'admin'): ?>
+                        <th>همکاران</th>
+                    <?php endif; ?>
+                    <th>مبلغ فاکتور</th>
+                    <th>مانده بدهی</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($bills)): ?>
+                    <tr>
+                        <td colspan="<?= $user_role === 'seller' || $user_role === 'admin' ? 5 : 4 ?>" class="text-center">فاکتوری یافت نشد.</td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($bills as $bill): ?>
+                        <tr>
+                            <td><?= gregorian_to_jalali_format($bill['order_date']) ?></td>
+                            <td><?= htmlspecialchars($bill['customer_name']) ?></td>
+                            <?php if ($user_role === 'seller' || $user_role === 'admin'): ?>
+                                <td><?= htmlspecialchars($bill['partner1_name']) . ' - ' . htmlspecialchars($bill['partner2_name']) ?></td>
+                            <?php endif; ?>
+                            <td><?= number_format($bill['invoice_amount'], 0) ?> تومان</td>
+                            <td><?= number_format($bill['remaining_debt'], 0) ?> تومان</td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // تابع برای بارگذاری ماه‌ها بر اساس سال
+        function loadMonths(year) {
+            console.log('Loading months for year:', year);
+            if (!year) {
+                $('#work_month_id').html('<option value="">انتخاب ماه</option>');
+                $('#summary').hide();
+                return;
+            }
+            $.ajax({
+                url: 'get_months_for_bills.php',
+                type: 'POST',
+                data: { year: year },
+                success: function(response) {
+                    console.log('Months response:', response);
+                    $('#work_month_id').html(response);
                     $('#summary').hide();
-                    return;
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading months:', error);
+                    $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
+                    $('#summary').hide();
                 }
-                $.ajax({
-                    url: 'get_months_for_bills.php',
-                    type: 'POST',
-                    data: { year: year },
-                    success: function(response) {
-                        console.log('Months response:', response);
-                        $('#work_month_id').html(response);
-                        $('#summary').hide();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading months:', error);
-                        $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
-                        $('#summary').hide();
-                    }
-                });
+            });
+        }
+
+        // تابع برای بارگذاری فاکتورها
+        function loadBills() {
+            console.log('Loading bills...');
+            const year = $('#year').val();
+            const work_month_id = $('#work_month_id').val();
+            const display_filter = $('#display_filter').val();
+            const partner_role = $('#partner_role').val();
+
+            if (!work_month_id) {
+                $('#bills-table').html('<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><?= $user_role === 'seller' || $user_role === 'admin' ? '<th>همکاران</th>' : '' ?><th>مبلغ فاکتور</th><th>مانده بدهی</th></tr></thead><tbody><tr><td colspan="<?= $user_role === 'seller' || $user_role === 'admin' ? 5 : 4 ?>" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr></tbody></table>');
+                $('#summary').hide();
+                return;
             }
 
-            // تابع برای بارگذاری فاکتورها
-            function loadBills() {
-                console.log('Loading bills...');
-                const year = $('#year').val();
-                const work_month_id = $('#work_month_id').val();
-                const display_filter = $('#display_filter').val();
-                const partner_role = $('#partner_role').val();
-
-                if (!work_month_id) {
-                    $('#bills-table').html('<table class="table table-light"><thead><tr><th>تاریخ</th><th>نام مشتری</th><?= $user_role === 'seller' || $user_role === 'admin' ? '<th>همکاران</th>' : '' ?><th>مبلغ فاکتور</th><th>مانده بدهی</th></tr></thead><tbody><tr><td colspan="<?= $user_role === 'seller' || $user_role === 'admin' ? 5 : 4 ?>" class="text-center">لطفاً ماه کاری را انتخاب کنید.</td></tr></tbody></table>');
-                    $('#summary').hide();
-                    return;
-                }
-
-                $.ajax({
-                    url: 'get_bills.php',
-                    type: 'GET',
-                    data: {
-                        action: 'get_bill_report',
-                        year: year,
-                        work_month_id: work_month_id,
-                        display_filter: display_filter,
-                        partner_role: partner_role
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        console.log('Bills response (raw):', response);
-                        try {
-                            if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
-                                console.log('Rendering HTML:', response.html);
-                                $('#bills-table').html(response.html);
-                                // به‌روزرسانی اطلاعات اضافی
-                                $('#summary').show();
-                                $('#summary').html(`
-                                    <p>جمع کل فاکتورها: <strong>${response.total_invoices ? new Intl.NumberFormat('fa-IR').format(response.total_invoices) + ' تومان' : '0 تومان'}</strong></p>
-                                    <p>مجموع پرداختی‌ها: <strong>${response.total_payments ? new Intl.NumberFormat('fa-IR').format(response.total_payments) + ' تومان' : '0 تومان'}</strong></p>
-                                    <p>مانده بدهی‌ها: <strong>${response.total_debt ? new Intl.NumberFormat('fa-IR').format(response.total_debt) + ' تومان' : '0 تومان'}</strong></p>
-                                `);
-                            } else {
-                                throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
-                            }
-                        } catch (e) {
-                            console.error('Error rendering bills:', e);
-                            $('#bills-table').html('<div class="alert alert-danger text-center">خطا در نمایش فاکتورها: ' + e.message + '</div>');
-                            $('#summary').hide();
+            $.ajax({
+                url: 'get_bills.php',
+                type: 'GET',
+                data: {
+                    action: 'get_bill_report',
+                    year: year,
+                    work_month_id: work_month_id,
+                    display_filter: display_filter,
+                    partner_role: partner_role
+                },
+                dataType: 'json',
+                success: function(response) {
+                    console.log('Bills response (raw):', response);
+                    try {
+                        if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
+                            console.log('Rendering HTML:', response.html);
+                            $('#bills-table').html(response.html);
+                            // به‌روزرسانی اطلاعات اضافی
+                            $('#summary').show();
+                            $('#summary').html(`
+                                <p>جمع کل فاکتورها: <strong>${response.total_invoices ? new Intl.NumberFormat('fa-IR').format(response.total_invoices) + ' تومان' : '0 تومان'}</strong></p>
+                                <p>مجموع پرداختی‌ها: <strong>${response.total_payments ? new Intl.NumberFormat('fa-IR').format(response.total_payments) + ' تومان' : '0 تومان'}</strong></p>
+                                <p>مانده بدهی‌ها: <strong>${response.total_debt ? new Intl.NumberFormat('fa-IR').format(response.total_debt) + ' تومان' : '0 تومان'}</strong></p>
+                            `);
+                        } else {
+                            throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
                         }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
-                        $('#bills-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری فاکتورها رخ داد: ' + error + '</div>');
+                    } catch (e) {
+                        console.error('Error rendering bills:', e);
+                        $('#bills-table').html('<div class="alert alert-danger text-center">خطا در نمایش فاکتورها: ' + e.message + '</div>');
                         $('#summary').hide();
                     }
-                });
-            }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
+                    $('#bills-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری فاکتورها رخ داد: ' + error + '</div>');
+                    $('#summary').hide();
+                }
+            });
+        }
 
-            // تابع برای بارگذاری همه فیلترها
-            function loadFilters() {
-                const year = $('#year').val();
-                loadMonths(year);
-                loadBills();
-            }
-
-            // بارگذاری اولیه
-            const initial_year = $('#year').val();
-            if (initial_year) {
-                loadMonths(initial_year);
-            }
+        // تابع برای بارگذاری همه فیلترها
+        function loadFilters() {
+            const year = $('#year').val();
+            loadMonths(year);
             loadBills();
+        }
 
-            // رویدادهای تغییر
-            $('#year').on('change', function() {
-                loadFilters();
-            });
+        // بارگذاری اولیه
+        const initial_year = $('#year').val();
+        if (initial_year) {
+            loadMonths(initial_year);
+        }
+        loadBills();
 
-            $('#work_month_id').on('change', function() {
-                loadBills();
-            });
-
-            $('#partner_role').on('change', function() {
-                loadBills();
-            });
-
-            $('#display_filter').on('change', function() {
-                loadBills();
-            });
+        // رویدادهای تغییر
+        $('#year').on('change', function() {
+            loadFilters();
         });
-    </script>
 
-    <?php require_once 'footer.php'; ?>
+        $('#work_month_id').on('change', function() {
+            loadBills();
+        });
+
+        $('#partner_role').on('change', function() {
+            loadBills();
+        });
+
+        $('#display_filter').on('change', function() {
+            loadBills();
+        });
+    });
+</script>
+
+<?php require_once 'footer.php'; ?>
