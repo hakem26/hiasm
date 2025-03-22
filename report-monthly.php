@@ -27,30 +27,74 @@ function get_jalali_month_name($month) {
     return $month_names[$month] ?? '';
 }
 
-// تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
-    return $jy;
-}
-
 // بررسی نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-// دریافت سال‌های موجود از دیتابیس (میلادی)
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت همه ماه‌ها برای استخراج سال‌های شمسی
+$stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC");
+$months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
-$current_year = date('Y');
+$years = [];
+foreach ($months as $month) {
+    $start_date = $month['start_date'];
+    list($gy, $gm, $gd) = explode('-', $start_date);
+    $jalali_date = gregorian_to_jalali($gy, $gm, $gd);
+    $jalali_year = $jalali_date[0]; // سال شمسی
+    if (!in_array($jalali_year, $years)) {
+        $years[] = $jalali_year;
+    }
+}
+sort($years, SORT_NUMERIC);
+$years = array_reverse($years); // مرتب‌سازی نزولی
 
-// دریافت سال انتخاب‌شده (میلادی)
-$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
+// محاسبه سال جاری شمسی
+$current_gregorian_year = date('Y'); // 2025
+$current_jalali_year = gregorian_to_jalali($current_gregorian_year, 1, 1)[0]; // 1404
+
+// تنظیم پیش‌فرض به جدیدترین سال
+$selected_year = $_GET['year'] ?? null;
+if (!$selected_year) {
+    $selected_year = $years[0] ?? $current_jalali_year; // اولین سال توی لیست (جدیدترین سال)
+}
+
+// دریافت لیست ماه‌های کاری برای بارگذاری اولیه
+$work_months = [];
+if ($selected_year) {
+    $gregorian_start_year = $selected_year - 579;
+    $gregorian_end_year = $gregorian_start_year + 1;
+    $start_date = "$gregorian_start_year-03-21";
+    $end_date = "$gregorian_end_year-03-21";
+
+    if ($selected_year == 1404) {
+        $start_date = "2025-03-21";
+        $end_date = "2026-03-21";
+    } elseif ($selected_year == 1403) {
+        $start_date = "2024-03-20";
+        $end_date = "2025-03-21";
+    }
+
+    $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND start_date < ? ORDER BY start_date DESC");
+    $stmt_months->execute([$start_date, $end_date]);
+    $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
+}
 
 // دریافت گزارش‌های ماهانه (برای بارگذاری اولیه)
 $reports = [];
 if ($selected_year) {
+    $gregorian_start_year = $selected_year - 579;
+    $gregorian_end_year = $gregorian_start_year + 1;
+    $start_date = "$gregorian_start_year-03-21";
+    $end_date = "$gregorian_end_year-03-21";
+
+    if ($selected_year == 1404) {
+        $start_date = "2025-03-21";
+        $end_date = "2026-03-21";
+    } elseif ($selected_year == 1403) {
+        $start_date = "2024-03-20";
+        $end_date = "2025-03-21";
+    }
+
     $stmt = $pdo->prepare("
         SELECT wm.work_month_id, wm.start_date, wm.end_date, p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name,
                COUNT(DISTINCT wd.work_date) AS days_worked,
@@ -62,14 +106,14 @@ if ($selected_year) {
         LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
         LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
         LEFT JOIN Orders o ON o.work_details_id = wd.id
-        WHERE YEAR(wm.start_date) = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+        WHERE wm.start_date >= ? AND wm.start_date < ? AND (p.user_id1 = ? OR p.user_id2 = ?)
         GROUP BY wm.work_month_id, p.partner_id
         ORDER BY wm.start_date DESC
     ");
-    $stmt->execute([$selected_year, $current_user_id, $current_user_id]);
+    $stmt->execute([$start_date, $end_date, $current_user_id, $current_user_id]);
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $start_date = gregorian_to_jalali_format($row['start_date']);
-        list($jy, $jm, $jd) = explode('/', $start_date);
+        $start_date_jalali = gregorian_to_jalali_format($row['start_date']);
+        list($jy, $jm, $jd) = explode('/', $start_date_jalali);
         $month_name = get_jalali_month_name((int)$jm) . ' ' . $jy;
 
         $partner_name = ($row['user1_name'] ?? 'نامشخص') . ' و ' . ($row['user2_name'] ?? 'نامشخص');
@@ -110,10 +154,9 @@ if ($selected_year) {
                 <div class="col-md-3">
                     <label for="year" class="form-label">سال</label>
                     <select name="year" id="year" class="form-select">
-                        <option value="">همه</option>
                         <?php foreach ($years as $year): ?>
                             <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                                <?= gregorian_year_to_jalali($year) ?>
+                                <?= $year ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -122,14 +165,19 @@ if ($selected_year) {
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <select name="work_month_id" id="work_month_id" class="form-select">
                         <option value="">انتخاب ماه</option>
-                        <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
+                        <?php foreach ($work_months as $month): ?>
+                            <option value="<?= $month['work_month_id'] ?>" <?= isset($_GET['work_month_id']) && $_GET['work_month_id'] == $month['work_month_id'] ? 'selected' : '' ?>>
+                                <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                                <?= gregorian_to_jalali_format($month['end_date']) ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label for="user_id" class="form-label">همکار</label>
                     <select name="user_id" id="user_id" class="form-select">
                         <option value="">انتخاب همکار</option>
-                        <!-- همکاران اینجا با AJAX بارگذاری می‌شن -->
+                        <!-- همکاران با AJAX بارگذاری می‌شن -->
                     </select>
                 </div>
             </div>
@@ -191,6 +239,11 @@ if ($selected_year) {
                     success: function(response) {
                         console.log('Months response:', response);
                         $('#work_month_id').html(response);
+                        const selectedMonth = $('#work_month_id').val();
+                        if (selectedMonth) {
+                            loadPartners(selectedMonth);
+                        }
+                        loadReports();
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading months:', error);
@@ -235,7 +288,7 @@ if ($selected_year) {
                         year: year,
                         work_month_id: work_month_id,
                         user_id: user_id,
-                        report_type: 'monthly' // اضافه کردن پارامتر report_type
+                        report_type: 'monthly'
                     },
                     dataType: 'json',
                     success: function(response) {
@@ -259,13 +312,6 @@ if ($selected_year) {
                 });
             }
 
-            // تابع برای بارگذاری همه فیلترها
-            function loadFilters() {
-                const year = $('#year').val();
-                loadMonths(year);
-                loadReports();
-            }
-
             // بارگذاری اولیه
             const initial_year = $('#year').val();
             if (initial_year) {
@@ -275,7 +321,8 @@ if ($selected_year) {
 
             // رویدادهای تغییر
             $('#year').on('change', function() {
-                loadFilters();
+                const year = $(this).val();
+                loadMonths(year);
             });
 
             $('#work_month_id').on('change', function() {
