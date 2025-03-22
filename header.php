@@ -148,7 +148,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <?php endif; ?>
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'report-summary.php' ? 'active' : ''; ?>"
-                            href="report-summary.php">
+                            href="<?php echo $_SESSION['role'] === 'admin' ? 'report_summary_admin.php' : 'report-summary.php'; ?>">
                             <i class="fas fa-chart-pie"></i>
                             <span>خلاصه</span>
                         </a>
