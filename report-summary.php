@@ -62,7 +62,7 @@ sort($years_jalali, SORT_NUMERIC);
 $years_jalali = array_reverse($years_jalali); // مرتب‌سازی نزولی
 
 // دیباگ سال‌ها
-error_log("report_summary.php: Available years (jalali): " . implode(", ", $years_jalali));
+error_log("report-monthly.php: Available years (jalali): " . implode(", ", $years_jalali));
 
 // تنظیم پیش‌فرض به جدیدترین سال شمسی
 $selected_year_jalali = $_GET['year'] ?? null;
@@ -73,12 +73,12 @@ if (!$selected_year_jalali) {
 // تبدیل سال شمسی انتخاب‌شده به میلادی برای کوئری
 $selected_year = $year_mapping[$selected_year_jalali] ?? null;
 
-error_log("report_summary.php: Selected year (jalali): $selected_year_jalali, (gregorian): $selected_year");
+error_log("report-monthly.php: Selected year (jalali): $selected_year_jalali, (gregorian): $selected_year");
 
-// دریافت گزارش‌های اولیه (برای بارگذاری اولیه)
+// دریافت گزارش‌های ماهانه (برای بارگذاری اولیه)
 $reports = [];
 if ($selected_year) {
-    $query = "
+    $stmt = $pdo->prepare("
         SELECT wm.work_month_id, wm.start_date, wm.end_date, p.partner_id, u1.full_name AS user1_name, u2.full_name AS user2_name,
                COUNT(DISTINCT wd.work_date) AS days_worked,
                (SELECT COUNT(DISTINCT work_date) FROM Work_Details WHERE work_month_id = wm.work_month_id) AS total_days,
@@ -89,17 +89,11 @@ if ($selected_year) {
         LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
         LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
         LEFT JOIN Orders o ON o.work_details_id = wd.id
-        WHERE YEAR(wm.start_date) = ?
-    ";
-    if (!$is_admin) {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$selected_year, $current_user_id, $current_user_id]);
-    } else {
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$selected_year]);
-    }
-
+        WHERE YEAR(wm.start_date) = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+        GROUP BY wm.work_month_id, p.partner_id
+        ORDER BY wm.start_date DESC
+    ");
+    $stmt->execute([$selected_year, $current_user_id, $current_user_id]);
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $start_date = gregorian_to_jalali_format($row['start_date']);
         list($jy, $jm, $jd) = explode('/', $start_date);
@@ -121,10 +115,10 @@ if ($selected_year) {
 
     // دیباگ گزارش‌ها
     if (empty($reports)) {
-        error_log("report_summary.php: No reports found for year (gregorian) $selected_year");
+        error_log("report-monthly.php: No reports found for year (gregorian) $selected_year");
     } else {
         foreach ($reports as $report) {
-            error_log("report_summary.php: Found report: work_month_id = {$report['work_month_id']}, partner_name = {$report['partner_name']}, total_sales = {$report['total_sales']}");
+            error_log("report-monthly.php: Found report: work_month_id = {$report['work_month_id']}, partner_name = {$report['partner_name']}, total_sales = {$report['total_sales']}");
         }
     }
 }
@@ -191,7 +185,7 @@ if ($selected_year) {
                 <thead>
                     <tr>
                         <th>ماه کاری</th>
-                        <th><?php echo $is_admin ? 'نام همکاران' : 'نام همکار'; ?></th>
+                        <th>نام همکار</th>
                         <th>مجموع فروش</th>
                         <th>وضعیت</th>
                         <th>مشاهده</th>
@@ -269,7 +263,7 @@ if ($selected_year) {
                 $.ajax({
                     url: 'get_partners.php',
                     type: 'POST',
-                    data: { month_id: month_id, user_id: <?= json_encode($current_user_id) ?>, is_admin: <?= json_encode($is_admin) ?> },
+                    data: { month_id: month_id, user_id: <?= json_encode($current_user_id) ?> },
                     success: function(response) {
                         console.log('Partners response:', response);
                         $('#user_id').html(response);

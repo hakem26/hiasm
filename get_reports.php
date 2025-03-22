@@ -36,17 +36,20 @@ $current_user_id = $_SESSION['user_id'];
 $year_jalali = isset($_GET['year']) ? (int) $_GET['year'] : null;
 $work_month_id = isset($_GET['work_month_id']) ? (int) $_GET['work_month_id'] : null;
 $user_id = isset($_GET['user_id']) ? (int) $_GET['user_id'] : null;
-$report_type = $_GET['report_type'] ?? 'summary';
+$report_type = $_GET['report_type'] ?? 'monthly';
 
-// تبدیل سال شمسی به میلادی
-$year = null;
-if ($year_jalali) {
-    $year = $year_jalali - 579; // تقریب ساده
-    if ($year_jalali == 1404) {
-        $year = 2025;
-    } elseif ($year_jalali == 1403) {
-        $year = 2024;
-    }
+// محاسبه بازه میلادی برای سال شمسی
+$gregorian_start_year = $year_jalali - 579;
+$gregorian_end_year = $gregorian_start_year + 1;
+$start_date = "$gregorian_start_year-03-21";
+$end_date = "$gregorian_end_year-03-21";
+
+if ($year_jalali == 1404) {
+    $start_date = "2025-03-21";
+    $end_date = "2026-03-21";
+} elseif ($year_jalali == 1403) {
+    $start_date = "2024-03-20";
+    $end_date = "2025-03-21";
 }
 
 $reports = [];
@@ -55,20 +58,13 @@ $params = [];
 
 $conditions[] = "wm.work_month_id = wd.work_month_id";
 $conditions[] = "wd.partner_id = p.partner_id";
+$conditions[] = "(p.user_id1 = :user_id OR p.user_id2 = :user_id)";
 $params[':user_id'] = $current_user_id;
 
-// بررسی نقش کاربر
-$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
-$stmt->execute([$current_user_id]);
-$is_admin = ($stmt->fetchColumn() === 'admin');
-
-if (!$is_admin) {
-    $conditions[] = "(p.user_id1 = :user_id OR p.user_id2 = :user_id)";
-}
-
-if ($year) {
-    $conditions[] = "YEAR(wm.start_date) = :year";
-    $params[':year'] = $year;
+if ($year_jalali) {
+    $conditions[] = "wm.start_date >= :start_date AND wm.start_date < :end_date";
+    $params[':start_date'] = $start_date;
+    $params[':end_date'] = $end_date;
 }
 if ($work_month_id) {
     $conditions[] = "wm.work_month_id = :work_month_id";
@@ -120,14 +116,14 @@ try {
 
     // دیباگ
     if (empty($reports)) {
-        error_log("get_reports.php: No reports found for year_jalali $year_jalali, work_month_id " . ($work_month_id ?? 'none') . ", user_id " . ($user_id ?? 'none') . ", is_admin " . ($is_admin ? 'true' : 'false'));
+        error_log("get_reports.php: No reports found for year_jalali $year_jalali, work_month_id " . ($work_month_id ?? 'none') . ", user_id " . ($user_id ?? 'none'));
     } else {
         foreach ($reports as $report) {
             error_log("get_reports.php: Found report: work_month_id = {$report['work_month_id']}, partner_name = {$report['partner_name']}, total_sales = {$report['total_sales']}");
         }
     }
 
-    $html = '<table class="table table-light"><thead><tr><th>ماه کاری</th><th>' . ($is_admin ? 'نام همکاران' : 'نام همکار') . '</th><th>مجموع فروش</th><th>وضعیت</th><th>مشاهده</th></tr></thead><tbody>';
+    $html = '<table class="table table-light"><thead><tr><th>ماه کاری</th><th>نام همکار</th><th>مجموع فروش</th><th>وضعیت</th><th>مشاهده</th></tr></thead><tbody>';
     if (empty($reports)) {
         $html .= '<tr><td colspan="5" class="text-center">گزارشی یافت نشد.</td></tr>';
     } else {
