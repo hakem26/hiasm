@@ -70,16 +70,10 @@ $years = array_reverse($years); // مرتب‌سازی نزولی
 $current_gregorian_year = date('Y'); // 2025
 $current_jalali_year = gregorian_to_jalali($current_gregorian_year, 1, 1)[0]; // 1404
 
-// تنظیم پیش‌فرض به نزدیک‌ترین سال به سال جاری
+// تنظیم پیش‌فرض به جدیدترین سال
 $selected_year = $_GET['year'] ?? null;
 if (!$selected_year) {
-    $closest_year = $years[0] ?? $current_jalali_year;
-    foreach ($years as $year) {
-        if (abs($year - $current_jalali_year) < abs($closest_year - $current_jalali_year)) {
-            $closest_year = $year;
-        }
-    }
-    $selected_year = $closest_year;
+    $selected_year = $years[0] ?? $current_jalali_year; // اولین سال توی لیست (جدیدترین سال)
 }
 
 $work_months = [];
