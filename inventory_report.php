@@ -235,9 +235,13 @@ error_log("inventory_report.php: Transactions fetched: " . count($transactions))
 <script>
     $(document).ready(function () {
         $('#transactionsTable').DataTable({
-            "scrollX": true,
-            "paging": true,
-            "ordering": true,
+            "pageLength": 10, // 10 ردیف در هر صفحه
+            "scrollX": true, // فعال کردن اسکرول افقی
+            "scrollCollapse": true, // اجازه می‌دهد اسکرول افقی با عرض صفحه تنظیم بشه
+            "paging": true, // فعال کردن صفحه‌بندی
+            "autoWidth": true, // غیرفعال کردن تنظیم خودکار عرض
+            "ordering": true, // فعال کردن مرتب‌سازی ستون‌ها
+            "responsive": false, // غیرفعال کردن حالت ریسپانسیو
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
