@@ -5,6 +5,9 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    $gy = (int)$gy;
+    $gm = (int)$gm;
+    $gd = (int)$gd;
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd); // تابع از jdf.php
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }

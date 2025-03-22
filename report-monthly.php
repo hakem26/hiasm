@@ -9,11 +9,22 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی (استفاده از تابع jdf.php)
+// تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    // مطمئن می‌شیم که مقادیر به صورت عدد صحیح باشن
+    $gy = (int)$gy;
+    $gm = (int)$gm;
+    $gd = (int)$gd;
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd); // تابع از jdf.php
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
+}
+
+// تابع برای دریافت سال شمسی از تاریخ میلادی
+function get_jalali_year($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return $jy;
 }
 
 // تابع برای دریافت نام ماه شمسی
@@ -37,8 +48,7 @@ $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $years = [];
 foreach ($months as $month) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($month['start_date']); // تابع از jdf.php
-    $jalali_year = $jy; // سال شمسی
+    $jalali_year = get_jalali_year($month['start_date']); // فقط سال شمسی
     if (!in_array($jalali_year, $years)) {
         $years[] = $jalali_year;
     }
@@ -52,7 +62,7 @@ error_log("report-monthly.php: Available years: " . implode(", ", $years));
 // تنظیم پیش‌فرض به جدیدترین سال
 $selected_year = $_GET['year'] ?? null;
 if (!$selected_year) {
-    $selected_year = $years[0] ?? gregorian_to_jalali(date('Y-m-d'))[0]; // جدیدترین سال یا سال جاری
+    $selected_year = $years[0] ?? get_jalali_year(date('Y-m-d')); // جدیدترین سال یا سال جاری
 }
 
 error_log("report-monthly.php: Selected year: $selected_year");
