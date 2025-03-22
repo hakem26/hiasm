@@ -16,6 +16,16 @@ function gregorian_to_jalali_format($gregorian_date) {
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
+// تابع برای دریافت سال شمسی از تاریخ میلادی
+function get_jalali_year($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    $gy = (int)$gy;
+    $gm = (int)$gm;
+    $gd = (int)$gd;
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return $jy;
+}
+
 // تابع برای دریافت نام ماه شمسی
 function get_jalali_month_name($month) {
     $month_names = [
@@ -25,12 +35,6 @@ function get_jalali_month_name($month) {
         10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
-}
-
-// تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
-    return $jy;
 }
 
 // بررسی نقش کاربر
@@ -44,13 +48,43 @@ if ($user_role !== 'admin') {
     exit;
 }
 
-// دریافت سال‌های موجود از دیتابیس (میلادی)
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت همه ماه‌ها برای استخراج سال‌های شمسی
+$stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC");
+$months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// دریافت سال و همکار انتخاب‌شده
-$selected_year = $_GET['year'] ?? (!empty($years) ? $years[0] : null);
+$years_jalali = [];
+$year_mapping = []; // برای نگاشت سال شمسی به بازه تاریخ
+foreach ($months as $month) {
+    $jalali_year = get_jalali_year($month['start_date']);
+    $gregorian_year = (int)date('Y', strtotime($month['start_date']));
+    if (!in_array($jalali_year, $years_jalali)) {
+        $years_jalali[] = $jalali_year;
+        $year_mapping[$jalali_year] = [
+            'start_date' => "$gregorian_year-03-21",
+            'end_date' => ($gregorian_year + 1) . "-03-21"
+        ];
+        if ($jalali_year == 1404) {
+            $year_mapping[$jalali_year]['start_date'] = "2025-03-21";
+            $year_mapping[$jalali_year]['end_date'] = "2026-03-21";
+        } elseif ($jalali_year == 1403) {
+            $year_mapping[$jalali_year]['start_date'] = "2024-03-20";
+            $year_mapping[$jalali_year]['end_date'] = "2025-03-21";
+        }
+    }
+}
+sort($years_jalali, SORT_NUMERIC);
+$years_jalali = array_reverse($years_jalali); // مرتب‌سازی نزولی
+
+// دیباگ سال‌ها
+error_log("report-admin-sell.php: Available years (jalali): " . implode(", ", $years_jalali));
+
+// تنظیم پیش‌فرض به جدیدترین سال شمسی
+$selected_year_jalali = $_GET['year'] ?? null;
+if (!$selected_year_jalali) {
+    $selected_year_jalali = $years_jalali[0] ?? get_jalali_year(date('Y-m-d')); // جدیدترین سال یا سال جاری
+}
+
+// دریافت همکار انتخاب‌شده
 $selected_user_id = $_GET['user_id'] ?? 'all'; // پیش‌فرض "همه" برای ادمین
 $selected_month = $_GET['work_month_id'] ?? '';
 
@@ -62,7 +96,10 @@ $total_sessions = 0;
 // محصولات
 $products = [];
 
-if ($selected_year && $selected_month) {
+if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_year_jalali])) {
+    $start_date = $year_mapping[$selected_year_jalali]['start_date'];
+    $end_date = $year_mapping[$selected_year_jalali]['end_date'];
+
     // جمع کل فروش و تخفیف
     $stmt = $pdo->prepare("
         SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
@@ -70,10 +107,16 @@ if ($selected_year && $selected_month) {
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
+        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+        WHERE wd.work_month_id = ? 
+        AND wm.start_date >= ? AND wm.start_date < ?
+        " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
     ");
-    $params = [$selected_month];
-    if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+    $params = [$selected_month, $start_date, $end_date];
+    if ($selected_user_id !== 'all') {
+        $params[] = $selected_user_id;
+        $params[] = $selected_user_id;
+    }
     $stmt->execute($params);
     $summary = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_sales = $summary['total_sales'] ?? 0;
@@ -84,10 +127,16 @@ if ($selected_year && $selected_month) {
         SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
         FROM Work_Details wd
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
+        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+        WHERE wd.work_month_id = ? 
+        AND wm.start_date >= ? AND wm.start_date < ?
+        " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
     ");
-    $params = [$selected_month];
-    if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+    $params = [$selected_month, $start_date, $end_date];
+    if ($selected_user_id !== 'all') {
+        $params[] = $selected_user_id;
+        $params[] = $selected_user_id;
+    }
     $stmt->execute($params);
     $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_sessions = $sessions['total_sessions'] ?? 0;
@@ -126,9 +175,9 @@ if ($selected_year && $selected_month) {
                     <label for="year" class="form-label">سال</label>
                     <select name="year" id="year" class="form-select">
                         <option value="">همه</option>
-                        <?php foreach ($years as $year): ?>
-                            <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                                <?= gregorian_year_to_jalali($year) ?>
+                        <?php foreach ($years_jalali as $year): ?>
+                            <option value="<?= $year ?>" <?= $selected_year_jalali == $year ? 'selected' : '' ?>>
+                                <?= $year ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -238,7 +287,7 @@ if ($selected_year && $selected_month) {
                 }
 
                 $.ajax({
-                    url: 'get_admin_products.php', // استفاده از فایل جدید برای ادمین
+                    url: 'get_admin_products.php',
                     type: 'GET',
                     data: {
                         action: 'get_sales_report',

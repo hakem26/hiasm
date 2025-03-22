@@ -160,6 +160,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <span>فروش</span>
                         </a>
                     </li>
+                    <?php if ($_SESSION['role'] === 'seller'): ?>
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
                             href="report-bill.php">
@@ -167,6 +168,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <span>مالی</span>
                         </a>
                     </li>
+                    <?php endif; ?>
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
                             href="inventory_report.php">
