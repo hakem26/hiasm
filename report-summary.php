@@ -12,8 +12,21 @@ require_once 'jdf.php';
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    $gy = (int)$gy;
+    $gm = (int)$gm;
+    $gd = (int)$gd;
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd); // تابع از jdf.php
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
+}
+
+// تابع برای دریافت سال شمسی از تاریخ میلادی
+function get_jalali_year($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    $gy = (int)$gy;
+    $gm = (int)$gm;
+    $gd = (int)$gd;
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return $jy;
 }
 
 // تابع برای دریافت نام ماه شمسی
@@ -27,26 +40,40 @@ function get_jalali_month_name($month) {
     return $month_names[$month] ?? '';
 }
 
-// تابع تبدیل سال میلادی به سال شمسی
-function gregorian_year_to_jalali($gregorian_year) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
-    return $jy;
-}
-
 // بررسی نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-// دریافت سال‌های موجود از دیتابیس (میلادی)
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) AS year FROM Work_Months ORDER BY year DESC");
-$years_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$years = array_column($years_db, 'year');
+// دریافت همه ماه‌ها برای استخراج سال‌های شمسی
+$stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC");
+$months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// دریافت سال جاری (میلادی) به‌عنوان پیش‌فرض
-$current_year = date('Y');
+$years_jalali = [];
+$year_mapping = []; // برای نگاشت سال شمسی به میلادی
+foreach ($months as $month) {
+    $jalali_year = get_jalali_year($month['start_date']);
+    $gregorian_year = (int)date('Y', strtotime($month['start_date']));
+    if (!in_array($jalali_year, $years_jalali)) {
+        $years_jalali[] = $jalali_year;
+        $year_mapping[$jalali_year] = $gregorian_year;
+    }
+}
+sort($years_jalali, SORT_NUMERIC);
+$years_jalali = array_reverse($years_jalali); // مرتب‌سازی نزولی
 
-// دریافت سال انتخاب‌شده (میلادی)
-$selected_year = $_GET['year'] ?? (in_array($current_year, $years) ? $current_year : (!empty($years) ? $years[0] : null));
+// دیباگ سال‌ها
+error_log("report-monthly.php: Available years (jalali): " . implode(", ", $years_jalali));
+
+// تنظیم پیش‌فرض به جدیدترین سال شمسی
+$selected_year_jalali = $_GET['year'] ?? null;
+if (!$selected_year_jalali) {
+    $selected_year_jalali = $years_jalali[0] ?? get_jalali_year(date('Y-m-d')); // جدیدترین سال یا سال جاری
+}
+
+// تبدیل سال شمسی انتخاب‌شده به میلادی برای کوئری
+$selected_year = $year_mapping[$selected_year_jalali] ?? null;
+
+error_log("report-monthly.php: Selected year (jalali): $selected_year_jalali, (gregorian): $selected_year");
 
 // دریافت گزارش‌های ماهانه (برای بارگذاری اولیه)
 $reports = [];
@@ -85,6 +112,15 @@ if ($selected_year) {
             'status' => $status
         ];
     }
+
+    // دیباگ گزارش‌ها
+    if (empty($reports)) {
+        error_log("report-monthly.php: No reports found for year (gregorian) $selected_year");
+    } else {
+        foreach ($reports as $report) {
+            error_log("report-monthly.php: Found report: work_month_id = {$report['work_month_id']}, partner_name = {$report['partner_name']}, total_sales = {$report['total_sales']}");
+        }
+    }
 }
 ?>
 
@@ -119,9 +155,9 @@ if ($selected_year) {
                     <label for="year" class="form-label">سال</label>
                     <select name="year" id="year" class="form-select">
                         <option value="">همه</option>
-                        <?php foreach ($years as $year): ?>
-                            <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                                <?= gregorian_year_to_jalali($year) ?>
+                        <?php foreach ($years_jalali as $year): ?>
+                            <option value="<?= $year ?>" <?= $selected_year_jalali == $year ? 'selected' : '' ?>>
+                                <?= $year ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -130,14 +166,14 @@ if ($selected_year) {
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <select name="work_month_id" id="work_month_id" class="form-select">
                         <option value="">انتخاب ماه</option>
-                        <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
+                        <!-- ماه‌ها با AJAX بارگذاری می‌شن -->
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label for="user_id" class="form-label">همکار</label>
                     <select name="user_id" id="user_id" class="form-select">
                         <option value="">انتخاب همکار</option>
-                        <!-- همکاران اینجا با AJAX بارگذاری می‌شن -->
+                        <!-- همکاران با AJAX بارگذاری می‌شن -->
                     </select>
                 </div>
             </div>
@@ -190,6 +226,7 @@ if ($selected_year) {
                 if (!year) {
                     $('#work_month_id').html('<option value="">انتخاب ماه</option>');
                     $('#user_id').html('<option value="">انتخاب همکار</option>');
+                    loadReports();
                     return;
                 }
                 $.ajax({
@@ -199,10 +236,18 @@ if ($selected_year) {
                     success: function(response) {
                         console.log('Months response:', response);
                         $('#work_month_id').html(response);
+                        const selectedMonth = $('#work_month_id').val();
+                        if (selectedMonth) {
+                            loadPartners(selectedMonth);
+                        } else {
+                            $('#user_id').html('<option value="">انتخاب همکار</option>');
+                            loadReports();
+                        }
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading months:', error);
                         $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها</option>');
+                        loadReports();
                     }
                 });
             }
@@ -212,6 +257,7 @@ if ($selected_year) {
                 console.log('Loading partners for month:', month_id);
                 if (!month_id) {
                     $('#user_id').html('<option value="">انتخاب همکار</option>');
+                    loadReports();
                     return;
                 }
                 $.ajax({
@@ -221,10 +267,12 @@ if ($selected_year) {
                     success: function(response) {
                         console.log('Partners response:', response);
                         $('#user_id').html(response);
+                        loadReports();
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading partners:', error);
                         $('#user_id').html('<option value="">خطا در بارگذاری همکاران</option>');
+                        loadReports();
                     }
                 });
             }
@@ -235,6 +283,7 @@ if ($selected_year) {
                 const year = $('#year').val();
                 const work_month_id = $('#work_month_id').val();
                 const user_id = $('#user_id').val();
+                console.log('Report params:', { year: year, work_month_id: work_month_id, user_id: user_id });
 
                 $.ajax({
                     url: 'get_reports.php',
@@ -243,7 +292,7 @@ if ($selected_year) {
                         year: year,
                         work_month_id: work_month_id,
                         user_id: user_id,
-                        report_type: 'summary' // اضافه کردن پارامتر report_type
+                        report_type: 'summary'
                     },
                     dataType: 'json',
                     success: function(response) {
@@ -267,13 +316,6 @@ if ($selected_year) {
                 });
             }
 
-            // تابع برای بارگذاری همه فیلترها
-            function loadFilters() {
-                const year = $('#year').val();
-                loadMonths(year);
-                loadReports();
-            }
-
             // بارگذاری اولیه
             const initial_year = $('#year').val();
             if (initial_year) {
@@ -283,13 +325,13 @@ if ($selected_year) {
 
             // رویدادهای تغییر
             $('#year').on('change', function() {
-                loadFilters();
+                const year = $(this).val();
+                loadMonths(year);
             });
 
             $('#work_month_id').on('change', function() {
                 const month_id = $(this).val();
                 loadPartners(month_id);
-                loadReports();
             });
 
             $('#user_id').on('change', function() {
