@@ -1,14 +1,34 @@
 <?php
 session_start();
 require_once 'db.php';
+require_once 'jdf.php';
 
 // لگ کردن درخواست ورودی
 error_log("Admin Request received: " . json_encode($_GET, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
 $action = $_GET['action'] ?? '';
+$year_jalali = isset($_GET['year']) ? (int) $_GET['year'] : null;
 $work_month_id = $_GET['work_month_id'] ?? '';
-$user_id = $_GET['user_id'] ?? ''; // برای ادمین، این مقدار می‌تونه 'all' یا یه user_id خاص باشه
+$user_id = $_GET['user_id'] ?? 'all'; // برای ادمین، این مقدار می‌تونه 'all' یا یه user_id خاص باشه
 $current_user_id = $_SESSION['user_id'] ?? null;
+
+// محاسبه بازه میلادی برای سال شمسی
+$start_date = null;
+$end_date = null;
+if ($year_jalali) {
+    $gregorian_start_year = $year_jalali - 579;
+    $gregorian_end_year = $gregorian_start_year + 1;
+    $start_date = "$gregorian_start_year-03-21";
+    $end_date = "$gregorian_end_year-03-21";
+
+    if ($year_jalali == 1404) {
+        $start_date = "2025-03-21";
+        $end_date = "2026-03-21";
+    } elseif ($year_jalali == 1403) {
+        $start_date = "2024-03-20";
+        $end_date = "2025-03-21";
+    }
+}
 
 if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
     error_log("Starting get_sales_report for admin: work_month_id = $work_month_id, user_id = $user_id");
@@ -26,11 +46,18 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             FROM Orders o
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
             WHERE wd.work_month_id = ?
+            " . ($year_jalali ? "AND wm.start_date >= ? AND wm.start_date < ?" : "") . "
         ";
         $params = [$work_month_id];
+        if ($year_jalali) {
+            $params[] = $start_date;
+            $params[] = $end_date;
+        }
         if ($user_id !== 'all') {
-            $query .= " AND p.user_id1 = ?";
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $user_id;
             $params[] = $user_id;
         }
         $stmt = $pdo->prepare($query);
@@ -45,11 +72,18 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
             FROM Work_Details wd
             JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
             WHERE wd.work_month_id = ?
+            " . ($year_jalali ? "AND wm.start_date >= ? AND wm.start_date < ?" : "") . "
         ";
         $params = [$work_month_id];
+        if ($year_jalali) {
+            $params[] = $start_date;
+            $params[] = $end_date;
+        }
         if ($user_id !== 'all') {
-            $query .= " AND p.user_id1 = ?";
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $user_id;
             $params[] = $user_id;
         }
         $stmt = $pdo->prepare($query);
@@ -66,11 +100,18 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             JOIN Orders o ON oi.order_id = o.order_id
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
             WHERE wd.work_month_id = ?
+            " . ($year_jalali ? "AND wm.start_date >= ? AND wm.start_date < ?" : "") . "
         ";
         $params = [$work_month_id];
+        if ($year_jalali) {
+            $params[] = $start_date;
+            $params[] = $end_date;
+        }
         if ($user_id !== 'all') {
-            $query .= " AND p.user_id1 = ?";
+            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $params[] = $user_id;
             $params[] = $user_id;
         }
         $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
