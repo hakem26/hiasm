@@ -17,345 +17,163 @@ function gregorian_to_jalali_format($gregorian_date)
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
+// تابع برای دریافت نام ماه شمسی
+function get_jalali_month_name($month)
+{
+    $month_names = [
+        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
+        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
+        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+    ];
+    return $month_names[$month] ?? '';
+}
+
 // تاریخ امروز
 $today = date('Y-m-d');
 $today_jalali = gregorian_to_jalali_format($today);
 
-// ماه کاری جاری
-$stmt_month = $pdo->query("SELECT work_month_id, start_date, end_date FROM Work_Months WHERE end_date <= CURDATE() ORDER BY work_month_id DESC LIMIT 1");
-$month = $stmt_month->fetch(PDO::FETCH_ASSOC);
-$start_month = $month['start_date'];
-$end_month = $month['end_date'];
-$work_month_id = $month['work_month_id'];
+// دریافت 12 ماه کاری آخر
+$stmt_months = $pdo->query("SELECT work_month_id, start_date, end_date FROM Work_Months ORDER BY start_date DESC LIMIT 12");
+$work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
-// نفرات امروز (جفت‌های همکار)
-$stmt_partners = $pdo->prepare("
-    SELECT p.partner_id, u1.full_name AS partner1_name, u2.full_name AS partner2_name
-    FROM Work_Details wd
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    JOIN Users u1 ON p.user_id1 = u1.user_id
-    JOIN Users u2 ON p.user_id2 = u2.user_id
-    WHERE wd.work_date = ?
-");
-$stmt_partners->execute([$today]);
-$partners_today = $stmt_partners->fetchAll(PDO::FETCH_ASSOC);
+// پیدا کردن ماه کاری که شامل تاریخ امروز است
+$selected_work_month_id = null;
+foreach ($work_months as $month) {
+    if ($today >= $month['start_date'] && $today <= $month['end_date']) {
+        $selected_work_month_id = $month['work_month_id'];
+        $start_month = $month['start_date'];
+        $end_month = $month['end_date'];
+        break;
+    }
+}
 
-// فروش کلی (روزانه، هفتگی، ماهانه)
-// روزانه: فروش امروز
-$stmt_daily_sales = $pdo->prepare("
-    SELECT COALESCE(SUM(o.final_amount), 0) AS daily_sales
-    FROM Orders o
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE DATE(o.created_at) = ?
-");
-$stmt_daily_sales->execute([$today]);
-$daily_sales = $stmt_daily_sales->fetchColumn();
+// اگر ماه کاری برای تاریخ امروز پیدا نشد، آخرین ماه کاری را انتخاب کن
+if (!$selected_work_month_id && !empty($work_months)) {
+    $selected_work_month_id = $work_months[0]['work_month_id'];
+    $start_month = $work_months[0]['start_date'];
+    $end_month = $work_months[0]['end_date'];
+}
 
-// هفتگی: جمع فروش در روزهایی که هم‌روز با امروز هستند در ماه کاری
-$day_of_week = date('w', strtotime($today)); // 0 (یکشنبه) تا 6 (شنبه)
-$stmt_weekly_sales = $pdo->prepare("
-    SELECT COALESCE(SUM(o.final_amount), 0) AS weekly_sales
-    FROM Orders o
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE wd.work_month_id = ?
-    AND DAYOFWEEK(wd.work_date) = ?
-");
-$stmt_weekly_sales->execute([$work_month_id, ($day_of_week + 1)]); // DAYOFWEEK: 1 (یکشنبه) تا 7 (شنبه)
-$weekly_sales = $stmt_weekly_sales->fetchColumn();
-
-// ماهانه: جمع فروش کل در ماه کاری
-$stmt_monthly_sales = $pdo->prepare("
-    SELECT COALESCE(SUM(o.final_amount), 0) AS monthly_sales
-    FROM Orders o
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE wd.work_month_id = ?
-");
-$stmt_monthly_sales->execute([$work_month_id]);
-$monthly_sales = $stmt_monthly_sales->fetchColumn();
-
-// محصولات پر فروش (ماهانه)
-$stmt_top_products = $pdo->prepare("
-    SELECT oi.product_name, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_amount
-    FROM Order_Items oi
-    JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE wd.work_month_id = ?
-    GROUP BY oi.product_name
-    ORDER BY total_quantity DESC
-    LIMIT 10
-");
-$stmt_top_products->execute([$work_month_id]);
-$top_products = $stmt_top_products->fetchAll(PDO::FETCH_ASSOC);
-
-// فروشندگان برتر (نفرات)
-$stmt_top_sellers_individual = $pdo->prepare("
-    SELECT u.user_id, u.full_name, SUM(o.final_amount) AS total_sales
-    FROM Users u
-    JOIN Partners p ON u.user_id IN (p.user_id1, p.user_id2)
-    JOIN Work_Details wd ON p.partner_id = wd.partner_id
-    JOIN Orders o ON o.work_details_id = wd.id
-    WHERE wd.work_month_id = ?
-    GROUP BY u.user_id, u.full_name
-    ORDER BY total_sales DESC
-");
-$stmt_top_sellers_individual->execute([$work_month_id]);
-$top_sellers_individual = $stmt_top_sellers_individual->fetchAll(PDO::FETCH_ASSOC);
-
-// فروشندگان برتر (همکاران)
-$stmt_top_sellers_partners = $pdo->prepare("
-    SELECT p.partner_id, u1.full_name AS partner1_name, u2.full_name AS partner2_name, SUM(o.final_amount) AS total_sales
-    FROM Partners p
-    JOIN Users u1 ON p.user_id1 = u1.user_id
-    JOIN Users u2 ON p.user_id2 = u2.user_id
-    JOIN Work_Details wd ON p.partner_id = wd.partner_id
-    JOIN Orders o ON o.work_details_id = wd.id
-    WHERE wd.work_month_id = ?
-    GROUP BY p.partner_id, u1.full_name, u2.full_name
-    ORDER BY total_sales DESC
-");
-$stmt_top_sellers_partners->execute([$work_month_id]);
-$top_sellers_partners = $stmt_top_sellers_partners->fetchAll(PDO::FETCH_ASSOC);
-
-// آمار بدهکاران (فقط همکار1)
-$stmt_debtors = $pdo->prepare("
-    SELECT u.user_id, u.full_name, 
-           COALESCE(SUM(o.final_amount), 0) AS total_amount,
-           COALESCE(SUM(op.amount), 0) AS paid_amount,
-           (COALESCE(SUM(o.final_amount), 0) - COALESCE(SUM(op.amount), 0)) AS debt
-    FROM Users u
-    JOIN Partners p ON u.user_id = p.user_id1
-    JOIN Work_Details wd ON p.partner_id = wd.partner_id
-    JOIN Orders o ON o.work_details_id = wd.id
-    LEFT JOIN Order_Payments op ON o.order_id = op.order_id
-    WHERE wd.work_month_id = ?
-    GROUP BY u.user_id, u.full_name
-    HAVING debt > 0
-    ORDER BY debt ASC
-");
-$stmt_debtors->execute([$work_month_id]);
-$debtors = $stmt_debtors->fetchAll(PDO::FETCH_ASSOC);
-
-// آژانس (ماهانه)
-$stmt_agency = $pdo->prepare("
-    SELECT u.user_id, u.full_name, COUNT(*) AS agency_count
-    FROM Work_Details wd
-    JOIN Users u ON wd.agency_owner_id = u.user_id
-    WHERE wd.work_month_id = ?
-    GROUP BY u.user_id, u.full_name
-    ORDER BY agency_count DESC
-");
-$stmt_agency->execute([$work_month_id]);
-$agency_data = $stmt_agency->fetchAll(PDO::FETCH_ASSOC);
+// اگر هیچ ماه کاری‌ای وجود نداشت
+$no_work_month_message = null;
+if (empty($work_months)) {
+    $no_work_month_message = "هیچ ماه کاری‌ای در دیتابیس ثبت نشده است.";
+}
 ?>
 
 <div class="container-fluid">
-    <h2 class="text-center mb-4">داشبورد مدیر</h2>
-
-    <div class="row">
-        <!-- نفرات امروز -->
-        <div class="col-12 col-md-6 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">نفرات امروز (<?= $today_jalali ?>)</h5>
-                    <div class="d-flex flex-wrap gap-2">
-                        <?php if (empty($partners_today)): ?>
-                            <span class="badge bg-secondary">هیچ‌کس امروز فعال نیست.</span>
-                        <?php else: ?>
-                            <?php foreach ($partners_today as $partner): ?>
-                                <span class="badge bg-primary">
-                                    <?= htmlspecialchars($partner['partner1_name']) ?> - <?= htmlspecialchars($partner['partner2_name']) ?>
-                                </span>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">داشبورد مدیر</h2>
+        <?php if ($no_work_month_message): ?>
+            <div class="alert alert-warning mb-0"><?= $no_work_month_message ?></div>
+        <?php else: ?>
+            <div class="dropdown">
+                <button class="btn btn-primary dropdown-toggle" type="button" id="workMonthDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    انتخاب ماه کاری
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="workMonthDropdown">
+                    <?php foreach ($work_months as $month): ?>
+                        <?php
+                        list($gy, $gm, $gd) = explode('-', $month['start_date']);
+                        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+                        $month_name = get_jalali_month_name($jm) . ' ' . $jy;
+                        ?>
+                        <li>
+                            <a class="dropdown-item <?= $month['work_month_id'] == $selected_work_month_id ? 'active' : '' ?>" 
+                               href="#" 
+                               data-work-month-id="<?= $month['work_month_id'] ?>">
+                                <?= $month_name ?>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
-        </div>
-
-        <!-- آمار فروش کلی -->
-        <div class="col-12 col-md-6 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">آمار فروش کلی</h5>
-                    <canvas id="salesChart"></canvas>
-                    <script>
-                        const ctxSales = document.getElementById('salesChart').getContext('2d');
-                        new Chart(ctxSales, {
-                            type: 'bar',
-                            data: {
-                                labels: ['روزانه', 'هفتگی', 'ماهانه'],
-                                datasets: [{
-                                    label: 'فروش (تومان)',
-                                    data: [<?= $daily_sales ?? 0 ?>, <?= $weekly_sales ?? 0 ?>, <?= $monthly_sales ?? 0 ?>],
-                                    backgroundColor: ['#007bff', '#28a745', '#dc3545'],
-                                    borderColor: ['#007bff', '#28a745', '#dc3545'],
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                scales: { y: { beginAtZero: true } },
-                                responsive: true
-                            }
-                        });
-                    </script>
-                </div>
-            </div>
-        </div>
-
-        <!-- محصولات پر فروش -->
-        <div class="col-12 col-md-6 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">محصولات پر فروش (ماهانه)</h5>
-                    <div class="mb-3">
-                        <button class="btn btn-primary btn-sm me-2" onclick="sortTopProducts('quantity')">تعداد</button>
-                        <button class="btn btn-secondary btn-sm" onclick="sortTopProducts('amount')">قیمت</button>
-                    </div>
-                    <div class="table-responsive" style="overflow-x: auto; width: 100%;">
-                        <table id="topProductsTable" class="table table-light table-hover display nowrap" style="width: 100%; min-width: 600px;">
-                            <thead>
-                                <tr>
-                                    <th>محصول</th>
-                                    <th>تعداد</th>
-                                    <th>مبلغ (تومان)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($top_products as $product): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($product['product_name']) ?></td>
-                                        <td><?= $product['total_quantity'] ?></td>
-                                        <td><?= number_format($product['total_amount'], 0) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?php if (empty($top_products)): ?>
-                        <div class="alert alert-warning text-center">محصولی یافت نشد.</div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-
-        <!-- فروشندگان برتر -->
-        <div class="col-12 col-md-6 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">فروشندگان برتر (ماهانه)</h5>
-                    <div class="mb-3">
-                        <button class="btn btn-primary btn-sm me-2" onclick="showSellersChart('individual')">نفرات</button>
-                        <button class="btn btn-secondary btn-sm" onclick="showSellersChart('partners')">همکاران</button>
-                    </div>
-                    <canvas id="sellersChart"></canvas>
-                    <script>
-                        let sellersChart;
-                        const ctxSellers = document.getElementById('sellersChart').getContext('2d');
-                        const individualData = {
-                            labels: [<?php foreach ($top_sellers_individual as $seller) { echo "'" . htmlspecialchars($seller['full_name']) . "',"; } ?>],
-                            datasets: [{
-                                label: 'فروش (تومان)',
-                                data: [<?php foreach ($top_sellers_individual as $seller) { echo $seller['total_sales'] . ","; } ?>],
-                                backgroundColor: [<?php foreach ($top_sellers_individual as $index => $seller) { echo "'hsl(" . ($index * 360 / count($top_sellers_individual)) . ", 70%, 50%)',"; } ?>],
-                                borderWidth: 1
-                            }]
-                        };
-                        const partnersData = {
-                            labels: [<?php foreach ($top_sellers_partners as $partner) { echo "'" . htmlspecialchars($partner['partner1_name'] . ' - ' . $partner['partner2_name']) . "',"; } ?>],
-                            datasets: [{
-                                label: 'فروش (تومان)',
-                                data: [<?php foreach ($top_sellers_partners as $partner) { echo $partner['total_sales'] . ","; } ?>],
-                                backgroundColor: [<?php foreach ($top_sellers_partners as $index => $partner) { echo "'hsl(" . ($index * 360 / count($top_sellers_partners)) . ", 70%, 50%)',"; } ?>],
-                                borderWidth: 1
-                            }]
-                        };
-
-                        function showSellersChart(type) {
-                            if (sellersChart) sellersChart.destroy();
-                            sellersChart = new Chart(ctxSellers, {
-                                type: 'bar',
-                                data: type === 'individual' ? individualData : partnersData,
-                                options: {
-                                    indexAxis: 'y', // نمودار افقی
-                                    scales: { x: { beginAtZero: true } },
-                                    responsive: true,
-                                    plugins: {
-                                        tooltip: {
-                                            callbacks: {
-                                                label: function(context) {
-                                                    return context.dataset.label + ': ' + new Intl.NumberFormat('fa-IR').format(context.raw) + ' تومان';
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                        // نمایش اولیه (نفرات)
-                        showSellersChart('individual');
-                    </script>
-                </div>
-            </div>
-        </div>
-
-        <!-- آمار بدهکاران -->
-        <div class="col-12 col-md-6 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">آمار بدهکاران</h5>
-                    <ul class="list-group">
-                        <?php foreach ($debtors as $debtor): ?>
-                            <li class="list-group-item">
-                                <?= htmlspecialchars($debtor['full_name']) ?> - بدهی: <?= number_format($debtor['debt'], 0) ?> تومان
-                            </li>
-                        <?php endforeach; ?>
-                        <?php if (empty($debtors)): ?>
-                            <li class="list-group-item">بدهی‌ای یافت نشد.</li>
-                        <?php endif; ?>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- آژانس -->
-        <div class="col-12 col-md-6 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">آژانس (ماهانه)</h5>
-                    <canvas id="agencyChart"></canvas>
-                    <script>
-                        const ctxAgency = document.getElementById('agencyChart').getContext('2d');
-                        new Chart(ctxAgency, {
-                            type: 'bar',
-                            data: {
-                                labels: [<?php foreach ($agency_data as $agency) { echo "'" . htmlspecialchars($agency['full_name']) . "',"; } ?>],
-                                datasets: [{
-                                    label: 'تعداد آژانس',
-                                    data: [<?php foreach ($agency_data as $agency) { echo $agency['agency_count'] . ","; } ?>],
-                                    backgroundColor: [<?php foreach ($agency_data as $index => $agency) { echo "'hsl(" . ($index * 360 / count($agency_data)) . ", 70%, 50%)',"; } ?>],
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                indexAxis: 'y', // نمودار افقی
-                                scales: { x: { beginAtZero: true } },
-                                responsive: true,
-                                plugins: {
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                return context.dataset.label + ': ' + context.raw;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    </script>
-                </div>
-            </div>
-        </div>
+        <?php endif; ?>
     </div>
+
+    <?php if (!$no_work_month_message): ?>
+        <div class="row">
+            <!-- نفرات امروز -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">نفرات امروز (<?= $today_jalali ?>)</h5>
+                        <div id="partnersToday" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- آمار فروش کلی -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">آمار فروش کلی</h5>
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- محصولات پر فروش -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">محصولات پر فروش (ماهانه)</h5>
+                        <div class="mb-3">
+                            <button class="btn btn-primary btn-sm me-2" onclick="sortTopProducts('quantity')">تعداد</button>
+                            <button class="btn btn-secondary btn-sm" onclick="sortTopProducts('amount')">قیمت</button>
+                        </div>
+                        <div class="table-responsive" style="overflow-x: auto; width: 100%;">
+                            <table id="topProductsTable" class="table table-light table-hover display nowrap" style="width: 100%; min-width: 600px;">
+                                <thead>
+                                    <tr>
+                                        <th>محصول</th>
+                                        <th>تعداد</th>
+                                        <th>مبلغ (تومان)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- فروشندگان برتر -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">فروشندگان برتر (ماهانه)</h5>
+                        <div class="mb-3">
+                            <button class="btn btn-primary btn-sm me-2" onclick="showSellersChart('individual')">نفرات</button>
+                            <button class="btn btn-secondary btn-sm" onclick="showSellersChart('partners')">همکاران</button>
+                        </div>
+                        <canvas id="sellersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- آمار بدهکاران -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">آمار بدهکاران</h5>
+                        <ul id="debtorsList" class="list-group"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- آژانس -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">آژانس (ماهانه)</h5>
+                        <canvas id="agencyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <style>
@@ -374,9 +192,13 @@ $agency_data = $stmt_agency->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    let salesChart, sellersChart, agencyChart, topProductsTable;
+
     $(document).ready(function () {
-        const topProductsTable = $('#topProductsTable').DataTable({
+        // تنظیم دیتاتیبل برای محصولات پر فروش
+        topProductsTable = $('#topProductsTable').DataTable({
             "pageLength": 10,
             "scrollX": true,
             "scrollCollapse": true,
@@ -407,10 +229,184 @@ $agency_data = $stmt_agency->fetchAll(PDO::FETCH_ASSOC);
             ]
         });
 
+        // تابع برای مرتب‌سازی محصولات
         window.sortTopProducts = function(type) {
             topProductsTable.order([type === 'quantity' ? 1 : 2, 'desc']).draw();
         };
+
+        // لود اولیه داده‌ها
+        loadDashboardData(<?= $selected_work_month_id ?? 'null' ?>);
+
+        // رویداد تغییر ماه کاری
+        $('.dropdown-item').on('click', function(e) {
+            e.preventDefault();
+            const workMonthId = $(this).data('work-month-id');
+            $('.dropdown-item').removeClass('active');
+            $(this).addClass('active');
+            $('#workMonthDropdown').text($(this).text());
+            loadDashboardData(workMonthId);
+        });
     });
+
+    function loadDashboardData(workMonthId) {
+        if (!workMonthId) return;
+
+        $.ajax({
+            url: 'fetch_dashboard_data.php',
+            type: 'POST',
+            data: { work_month_id: workMonthId },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    // نفرات امروز
+                    const partnersToday = $('#partnersToday');
+                    partnersToday.empty();
+                    if (response.partners_today.length === 0) {
+                        partnersToday.append('<span class="badge bg-secondary">هیچ‌کس امروز فعال نیست.</span>');
+                    } else {
+                        response.partners_today.forEach(partner => {
+                            partnersToday.append(
+                                `<span class="badge bg-primary">${partner.partner1_name} - ${partner.partner2_name}</span>`
+                            );
+                        });
+                    }
+
+                    // آمار فروش کلی
+                    if (salesChart) salesChart.destroy();
+                    const ctxSales = document.getElementById('salesChart').getContext('2d');
+                    salesChart = new Chart(ctxSales, {
+                        type: 'bar',
+                        data: {
+                            labels: ['روزانه', 'هفتگی', 'ماهانه'],
+                            datasets: [{
+                                label: 'فروش (تومان)',
+                                data: [response.daily_sales, response.weekly_sales, response.monthly_sales],
+                                backgroundColor: ['#007bff', '#28a745', '#dc3545'],
+                                borderColor: ['#007bff', '#28a745', '#dc3545'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: { y: { beginAtZero: true } },
+                            responsive: true
+                        }
+                    });
+
+                    // محصولات پر فروش
+                    topProductsTable.clear();
+                    if (response.top_products.length === 0) {
+                        topProductsTable.rows.add([{
+                            0: 'محصولی یافت نشد.',
+                            1: '',
+                            2: ''
+                        }]);
+                    } else {
+                        response.top_products.forEach(product => {
+                            topProductsTable.rows.add([[
+                                product.product_name,
+                                product.total_quantity,
+                                new Intl.NumberFormat('fa-IR').format(product.total_amount)
+                            ]]);
+                        });
+                    }
+                    topProductsTable.draw();
+
+                    // فروشندگان برتر
+                    if (sellersChart) sellersChart.destroy();
+                    const ctxSellers = document.getElementById('sellersChart').getContext('2d');
+                    const individualData = {
+                        labels: response.top_sellers_individual.map(seller => seller.full_name),
+                        datasets: [{
+                            label: 'فروش (تومان)',
+                            data: response.top_sellers_individual.map(seller => seller.total_sales),
+                            backgroundColor: response.top_sellers_individual.map((_, index) => `hsl(${index * 360 / response.top_sellers_individual.length}, 70%, 50%)`),
+                            borderWidth: 1
+                        }]
+                    };
+                    const partnersData = {
+                        labels: response.top_sellers_partners.map(partner => `${partner.partner1_name} - ${partner.partner2_name}`),
+                        datasets: [{
+                            label: 'فروش (تومان)',
+                            data: response.top_sellers_partners.map(partner => partner.total_sales),
+                            backgroundColor: response.top_sellers_partners.map((_, index) => `hsl(${index * 360 / response.top_sellers_partners.length}, 70%, 50%)`),
+                            borderWidth: 1
+                        }]
+                    };
+                    window.showSellersChart = function(type) {
+                        if (sellersChart) sellersChart.destroy();
+                        sellersChart = new Chart(ctxSellers, {
+                            type: 'bar',
+                            data: type === 'individual' ? individualData : partnersData,
+                            options: {
+                                indexAxis: 'y',
+                                scales: { x: { beginAtZero: true } },
+                                responsive: true,
+                                plugins: {
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return context.dataset.label + ': ' + new Intl.NumberFormat('fa-IR').format(context.raw) + ' تومان';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    };
+                    showSellersChart('individual');
+
+                    // آمار بدهکاران
+                    const debtorsList = $('#debtorsList');
+                    debtorsList.empty();
+                    if (response.debtors.length === 0) {
+                        debtorsList.append('<li class="list-group-item">بدهی‌ای یافت نشد.</li>');
+                    } else {
+                        response.debtors.forEach(debtor => {
+                            debtorsList.append(
+                                `<li class="list-group-item">${debtor.full_name} - بدهی: ${new Intl.NumberFormat('fa-IR').format(debtor.debt)} تومان</li>`
+                            );
+                        });
+                    }
+
+                    // آژانس
+                    if (agencyChart) agencyChart.destroy();
+                    const ctxAgency = document.getElementById('agencyChart').getContext('2d');
+                    agencyChart = new Chart(ctxAgency, {
+                        type: 'bar',
+                        data: {
+                            labels: response.agency_data.map(agency => agency.full_name),
+                            datasets: [{
+                                label: 'تعداد آژانس',
+                                data: response.agency_data.map(agency => agency.agency_count),
+                                backgroundColor: response.agency_data.map((_, index) => `hsl(${index * 360 / response.agency_data.length}, 70%, 50%)`),
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            scales: { x: { beginAtZero: true } },
+                            responsive: true,
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return context.dataset.label + ': ' + context.raw;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    alert('خطا در بارگذاری داده‌ها: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', xhr.responseText, status, error);
+                alert('خطایی در ارتباط با سرور رخ داد.');
+            }
+        });
+    }
 </script>
 
 <?php
