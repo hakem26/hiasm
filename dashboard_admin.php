@@ -86,9 +86,9 @@ if ($selected_work_month_id) {
             <div class="alert alert-warning mb-0"><?= $no_work_month_message ?></div>
         <?php else: ?>
             <div class="dropdown">
-                <button class="btn btn-primary dropdown-toggle" type="button" id="workMonthDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <!-- <button class="btn btn-primary dropdown-toggle" type="button" id="workMonthDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     انتخاب ماه کاری
-                </button>
+                </button> -->
                 <ul class="dropdown-menu" aria-labelledby="workMonthDropdown">
                     <?php foreach ($work_months as $month): ?>
                         <?php
@@ -214,9 +214,6 @@ if ($selected_work_month_id) {
     let salesChart, sellersChart, agencyChart, topProductsTable;
 
     $(document).ready(function () {
-        console.log('jQuery loaded:', typeof $ !== 'undefined'); // لاگ برای بررسی لود شدن jQuery
-        console.log('Dropdown items:', $('.dropdown-item').length); // لاگ برای بررسی تعداد آیتم‌های دراپ‌داون
-
         // تنظیم دیتاتیبل برای محصولات پر فروش
         topProductsTable = $('#topProductsTable').DataTable({
             "pageLength": 10,
@@ -250,7 +247,6 @@ if ($selected_work_month_id) {
         });
 
         window.sortTopProducts = function(type) {
-            console.log('Sorting top products by:', type); // لاگ برای دیباگ
             topProductsTable.order([type === 'quantity' ? 1 : 2, 'desc']).draw();
             // تغییر رنگ دکمه‌ها
             $('#topProductsButtons .btn').removeClass('btn-primary').addClass('btn-secondary');
@@ -258,7 +254,6 @@ if ($selected_work_month_id) {
         };
 
         // لود اولیه داده‌ها
-        console.log('Initial load with work_month_id:', <?= $selected_work_month_id ?? 'null' ?>); // لاگ برای دیباگ
         loadDashboardData(<?= $selected_work_month_id ?? 'null' ?>);
 
         // رویداد تغییر ماه کاری
@@ -267,7 +262,6 @@ if ($selected_work_month_id) {
             console.log('Dropdown item clicked:', $(this).data('work-month-id')); // لاگ برای دیباگ
             const workMonthId = $(this).data('work-month-id');
             const monthName = $(this).text();
-            console.log('Selected work_month_id:', workMonthId, 'Month name:', monthName); // لاگ برای دیباگ
             $('.dropdown-item').removeClass('active');
             $(this).addClass('active');
             $('#workMonthDropdown').text(monthName);
@@ -285,7 +279,6 @@ if ($selected_work_month_id) {
 
         // به‌روزرسانی عنوان
         if (monthName) {
-            console.log('Updating title to:', `داشبورد مدیر - ${monthName} ماه`); // لاگ برای دیباگ
             $('#dashboardTitle').text(`داشبورد مدیر - ${monthName} ماه`);
         }
 
@@ -298,7 +291,6 @@ if ($selected_work_month_id) {
                 console.log('AJAX Response:', response); // لاگ برای دیباگ
                 if (response.success) {
                     // نفرات امروز
-                    console.log('Updating partners today:', response.partners_today); // لاگ برای دیباگ
                     const partnersToday = $('#partnersToday');
                     partnersToday.empty();
                     if (response.partners_today.length === 0) {
@@ -312,7 +304,6 @@ if ($selected_work_month_id) {
                     }
 
                     // آمار فروش کلی
-                    console.log('Updating sales chart:', response.daily_sales, response.weekly_sales, response.monthly_sales); // لاگ برای دیباگ
                     if (salesChart) salesChart.destroy();
                     const ctxSales = document.getElementById('salesChart').getContext('2d');
                     salesChart = new Chart(ctxSales, {
@@ -334,7 +325,6 @@ if ($selected_work_month_id) {
                     });
 
                     // محصولات پر فروش
-                    console.log('Updating top products:', response.top_products); // لاگ برای دیباگ
                     topProductsTable.clear();
                     if (response.top_products.length === 0) {
                         topProductsTable.rows.add([{
@@ -354,7 +344,6 @@ if ($selected_work_month_id) {
                     topProductsTable.draw();
 
                     // فروشندگان برتر
-                    console.log('Updating top sellers:', response.top_sellers_individual, response.top_sellers_partners); // لاگ برای دیباگ
                     if (sellersChart) sellersChart.destroy();
                     const ctxSellers = document.getElementById('sellersChart').getContext('2d');
                     const individualData = {
@@ -376,7 +365,6 @@ if ($selected_work_month_id) {
                         }]
                     };
                     window.showSellersChart = function(type) {
-                        console.log('Showing sellers chart for type:', type); // لاگ برای دیباگ
                         if (sellersChart) sellersChart.destroy();
                         sellersChart = new Chart(ctxSellers, {
                             type: 'bar',
@@ -403,7 +391,6 @@ if ($selected_work_month_id) {
                     showSellersChart('individual');
 
                     // آمار بدهکاران
-                    console.log('Updating debtors:', response.debtors); // لاگ برای دیباگ
                     const debtorsList = $('#debtorsList');
                     debtorsList.empty();
                     if (response.debtors.length === 0) {
@@ -417,7 +404,6 @@ if ($selected_work_month_id) {
                     }
 
                     // آژانس
-                    console.log('Updating agency chart:', response.agency_data); // لاگ برای دیباگ
                     if (agencyChart) agencyChart.destroy();
                     const ctxAgency = document.getElementById('agencyChart').getContext('2d');
                     agencyChart = new Chart(ctxAgency, {
@@ -447,7 +433,6 @@ if ($selected_work_month_id) {
                         }
                     });
                 } else {
-                    console.error('AJAX response failed:', response.message);
                     alert('خطا در بارگذاری داده‌ها: ' + response.message);
                 }
             },
