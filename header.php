@@ -82,7 +82,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </nav>
 
     <!-- منوی کناری -->
-    <div class="sidebar collapsed" style="overflow-y: auto;"> <!-- پیش‌فرض باریک (collapsed) -->
+    <div class="sidebar collapsed mb-3" style="overflow-y: auto;"> <!-- پیش‌فرض باریک (collapsed) -->
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
