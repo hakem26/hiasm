@@ -113,6 +113,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <span>تجمیع</span>
                         </a>
                     </li>
+                    <?php if ($_SESSION['role'] === 'admin'): ?>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $current_page == 'inventery_products.php' ? 'active' : ''; ?>"
+                            href="inventery_products.php">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>موجودی</span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
                 </ul>
             </li>
             <hr class="sidebar-divider">
