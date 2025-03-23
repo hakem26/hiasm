@@ -60,11 +60,28 @@ $no_work_month_message = null;
 if (empty($work_months)) {
     $no_work_month_message = "هیچ ماه کاری‌ای در دیتابیس ثبت نشده است.";
 }
+
+// عنوان اولیه
+$selected_month_name = '';
+$selected_year = '';
+if ($selected_work_month_id) {
+    $stmt_month = $pdo->prepare("SELECT start_date FROM Work_Months WHERE work_month_id = ?");
+    $stmt_month->execute([$selected_work_month_id]);
+    $month = $stmt_month->fetch(PDO::FETCH_ASSOC);
+    if ($month) {
+        list($gy, $gm, $gd) = explode('-', $month['start_date']);
+        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+        $selected_month_name = get_jalali_month_name($jm);
+        $selected_year = $jy;
+    }
+}
 ?>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">داشبورد مدیر</h2>
+        <h2 class="mb-0" id="dashboardTitle">
+            داشبورد مدیر<?= $selected_month_name ? " - $selected_month_name ماه $selected_year" : '' ?>
+        </h2>
         <?php if ($no_work_month_message): ?>
             <div class="alert alert-warning mb-0"><?= $no_work_month_message ?></div>
         <?php else: ?>
@@ -119,7 +136,7 @@ if (empty($work_months)) {
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">محصولات پر فروش (ماهانه)</h5>
-                        <div class="mb-3">
+                        <div class="mb-3" id="topProductsButtons">
                             <button class="btn btn-primary btn-sm me-2" onclick="sortTopProducts('quantity')">تعداد</button>
                             <button class="btn btn-secondary btn-sm" onclick="sortTopProducts('amount')">قیمت</button>
                         </div>
@@ -144,7 +161,7 @@ if (empty($work_months)) {
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">فروشندگان برتر (ماهانه)</h5>
-                        <div class="mb-3">
+                        <div class="mb-3" id="sellersButtons">
                             <button class="btn btn-primary btn-sm me-2" onclick="showSellersChart('individual')">نفرات</button>
                             <button class="btn btn-secondary btn-sm" onclick="showSellersChart('partners')">همکاران</button>
                         </div>
@@ -229,9 +246,11 @@ if (empty($work_months)) {
             ]
         });
 
-        // تابع برای مرتب‌سازی محصولات
         window.sortTopProducts = function(type) {
             topProductsTable.order([type === 'quantity' ? 1 : 2, 'desc']).draw();
+            // تغییر رنگ دکمه‌ها
+            $('#topProductsButtons .btn').removeClass('btn-primary').addClass('btn-secondary');
+            $(`#topProductsButtons .btn[onclick="sortTopProducts('${type}')"]`).removeClass('btn-secondary').addClass('btn-primary');
         };
 
         // لود اولیه داده‌ها
@@ -240,16 +259,28 @@ if (empty($work_months)) {
         // رویداد تغییر ماه کاری
         $('.dropdown-item').on('click', function(e) {
             e.preventDefault();
+            console.log('Dropdown item clicked:', $(this).data('work-month-id')); // لاگ برای دیباگ
             const workMonthId = $(this).data('work-month-id');
+            const monthName = $(this).text();
             $('.dropdown-item').removeClass('active');
             $(this).addClass('active');
-            $('#workMonthDropdown').text($(this).text());
-            loadDashboardData(workMonthId);
+            $('#workMonthDropdown').text(monthName);
+            loadDashboardData(workMonthId, monthName);
         });
     });
 
-    function loadDashboardData(workMonthId) {
-        if (!workMonthId) return;
+    function loadDashboardData(workMonthId, monthName) {
+        if (!workMonthId) {
+            console.error('No work month ID provided.');
+            return;
+        }
+
+        console.log('Loading dashboard data for work_month_id:', workMonthId); // لاگ برای دیباگ
+
+        // به‌روزرسانی عنوان
+        if (monthName) {
+            $('#dashboardTitle').text(`داشبورد مدیر - ${monthName} ماه`);
+        }
 
         $.ajax({
             url: 'fetch_dashboard_data.php',
@@ -257,6 +288,7 @@ if (empty($work_months)) {
             data: { work_month_id: workMonthId },
             dataType: 'json',
             success: function(response) {
+                console.log('AJAX Response:', response); // لاگ برای دیباگ
                 if (response.success) {
                     // نفرات امروز
                     const partnersToday = $('#partnersToday');
@@ -352,6 +384,9 @@ if (empty($work_months)) {
                                 }
                             }
                         });
+                        // تغییر رنگ دکمه‌ها
+                        $('#sellersButtons .btn').removeClass('btn-primary').addClass('btn-secondary');
+                        $(`#sellersButtons .btn[onclick="showSellersChart('${type}')"]`).removeClass('btn-secondary').addClass('btn-primary');
                     };
                     showSellersChart('individual');
 
@@ -403,7 +438,7 @@ if (empty($work_months)) {
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', xhr.responseText, status, error);
-                alert('خطایی در ارتباط با سرور رخ داد.');
+                alert('خطایی در ارتباط با سرور رخ داد. لطفاً کنسول مرورگر را بررسی کنید.');
             }
         });
     }
