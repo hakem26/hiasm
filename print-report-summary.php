@@ -132,6 +132,8 @@ foreach ($work_days as $day) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Vazirmatn Font -->
     <title>چاپ گزارش خلاصه</title>
     <style>
         @page {
@@ -139,17 +141,17 @@ foreach ($work_days as $day) {
             margin: 10mm;
         }
         body {
-            font-family: 'Vazir', sans-serif;
+            font-family: 'Vazirmatn', sans-serif;
             font-size: 11pt;
             margin: 0;
         }
         .title {
-            text-align: right;
+            text-align: center;
             margin-top: 0;
             margin-bottom: 8pt;
             line-height: 108%;
             font-size: 14pt;
-            font-family: 'Vazir', sans-serif;
+            font-family: 'Vazirmatn', sans-serif;
             font-weight: bold;
         }
         .table-container {
@@ -180,7 +182,7 @@ foreach ($work_days as $day) {
             margin: 0;
             line-height: 150%;
             font-size: 11pt;
-            font-family: 'Vazir', sans-serif;
+            font-family: 'Vazirmatn', sans-serif;
             font-weight: bold;
         }
         .debtor-table p {
