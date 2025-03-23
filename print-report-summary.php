@@ -1,89 +1,335 @@
 <?php
-// بررسی مقداردهی متغیرها برای جلوگیری از خطا
-$work_days = $work_days ?? []; // اگر مقداردهی نشده، به آرایه خالی تبدیل شود
-$debtors = $debtors ?? []; // جلوگیری از خطای مقدار null
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit;
+}
 
-$day_count = 0;
+require_once 'db.php';
+require_once 'jdf.php';
+
+// متغیر ثابت برای هزینه آژانس
+$agency_cost = 200000;
+
+// دریافت پارامترها
+$work_month_id = $_GET['work_month_id'] ?? '';
+$partner_id = $_GET['partner_id'] ?? '';
+
+if (!$work_month_id || !$partner_id) {
+    die('پارامترهای نادرست.');
+}
+
+// دریافت اطلاعات ماه کاری
+$stmt = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
+$stmt->execute([$work_month_id]);
+$month = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!$month) {
+    die('ماه کاری یافت نشد.');
+}
+
+$start_date = $month['start_date'];
+$end_date = $month['end_date'];
+
+// دریافت اطلاعات همکار
+$stmt = $pdo->prepare("
+    SELECT u1.full_name AS partner1_name, u2.full_name AS partner2_name
+    FROM Partners p
+    JOIN Users u1 ON p.user_id1 = u1.user_id
+    JOIN Users u2 ON p.user_id2 = u2.user_id
+    WHERE p.partner_id = ?
+");
+$stmt->execute([$partner_id]);
+$partner = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!$partner) {
+    die('همکار یافت نشد.');
+}
+$partner1_name = $partner['partner1_name'];
+$partner2_name = $partner['partner2_name'];
+
+// دریافت روزهای کاری برای این ماه و همکار
+$stmt = $pdo->prepare("
+    SELECT DISTINCT wd.work_date, wd.agency_owner_id, u.full_name AS agency_name,
+           COALESCE(SUM(o.total_amount), 0) AS total_sales,
+           COALESCE(SUM(o.discount), 0) AS total_discount
+    FROM Work_Details wd
+    LEFT JOIN Users u ON wd.agency_owner_id = u.user_id
+    LEFT JOIN Orders o ON o.work_details_id = wd.id
+    WHERE wd.work_month_id = ? AND wd.partner_id = ?
+    GROUP BY wd.work_date, wd.agency_owner_id, u.full_name
+    ORDER BY wd.work_date
+");
+$stmt->execute([$work_month_id, $partner_id]);
+$work_days = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// محاسبه مجموع فروش کل
+$total_sales = 0;
+foreach ($work_days as $day) {
+    $total_sales += $day['total_sales'];
+}
+
+// محاسبه بدهکاران و مبالغ از Order_Payments
+$debtors = [];
+$stmt = $pdo->prepare("
+    SELECT o.customer_name, o.total_amount, COALESCE(SUM(op.amount), 0) AS paid_amount
+    FROM Orders o
+    LEFT JOIN Order_Payments op ON o.order_id = op.order_id
+    JOIN Work_Details wd ON o.work_details_id = wd.id
+    WHERE wd.work_month_id = ? AND wd.partner_id = ?
+    GROUP BY o.order_id, o.customer_name, o.total_amount
+    HAVING paid_amount < total_amount
+");
+$stmt->execute([$work_month_id, $partner_id]);
+$debts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($debts as $debt) {
+    $remaining = $debt['total_amount'] - $debt['paid_amount'];
+    if ($remaining > 0) {
+        $debtors[] = [
+            'name' => $debt['customer_name'],
+            'amount' => $remaining
+        ];
+    }
+}
+
+// تبدیل تاریخ به شمسی
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%02d / %02d / %04d", $jd, $jm, $jy);
+}
+
+// تابع برای دریافت نام ماه شمسی
+function get_jalali_month_name($month) {
+    $month_names = [
+        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
+        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
+        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+    ];
+    return $month_names[$month] ?? '';
+}
+
+// تبدیل تاریخ‌ها به شمسی
+$start_date_jalali = gregorian_to_jalali_format($start_date);
+$end_date_jalali = gregorian_to_jalali_format($end_date);
+
+// دریافت نام ماه برای هر روز کاری
+$work_days_with_month = [];
+foreach ($work_days as $day) {
+    list($gy, $gm, $gd) = explode('-', $day['work_date']);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    $month_name = get_jalali_month_name($jm);
+    $work_days_with_month[] = array_merge($day, [
+        'jalali_date' => sprintf("%d %s", $jd, $month_name),
+        'jalali_full_date' => sprintf("%02d / %02d / %04d", $jd, $jm, $jy)
+    ]);
+}
 ?>
+
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گزارش خلاصه</title>
+    <title>چاپ گزارش خلاصه</title>
     <style>
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
         body {
-            font-family: 'Vazir', sans-serif;
-            direction: rtl;
+            font-family: 'IRANSansWeb', sans-serif;
+            font-size: 11pt;
+            margin: 0;
+        }
+        .title {
             text-align: right;
+            margin-top: 0;
+            margin-bottom: 8pt;
+            line-height: 108%;
+            font-size: 14pt;
+            font-family: 'B Nazanin', sans-serif;
+            font-weight: bold;
         }
-        .container {
-            width: 21cm;
-            height: 29.7cm;
-            margin: auto;
-            padding: 2cm;
-            border: 1px solid black;
+        .table-container {
+            text-align: center;
+            margin-bottom: 16pt;
         }
-        .day-box {
-            width: 48%;
-            display: inline-block;
+        .report-table {
+            width: 561.95pt;
+            margin-right: auto;
+            margin-left: auto;
+            border-collapse: collapse;
+        }
+        .report-table td {
+            border: 2.25pt solid black;
+            padding: 4.28pt;
             vertical-align: top;
-            border: 1px solid #000;
-            margin: 5px;
-            padding: 10px;
-            box-sizing: border-box;
         }
-        .clear {
-            clear: both;
+        .report-table .day-cell {
+            width: 268.75pt;
         }
-        .debtors-box {
-            margin-top: 20px;
-            border: 1px solid black;
-            padding: 10px;
+        .report-table .debtor-name-cell {
+            width: 128.95pt;
         }
-        .debtors-right, .debtors-left {
-            display: inline-block;
-            width: 48%;
-            vertical-align: top;
+        .report-table .debtor-amount-cell {
+            width: 129pt;
+        }
+        .report-table p {
+            margin: 0;
+            line-height: 150%;
+            font-size: 11pt;
+            font-family: 'IRANSansWeb', sans-serif;
+            font-weight: bold;
+        }
+        .debtor-table p {
+            text-align: center;
+        }
+        .spacer {
+            height: 0pt;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <?php
-        foreach ($work_days as $index => $day) {
-            $day_count++;
-            $jalali_date = gregorian_to_jalali_format($day['work_date'] ?? 'نامشخص');
-            $agency_name = $day['agency_name'] ?? 'نامشخص';
 
-            echo '<div class="day-box">';
-            echo '<p><strong>تاریخ:</strong> ' . $jalali_date . '</p>';
-            echo '<p><strong>مجموع فروش:</strong> ' . number_format($day['total_sales'] ?? 0, 0) . ' تومان</p>';
-            echo '<p><strong>مجموع پورسانت و تخفیف:</strong> ' . number_format($day['total_discount'] ?? 0, 0) . ' تومان</p>';
-            echo '<p><strong>هزینه آژانس:</strong> ' . number_format($agency_cost ?? 0, 0) . ' تومان (' . $agency_name . ')</p>';
+<body>
+    <div>
+        <p class="title">
+            گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?> 
+            از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?> 
+            مبلغ <?= number_format($total_sales, 0) ?> تومان
+        </p>
+
+        <?php
+        // تقسیم روزهای کاری به گروه‌های دوتایی
+        $work_days_chunks = array_chunk($work_days_with_month, 2);
+        $debtor_chunks = array_chunk($debtors, 10); // حداکثر 10 بدهکار در هر جدول (5 در هر ستون)
+
+        foreach ($work_days_chunks as $index => $chunk) {
+            echo '<div class="table-container">';
+            echo '<table class="report-table">';
+            echo '<tbody>';
+
+            // ردیف روزهای کاری
+            echo '<tr style="height: 148.35pt;">';
+            echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.35pt;"></td>';
+
+            // روز اول
+            if (isset($chunk[0])) {
+                $day = $chunk[0];
+                echo '<td colspan="3" class="day-cell">';
+                echo '<p>تاریخ: ' . htmlspecialchars($day['jalali_date']) . '</p>';
+                echo '<p>مجموع فروش: ' . number_format($day['total_sales'], 0) . '</p>';
+                echo '<p>مجموع پورسانت و تخفیف: ' . number_format($day['total_discount'], 0) . '</p>';
+                echo '<p>هزینه آژانس: ' . number_format($agency_cost, 0) . ' (' . htmlspecialchars($day['agency_name'] ?? 'نامشخص') . ')</p>';
+                echo '</td>';
+            } else {
+                echo '<td colspan="3" class="day-cell"></td>';
+            }
+
+            // روز دوم
+            if (isset($chunk[1])) {
+                $day = $chunk[1];
+                echo '<td colspan="3" class="day-cell">';
+                echo '<p>تاریخ: ' . htmlspecialchars($day['jalali_date']) . '</p>';
+                echo '<p>مجموع کل فروش: ' . number_format($day['total_sales'], 0) . '</p>';
+                echo '<p>مجموع پورسانت و تخفیف: ' . number_format($day['total_discount'], 0) . '</p>';
+                echo '<p>هزینه آژانس: ' . number_format($agency_cost, 0) . ' (' . htmlspecialchars($day['agency_name'] ?? 'نامشخص') . ')</p>';
+                echo '</td>';
+            } else {
+                echo '<td colspan="3" class="day-cell"></td>';
+            }
+
+            echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.65pt;"></td>';
+            echo '</tr>';
+
+            // ردیف بدهکاران
+            $current_debtors = $debtor_chunks[$index] ?? [];
+            $debtor_half = array_chunk($current_debtors, ceil(count($current_debtors) / 2));
+            $left_debtors = $debtor_half[0] ?? [];
+            $right_debtors = $debtor_half[1] ?? [];
+            $row_height = count($current_debtors) > 8 ? '188.35pt' : '161.1pt';
+
+            echo '<tr style="height: ' . $row_height . ';" class="debtor-table">';
+            echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>';
+
+            // بدهکاران سمت راست
+            echo '<td colspan="2" class="debtor-name-cell">';
+            echo '<p>نام بدهکاران</p>';
+            foreach ($left_debtors as $debtor) {
+                echo '<p>' . htmlspecialchars($debtor['name']) . '</p>';
+            }
+            for ($i = count($left_debtors); $i < 5; $i++) {
+                echo '<p>&nbsp;</p>';
+            }
+            echo '</td>';
+
+            echo '<td class="debtor-amount-cell">';
+            echo '<p>مبلغ</p>';
+            foreach ($left_debtors as $debtor) {
+                echo '<p>' . number_format($debtor['amount'], 0) . '</p>';
+            }
+            for ($i = count($left_debtors); $i < 5; $i++) {
+                echo '<p>&nbsp;</p>';
+            }
+            echo '</td>';
+
+            // بدهکاران سمت چپ
+            echo '<td colspan="2" class="debtor-name-cell">';
+            echo '<p>نام بدهکاران</p>';
+            foreach ($right_debtors as $debtor) {
+                echo '<p>' . htmlspecialchars($debtor['name']) . '</p>';
+            }
+            for ($i = count($right_debtors); $i < 5; $i++) {
+                echo '<p>&nbsp;</p>';
+            }
+            echo '</td>';
+
+            echo '<td class="debtor-amount-cell">';
+            echo '<p>مبلغ</p>';
+            foreach ($right_debtors as $debtor) {
+                echo '<p>' . number_format($debtor['amount'], 0) . '</p>';
+            }
+            for ($i = count($right_debtors); $i < 5; $i++) {
+                echo '<p>&nbsp;</p>';
+            }
+            echo '</td>';
+
+            echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.65pt;"></td>';
+            echo '</tr>';
+
+            // ردیف فاصله‌گذار
+            echo '<tr class="spacer">';
+            echo '<td style="width: 0.35pt;"></td>';
+            echo '<td style="width: 139.4pt;"></td>';
+            echo '<td style="width: 139.8pt;"></td>';
+            echo '<td style="width: 0.35pt;"></td>';
+            echo '<td style="width: 139.4pt;"></td>';
+            echo '<td style="width: 139.75pt;"></td>';
+            echo '<td style="width: 0.65pt;"></td>';
+            echo '</tr>';
+
+            echo '</tbody>';
+            echo '</table>';
             echo '</div>';
 
-            if ($day_count % 4 == 0) {
-                echo '<div class="clear"></div>';
-                echo '<div style="page-break-before: always;"></div>';
+            // اضافه کردن page break برای صفحات بعدی
+            if ($index < count($work_days_chunks) - 1) {
+                echo '<div class="page-break"></div>';
             }
         }
-
-        while ($day_count % 4 != 0) {
-            echo '<div class="day-box"></div>';
-            $day_count++;
-        }
         ?>
-
-        <div class="debtors-box">
-            <div class="debtors-right"><strong>نام بدهکاران</strong><br>
-                <?php echo !empty($debtors) ? implode('<br>', array_column($debtors, 'name')) : 'هیچ بدهکاری ثبت نشده'; ?>
-            </div>
-            <div class="debtors-left"><strong>مبلغ</strong><br>
-                <?php echo !empty($debtors) ? implode('<br>', array_map(fn($d) => number_format($d['amount'] ?? 0, 0), $debtors)) : '-'; ?>
-            </div>
-            <div class="clear"></div>
-        </div>
     </div>
+
+    <button class="no-print btn btn-secondary mt-3" onclick="window.print()">چاپ</button>
 </body>
+
 </html>
