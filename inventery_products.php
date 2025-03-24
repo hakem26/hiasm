@@ -22,41 +22,46 @@ function gregorian_to_jalali_format($gregorian_date)
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
-// تابع تبدیل سال شمسی به میلادی
-function jalali_to_gregorian_year($jalali_year)
+// تابع برای دریافت سال شمسی از تاریخ میلادی
+function get_jalali_year($gregorian_date)
 {
-    if (!$jalali_year || !is_numeric($jalali_year)) {
+    if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $gregorian_date)) {
         return null;
     }
-    // تبدیل تاریخ شمسی (مثلاً 1403/01/01) به میلادی
-    list($gy, $gm, $gd) = jalali_to_gregorian($jalali_year, 1, 1);
-    return $gy;
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return (int)$jy;
 }
 
-// دریافت سال‌های شمسی موجود
-$years_query = $pdo->query("SELECT DISTINCT YEAR(start_date) AS gregorian_year FROM Work_Months ORDER BY gregorian_year DESC");
-$gregorian_years = $years_query->fetchAll(PDO::FETCH_COLUMN);
+// دریافت همه ماه‌های کاری و محاسبه سال شمسی برای هر کدوم
+$work_months_query = $pdo->query("
+    SELECT work_month_id, start_date, end_date
+    FROM Work_Months
+    ORDER BY start_date DESC
+");
+$all_work_months = $work_months_query->fetchAll(PDO::FETCH_ASSOC);
+
+// گروه‌بندی ماه‌های کاری بر اساس سال شمسی
 $jalali_years = [];
-foreach ($gregorian_years as $gy) {
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, 1, 1);
-    $jalali_years[$jy] = $jy;
+$work_months_by_year = [];
+foreach ($all_work_months as $month) {
+    $jalali_year = get_jalali_year($month['start_date']);
+    if ($jalali_year) {
+        if (!isset($jalali_years[$jalali_year])) {
+            $jalali_years[$jalali_year] = $jalali_year;
+        }
+        $work_months_by_year[$jalali_year][] = $month;
+    }
 }
+ksort($jalali_years); // مرتب‌سازی سال‌ها به ترتیب صعودی
+$jalali_years = array_reverse($jalali_years); // مرتب‌سازی به ترتیب نزولی
+
 $selected_year = isset($_POST['year']) ? (int)$_POST['year'] : null;
 
 // دریافت ماه‌های کاری برای سال انتخاب‌شده
 $work_months = [];
-if ($selected_year) {
-    $gregorian_year = jalali_to_gregorian_year($selected_year);
-    if ($gregorian_year) {
-        $stmt = $pdo->prepare("
-            SELECT work_month_id, start_date, end_date
-            FROM Work_Months
-            WHERE YEAR(start_date) = ?
-            ORDER BY start_date DESC
-        ");
-        $stmt->execute([$gregorian_year]);
-        $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
+if ($selected_year && isset($work_months_by_year[$selected_year])) {
+    $work_months = $work_months_by_year[$selected_year];
 }
 $selected_work_month_id = isset($_POST['work_month_id']) ? (int)$_POST['work_month_id'] : null;
 
