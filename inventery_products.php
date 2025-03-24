@@ -22,6 +22,17 @@ function gregorian_to_jalali_format($gregorian_date)
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
+// تابع تبدیل سال شمسی به میلادی
+function jalali_to_gregorian_year($jalali_year)
+{
+    if (!$jalali_year || !is_numeric($jalali_year)) {
+        return null;
+    }
+    // تبدیل تاریخ شمسی (مثلاً 1403/01/01) به میلادی
+    list($gy, $gm, $gd) = jalali_to_gregorian($jalali_year, 1, 1);
+    return $gy;
+}
+
 // دریافت سال‌های شمسی موجود
 $years_query = $pdo->query("SELECT DISTINCT YEAR(start_date) AS gregorian_year FROM Work_Months ORDER BY gregorian_year DESC");
 $gregorian_years = $years_query->fetchAll(PDO::FETCH_COLUMN);
@@ -35,15 +46,17 @@ $selected_year = isset($_POST['year']) ? (int)$_POST['year'] : null;
 // دریافت ماه‌های کاری برای سال انتخاب‌شده
 $work_months = [];
 if ($selected_year) {
-    $gregorian_year = jdate('Y', strtotime("$selected_year/01/01"), '', 'Asia/Tehran', 'en');
-    $stmt = $pdo->prepare("
-        SELECT work_month_id, start_date, end_date
-        FROM Work_Months
-        WHERE YEAR(start_date) = ?
-        ORDER BY start_date DESC
-    ");
-    $stmt->execute([$gregorian_year]);
-    $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $gregorian_year = jalali_to_gregorian_year($selected_year);
+    if ($gregorian_year) {
+        $stmt = $pdo->prepare("
+            SELECT work_month_id, start_date, end_date
+            FROM Work_Months
+            WHERE YEAR(start_date) = ?
+            ORDER BY start_date DESC
+        ");
+        $stmt->execute([$gregorian_year]);
+        $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 $selected_work_month_id = isset($_POST['work_month_id']) ? (int)$_POST['work_month_id'] : null;
 
@@ -123,7 +136,7 @@ if ($selected_year && $selected_work_month_id && $selected_partner_id) {
             <label for="work_month_id" class="form-label">ماه کاری</label>
             <select class="form-select" id="work_month_id" name="work_month_id" onchange="this.form.submit()" required>
                 <option value="">انتخاب کنید</option>
-                <?php if ($selected_year): ?>
+                <?php if ($selected_year && !empty($work_months)): ?>
                     <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= $selected_work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
                             <?= gregorian_to_jalali_format($month['start_date']) ?> تا <?= gregorian_to_jalali_format($month['end_date']) ?>
@@ -138,7 +151,7 @@ if ($selected_year && $selected_work_month_id && $selected_partner_id) {
             <label for="partner_id" class="form-label">همکار</label>
             <select class="form-select" id="partner_id" name="partner_id" onchange="this.form.submit()" required>
                 <option value="">انتخاب کنید</option>
-                <?php if ($selected_work_month_id): ?>
+                <?php if ($selected_work_month_id && !empty($partners)): ?>
                     <?php foreach ($partners as $partner): ?>
                         <option value="<?= $partner['user_id'] ?>" <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($partner['full_name']) ?>
