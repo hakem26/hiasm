@@ -222,7 +222,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                         </select>
                     </div>
                 <?php endif; ?>
-                <div class="col-md-3">
+                <div>
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <div class="input-group">
                         <button id="view-report-btn" class="btn btn-info" disabled>
