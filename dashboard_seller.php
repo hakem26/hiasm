@@ -329,16 +329,15 @@ if ($current_work_month_id) {
 $top_products = [];
 if ($current_work_month_id) {
     $stmt = $pdo->prepare("
-        SELECT p.product_name, 
+        SELECT oi.product_name, 
                SUM(oi.quantity) AS total_quantity, 
                SUM(oi.quantity * oi.unit_price) AS total_amount
         FROM Order_Items oi
         JOIN Orders o ON oi.order_id = o.order_id
-        JOIN Products p ON oi.product_id = p.product_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
         JOIN Partners pr ON wd.partner_id = pr.partner_id
         WHERE wd.work_month_id = ? AND (pr.user_id1 = ? OR pr.user_id2 = ?)
-        GROUP BY p.product_id, p.product_name
+        GROUP BY oi.product_name
         ORDER BY total_quantity DESC
     ");
     $stmt->execute([$current_work_month_id, $current_user_id, $current_user_id]);
