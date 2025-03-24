@@ -81,6 +81,14 @@ if ($current_month === false) {
     $current_end_month = $current_month['end_date'];
 }
 
+// دریافت سال شمسی برای ماه جاری
+$selected_year = '';
+if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+    list($gy, $gm, $gd) = explode('-', $current_start_month);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    $selected_year = $jy;
+}
+
 // دریافت 3 ماه کاری قبلی
 $stmt_previous_months = $pdo->query("
     SELECT DISTINCT work_month_id, start_date, end_date
@@ -97,9 +105,8 @@ $work_months = $current_month ? array_merge([$current_month], $previous_months) 
 // فروش ماهانه
 $month_sales_data = [];
 foreach ($work_months as $month) {
-    // چک کردن وجود start_date و معتبر بودن آن
     if (!isset($month['start_date']) || empty($month['start_date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $month['start_date'])) {
-        continue; // اگه تاریخ معتبر نیست، از این ماه رد شو
+        continue;
     }
 
     $month_name = jalali_month_name(gregorian_to_jalali_format($month['start_date']));
@@ -291,64 +298,177 @@ $growth_month = $current_month_sales - $previous_month_sales;
 $growth_month_color = $growth_month < 0 ? 'red' : ($growth_month > 0 ? 'green' : 'navy');
 $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 
+// محاسبه بدهکاران برای کاربر فعلی (چه به‌عنوان همکار 1 یا همکار 2)
+$debtors = [];
+if ($current_work_month_id) {
+    $stmt = $pdo->prepare("
+        SELECT o.customer_name, o.total_amount, COALESCE(SUM(op.amount), 0) AS paid_amount
+        FROM Orders o
+        LEFT JOIN Order_Payments op ON o.order_id = op.order_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+        GROUP BY o.order_id, o.customer_name, o.total_amount
+        HAVING paid_amount < total_amount
+    ");
+    $stmt->execute([$current_work_month_id, $current_user_id, $current_user_id]);
+    $debts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($debts as $debt) {
+        $remaining = $debt['total_amount'] - $debt['paid_amount'];
+        if ($remaining > 0) {
+            $debtors[] = [
+                'name' => $debt['customer_name'],
+                'amount' => $remaining
+            ];
+        }
+    }
+}
+
+// محصولات پر فروش برای کاربر فعلی (چه به‌عنوان همکار 1 یا همکار 2)
+$top_products = [];
+if ($current_work_month_id) {
+    $stmt = $pdo->prepare("
+        SELECT p.product_name, 
+               SUM(oi.quantity) AS total_quantity, 
+               SUM(oi.quantity * oi.unit_price) AS total_amount
+        FROM Order_Items oi
+        JOIN Orders o ON oi.order_id = o.order_id
+        JOIN Products p ON oi.product_id = p.product_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners pr ON wd.partner_id = pr.partner_id
+        WHERE wd.work_month_id = ? AND (pr.user_id1 = ? OR pr.user_id2 = ?)
+        GROUP BY p.product_id, p.product_name
+        ORDER BY total_quantity DESC
+    ");
+    $stmt->execute([$current_work_month_id, $current_user_id, $current_user_id]);
+    $top_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>
 
-<h2 class="text-center mb-4">داشبورد فروشنده - <?= htmlspecialchars($user_name) ?></h2>
+<div class="container-fluid">
+    <h2 class="text-center mb-4">داشبورد فروشنده - <?= htmlspecialchars($user_name) ?></h2>
 
-<!-- نفرات امروز -->
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">امروز <?= $persian_day ?> (<?= $today_jalali ?>)</h5>
-        <ul class="list-group">
-            <?php foreach ($partners_today as $partner): ?>
-                <li class="list-group-item"><?= htmlspecialchars($partner['partner_name'] ?? 'همکار ناشناس') ?></li>
-            <?php endforeach; ?>
-            <?php if (empty($partners_today)): ?>
-                <li class="list-group-item">هیچ همکاری امروز فعال نیست.</li>
-            <?php endif; ?>
-        </ul>
-        <?php if (!empty($partners_today) && $work_details_id): ?>
-            <div class="mt-3">
-                <a href="https://hakemo26.persiasptool.com/add_order.php?work_details_id=<?= $work_details_id ?>" class="btn btn-primary me-2">ثبت سفارش</a>
-                <a href="https://hakemo26.persiasptool.com/orders.php?year=<?= $selected_year ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>" class="btn btn-secondary">لیست سفارشات</a>
+    <!-- نفرات امروز -->
+    <div class="row">
+        <div class="col-12 col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">امروز <?= $persian_day ?> (<?= $today_jalali ?>)</h5>
+                    <ul class="list-group">
+                        <?php foreach ($partners_today as $partner): ?>
+                            <li class="list-group-item"><?= htmlspecialchars($partner['partner_name'] ?? 'همکار ناشناس') ?></li>
+                        <?php endforeach; ?>
+                        <?php if (empty($partners_today)): ?>
+                            <li class="list-group-item">هیچ همکاری امروز فعال نیست.</li>
+                        <?php endif; ?>
+                    </ul>
+                    <?php if (!empty($partners_today) && $work_details_id): ?>
+                        <div class="mt-3">
+                            <a href="https://hakemo26.persiasptool.com/add_order.php?work_details_id=<?= $work_details_id ?>" class="btn btn-primary me-2">ثبت سفارش</a>
+                            <a href="https://hakemo26.persiasptool.com/orders.php?year=<?= $selected_year ?>&work_month_id=<?= $current_work_month_id ?>&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>" class="btn btn-secondary">لیست سفارشات</a>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
-        <?php endif; ?>
-    </div>
-</div>
+        </div>
 
-<!-- آمار فروش کلی -->
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">آمار فروش کلی</h5>
-        <div class="btn-group mb-3" role="group">
-            <button type="button" class="btn btn-primary active" id="dailyBtn" onclick="showDailyChart()">روزانه</button>
-            <button type="button" class="btn btn-primary" id="weeklyBtn" onclick="showWeeklyChart()">هفتگی</button>
-            <button type="button" class="btn btn-primary" id="monthlyBtn" onclick="showMonthlyChart()">ماهانه</button>
-        </div>
-        <canvas id="salesChart"></canvas>
-        <div class="mt-3">
-            <p>رشد امروز نسبت به <?= $persian_day ?> قبلی: <span style="color: <?= $growth_today_color ?>"><?= $growth_today_sign ?><?= number_format(abs($growth_today), 0) ?> تومان</span></p>
-            <p>رشد این ماه نسبت به ماه کاری قبلی: <span style="color: <?= $growth_month_color ?>"><?= $growth_month_sign ?><?= number_format(abs($growth_month), 0) ?> تومان</span></p>
+        <!-- آمار بدهکاران -->
+        <div class="col-12 col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">آمار بدهکاران</h5>
+                    <ul class="list-group">
+                        <?php if (empty($debtors)): ?>
+                            <li class="list-group-item">بدهی‌ای یافت نشد.</li>
+                        <?php else: ?>
+                            <?php foreach ($debtors as $debtor): ?>
+                                <li class="list-group-item">
+                                    <?= htmlspecialchars($debtor['name']) ?> - بدهی: <?= number_format($debtor['amount'], 0) ?> تومان
+                                </li>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- فروش با همکاران -->
-<div class="card mt-4">
-    <div class="card-body">
-        <h5 class="card-title">فروش با همکاران در ماه 
-            <?php 
-            if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
-                echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
-            } else {
-                echo "نامشخص";
-            }
-            ?>
-        </h5>
-        <div class="btn-group mb-3" role="group">
-            <button style="display: none;" type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()"></button>
+    <!-- محصولات پر فروش -->
+    <div class="row">
+        <div class="col-12 col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">محصولات پر فروش (ماهانه)</h5>
+                    <div class="mb-3" id="topProductsButtons">
+                        <button class="btn btn-primary btn-sm me-2" onclick="sortTopProducts('quantity')">تعداد</button>
+                        <button class="btn btn-secondary btn-sm" onclick="sortTopProducts('amount')">قیمت</button>
+                    </div>
+                    <div class="table-responsive" style="overflow-x: auto; width: 100%;">
+                        <table id="topProductsTable" class="table table-light table-hover display nowrap" style="width: 100%; min-width: 600px;">
+                            <thead>
+                                <tr>
+                                    <th>محصول</th>
+                                    <th>تعداد</th>
+                                    <th>مبلغ (تومان)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($top_products as $product): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($product['product_name']) ?></td>
+                                        <td><?= $product['total_quantity'] ?></td>
+                                        <td><?= number_format($product['total_amount'], 0) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-        <canvas id="partnerChart"></canvas>
+
+        <!-- آمار فروش کلی -->
+        <div class="col-12 col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">آمار فروش کلی</h5>
+                    <div class="btn-group mb-3" role="group">
+                        <button type="button" class="btn btn-primary active" id="dailyBtn" onclick="showDailyChart()">روزانه</button>
+                        <button type="button" class="btn btn-primary" id="weeklyBtn" onclick="showWeeklyChart()">هفتگی</button>
+                        <button type="button" class="btn btn-primary" id="monthlyBtn" onclick="showMonthlyChart()">ماهانه</button>
+                    </div>
+                    <canvas id="salesChart"></canvas>
+                    <div class="mt-3">
+                        <p>رشد امروز نسبت به <?= $persian_day ?> قبلی: <span style="color: <?= $growth_today_color ?>"><?= $growth_today_sign ?><?= number_format(abs($growth_today), 0) ?> تومان</span></p>
+                        <p>رشد این ماه نسبت به ماه کاری قبلی: <span style="color: <?= $growth_month_color ?>"><?= $growth_month_sign ?><?= number_format(abs($growth_month), 0) ?> تومان</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- فروش با همکاران -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">فروش با همکاران در ماه 
+                        <?php 
+                        if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+                            echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
+                        } else {
+                            echo "نامشخص";
+                        }
+                        ?>
+                    </h5>
+                    <div class="btn-group mb-3" role="group">
+                        <button style="display: none;" type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()"></button>
+                    </div>
+                    <canvas id="partnerChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -357,13 +477,62 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         background-color: #004085 !important;
         border-color: #003366 !important;
     }
+
+    /* اطمینان از RTL بودن جدول */
+    #topProductsTable {
+        direction: rtl !important;
+    }
+
+    /* تنظیمات برای دیتاتیبل */
+    #topProductsTable_wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
 </style>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let salesChart;
     let partnerChart;
+    let topProductsTable;
     const ctxSales = document.getElementById('salesChart').getContext('2d');
     const ctxPartner = document.getElementById('partnerChart').getContext('2d');
+
+    $(document).ready(function () {
+        // تنظیم دیتاتیبل برای محصولات پر فروش
+        topProductsTable = $('#topProductsTable').DataTable({
+            "pageLength": 10,
+            "scrollX": true,
+            "scrollCollapse": true,
+            "paging": true,
+            "autoWidth": true,
+            "ordering": true,
+            "responsive": false,
+            "language": {
+                "decimal": "",
+                "emptyTable": "داده‌ای در جدول وجود ندارد",
+                "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+                "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+                "lengthMenu": "نمایش _MENU_ ردیف",
+                "loadingRecords": "در حال بارگذاری...",
+                "processing": "در حال پردازش...",
+                "search": "جستجو:",
+                "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+                "paginate": {
+                    "first": "اولین",
+                    "last": "آخرین",
+                    "next": "بعدی",
+                    "previous": "قبلی"
+                }
+            },
+            "columnDefs": [
+                { "targets": "_all", "className": "text-center" }
+            ]
+        });
+    });
 
     function setActiveButton(groupId, buttonId) {
         document.querySelectorAll(`#${groupId} button`).forEach(btn => {
@@ -512,6 +681,13 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
             }
         });
         console.log('All Partners Chart Loaded', <?= json_encode($partner_labels) ?>, <?= json_encode($partner_data) ?>, <?= json_encode($partner_colors) ?>);
+    }
+
+    function sortTopProducts(type) {
+        console.log('Sorting top products by:', type);
+        topProductsTable.order([type === 'quantity' ? 1 : 2, 'desc']).draw();
+        $('#topProductsButtons .btn').removeClass('btn-primary').addClass('btn-secondary');
+        $(`#topProductsButtons .btn[onclick="sortTopProducts('${type}')"]`).removeClass('btn-secondary').addClass('btn-primary');
     }
 
     // نمایش چارت‌های پیش‌فرض

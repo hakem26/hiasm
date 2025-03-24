@@ -3,14 +3,15 @@ session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
 // دریافت اطلاعات فاکتور
-$order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
+$order_id = isset($_GET['order_id']) ? (int) $_GET['order_id'] : 0;
 if ($order_id <= 0) {
     echo "فاکتور نامعتبر است.";
     exit;
@@ -48,12 +49,12 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاکتور فروش</title>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
     <style>
         body {
             margin: 0;
@@ -62,10 +63,69 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             direction: rtl;
             text-align: right;
         }
+
+        .invoice-container {
+            width: 148mm;
+            /* عرض A5 */
+            height: 210mm;
+            /* ارتفاع A5 */
+            margin: 0 auto;
+            padding: 0 3mm;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            /* برای نمایش در صفحه */
+            position: relative;
+        }
+
+        .invoice-header {
+            text-align: center;
+            margin-bottom: 5mm;
+        }
+
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5mm;
+            font-size: 10pt;
+        }
+
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 3mm;
+        }
+
+        .invoice-table th,
+        .invoice-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: center;
+            font-size: 10pt;
+        }
+
+        .invoice-table th {
+            background-color: #f0f0f0;
+        }
+
+        .invoice-summary {
+            font-size: 10pt;
+        }
+
+        .invoice-footer {
+            position: absolute;
+            bottom: 3mm;
+            left: 0;
+            right: 0;
+            font-size: 9pt;
+            text-align: center;
+        }
+
         @media print {
             .invoice-container {
-                border: none; /* حذف border در پرینت */
+                border: none;
+                /* حذف border در پرینت */
             }
+
             @page {
                 size: A5 portrait;
                 margin: 0;
@@ -73,6 +133,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         }
     </style>
 </head>
+
 <body>
     <div class="invoice-container">
         <!-- تیتر -->
@@ -124,8 +185,10 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             <hr>
             <p>فروشندگان: </p>
             <p>
-                <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس: <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> | 
-                <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس: <?= htmlspecialchars($order['partner2_phone'] ?? 'نامشخص') ?>
+                <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس:
+                <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> |
+                <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس:
+                <?= htmlspecialchars($order['partner2_phone'] ?? 'نامشخص') ?>
             </p>
         </div>
     </div>
@@ -136,4 +199,5 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         };
     </script> -->
 </body>
+
 </html>
