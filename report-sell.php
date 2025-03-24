@@ -10,29 +10,40 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 // تابع برای دریافت سال شمسی از تاریخ میلادی
-function get_jalali_year($gregorian_date) {
+function get_jalali_year($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    $gy = (int)$gy;
-    $gm = (int)$gm;
-    $gd = (int)$gd;
+    $gy = (int) $gy;
+    $gm = (int) $gm;
+    $gd = (int) $gd;
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return $jy;
 }
 
 // تابع برای دریافت نام ماه شمسی
-function get_jalali_month_name($month) {
+function get_jalali_month_name($month)
+{
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبشهت', 3 => 'خرداد',
-        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
-        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+        1 => 'فروردین',
+        2 => 'اردیبشهت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -51,7 +62,7 @@ $years_jalali = [];
 $year_mapping = []; // برای نگاشت سال شمسی به بازه تاریخ
 foreach ($months as $month) {
     $jalali_year = get_jalali_year($month['start_date']);
-    $gregorian_year = (int)date('Y', strtotime($month['start_date']));
+    $gregorian_year = (int) date('Y', strtotime($month['start_date']));
     if (!in_array($jalali_year, $years_jalali)) {
         $years_jalali[] = $jalali_year;
         $year_mapping[$jalali_year] = [
@@ -214,13 +225,13 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                 <div class="col-md-3">
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <div class="input-group">
+                        <button id="view-report-btn" class="btn btn-info" disabled>
+                            <i class="fas fa-eye"></i> مشاهده
+                        </button>
                         <select name="work_month_id" id="work_month_id" class="form-select">
                             <option value="">انتخاب ماه</option>
                             <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
                         </select>
-                        <button id="view-report-btn" class="btn btn-info" disabled>
-                            <i class="fas fa-eye"></i> مشاهده
-                        </button>
                     </div>
                 </div>
             </div>
@@ -263,7 +274,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        $(document).ready(function() {
+        $(document).ready(function () {
             // تابع برای بارگذاری ماه‌ها بر اساس سال
             function loadMonths(year) {
                 const selected_user_id = $('#user_id').val() || '<?= $current_user_id ?>';
@@ -277,12 +288,12 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                     url: 'get_months.php',
                     type: 'POST',
                     data: { year: year, user_id: selected_user_id },
-                    success: function(response) {
+                    success: function (response) {
                         console.log('Months response:', response);
                         $('#work_month_id').html(response);
                         $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
                     },
-                    error: function(xhr, status, error) {
+                    error: function (xhr, status, error) {
                         console.error('Error loading months:', error, 'Status:', status, 'Response:', xhr.responseText);
                         $('#work_month_id').html('<option value="">خطا در بارگذاری ماه‌ها: ' + error + '</option>');
                         $('#view-report-btn').prop('disabled', true);
@@ -313,7 +324,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                         work_month_id: work_month_id
                     },
                     dataType: 'json',
-                    success: function(response) {
+                    success: function (response) {
                         console.log('Products response (raw):', response);
                         try {
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
@@ -333,7 +344,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                             $('#view-report-btn').prop('disabled', true);
                         }
                     },
-                    error: function(xhr, status, error) {
+                    error: function (xhr, status, error) {
                         console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
                         $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + error + '</div>');
                         $('#view-report-btn').prop('disabled', true);
@@ -356,11 +367,11 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
             loadProducts();
 
             // رویدادهای تغییر
-            $('#year').on('change', function() {
+            $('#year').on('change', function () {
                 loadFilters();
             });
 
-            $('#user_id').on('change', function() {
+            $('#user_id').on('change', function () {
                 const year = $('#year').val();
                 if (year) {
                     loadMonths(year);
@@ -368,13 +379,13 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                 loadProducts();
             });
 
-            $('#work_month_id').on('change', function() {
+            $('#work_month_id').on('change', function () {
                 loadProducts();
                 $('#view-report-btn').prop('disabled', $('#work_month_id').val() === '');
             });
 
             // رویداد کلیک دکمه مشاهده
-            $('#view-report-btn').on('click', function() {
+            $('#view-report-btn').on('click', function () {
                 const work_month_id = $('#work_month_id').val();
                 const user_id = $('#user_id').val() || '<?= $current_user_id ?>';
                 if (work_month_id) {
