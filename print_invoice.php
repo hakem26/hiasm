@@ -130,10 +130,10 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <script>
+    <!-- <script>
         window.onload = function() {
             window.print();
         };
-    </script>
+    </script> -->
 </body>
 </html>

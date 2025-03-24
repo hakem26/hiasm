@@ -310,7 +310,7 @@ $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
         <?php if (!empty($partners_today) && $work_details_id): ?>
             <div class="mt-3">
                 <a href="https://hakemo26.persiasptool.com/add_order.php?work_details_id=<?= $work_details_id ?>" class="btn btn-primary me-2">ثبت سفارش</a>
-                <a href="https://hakemo26.persiasptool.com/orders.php?year=2025&work_month_id=10&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>" class="btn btn-secondary">لیست سفارشات</a>
+                <a href="https://hakemo26.persiasptool.com/orders.php?year=<?= $selected_year ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>" class="btn btn-secondary">لیست سفارشات</a>
             </div>
         <?php endif; ?>
     </div>
