@@ -82,13 +82,13 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                     ?>
                 </td>
                 <td>
-                    <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" 
+                    <!-- <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" 
                             data-partner-id="<?php echo $partner['partner_id']; ?>" 
                             data-user1="<?php echo $partner['user_id1']; ?>" 
                             data-user2="<?php echo $partner['user_id2']; ?>"
                             data-days="<?php echo isset($partner_schedules[$partner['partner_id']]) ? implode(',', $partner_schedules[$partner['partner_id']]) : ''; ?>">
                         ویرایش
-                    </button>
+                    </button> -->
                     <button class="btn btn-danger btn-sm" onclick="confirmDeletePartner(<?php echo $partner['partner_id']; ?>)">
                         حذف
                     </button>
