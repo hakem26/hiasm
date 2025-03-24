@@ -69,24 +69,18 @@ $stmt_current_month = $pdo->query("
 ");
 $current_month = $stmt_current_month->fetch(PDO::FETCH_ASSOC);
 
-// اگه ماه کاری فعلی پیدا نشد، مقدار پیش‌فرض خالی تنظیم کن
+// دیباگ: بررسی ماه کاری فعلی
 if ($current_month === false) {
+    echo "<!-- دیباگ: هیچ ماه کاری‌ای برای تاریخ فعلی ($today) پیدا نشد. -->";
     $current_month = null;
     $current_work_month_id = null;
     $current_start_month = $today;
     $current_end_month = $today;
 } else {
+    echo "<!-- دیباگ: ماه کاری پیدا شد - work_month_id: {$current_month['work_month_id']}, start_date: {$current_month['start_date']}, end_date: {$current_month['end_date']} -->";
     $current_work_month_id = $current_month['work_month_id'];
     $current_start_month = $current_month['start_date'];
     $current_end_month = $current_month['end_date'];
-}
-
-// دریافت سال شمسی برای ماه جاری
-$selected_year = '';
-if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
-    list($gy, $gm, $gd) = explode('-', $current_start_month);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    $selected_year = $jy;
 }
 
 // دریافت 3 ماه کاری قبلی
@@ -101,6 +95,14 @@ $previous_months = $stmt_previous_months->fetchAll(PDO::FETCH_ASSOC);
 
 // ترکیب ماه‌ها (فقط اگه ماه جاری وجود داشته باشه)
 $work_months = $current_month ? array_merge([$current_month], $previous_months) : $previous_months;
+
+// دریافت سال شمسی برای ماه جاری
+$selected_year = '';
+if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+    list($gy, $gm, $gd) = explode('-', $current_start_month);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    $selected_year = $jy;
+}
 
 // فروش ماهانه
 $month_sales_data = [];
@@ -231,23 +233,30 @@ if ($current_work_month_id) {
         LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
         LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
         JOIN Work_Details wd ON p.partner_id = wd.partner_id
-        JOIN Orders o ON wd.id = o.work_details_id
-        WHERE wd.work_month_id = ? AND wd.work_date <= ?
+        LEFT JOIN Orders o ON wd.id = o.work_details_id
+        WHERE wd.work_month_id = ? 
         AND (p.user_id1 = ? OR p.user_id2 = ?)
         GROUP BY p.partner_id, partner_name, role
-        HAVING total_sales IS NOT NULL
     ");
     $stmt_partner_sales->execute([
         $current_user_id, $current_user_id, // برای partner_name
         $current_user_id, $current_user_id, // برای role
-        $current_work_month_id, $today,      // برای شرط ماه و تاریخ
+        $current_work_month_id,             // برای شرط ماه
         $current_user_id, $current_user_id  // برای شرط انتخاب همکاران
     ]);
     $partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
 
+    // دیباگ: بررسی تعداد رکوردها
+    echo "<!-- دیباگ: تعداد همکاران پیدا شده: " . count($partners_data) . " -->";
+    if (count($partners_data) > 0) {
+        foreach ($partners_data as $partner) {
+            echo "<!-- دیباگ: همکار - partner_id: {$partner['partner_id']}, partner_name: {$partner['partner_name']}, total_sales: " . ($partner['total_sales'] ?? '0') . ", role: {$partner['role']} -->";
+        }
+    }
+
     // مرتب‌سازی بر اساس فروش نزولی
     usort($partners_data, function($a, $b) {
-        return $b['total_sales'] <=> $a['total_sales'];
+        return ($b['total_sales'] ?? 0) <=> ($a['total_sales'] ?? 0);
     });
 
     // آماده‌سازی داده‌ها برای نمودار همکاران
@@ -256,10 +265,11 @@ if ($current_work_month_id) {
     $partner_colors = [];
     foreach ($partners_data as $partner) {
         $partner_labels[] = $partner['partner_name'] ?? 'همکار ناشناس';
-        $partner_data[] = $partner['total_sales'];
+        $partner_data[] = $partner['total_sales'] ?? 0;
         $partner_colors[] = ($partner['role'] === 'leader') ? 'rgba(54, 162, 235, 1)' : 'rgba(153, 102, 255, 1)';
     }
 } else {
+    echo "<!-- دیباگ: current_work_month_id وجود ندارد -->";
     $partners_data = [];
     $partner_labels = [];
     $partner_data = [];
@@ -464,7 +474,11 @@ if ($current_work_month_id) {
                     <div class="btn-group mb-3" role="group">
                         <button style="display: none;" type="button" class="btn btn-primary active" id="allBtn" onclick="showAllPartners()"></button>
                     </div>
-                    <canvas id="partnerChart"></canvas>
+                    <?php if (empty($partner_data)): ?>
+                        <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
+                    <?php else: ?>
+                        <canvas id="partnerChart"></canvas>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

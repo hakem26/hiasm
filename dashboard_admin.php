@@ -80,7 +80,7 @@ if ($selected_work_month_id) {
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0" id="dashboardTitle">
-            داشبورد مدیر<?= $selected_month_name ? " - $selected_month_name ماه $selected_year" : '' ?>
+            پیشخوان مدیر<?= $selected_month_name ? " - $selected_month_name ماه $selected_year" : '' ?>
         </h2>
         <?php if ($no_work_month_message): ?>
             <div class="alert alert-warning mb-0"><?= $no_work_month_message ?></div>
@@ -279,7 +279,7 @@ if ($selected_work_month_id) {
 
         // به‌روزرسانی عنوان
         if (monthName) {
-            $('#dashboardTitle').text(`داشبورد مدیر - ${monthName} ماه`);
+            $('#dashboardTitle').text(`پیشخوان مدیر - ${monthName} ماه`);
         }
 
         $.ajax({

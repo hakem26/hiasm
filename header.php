@@ -88,7 +88,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
                     href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
                     <i class="fas fa-tachometer-alt"></i>
-                    <span>داشبورد</span>
+                    <span>پیشخوان</span>
                 </a>
             </li>
             <hr class="sidebar-divider">
