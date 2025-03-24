@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id2 = isset($_POST['user_id2']) && !empty($_POST['user_id2']) ? (int) $_POST['user_id2'] : null;
 
     // دیباگ: بررسی مقادیر ارسالی
-    error_log("Debug: user_id1 = $user_id1, user_id2 = " . ($user_id2 ?? 'NULL') . "\n", 3, "debug.log");
+    // error_log("Debug: user_id1 = $user_id1, user_id2 = " . ($user_id2 ?? 'NULL') . "\n", 3, "debug.log");
 
     // پیدا کردن partner_id یا ساختن جفت جدید
     $partner_query = $pdo->prepare("
@@ -44,11 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $insert_partner_query->execute([$user_id1, $user_id2]);
         $partner_id = $pdo->lastInsertId();
 
-        error_log("Debug: Created new partner_id = $partner_id\n", 3, "debug.log");
+        // error_log("Debug: Created new partner_id = $partner_id\n", 3, "debug.log");
     }
 
     // دیباگ: بررسی partner_id
-    error_log("Debug: partner_id = " . ($partner_id ?? 'NULL') . "\n", 3, "debug.log");
+    // error_log("Debug: partner_id = " . ($partner_id ?? 'NULL') . "\n", 3, "debug.log");
 
     // بررسی اینکه آیا این تاریخ قبلاً ثبت شده یا نه
     $check_query = $pdo->prepare("

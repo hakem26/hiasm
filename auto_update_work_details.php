@@ -26,7 +26,7 @@ if (isset($_POST['work_month_id'])) {
     $work_month_id = (int) $_POST['work_month_id'];
 
     // دیباگ: بررسی work_month_id
-    error_log("Debug: auto_update_work_details - work_month_id = $work_month_id\n", 3, "debug.log");
+    // error_log("Debug: auto_update_work_details - work_month_id = $work_month_id\n", 3, "debug.log");
 
     // دریافت محدوده تاریخ ماه کاری
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
@@ -38,7 +38,7 @@ if (isset($_POST['work_month_id'])) {
         $end_date = $month['end_date'];
 
         // دیباگ: بررسی تاریخ‌ها
-        error_log("Debug: start_date = $start_date, end_date = $end_date\n", 3, "debug.log");
+        // error_log("Debug: start_date = $start_date, end_date = $end_date\n", 3, "debug.log");
 
         // دریافت برنامه کاری همکارها
         $schedules_query = $pdo->query("SELECT ps.partner_id, ps.day_of_week, p.user_id1, p.user_id2, u1.full_name AS user1, u2.full_name AS user2
@@ -49,7 +49,7 @@ if (isset($_POST['work_month_id'])) {
         $schedules = $schedules_query->fetchAll(PDO::FETCH_ASSOC);
 
         // دیباگ: بررسی برنامه‌ها
-        error_log("Debug: Schedules = " . json_encode($schedules) . "\n", 3, "debug.log");
+        // error_log("Debug: Schedules = " . json_encode($schedules) . "\n", 3, "debug.log");
 
         if (empty($schedules)) {
             echo json_encode(['success' => false, 'message' => 'هیچ برنامه کاری برای همکارها تعریف نشده است']);
@@ -62,7 +62,7 @@ if (isset($_POST['work_month_id'])) {
         $existing_dates = array_column($existing_dates_query->fetchAll(PDO::FETCH_ASSOC), 'work_date');
 
         // دیباگ: بررسی روزهای موجود
-        error_log("Debug: Existing dates = " . json_encode($existing_dates) . "\n", 3, "debug.log");
+        // error_log("Debug: Existing dates = " . json_encode($existing_dates) . "\n", 3, "debug.log");
 
         // محاسبه و ذخیره روزها (فقط برای روزهایی که وجود ندارن)
         $current_date = $start_date;
@@ -70,7 +70,7 @@ if (isset($_POST['work_month_id'])) {
         while (strtotime($current_date) <= strtotime($end_date)) {
             // اگه این تاریخ قبلاً ثبت شده، ردش کن
             if (in_array($current_date, $existing_dates)) {
-                error_log("Debug: Skipping $current_date (already exists)\n", 3, "debug.log");
+                // error_log("Debug: Skipping $current_date (already exists)\n", 3, "debug.log");
                 $current_date = date('Y-m-d', strtotime($current_date . ' +1 day'));
                 continue;
             }
@@ -80,7 +80,7 @@ if (isset($_POST['work_month_id'])) {
 
             // دیباگ: بررسی روز هفته
             $days_of_week = [1 => 'شنبه', 2 => 'یک‌شنبه', 3 => 'دوشنبه', 4 => 'سه‌شنبه', 5 => 'چهارشنبه', 6 => 'پنج‌شنبه', 7 => 'جمعه'];
-            error_log("Debug: Date $current_date is " . $days_of_week[$day_of_week] . "\n", 3, "debug.log");
+            // error_log("Debug: Date $current_date is " . $days_of_week[$day_of_week] . "\n", 3, "debug.log");
 
             // پیدا کردن جفت‌های همکار برای این روز
             $partners_for_day = array_filter($schedules, function($schedule) use ($day_of_week) {
@@ -93,7 +93,7 @@ if (isset($_POST['work_month_id'])) {
                 $user2 = $partner['user2'] ?: 'نامشخص';
 
                 // دیباگ: نمایش جفت‌های همکار
-                error_log("Debug: Assigning $user1 and $user2 for $current_date\n", 3, "debug.log");
+                // error_log("Debug: Assigning $user1 and $user2 for $current_date\n", 3, "debug.log");
 
                 // ثبت روز کاری
                 $insert_query = $pdo->prepare("INSERT INTO Work_Details (work_month_id, work_date, partner_id, status) VALUES (?, ?, ?, 0)");
