@@ -113,7 +113,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
         .invoice-footer {
             position: absolute;
-            bottom: 3mm;
+            bottom: 6mm;
             left: 0;
             right: 0;
             font-size: 9pt;
