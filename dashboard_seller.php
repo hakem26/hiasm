@@ -488,7 +488,7 @@ if ($current_work_month_id) {
     </div>
 
     <div class="row">
-        <div class="col-12 mb-4">
+        <div class="col-12 col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">فروش با همکاران در ماه 
@@ -511,10 +511,7 @@ if ($current_work_month_id) {
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="row">
-        <div class="col-12 mb-4">
+        <div class="col-12 col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">تعداد آژانس‌ها در ماه 
