@@ -9,7 +9,6 @@ require_once 'db.php';
 require_once 'header.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date)
 {
     if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $gregorian_date)) {
@@ -20,7 +19,6 @@ function gregorian_to_jalali_format($gregorian_date)
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
-// تابع تبدیل ماه میلادی به نام ماه فارسی
 function jalali_month_name($jalali_date)
 {
     if (!$jalali_date || !preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $jalali_date)) {
@@ -36,11 +34,9 @@ function jalali_month_name($jalali_date)
     return $month_names[(int)$jm] ?? 'نامشخص';
 }
 
-// تاریخ امروز
 $today = date('Y-m-d');
 $today_jalali = gregorian_to_jalali_format($today);
 
-// روز هفته به فارسی
 $day_of_week = jdate('l', strtotime($today));
 $day_names = [
     'شنبه' => 'شنبه', 
@@ -53,14 +49,12 @@ $day_names = [
 ];
 $persian_day = $day_names[$day_of_week] ?? 'نامشخص';
 
-// کاربر فعلی
 $current_user_id = $_SESSION['user_id'];
 $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
 $stmt_user->execute([$current_user_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
 $user_name = $user['full_name'] ?? 'کاربر ناشناس';
 
-// دریافت ماه کاری فعلی
 $stmt_current_month = $pdo->query("
     SELECT work_month_id, start_date, end_date
     FROM Work_Months
@@ -69,7 +63,6 @@ $stmt_current_month = $pdo->query("
 ");
 $current_month = $stmt_current_month->fetch(PDO::FETCH_ASSOC);
 
-// دیباگ: بررسی ماه کاری فعلی
 if ($current_month === false) {
     echo "<!-- دیباگ: هیچ ماه کاری‌ای برای تاریخ فعلی ($today) پیدا نشد. -->";
     $current_month = null;
@@ -83,7 +76,6 @@ if ($current_month === false) {
     $current_end_month = $current_month['end_date'];
 }
 
-// دریافت 3 ماه کاری قبلی
 $stmt_previous_months = $pdo->query("
     SELECT DISTINCT work_month_id, start_date, end_date
     FROM Work_Months
@@ -93,10 +85,8 @@ $stmt_previous_months = $pdo->query("
 ");
 $previous_months = $stmt_previous_months->fetchAll(PDO::FETCH_ASSOC);
 
-// ترکیب ماه‌ها (فقط اگه ماه جاری وجود داشته باشه)
 $work_months = $current_month ? array_merge([$current_month], $previous_months) : $previous_months;
 
-// دریافت سال شمسی برای ماه جاری
 $selected_year = '';
 if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
     list($gy, $gm, $gd) = explode('-', $current_start_month);
@@ -104,7 +94,6 @@ if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_m
     $selected_year = $jy;
 }
 
-// فروش ماهانه
 $month_sales_data = [];
 foreach ($work_months as $month) {
     if (!isset($month['start_date']) || empty($month['start_date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $month['start_date'])) {
@@ -138,7 +127,6 @@ foreach ($work_months as $month) {
     }
 }
 
-// دریافت اطلاعات روز کاری برای امروز
 $stmt_work_details = $pdo->prepare("
     SELECT id AS work_details_id
     FROM Work_Details
@@ -151,7 +139,6 @@ $stmt_work_details->execute([$today, $current_user_id, $current_user_id]);
 $work_details = $stmt_work_details->fetch(PDO::FETCH_ASSOC);
 $work_details_id = $work_details['work_details_id'] ?? null;
 
-// نفرات امروز (همکار آن کاربر)
 $stmt_partners = $pdo->prepare("
     SELECT p.partner_id, COALESCE(u2.full_name, u1.full_name) AS partner_name
     FROM Partners p
@@ -167,7 +154,6 @@ $stmt_partners = $pdo->prepare("
 $stmt_partners->execute([$current_user_id, $current_user_id, $today]);
 $partners_today = $stmt_partners->fetchAll(PDO::FETCH_ASSOC);
 
-// فروش روزانه (7 روز اخیر)
 $days = [];
 $sales_data = [];
 for ($i = 0; $i < 7; $i++) {
@@ -185,7 +171,6 @@ for ($i = 0; $i < 7; $i++) {
     $sales_data[] = $stmt_day_sales->fetchColumn() ?? 0;
 }
 
-// فروش هفتگی (همه روزهایی که با امروز هم‌نام هستند در ماه کاری فعلی)
 $week_days = [];
 $week_sales_data = [];
 if ($current_start_month && $current_end_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_end_month)) {
@@ -213,7 +198,6 @@ if ($current_start_month && $current_end_month && preg_match('/^\d{4}-\d{2}-\d{2
     }
 }
 
-// فروش ماهانه با همکاران (فقط ماه جاری، همه همکاران)
 $partner_sales = [];
 if ($current_work_month_id) {
     $stmt_partner_sales = $pdo->prepare("
@@ -239,14 +223,13 @@ if ($current_work_month_id) {
         GROUP BY p.partner_id, partner_name, role
     ");
     $stmt_partner_sales->execute([
-        $current_user_id, $current_user_id, // برای partner_name
-        $current_user_id, $current_user_id, // برای role
-        $current_work_month_id,             // برای شرط ماه
-        $current_user_id, $current_user_id  // برای شرط انتخاب همکاران
+        $current_user_id, $current_user_id,
+        $current_user_id, $current_user_id,
+        $current_work_month_id,
+        $current_user_id, $current_user_id
     ]);
     $partners_data = $stmt_partner_sales->fetchAll(PDO::FETCH_ASSOC);
 
-    // دیباگ: بررسی تعداد رکوردها
     echo "<!-- دیباگ: تعداد همکاران پیدا شده: " . count($partners_data) . " -->";
     if (count($partners_data) > 0) {
         foreach ($partners_data as $partner) {
@@ -254,12 +237,10 @@ if ($current_work_month_id) {
         }
     }
 
-    // مرتب‌سازی بر اساس فروش نزولی
     usort($partners_data, function($a, $b) {
         return ($b['total_sales'] ?? 0) <=> ($a['total_sales'] ?? 0);
     });
 
-    // آماده‌سازی داده‌ها برای نمودار همکاران
     $partner_labels = [];
     $partner_data = [];
     $partner_colors = [];
@@ -276,7 +257,63 @@ if ($current_work_month_id) {
     $partner_colors = [];
 }
 
-// رشد امروز (مقایسه با هفته قبل)
+$agency_data = [];
+if ($current_work_month_id) {
+    $stmt_agency = $pdo->prepare("
+        SELECT 
+            wd.agency_owner_id AS agency_id,
+            u.full_name AS agency_name
+        FROM Work_Details wd
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        JOIN Users u ON wd.agency_owner_id = u.user_id
+        WHERE wd.work_month_id = ?
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
+        AND wd.agency_owner_id IS NOT NULL
+    ");
+    $stmt_agency->execute([$current_work_month_id, $current_user_id, $current_user_id]);
+    $agency_records = $stmt_agency->fetchAll(PDO::FETCH_ASSOC);
+
+    echo "<!-- دیباگ: تعداد رکوردهای آژانس پیدا شده: " . count($agency_records) . " -->";
+
+    $agency_counts = [];
+    foreach ($agency_records as $record) {
+        $agency_id = $record['agency_id'];
+        $agency_name = $record['agency_name'] ?? 'کاربر ناشناس';
+        if (!isset($agency_counts[$agency_id])) {
+            $agency_counts[$agency_id] = [
+                'name' => $agency_name,
+                'count' => 0
+            ];
+        }
+        $agency_counts[$agency_id]['count']++;
+    }
+
+    $agency_labels = [];
+    $agency_data_counts = [];
+    $agency_colors = [];
+    $color_index = 0;
+    $colors = [
+        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+        'rgba(199, 199, 199, 1)'
+    ];
+
+    foreach ($agency_counts as $agency_id => $data) {
+        $agency_labels[] = $data['name'];
+        $agency_data_counts[] = $data['count'];
+        $agency_colors[] = $colors[$color_index % count($colors)];
+        $color_index++;
+    }
+
+    echo "<!-- دیباگ: داده‌های آژانس - labels: " . json_encode($agency_labels) . ", counts: " . json_encode($agency_data_counts) . " -->";
+} else {
+    echo "<!-- دیباگ: current_work_month_id برای آژانس وجود ندارد -->";
+    $agency_labels = [];
+    $agency_data_counts = [];
+    $agency_colors = [];
+}
+
 $last_week_day = date('Y-m-d', strtotime('-7 days'));
 $stmt_last_week_sales = $pdo->prepare("
     SELECT SUM(o.total_amount) AS last_week_sales
@@ -292,7 +329,6 @@ $growth_today = $today_sales - $last_week_sales;
 $growth_today_color = $growth_today < 0 ? 'red' : ($growth_today > 0 ? 'green' : 'navy');
 $growth_today_sign = $growth_today < 0 ? '-' : ($growth_today > 0 ? '+' : '');
 
-// رشد این ماه (مقایسه با ماه قبل)
 $previous_work_month_id = isset($previous_months[0]['work_month_id']) ? $previous_months[0]['work_month_id'] : null;
 $stmt_previous_month_sales = $pdo->prepare("
     SELECT SUM(o.total_amount) AS previous_month_sales
@@ -308,7 +344,6 @@ $growth_month = $current_month_sales - $previous_month_sales;
 $growth_month_color = $growth_month < 0 ? 'red' : ($growth_month > 0 ? 'green' : 'navy');
 $growth_month_sign = $growth_month < 0 ? '-' : ($growth_month > 0 ? '+' : '');
 
-// محاسبه بدهکاران برای کاربر فعلی (چه به‌عنوان همکار 1 یا همکار 2)
 $debtors = [];
 if ($current_work_month_id) {
     $stmt = $pdo->prepare("
@@ -335,7 +370,6 @@ if ($current_work_month_id) {
     }
 }
 
-// محصولات پر فروش برای کاربر فعلی (چه به‌عنوان همکار 1 یا همکار 2)
 $top_products = [];
 if ($current_work_month_id) {
     $stmt = $pdo->prepare("
@@ -356,9 +390,8 @@ if ($current_work_month_id) {
 ?>
 
 <div class="container-fluid">
-    <h2 class="text-center mb-4">داشبورد فروشنده - <?= htmlspecialchars($user_name) ?></h2>
+    <h2 class="text-center mb-4">پیشخوان فروشنده - <?= htmlspecialchars($user_name) ?></h2>
 
-    <!-- نفرات امروز -->
     <div class="row">
         <div class="col-12 col-md-6 mb-4">
             <div class="card">
@@ -382,7 +415,6 @@ if ($current_work_month_id) {
             </div>
         </div>
 
-        <!-- آمار بدهکاران -->
         <div class="col-12 col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
@@ -403,7 +435,6 @@ if ($current_work_month_id) {
         </div>
     </div>
 
-    <!-- محصولات پر فروش -->
     <div class="row">
         <div class="col-12 col-md-6 mb-4">
             <div class="card">
@@ -437,7 +468,6 @@ if ($current_work_month_id) {
             </div>
         </div>
 
-        <!-- آمار فروش کلی -->
         <div class="col-12 col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
@@ -457,7 +487,6 @@ if ($current_work_month_id) {
         </div>
     </div>
 
-    <!-- فروش با همکاران -->
     <div class="row">
         <div class="col-12 mb-4">
             <div class="card">
@@ -483,6 +512,29 @@ if ($current_work_month_id) {
             </div>
         </div>
     </div>
+
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">تعداد آژانس‌ها در ماه 
+                        <?php 
+                        if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+                            echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
+                        } else {
+                            echo "نامشخص";
+                        }
+                        ?>
+                    </h5>
+                    <?php if (empty($agency_data_counts)): ?>
+                        <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
+                    <?php else: ?>
+                        <canvas id="agencyChart"></canvas>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -491,12 +543,10 @@ if ($current_work_month_id) {
         border-color: #003366 !important;
     }
 
-    /* اطمینان از RTL بودن جدول */
     #topProductsTable {
         direction: rtl !important;
     }
 
-    /* تنظیمات برای دیتاتیبل */
     #topProductsTable_wrapper {
         width: 100%;
         overflow-x: auto;
@@ -506,15 +556,17 @@ if ($current_work_month_id) {
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let salesChart;
     let partnerChart;
+    let agencyChart;
     let topProductsTable;
     const ctxSales = document.getElementById('salesChart').getContext('2d');
-    const ctxPartner = document.getElementById('partnerChart').getContext('2d');
+    const ctxPartner = document.getElementById('partnerChart')?.getContext('2d');
+    const ctxAgency = document.getElementById('agencyChart')?.getContext('2d');
 
     $(document).ready(function () {
-        // تنظیم دیتاتیبل برای محصولات پر فروش
         topProductsTable = $('#topProductsTable').DataTable({
             "pageLength": 10,
             "scrollX": true,
@@ -696,6 +748,42 @@ if ($current_work_month_id) {
         console.log('All Partners Chart Loaded', <?= json_encode($partner_labels) ?>, <?= json_encode($partner_data) ?>, <?= json_encode($partner_colors) ?>);
     }
 
+    function showAgencyChart() {
+        if (agencyChart) {
+            agencyChart.destroy();
+            agencyChart = null;
+        }
+        if (!ctxAgency || <?= json_encode($agency_labels) ?>.length === 0 || <?= json_encode($agency_data_counts) ?>.length === 0) {
+            console.error('No data for agency chart');
+            return;
+        }
+        agencyChart = new Chart(ctxAgency, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($agency_labels) ?>,
+                datasets: [{
+                    label: 'تعداد آژانس‌ها',
+                    data: <?= json_encode($agency_data_counts) ?>,
+                    backgroundColor: <?= json_encode($agency_colors) ?>,
+                    borderColor: <?= json_encode($agency_colors) ?>,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: { beginAtZero: true, title: { display: true, text: 'تعداد دفعات' } },
+                    y: { barPercentage: 0.5, title: { display: true, text: 'نام کاربر' } }
+                },
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+        console.log('Agency Chart Loaded', <?= json_encode($agency_labels) ?>, <?= json_encode($agency_data_counts) ?>, <?= json_encode($agency_colors) ?>);
+    }
+
     function sortTopProducts(type) {
         console.log('Sorting top products by:', type);
         topProductsTable.order([type === 'quantity' ? 1 : 2, 'desc']).draw();
@@ -703,11 +791,11 @@ if ($current_work_month_id) {
         $(`#topProductsButtons .btn[onclick="sortTopProducts('${type}')"]`).removeClass('btn-secondary').addClass('btn-primary');
     }
 
-    // نمایش چارت‌های پیش‌فرض
     document.addEventListener('DOMContentLoaded', function() {
         try {
             showDailyChart();
             showAllPartners();
+            showAgencyChart();
         } catch (e) {
             console.error('Error loading default charts:', e);
         }
