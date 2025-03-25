@@ -315,6 +315,10 @@ th {
   overflow-x: auto;
 }
 
+.list-group-item {
+  width: 100%;
+}
+
 @media (max-width: 600px) {
   body {
     padding-right: 0; /* حذف پدینگ در موبایل */
