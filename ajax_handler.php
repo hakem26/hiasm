@@ -156,7 +156,7 @@ switch ($action) {
         $work_details_id = $_POST['work_details_id'] ?? '';
         $customer_name = $_POST['customer_name'] ?? '';
         $discount = (float) ($_POST['discount'] ?? 0);
-        $partner1_id = $_POST['partner1_id'] ?? ''; // برای لاگ و اطمینان
+        $partner1_id = $_POST['partner1_id'] ?? ''; 
 
         if (!$work_details_id || !$customer_name || !$partner1_id) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
@@ -284,7 +284,7 @@ switch ($action) {
         $items = $_SESSION['edit_order_items'];
         $item = $items[$index];
 
-        if ($item['product_id']) { // فقط اگه product_id داشته باشه موجودی برگردونده بشه
+        if ($item['product_id']) { 
             $pdo->beginTransaction();
             try {
                 $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
@@ -347,34 +347,57 @@ switch ($action) {
         $order_id = $_POST['order_id'] ?? '';
         $customer_name = $_POST['customer_name'] ?? '';
         $discount = (float) ($_POST['discount'] ?? 0);
-        $partner1_id = $_POST['partner1_id'] ?? ''; // برای لاگ و اطمینان
+        $partner1_id = $_POST['partner1_id'] ?? ''; 
 
         if (!$order_id || !$customer_name || !$partner1_id) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
         }
 
-        $items = $_SESSION['edit_order_items'] ?? [];
-        if (empty($items)) {
+        $new_items = $_SESSION['edit_order_items'] ?? [];
+        if (empty($new_items)) {
             respond(false, 'هیچ محصولی برای ویرایش سفارش وجود ندارد.');
         }
 
-        $total_amount = array_sum(array_column($items, 'total_price'));
+        $total_amount = array_sum(array_column($new_items, 'total_price'));
         $final_amount = $total_amount - $discount;
 
         $pdo->beginTransaction();
         try {
-            // برگرداندن موجودی محصولات قبلی
+            // دریافت اقلام قبلی سفارش
             $stmt_items = $pdo->prepare("SELECT product_name, quantity FROM Order_Items WHERE order_id = ?");
             $stmt_items->execute([$order_id]);
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-            foreach ($old_items as $old_item) {
+            // ساخت دیکشنری برای اقلام قبلی و جدید
+            $old_items_dict = [];
+            foreach ($old_items as $item) {
                 $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
-                $stmt_product->execute([$old_item['product_name']]);
+                $stmt_product->execute([$item['product_name']]);
                 $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
                 $product_id = $product ? $product['product_id'] : null;
 
                 if ($product_id) {
+                    $old_items_dict[$product_id] = [
+                        'quantity' => $item['quantity'],
+                        'product_name' => $item['product_name']
+                    ];
+                }
+            }
+
+            $new_items_dict = [];
+            foreach ($new_items as $item) {
+                if ($item['product_id']) {
+                    $new_items_dict[$item['product_id']] = [
+                        'quantity' => $item['quantity'],
+                        'product_name' => $item['product_name']
+                    ];
+                }
+            }
+
+            // محاسبه تغییرات موجودی
+            foreach ($old_items_dict as $product_id => $old_item) {
+                if (!isset($new_items_dict[$product_id])) {
+                    // محصول حذف شده، موجودی برگردانده بشه
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                     $stmt_inventory->execute([$partner1_id, $product_id]);
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
@@ -385,25 +408,42 @@ switch ($action) {
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                                ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
-                }
-            }
-
-            // کسر موجودی محصولات جدید
-            foreach ($items as $item) {
-                if ($item['product_id']) {
+                } elseif ($new_items_dict[$product_id]['quantity'] != $old_item['quantity']) {
+                    // تعداد تغییر کرده
+                    $quantity_diff = $old_item['quantity'] - $new_items_dict[$product_id]['quantity'];
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                    $stmt_inventory->execute([$partner1_id, $item['product_id']]);
+                    $stmt_inventory->execute([$partner1_id, $product_id]);
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
                     $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                    if ($current_quantity < $item['quantity']) {
-                        throw new Exception("موجودی کافی برای محصول '{$item['product_name']}' نیست. موجودی: $current_quantity، درخواست: {$item['quantity']}");
+                    $new_quantity = $current_quantity + $quantity_diff;
+
+                    if ($new_quantity < 0) {
+                        throw new Exception("موجودی کافی برای محصول '{$old_item['product_name']}' نیست. موجودی: $current_quantity");
                     }
 
-                    $new_quantity = $current_quantity - $item['quantity'];
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                                ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                    $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity]);
+                    $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
+                }
+            }
+
+            foreach ($new_items_dict as $product_id => $new_item) {
+                if (!isset($old_items_dict[$product_id])) {
+                    // محصول جدید اضافه شده، موجودی کسر بشه
+                    $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+                    $stmt_inventory->execute([$partner1_id, $product_id]);
+                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+
+                    $current_quantity = $inventory ? $inventory['quantity'] : 0;
+                    if ($current_quantity < $new_item['quantity']) {
+                        throw new Exception("موجودی کافی برای محصول '{$new_item['product_name']}' نیست. موجودی: $current_quantity");
+                    }
+
+                    $new_quantity = $current_quantity - $new_item['quantity'];
+                    $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
+                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                    $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 }
             }
 
@@ -420,7 +460,7 @@ switch ($action) {
             $stmt->execute([$order_id]);
 
             // اضافه کردن اقلام جدید
-            foreach ($items as $item) {
+            foreach ($new_items as $item) {
                 $stmt = $pdo->prepare("
                     INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price)
                     VALUES (?, ?, ?, ?, ?)
