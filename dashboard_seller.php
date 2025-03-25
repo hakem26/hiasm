@@ -396,7 +396,7 @@ if ($current_work_month_id) {
         <div class="col-12 col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">امروز <?= $persian_day ?> (<?= $today_jalali ?>)</h5>
+                    <h5 class="card-title">امروز (<?= $today_jalali ?>)</h5>
                     <ul class="list-group">
                         <?php foreach ($partners_today as $partner): ?>
                             <li class="list-group-item"><?= htmlspecialchars($partner['partner_name'] ?? 'همکار ناشناس') ?></li>
@@ -479,7 +479,7 @@ if ($current_work_month_id) {
                     </div>
                     <canvas id="salesChart"></canvas>
                     <div class="mt-3">
-                        <p>رشد امروز نسبت به <?= $persian_day ?> قبلی: <span style="color: <?= $growth_today_color ?>"><?= $growth_today_sign ?><?= number_format(abs($growth_today), 0) ?> تومان</span></p>
+                        <p>رشد امروز نسبت به هفته قبلی: <span style="color: <?= $growth_today_color ?>"><?= $growth_today_sign ?><?= number_format(abs($growth_today), 0) ?> تومان</span></p>
                         <p>رشد این ماه نسبت به ماه کاری قبلی: <span style="color: <?= $growth_month_color ?>"><?= $growth_month_sign ?><?= number_format(abs($growth_month), 0) ?> تومان</span></p>
                     </div>
                 </div>
