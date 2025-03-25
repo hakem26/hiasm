@@ -1,8 +1,8 @@
 <?php
 // [BLOCK-DB-001]
 $host = 'localhost';
-$dbname = 'yshcvdau_hiasm';
-$username = 'yshcvdau_hiasmadmin'; // نام کاربری دیتابیس خود را وارد کنید
+$dbname = 'ukvojota_hiasm';
+$username = 'ukvojota_hiasmadmin'; // نام کاربری دیتابیس خود را وارد کنید
 $password = 'H72j51300!'; // رمز عبور دیتابیس خود را وارد کنید
 
 try {
