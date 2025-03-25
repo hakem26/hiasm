@@ -420,7 +420,7 @@ if ($current_work_month_id) {
                         <div class="col-6 text-center">
                             <div class="list-group">
                                 <div class="list-group-item">
-                                    <strong>همکار 1:</strong>
+                                    <strong>سرگروه:</strong>
                                     <?= htmlspecialchars($partners_today['partner1_name'] ?? 'نامشخص') ?>
                                 </div>
                             </div>
@@ -428,7 +428,7 @@ if ($current_work_month_id) {
                         <div class="col-6 text-center">
                             <div class="list-group">
                                 <div class="list-group-item">
-                                    <strong>همکار 2:</strong>
+                                    <strong>زیرگروه:</strong>
                                     <?= htmlspecialchars($partners_today['partner2_name'] ?? 'نامشخص') ?>
                                 </div>
                             </div>
@@ -555,295 +555,293 @@ if ($current_work_month_id) {
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-12 mb-4">
-                <div class="col-12 col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">تعداد آژانس‌ها در ماه
-                                <?php
-                                if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
-                                    echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
-                                } else {
-                                    echo "نامشخص";
-                                }
-                                ?>
-                            </h5>
-                            <?php if (empty($agency_data_counts)): ?>
-                                <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
-                            <?php else: ?>
-                                <canvas id="agencyChart"></canvas>
-                            <?php endif; ?>
-                        </div>
+        <div class="col-12 mb-4">
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">تعداد آژانس‌ها در ماه
+                            <?php
+                            if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+                                echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
+                            } else {
+                                echo "نامشخص";
+                            }
+                            ?>
+                        </h5>
+                        <?php if (empty($agency_data_counts)): ?>
+                            <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
+                        <?php else: ?>
+                            <canvas id="agencyChart"></canvas>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+    <style>
+        .btn-primary.active {
+            background-color: #004085 !important;
+            border-color: #003366 !important;
+        }
 
-        <style>
-            .btn-primary.active {
-                background-color: #004085 !important;
-                border-color: #003366 !important;
-            }
+        #topProductsTable {
+            direction: rtl !important;
+        }
 
-            #topProductsTable {
-                direction: rtl !important;
-            }
+        #topProductsTable_wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+    </style>
 
-            #topProductsTable_wrapper {
-                width: 100%;
-                overflow-x: auto;
-            }
-        </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let salesChart;
+        let partnerChart;
+        let agencyChart;
+        let topProductsTable;
+        const ctxSales = document.getElementById('salesChart').getContext('2d');
+        const ctxPartner = document.getElementById('partnerChart')?.getContext('2d');
+        const ctxAgency = document.getElementById('agencyChart')?.getContext('2d');
 
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-        <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script>
-            let salesChart;
-            let partnerChart;
-            let agencyChart;
-            let topProductsTable;
-            const ctxSales = document.getElementById('salesChart').getContext('2d');
-            const ctxPartner = document.getElementById('partnerChart')?.getContext('2d');
-            const ctxAgency = document.getElementById('agencyChart')?.getContext('2d');
-
-            $(document).ready(function () {
-                topProductsTable = $('#topProductsTable').DataTable({
-                    "pageLength": 10,
-                    "scrollX": true,
-                    "scrollCollapse": true,
-                    "paging": true,
-                    "autoWidth": true,
-                    "ordering": true,
-                    "responsive": false,
-                    "language": {
-                        "decimal": "",
-                        "emptyTable": "داده‌ای در جدول وجود ندارد",
-                        "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
-                        "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
-                        "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
-                        "lengthMenu": "نمایش _MENU_ ردیف",
-                        "loadingRecords": "در حال بارگذاری...",
-                        "processing": "در حال پردازش...",
-                        "search": "جستجو:",
-                        "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
-                        "paginate": {
-                            "first": "اولین",
-                            "last": "آخرین",
-                            "next": "بعدی",
-                            "previous": "قبلی"
-                        }
-                    },
-                    "columnDefs": [
-                        { "targets": "_all", "className": "text-center" }
-                    ]
-                });
+        $(document).ready(function () {
+            topProductsTable = $('#topProductsTable').DataTable({
+                "pageLength": 10,
+                "scrollX": true,
+                "scrollCollapse": true,
+                "paging": true,
+                "autoWidth": true,
+                "ordering": true,
+                "responsive": false,
+                "language": {
+                    "decimal": "",
+                    "emptyTable": "داده‌ای در جدول وجود ندارد",
+                    "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                    "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+                    "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+                    "lengthMenu": "نمایش _MENU_ ردیف",
+                    "loadingRecords": "در حال بارگذاری...",
+                    "processing": "در حال پردازش...",
+                    "search": "جستجو:",
+                    "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+                    "paginate": {
+                        "first": "اولین",
+                        "last": "آخرین",
+                        "next": "بعدی",
+                        "previous": "قبلی"
+                    }
+                },
+                "columnDefs": [
+                    { "targets": "_all", "className": "text-center" }
+                ]
             });
+        });
 
-            function setActiveButton(groupId, buttonId) {
-                document.querySelectorAll(`#${groupId} button`).forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                document.getElementById(buttonId).classList.add('active');
-            }
+        function setActiveButton(groupId, buttonId) {
+            document.querySelectorAll(`#${groupId} button`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(buttonId).classList.add('active');
+        }
 
-            function showDailyChart() {
-                setActiveButton('dailyBtn', 'dailyBtn');
-                if (salesChart) salesChart.destroy();
-                salesChart = new Chart(ctxSales, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode(array_reverse($days)) ?>,
-                        datasets: [{
-                            label: 'فروش (تومان)',
-                            data: <?= json_encode(array_reverse($sales_data)) ?>,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: { y: { beginAtZero: true } },
-                        responsive: true
-                    }
-                });
-                console.log('Daily Chart Loaded', <?= json_encode(array_reverse($days)) ?>, <?= json_encode(array_reverse($sales_data)) ?>);
-            }
-
-            function showWeeklyChart() {
-                setActiveButton('weeklyBtn', 'weeklyBtn');
-                if (salesChart) salesChart.destroy();
-                if (<?= json_encode($week_days) ?>.length === 0 || <?= json_encode($week_sales_data) ?>.length === 0) {
-                    console.error('No data for weekly chart');
-                    return;
+        function showDailyChart() {
+            setActiveButton('dailyBtn', 'dailyBtn');
+            if (salesChart) salesChart.destroy();
+            salesChart = new Chart(ctxSales, {
+                type: 'bar',
+                data: {
+                    labels: <?= json_encode(array_reverse($days)) ?>,
+                    datasets: [{
+                        label: 'فروش (تومان)',
+                        data: <?= json_encode(array_reverse($sales_data)) ?>,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: { y: { beginAtZero: true } },
+                    responsive: true
                 }
-                salesChart = new Chart(ctxSales, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode(array_reverse($week_days)) ?>,
-                        datasets: [{
-                            label: 'فروش (تومان)',
-                            data: <?= json_encode(array_reverse($week_sales_data)) ?>,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: { y: { beginAtZero: true } },
-                        responsive: true
-                    }
-                });
-                console.log('Weekly Chart Loaded', <?= json_encode(array_reverse($week_days)) ?>, <?= json_encode(array_reverse($week_sales_data)) ?>);
-            }
+            });
+            console.log('Daily Chart Loaded', <?= json_encode(array_reverse($days)) ?>, <?= json_encode(array_reverse($sales_data)) ?>);
+        }
 
-            function showMonthlyChart() {
-                setActiveButton('monthlyBtn', 'monthlyBtn');
-                if (salesChart) salesChart.destroy();
-                if (Object.keys(<?= json_encode($month_sales_data) ?>).length === 0) {
-                    console.error('No data for monthly chart');
-                    return;
-                }
-                salesChart = new Chart(ctxSales, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode(array_keys($month_sales_data)) ?>,
-                        datasets: [{
-                            label: 'فروش (تومان)',
-                            data: <?= json_encode(array_values($month_sales_data)) ?>,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: { y: { beginAtZero: true } },
-                        responsive: true
-                    }
-                });
-                console.log('Monthly Chart Loaded', <?= json_encode(array_keys($month_sales_data)) ?>, <?= json_encode(array_values($month_sales_data)) ?>);
+        function showWeeklyChart() {
+            setActiveButton('weeklyBtn', 'weeklyBtn');
+            if (salesChart) salesChart.destroy();
+            if (<?= json_encode($week_days) ?>.length === 0 || <?= json_encode($week_sales_data) ?>.length === 0) {
+                console.error('No data for weekly chart');
+                return;
             }
+            salesChart = new Chart(ctxSales, {
+                type: 'bar',
+                data: {
+                    labels: <?= json_encode(array_reverse($week_days)) ?>,
+                    datasets: [{
+                        label: 'فروش (تومان)',
+                        data: <?= json_encode(array_reverse($week_sales_data)) ?>,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: { y: { beginAtZero: true } },
+                    responsive: true
+                }
+            });
+            console.log('Weekly Chart Loaded', <?= json_encode(array_reverse($week_days)) ?>, <?= json_encode(array_reverse($week_sales_data)) ?>);
+        }
 
-            function showAllPartners() {
-                setActiveButton('allBtn', 'allBtn');
-                if (partnerChart) {
-                    partnerChart.destroy();
-                    partnerChart = null;
+        function showMonthlyChart() {
+            setActiveButton('monthlyBtn', 'monthlyBtn');
+            if (salesChart) salesChart.destroy();
+            if (Object.keys(<?= json_encode($month_sales_data) ?>).length === 0) {
+                console.error('No data for monthly chart');
+                return;
+            }
+            salesChart = new Chart(ctxSales, {
+                type: 'bar',
+                data: {
+                    labels: <?= json_encode(array_keys($month_sales_data)) ?>,
+                    datasets: [{
+                        label: 'فروش (تومان)',
+                        data: <?= json_encode(array_values($month_sales_data)) ?>,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: { y: { beginAtZero: true } },
+                    responsive: true
                 }
-                if (<?= json_encode($partner_labels) ?>.length === 0 || <?= json_encode($partner_data) ?>.length === 0) {
-                    console.error('No data for all partners chart');
-                    return;
-                }
-                partnerChart = new Chart(ctxPartner, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode($partner_labels) ?>,
-                        datasets: [{
-                            label: 'فروش (تومان)',
-                            data: <?= json_encode($partner_data) ?>,
-                            backgroundColor: <?= json_encode($partner_colors) ?>,
-                            borderColor: <?= json_encode($partner_colors) ?>,
-                            borderWidth: 1
-                        }]
+            });
+            console.log('Monthly Chart Loaded', <?= json_encode(array_keys($month_sales_data)) ?>, <?= json_encode(array_values($month_sales_data)) ?>);
+        }
+
+        function showAllPartners() {
+            setActiveButton('allBtn', 'allBtn');
+            if (partnerChart) {
+                partnerChart.destroy();
+                partnerChart = null;
+            }
+            if (<?= json_encode($partner_labels) ?>.length === 0 || <?= json_encode($partner_data) ?>.length === 0) {
+                console.error('No data for all partners chart');
+                return;
+            }
+            partnerChart = new Chart(ctxPartner, {
+                type: 'bar',
+                data: {
+                    labels: <?= json_encode($partner_labels) ?>,
+                    datasets: [{
+                        label: 'فروش (تومان)',
+                        data: <?= json_encode($partner_data) ?>,
+                        backgroundColor: <?= json_encode($partner_colors) ?>,
+                        borderColor: <?= json_encode($partner_colors) ?>,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    scales: {
+                        x: { beginAtZero: true },
+                        y: { barPercentage: 0.5 }
                     },
-                    options: {
-                        indexAxis: 'y',
-                        scales: {
-                            x: { beginAtZero: true },
-                            y: { barPercentage: 0.5 }
-                        },
-                        responsive: true,
+                    responsive: true,
+                    legend: { display: false }
+                }
+            });
+            console.log('All Partners Chart Loaded', <?= json_encode($partner_labels) ?>, <?= json_encode($partner_data) ?>, <?= json_encode($partner_colors) ?>);
+        }
+
+        function showAgencyChart() {
+            if (agencyChart) {
+                agencyChart.destroy();
+                agencyChart = null;
+            }
+            if (!ctxAgency || <?= json_encode($agency_labels) ?>.length === 0 || <?= json_encode($agency_data_counts) ?>.length === 0) {
+                console.error('No data for agency chart');
+                return;
+            }
+            agencyChart = new Chart(ctxAgency, {
+                type: 'bar',
+                data: {
+                    labels: <?= json_encode($agency_labels) ?>,
+                    datasets: [{
+                        label: 'تعداد آژانس‌ها',
+                        data: <?= json_encode($agency_data_counts) ?>,
+                        backgroundColor: <?= json_encode($agency_colors) ?>,
+                        borderColor: <?= json_encode($agency_colors) ?>,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    scales: {
+                        x: { beginAtZero: true, title: { display: true, text: 'تعداد دفعات' } },
+                        y: { barPercentage: 0.5, title: { display: true, text: 'نام کاربر' } }
+                    },
+                    responsive: true,
+                    plugins: {
                         legend: { display: false }
                     }
-                });
-                console.log('All Partners Chart Loaded', <?= json_encode($partner_labels) ?>, <?= json_encode($partner_data) ?>, <?= json_encode($partner_colors) ?>);
-            }
-
-            function showAgencyChart() {
-                if (agencyChart) {
-                    agencyChart.destroy();
-                    agencyChart = null;
-                }
-                if (!ctxAgency || <?= json_encode($agency_labels) ?>.length === 0 || <?= json_encode($agency_data_counts) ?>.length === 0) {
-                    console.error('No data for agency chart');
-                    return;
-                }
-                agencyChart = new Chart(ctxAgency, {
-                    type: 'bar',
-                    data: {
-                        labels: <?= json_encode($agency_labels) ?>,
-                        datasets: [{
-                            label: 'تعداد آژانس‌ها',
-                            data: <?= json_encode($agency_data_counts) ?>,
-                            backgroundColor: <?= json_encode($agency_colors) ?>,
-                            borderColor: <?= json_encode($agency_colors) ?>,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        scales: {
-                            x: { beginAtZero: true, title: { display: true, text: 'تعداد دفعات' } },
-                            y: { barPercentage: 0.5, title: { display: true, text: 'نام کاربر' } }
-                        },
-                        responsive: true,
-                        plugins: {
-                            legend: { display: false }
-                        }
-                    }
-                });
-                console.log('Agency Chart Loaded', <?= json_encode($agency_labels) ?>, <?= json_encode($agency_data_counts) ?>, <?= json_encode($agency_colors) ?>);
-            }
-
-            function sortTopProducts(type) {
-                console.log('Sorting top products by:', type);
-                topProductsTable.order([type === 'quantity' ? 1 : 2, 'desc']).draw();
-                $('#topProductsButtons .btn').removeClass('btn-primary').addClass('btn-secondary');
-                $(`#topProductsButtons .btn[onclick="sortTopProducts('${type}')"]`).removeClass('btn-secondary').addClass('btn-primary');
-            }
-
-            document.addEventListener('DOMContentLoaded', function () {
-                try {
-                    showDailyChart();
-                    showAllPartners();
-                    showAgencyChart();
-                } catch (e) {
-                    console.error('Error loading default charts:', e);
                 }
             });
-        </script>
+            console.log('Agency Chart Loaded', <?= json_encode($agency_labels) ?>, <?= json_encode($agency_data_counts) ?>, <?= json_encode($agency_colors) ?>);
+        }
 
-        <?php
-        require_once 'footer.php';
+        function sortTopProducts(type) {
+            console.log('Sorting top products by:', type);
+            topProductsTable.order([type === 'quantity' ? 1 : 2, 'desc']).draw();
+            $('#topProductsButtons .btn').removeClass('btn-primary').addClass('btn-secondary');
+            $(`#topProductsButtons .btn[onclick="sortTopProducts('${type}')"]`).removeClass('btn-secondary').addClass('btn-primary');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            try {
+                showDailyChart();
+                showAllPartners();
+                showAgencyChart();
+            } catch (e) {
+                console.error('Error loading default charts:', e);
+            }
+        });
+    </script>
+
+    <?php
+    require_once 'footer.php';
