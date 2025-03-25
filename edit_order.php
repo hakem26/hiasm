@@ -115,17 +115,20 @@ $_SESSION['edit_order_discount'] = $order['discount'];
     .container-fluid {
         overflow-x: hidden !important;
     }
+
     .table-wrapper {
         width: 100%;
         overflow-x: auto !important;
         overflow-y: visible;
         -webkit-overflow-scrolling: touch;
     }
+
     .order-items-table {
         width: 100%;
         min-width: 800px;
         border-collapse: collapse;
     }
+
     .order-items-table th,
     .order-items-table td {
         vertical-align: middle !important;
@@ -133,9 +136,11 @@ $_SESSION['edit_order_discount'] = $order['discount'];
         padding: 8px;
         min-width: 120px;
     }
+
     .order-items-table .total-row td {
         font-weight: bold;
     }
+
     .order-items-table .total-row input#discount {
         width: 150px;
         margin: 0 auto;
@@ -155,23 +160,28 @@ $_SESSION['edit_order_discount'] = $order['discount'];
     <form id="edit-order-form">
         <div class="mb-3">
             <label for="customer_name" class="form-label">نام مشتری</label>
-            <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($order['customer_name']) ?>" required autocomplete="off">
+            <input type="text" class="form-control" id="customer_name" name="customer_name"
+                value="<?= htmlspecialchars($order['customer_name']) ?>" required autocomplete="off">
         </div>
 
         <div class="row g-3 mb-3">
             <div class="col-12">
                 <label for="product_name" class="form-label">نام محصول</label>
-                <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." style="width: 100%;">
-                <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+                <input type="text" class="form-control" id="product_name" name="product_name"
+                    placeholder="جستجو یا وارد کنید..." style="width: 100%;">
+                <div id="product_suggestions" class="list-group position-absolute"
+                    style="width: 100%; z-index: 1000; display: none;"></div>
                 <input type="hidden" id="product_id" name="product_id">
             </div>
             <div class="col-3">
                 <label for="quantity" class="form-label">تعداد</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" style="width: 100%;">
+                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1"
+                    style="width: 100%;">
             </div>
             <div class="col-9">
                 <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
-                <input type="number" class="form-control" id="unit_price" name="unit_price" readonly style="width: 100%;">
+                <input type="number" class="form-control" id="unit_price" name="unit_price" readonly
+                    style="width: 100%;">
             </div>
             <div class="row mb-3">
                 <div class="col-6">
@@ -185,7 +195,8 @@ $_SESSION['edit_order_discount'] = $order['discount'];
             </div>
             <div class="col-12">
                 <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
-                <button type="button" id="edit_item_btn" class="btn btn-warning mb-3" style="display: none;">ثبت ویرایش</button>
+                <button type="button" id="edit_item_btn" class="btn btn-warning mb-3" style="display: none;">ثبت
+                    ویرایش</button>
             </div>
         </div>
 
@@ -229,7 +240,8 @@ $_SESSION['edit_order_discount'] = $order['discount'];
                         </tr>
                         <tr class="total-row">
                             <td><label for="discount" class="form-label">تخفیف</label></td>
-                            <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount"
+                                    value="<?= $discount ?>" min="0"></td>
                             <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
                         </tr>
                     </tbody>
@@ -238,8 +250,10 @@ $_SESSION['edit_order_discount'] = $order['discount'];
         </div>
 
         <div class="mb-3">
-            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?> تومان</span></p>
-            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?> تومان</span></p>
+            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?>
+                    تومان</span></p>
+            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?>
+                    تومان</span></p>
         </div>
 
         <button type="button" id="save_changes_btn" class="btn btn-success mt-3">ذخیره تغییرات</button>
@@ -533,7 +547,7 @@ $_SESSION['edit_order_discount'] = $order['discount'];
 
         document.getElementById('items_table').addEventListener('input', async (e) => {
             if (e.target.id === 'discount') {
-                const discount = e.target.value;
+                const discount = e.target.value || 0;
                 const data = {
                     action: 'update_edit_discount',
                     discount,
@@ -542,7 +556,11 @@ $_SESSION['edit_order_discount'] = $order['discount'];
 
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
-                    renderItemsTable(response.data);
+                    // فقط مقادیر جمع کل و نهایی رو آپدیت کن، بدون رندر کل جدول
+                    document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
                 } else {
                     alert(response.message);
                 }
