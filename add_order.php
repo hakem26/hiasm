@@ -229,6 +229,8 @@ $_SESSION['is_order_in_progress'] = true;
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     async function sendRequest(url, data) {
         try {
@@ -314,10 +316,16 @@ $_SESSION['is_order_in_progress'] = true;
                     type: 'POST',
                     data: { query: query, work_details_id: work_details_id },
                     success: function (response) {
-                        $('#product_suggestions').html(response).show();
+                        if (response.trim() === '') {
+                            console.log('No suggestions returned from get_products.php');
+                            $('#product_suggestions').hide();
+                        } else {
+                            $('#product_suggestions').html(response).show();
+                        }
                     },
                     error: function (xhr, status, error) {
-                        console.error('AJAX Error: ', error);
+                        console.error('AJAX Error:', status, error);
+                        $('#product_suggestions').hide();
                     }
                 });
             } else {
@@ -325,8 +333,12 @@ $_SESSION['is_order_in_progress'] = true;
             }
         });
 
-        $(document).on('click', '.product-suggestion', function () {
+        $(document).on('click', '.product-suggestion', function (e) {
+            e.preventDefault(); // جلوگیری از رفتار پیش‌فرض تگ <a>
             let product = $(this).data('product');
+            if (typeof product === 'string') {
+                product = JSON.parse(product); // تبدیل رشته JSON به شیء
+            }
             $('#product_name').val(product.product_name).prop('disabled', false);
             $('#product_id').val(product.product_id);
             $('#unit_price').val(product.unit_price);
@@ -436,7 +448,7 @@ $_SESSION['is_order_in_progress'] = true;
             }
 
             const data = {
-                action: 'edit_item', // اکشن جدید برای ویرایش آیتم
+                action: 'edit_item',
                 customer_name,
                 product_id,
                 quantity,
@@ -542,7 +554,7 @@ $_SESSION['is_order_in_progress'] = true;
             const data = {
                 action: 'finalize_order',
                 work_details_id: '<?= $work['id'] ?>',
-                customer_name.ConcurrentModificationException,
+                customer_name,
                 discount,
                 partner1_id: '<?= $partner1_id ?>'
             };
