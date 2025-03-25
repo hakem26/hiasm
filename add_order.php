@@ -9,7 +9,6 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل میلادی به شمسی
 function gregorian_to_jalali_format($gregorian_date)
 {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
@@ -17,7 +16,6 @@ function gregorian_to_jalali_format($gregorian_date)
     return "$jy/$jm/$jd";
 }
 
-// بررسی نقش کاربر
 $is_admin = ($_SESSION['role'] === 'admin');
 if ($is_admin) {
     header("Location: orders.php");
@@ -25,13 +23,11 @@ if ($is_admin) {
 }
 $current_user_id = $_SESSION['user_id'];
 
-// ریست کردن سشن order_items در ابتدای صفحه برای جلوگیری از نمایش فاکتور قبلی
 if (!isset($_SESSION['is_order_in_progress']) || !$_SESSION['is_order_in_progress']) {
     unset($_SESSION['order_items']);
 }
 $_SESSION['is_order_in_progress'] = true;
 
-// دریافت اطلاعات روز کاری از work_details_id (از GET)
 $work_details_id = $_GET['work_details_id'] ?? '';
 $work_info = [];
 if ($work_details_id) {
@@ -57,7 +53,6 @@ if ($work_details_id) {
     }
 }
 
-// تنظیم خودکار partner_id اگه هنوز ثبت نشده
 if ($work_details_id && empty($work_info)) {
     $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Work_Details WHERE id = ?");
     $stmt_check->execute([$work_details_id]);
@@ -77,7 +72,6 @@ if (empty($work_info)) {
     exit;
 }
 
-// دریافت نام همکار از جفت همکارها
 $partner_name = 'نامشخص';
 if ($work_info['partner_id']) {
     $stmt_partner = $pdo->prepare("
@@ -101,10 +95,10 @@ if ($work_info['partner_id']) {
         } elseif ($user2_id == $current_user_id && $user1_name != 'نامشخص') {
             $partner_name = $user1_name;
         }
+        $partner1_id = $user1_id; // همکار 1 برای موجودی
     }
 }
 
-// مقادیر اولیه
 $items = isset($_SESSION['order_items']) ? $_SESSION['order_items'] : [];
 $customer_name = '';
 $total_amount = array_sum(array_column($items, 'total_price'));
@@ -163,7 +157,7 @@ $final_amount = $total_amount - $discount;
         <div class="row g-3 mb-3">
             <div class="col-12">
                 <label for="product_name" class="form-label">نام محصول</label>
-                <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." required style="width: 100%; direction: rtl;">
+                <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
                 <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
                 <input type="hidden" id="product_id" name="product_id">
             </div>
@@ -346,7 +340,8 @@ $final_amount = $total_amount - $discount;
                 type: 'POST',
                 data: {
                     product_id: product.product_id,
-                    user_id: '<?= $current_user_id ?>'
+                    user_id: '<?= $partner1_id ?>', // موجودی همکار 1
+                    work_details_id: '<?= $work_details_id ?>'
                 },
                 success: function (response) {
                     if (response.success) {
@@ -404,7 +399,7 @@ $final_amount = $total_amount - $discount;
                 unit_price,
                 discount,
                 work_details_id,
-                partner1_id: '<?= $current_user_id ?>'
+                partner1_id: '<?= $partner1_id ?>' // کسر از موجودی همکار 1
             };
 
             const addResponse = await sendRequest('ajax_handler.php', data);
@@ -429,7 +424,7 @@ $final_amount = $total_amount - $discount;
                     const data = {
                         action: 'delete_item',
                         index: index,
-                        partner1_id: '<?= $current_user_id ?>'
+                        partner1_id: '<?= $partner1_id ?>' // برگرداندن به موجودی همکار 1
                     };
 
                     const response = await sendRequest('ajax_handler.php', data);
@@ -476,7 +471,7 @@ $final_amount = $total_amount - $discount;
                 work_details_id: '<?= $work_details_id ?>',
                 customer_name,
                 discount,
-                partner1_id: '<?= $current_user_id ?>'
+                partner1_id: '<?= $partner1_id ?>' // برای اطمینان از منطق
             };
 
             const response = await sendRequest('ajax_handler.php', data);

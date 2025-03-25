@@ -197,57 +197,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ویرایش سفارش</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        table {
-            min-width: 400px;
-            table-layout: auto;
-        }
-
-        th,
-        td {
-            white-space: nowrap;
-            padding: 8px 6px;
-        }
-
-        @media (max-width: 768px) {
-            table {
-                min-width: 300px;
-            }
-
-            th,
-            td {
-                padding: 4px;
-                font-size: 14px;
-            }
-
-            .table-wrapper {
-                overflow-x: scroll;
-            }
-
-            .total-row td {
-                border-top: 2px solid #dee2e6;
-                font-weight: bold;
-            }
-        }
-    </style>
-</head>
-
-<body>
     <div class="container-fluid mt-5">
         <h5 class="card-title mb-4">ویرایش سفارش</h5>
 
