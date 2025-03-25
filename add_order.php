@@ -163,7 +163,7 @@ $final_amount = $total_amount - $discount;
         <div class="row g-3 mb-3">
             <div class="col-12">
                 <label for="product_name" class="form-label">نام محصول</label>
-                <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." required style="width: 100%;">
+                <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." required style="width: 100%; direction: rtl;">
                 <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
                 <input type="hidden" id="product_id" name="product_id">
             </div>
