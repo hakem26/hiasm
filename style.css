@@ -1,27 +1,5 @@
-@font-face {
-  font-family: 'Shabnam';
-  src: url('assets/fonts/Shabnam.woff2') format('woff2'),
-       url('assets/fonts/Shabnam.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  unicode-range: U+0600-06FF, U+FB8A, U+0660-0669; /* فقط محدوده فارسی و اعداد فارسی */
-}
-
-@font-face {
-  font-family: 'Shabnam';
-  src: url('assets/fonts/Shabnam-Bold.woff2') format('woff2'),
-       url('assets/fonts/Shabnam-Bold.woff') format('woff');
-  font-weight: bold;
-  font-style: normal;
-  unicode-range: U+0600-06FF, U+FB8A, U+0660-0669; /* فقط محدوده فارسی و اعداد فارسی */
-}
 body {
-  font-family: "Shabnam", sans-serif;
-  font-feature-settings: "pnum"; /* اعداد فارسی */
-  unicode-bidi: embed;
-  -moz-font-feature-settings: "ss02";
-  -webkit-font-feature-settings: "ss02";
-  font-feature-settings: "ss02";
+  font-family: "Vazirmatn", sans-serif;
   background-color: #f8f9fa;
   margin: 0;
   padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
