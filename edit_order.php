@@ -50,7 +50,7 @@ if (!$order) {
     exit;
 }
 
-// دریافت اقلام سفارش
+// دریافت اقلام سفارش از دیتابیس
 $items_stmt = $pdo->prepare("SELECT * FROM Order_Items WHERE order_id = ?");
 $items_stmt->execute([$order_id]);
 $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -74,35 +74,40 @@ if ($order['partner_id']) {
         $user2_id = $partner_data['user2_id'];
         $user1_name = $partner_data['user1_name'] ?: 'نامشخص';
         $user2_name = $partner_data['user2_name'] ?: 'نامشخص';
-        $partner1_id = $user1_id; // همکار 1 برای مدیریت موجودی
 
         if ($user1_id == $current_user_id && $user2_name != 'نامشخص') {
             $partner_name = $user2_name;
         } elseif ($user2_id == $current_user_id && $user1_name != 'نامشخص') {
             $partner_name = $user1_name;
         }
+        $partner1_id = $user1_id; // همکار 1 برای موجودی
     }
 }
 
 if (!$partner1_id) {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>همکار ۱ یافت نشد. لطفاً با مدیر سیستم تماس بگیرید.</div></div>";
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>همکار 1 یافت نشد. لطفاً با مدیر سیستم تماس بگیرید.</div></div>";
     require_once 'footer.php';
     exit;
 }
 
-// ذخیره موقت اقلام ویرایش‌شده در سشن
-if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $order_id) {
-    $_SESSION['edit_order_items'] = array_map(function ($item) {
-        return [
-            'product_id' => null, // در اینجا product_id نداریم، باید از سرور بگیریم
-            'product_name' => $item['product_name'],
-            'quantity' => $item['quantity'],
-            'unit_price' => $item['unit_price'],
-            'total_price' => $item['total_price']
-        ];
-    }, $items);
-    $_SESSION['edit_order_id'] = $order_id;
-}
+// پاک کردن سشن قبلی و بارگذاری اقلام اصلی سفارش
+unset($_SESSION['edit_order_items']);
+unset($_SESSION['edit_order_id']);
+unset($_SESSION['edit_order_discount']);
+$_SESSION['edit_order_items'] = array_map(function ($item) use ($pdo) {
+    $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
+    $stmt_product->execute([$item['product_name']]);
+    $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
+    return [
+        'product_id' => $product ? $product['product_id'] : null,
+        'product_name' => $item['product_name'],
+        'quantity' => $item['quantity'],
+        'unit_price' => $item['unit_price'],
+        'total_price' => $item['total_price']
+    ];
+}, $items);
+$_SESSION['edit_order_id'] = $order_id;
+$_SESSION['edit_order_discount'] = $order['discount'];
 ?>
 
 <style>
@@ -180,6 +185,7 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
             </div>
             <div class="col-12">
                 <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
+                <button type="button" id="edit_item_btn" class="btn btn-warning mb-3" style="display: none;">ثبت ویرایش</button>
             </div>
         </div>
 
@@ -203,6 +209,9 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                                 <td><?= number_format($item['unit_price'], 0) ?></td>
                                 <td><?= number_format($item['total_price'], 0) ?></td>
                                 <td>
+                                    <button type="button" class="btn btn-warning btn-sm edit-item" data-index="<?= $index ?>">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
                                     <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -211,7 +220,7 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                         <?php endforeach; ?>
                         <?php
                         $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
-                        $discount = $order['discount'];
+                        $discount = $_SESSION['edit_order_discount'];
                         $final_amount = $total_amount - $discount;
                         ?>
                         <tr class="total-row">
@@ -286,6 +295,9 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                         <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
                         <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
+                            <button type="button" class="btn btn-warning btn-sm edit-item" data-index="${index}">
+                                <i class="fas fa-edit"></i>
+                            </button>
                             <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -311,6 +323,7 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
 
     document.addEventListener('DOMContentLoaded', () => {
         let initialInventory = 0;
+        let editingIndex = null;
 
         $('#product_name').on('input', function () {
             let query = $(this).val();
@@ -334,7 +347,7 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
 
         $(document).on('click', '.product-suggestion', function () {
             let product = $(this).data('product');
-            $('#product_name').val(product.product_name);
+            $('#product_name').val(product.product_name).prop('disabled', false);
             $('#product_id').val(product.product_id);
             $('#unit_price').val(product.unit_price);
             $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
@@ -345,14 +358,13 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                 type: 'POST',
                 data: {
                     product_id: product.product_id,
-                    user_id: '<?= $partner1_id ?>', // موجودی همکار 1
+                    user_id: '<?= $partner1_id ?>',
                     work_details_id: '<?= $order['work_details_id'] ?>'
                 },
                 success: function (response) {
                     if (response.success) {
-                        let inventory = response.data.inventory || 0;
-                        initialInventory = inventory;
-                        $('#inventory_quantity').text(inventory);
+                        initialInventory = response.data.inventory || 0;
+                        $('#inventory_quantity').text(initialInventory);
                         $('#quantity').val(1);
                         updateInventoryDisplay();
                     } else {
@@ -379,7 +391,17 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
 
         function updateInventoryDisplay() {
             let quantity = $('#quantity').val();
-            let remainingInventory = initialInventory - quantity;
+            let items = <?= json_encode($_SESSION['edit_order_items']) ?>;
+            let product_id = $('#product_id').val();
+            let totalUsed = 0;
+
+            items.forEach(item => {
+                if (item.product_id === product_id && (editingIndex === null || item !== items[editingIndex])) {
+                    totalUsed += parseInt(item.quantity);
+                }
+            });
+
+            let remainingInventory = initialInventory - totalUsed - (editingIndex === null ? quantity : 0);
             $('#inventory_quantity').text(remainingInventory);
         }
 
@@ -395,6 +417,12 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                 return;
             }
 
+            const items = <?= json_encode($_SESSION['edit_order_items']) ?>;
+            if (items.some(item => item.product_id === product_id)) {
+                alert('این محصول قبلاً در فاکتور ثبت شده است. در صورت ویرایش تعداد روی دکمه ویرایش کلیک کنید!');
+                return;
+            }
+
             const data = {
                 action: 'add_edit_item',
                 customer_name,
@@ -403,21 +431,48 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                 unit_price,
                 discount,
                 order_id: '<?= $order_id ?>',
-                partner1_id: '<?= $partner1_id ?>' // کسر از موجودی همکار 1
+                partner1_id: '<?= $partner1_id ?>'
             };
 
             const addResponse = await sendRequest('ajax_handler.php', data);
             if (addResponse.success) {
                 renderItemsTable(addResponse.data);
-                document.getElementById('product_name').value = '';
-                document.getElementById('quantity').value = '1';
-                document.getElementById('total_price').value = '';
-                document.getElementById('product_id').value = '';
-                document.getElementById('unit_price').value = '';
-                document.getElementById('inventory_quantity').textContent = '0';
-                initialInventory = 0;
+                resetForm();
             } else {
                 alert(addResponse.message);
+            }
+        });
+
+        document.getElementById('edit_item_btn').addEventListener('click', async () => {
+            const customer_name = document.getElementById('customer_name').value;
+            const product_id = document.getElementById('product_id').value;
+            const quantity = document.getElementById('quantity').value;
+            const unit_price = document.getElementById('unit_price').value;
+            const discount = document.getElementById('discount')?.value || 0;
+
+            if (!quantity || quantity <= 0) {
+                alert('لطفاً تعداد را بیشتر از صفر وارد کنید.');
+                return;
+            }
+
+            const data = {
+                action: 'edit_edit_item',
+                customer_name,
+                product_id,
+                quantity,
+                unit_price,
+                discount,
+                index: editingIndex,
+                order_id: '<?= $order_id ?>',
+                partner1_id: '<?= $partner1_id ?>'
+            };
+
+            const editResponse = await sendRequest('ajax_handler.php', data);
+            if (editResponse.success) {
+                renderItemsTable(editResponse.data);
+                resetForm();
+            } else {
+                alert(editResponse.message);
             }
         });
 
@@ -429,16 +484,50 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                         action: 'delete_edit_item',
                         index: index,
                         order_id: '<?= $order_id ?>',
-                        partner1_id: '<?= $partner1_id ?>' // برگرداندن به موجودی همکار 1
+                        partner1_id: '<?= $partner1_id ?>'
                     };
 
                     const response = await sendRequest('ajax_handler.php', data);
                     if (response.success) {
                         renderItemsTable(response.data);
+                        resetForm();
                     } else {
                         alert(response.message);
                     }
                 }
+            } else if (e.target.closest('.edit-item')) {
+                const index = e.target.closest('.edit-item').getAttribute('data-index');
+                editingIndex = index;
+                const items = <?= json_encode($_SESSION['edit_order_items']) ?>;
+                const item = items[index];
+
+                $('#product_name').val(item.product_name).prop('disabled', true);
+                $('#product_id').val(item.product_id);
+                $('#quantity').val(item.quantity);
+                $('#unit_price').val(item.unit_price);
+                $('#total_price').val((item.quantity * item.unit_price).toLocaleString('fa') + ' تومان');
+
+                $.ajax({
+                    url: 'get_inventory.php',
+                    type: 'POST',
+                    data: {
+                        product_id: item.product_id,
+                        user_id: '<?= $partner1_id ?>',
+                        work_details_id: '<?= $order['work_details_id'] ?>'
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            initialInventory = response.data.inventory || 0;
+                            updateInventoryDisplay();
+                        } else {
+                            $('#inventory_quantity').text('0');
+                            alert('خطا در دریافت موجودی: ' + response.message);
+                        }
+                    }
+                });
+
+                $('#add_item_btn').hide();
+                $('#edit_item_btn').show();
             }
         });
 
@@ -453,13 +542,7 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
 
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
-                    const discountInput = document.getElementById('discount');
-                    const finalAmountDisplay = document.getElementById('final_amount');
-                    const finalAmountGlobalDisplay = document.getElementById('final_amount_display');
-
-                    if (discountInput) discountInput.value = response.data.discount;
-                    if (finalAmountDisplay) finalAmountDisplay.innerText = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
-                    if (finalAmountGlobalDisplay) finalAmountGlobalDisplay.textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    renderItemsTable(response.data);
                 } else {
                     alert(response.message);
                 }
@@ -480,7 +563,7 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                 order_id: '<?= $order_id ?>',
                 customer_name,
                 discount,
-                partner1_id: '<?= $partner1_id ?>' // برای اطمینان از منطق
+                partner1_id: '<?= $partner1_id ?>'
             };
 
             const response = await sendRequest('ajax_handler.php', data);
@@ -491,6 +574,19 @@ if (!isset($_SESSION['edit_order_items']) || $_SESSION['edit_order_id'] != $orde
                 alert(response.message);
             }
         });
+
+        function resetForm() {
+            $('#product_name').val('').prop('disabled', false);
+            $('#product_id').val('');
+            $('#quantity').val('1');
+            $('#unit_price').val('');
+            $('#total_price').val('');
+            $('#inventory_quantity').text('0');
+            initialInventory = 0;
+            editingIndex = null;
+            $('#add_item_btn').show();
+            $('#edit_item_btn').hide();
+        }
     });
 </script>
 

@@ -20,8 +20,8 @@ if (!$action) {
 }
 
 switch ($action) {
-    // سایر اکشن‌ها بدون تغییر
     case 'add_item':
+        // بدون تغییر
         $customer_name = $_POST['customer_name'] ?? '';
         $product_id = $_POST['product_id'] ?? '';
         $quantity = (int) ($_POST['quantity'] ?? 0);
@@ -31,7 +31,6 @@ switch ($action) {
         $partner1_id = $_POST['partner1_id'] ?? '';
 
         if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$work_details_id || !$partner1_id) {
-            error_log("ajax_handler.php - Missing parameters: customer_name=$customer_name, product_id=$product_id, quantity=$quantity, unit_price=$unit_price, work_details_id=$work_details_id, partner1_id=$partner1_id");
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
         }
 
@@ -40,7 +39,6 @@ switch ($action) {
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$product) {
-            error_log("ajax_handler.php - Product not found: product_id=$product_id");
             respond(false, 'محصول یافت نشد.');
         }
 
@@ -51,8 +49,6 @@ switch ($action) {
             $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
             $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
-            error_log("ajax_handler.php - Checking inventory: user_id=$partner1_id, product_id=$product_id, current_quantity=$current_quantity, requested_quantity=$quantity");
-
             if ($current_quantity < $quantity) {
                 throw new Exception("موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
             }
@@ -65,7 +61,6 @@ switch ($action) {
             $pdo->commit();
         } catch (Exception $e) {
             $pdo->rollBack();
-            error_log("ajax_handler.php - Inventory error: " . $e->getMessage());
             respond(false, 'خطا در کسر موجودی: ' . $e->getMessage());
         }
 
@@ -91,6 +86,7 @@ switch ($action) {
         break;
 
     case 'delete_item':
+        // بدون تغییر
         $index = (int) ($_POST['index'] ?? -1);
         $partner1_id = $_POST['partner1_id'] ?? '';
 
@@ -137,6 +133,7 @@ switch ($action) {
         break;
 
     case 'update_discount':
+        // بدون تغییر
         $discount = (float) ($_POST['discount'] ?? 0);
 
         $items = $_SESSION['order_items'] ?? [];
@@ -154,10 +151,11 @@ switch ($action) {
         break;
 
     case 'finalize_order':
+        // بدون تغییر
         $work_details_id = $_POST['work_details_id'] ?? '';
         $customer_name = $_POST['customer_name'] ?? '';
         $discount = (float) ($_POST['discount'] ?? 0);
-        $partner1_id = $_POST['partner1_id'] ?? ''; 
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
         if (!$work_details_id || !$customer_name || !$partner1_id) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
@@ -230,17 +228,11 @@ switch ($action) {
             respond(false, 'محصول یافت نشد.');
         }
 
-        // فقط چک می‌کنیم موجودی کافی هست یا نه، ولی کسر نمی‌کنیم
-        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
-        $stmt_inventory->execute([$partner1_id, $product_id]);
-        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-
-        $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
-        if ($current_quantity < $quantity) {
-            respond(false, "موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
+        $items = $_SESSION['edit_order_items'] ?? [];
+        if ($items && array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
+            respond(false, 'این محصول قبلاً در فاکتور ثبت شده است. برای ویرایش از دکمه ویرایش استفاده کنید.');
         }
 
-        $items = $_SESSION['edit_order_items'] ?? [];
         $items[] = [
             'product_id' => $product_id,
             'product_name' => $product['product_name'],
@@ -254,6 +246,45 @@ switch ($action) {
         $final_amount = $total_amount - $discount;
 
         respond(true, 'محصول با موفقیت اضافه شد.', [
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount
+        ]);
+        break;
+
+    case 'edit_edit_item':
+        $customer_name = $_POST['customer_name'] ?? '';
+        $product_id = $_POST['product_id'] ?? '';
+        $quantity = (int) ($_POST['quantity'] ?? 0);
+        $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $index = (int) ($_POST['index'] ?? -1);
+        $order_id = $_POST['order_id'] ?? '';
+        $partner1_id = $_POST['partner1_id'] ?? '';
+
+        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || $index < 0 || !$order_id || !$partner1_id) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        }
+
+        $items = $_SESSION['edit_order_items'] ?? [];
+        if (!isset($items[$index])) {
+            respond(false, 'آیتم مورد نظر یافت نشد.');
+        }
+
+        $items[$index] = [
+            'product_id' => $product_id,
+            'product_name' => $items[$index]['product_name'], // نام تغییر نمی‌کنه
+            'quantity' => $quantity,
+            'unit_price' => $unit_price,
+            'total_price' => $quantity * $unit_price
+        ];
+
+        $_SESSION['edit_order_items'] = $items;
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $final_amount = $total_amount - $discount;
+
+        respond(true, 'آیتم با موفقیت ویرایش شد.', [
             'items' => $items,
             'total_amount' => $total_amount,
             'discount' => $discount,
@@ -334,7 +365,7 @@ switch ($action) {
             $stmt_items->execute([$order_id]);
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-            // ساخت نقشه برای اقلام قبلی و جدید
+            // نقشه اقلام قبلی
             $old_items_map = [];
             foreach ($old_items as $item) {
                 $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
@@ -352,6 +383,7 @@ switch ($action) {
                 }
             }
 
+            // نقشه اقلام جدید
             $new_items_map = [];
             foreach ($new_items as $item) {
                 if ($item['product_id']) {
@@ -364,7 +396,7 @@ switch ($action) {
                 }
             }
 
-            // محاسبه تغییرات موجودی
+            // محاسبه تغییرات و اعمال به دیتابیس
             foreach ($old_items_map as $product_id => $old_item) {
                 if (!isset($new_items_map[$product_id])) {
                     // محصول حذف شده، موجودی برگردانده بشه
