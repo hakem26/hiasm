@@ -20,6 +20,7 @@ if (!$action) {
 }
 
 switch ($action) {
+    // سایر اکشن‌ها بدون تغییر باقی می‌مونن
     case 'add_item':
         $customer_name = $_POST['customer_name'] ?? '';
         $product_id = $_POST['product_id'] ?? '';
@@ -347,7 +348,7 @@ switch ($action) {
         $order_id = $_POST['order_id'] ?? '';
         $customer_name = $_POST['customer_name'] ?? '';
         $discount = (float) ($_POST['discount'] ?? 0);
-        $partner1_id = $_POST['partner1_id'] ?? ''; 
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
         if (!$order_id || !$customer_name || !$partner1_id) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
@@ -364,12 +365,13 @@ switch ($action) {
         $pdo->beginTransaction();
         try {
             // دریافت اقلام قبلی سفارش
-            $stmt_items = $pdo->prepare("SELECT product_name, quantity FROM Order_Items WHERE order_id = ?");
+            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, total_price FROM Order_Items WHERE order_id = ?");
             $stmt_items->execute([$order_id]);
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-            // ساخت دیکشنری برای اقلام قبلی و جدید
-            $old_items_dict = [];
+            // مقایسه اقلام برای تشخیص تغییرات
+            $has_changes = false;
+            $old_items_map = [];
             foreach ($old_items as $item) {
                 $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
                 $stmt_product->execute([$item['product_name']]);
@@ -377,27 +379,60 @@ switch ($action) {
                 $product_id = $product ? $product['product_id'] : null;
 
                 if ($product_id) {
-                    $old_items_dict[$product_id] = [
+                    $old_items_map[$product_id] = [
                         'quantity' => $item['quantity'],
-                        'product_name' => $item['product_name']
+                        'product_name' => $item['product_name'],
+                        'unit_price' => $item['unit_price'],
+                        'total_price' => $item['total_price']
                     ];
                 }
             }
 
-            $new_items_dict = [];
+            $new_items_map = [];
             foreach ($new_items as $item) {
                 if ($item['product_id']) {
-                    $new_items_dict[$item['product_id']] = [
+                    $new_items_map[$item['product_id']] = [
                         'quantity' => $item['quantity'],
-                        'product_name' => $item['product_name']
+                        'product_name' => $item['product_name'],
+                        'unit_price' => $item['unit_price'],
+                        'total_price' => $item['total_price']
                     ];
+                } else {
+                    // اگه product_id نباشه، با نام محصول مقایسه می‌کنیم
+                    $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
+                    $stmt_product->execute([$item['product_name']]);
+                    $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
+                    $product_id = $product ? $product['product_id'] : null;
+
+                    if ($product_id) {
+                        $new_items_map[$product_id] = [
+                            'quantity' => $item['quantity'],
+                            'product_name' => $item['product_name'],
+                            'unit_price' => $item['unit_price'],
+                            'total_price' => $item['total_price']
+                        ];
+                    }
                 }
             }
 
-            // محاسبه تغییرات موجودی
-            foreach ($old_items_dict as $product_id => $old_item) {
-                if (!isset($new_items_dict[$product_id])) {
-                    // محصول حذف شده، موجودی برگردانده بشه
+            // چک کردن تغییرات
+            if (count($old_items_map) !== count($new_items_map)) {
+                $has_changes = true;
+            } else {
+                foreach ($old_items_map as $product_id => $old_item) {
+                    if (!isset($new_items_map[$product_id]) || 
+                        $new_items_map[$product_id]['quantity'] !== $old_item['quantity'] || 
+                        $new_items_map[$product_id]['unit_price'] !== $old_item['unit_price']) {
+                        $has_changes = true;
+                        break;
+                    }
+                }
+            }
+
+            // اگه تغییری توی اقلام باشه، موجودی رو آپدیت می‌کنیم
+            if ($has_changes) {
+                // برگرداندن موجودی اقلام قبلی
+                foreach ($old_items_map as $product_id => $old_item) {
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                     $stmt_inventory->execute([$partner1_id, $product_id]);
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
@@ -408,29 +443,10 @@ switch ($action) {
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                                ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
-                } elseif ($new_items_dict[$product_id]['quantity'] != $old_item['quantity']) {
-                    // تعداد تغییر کرده
-                    $quantity_diff = $old_item['quantity'] - $new_items_dict[$product_id]['quantity'];
-                    $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                    $stmt_inventory->execute([$partner1_id, $product_id]);
-                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-
-                    $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                    $new_quantity = $current_quantity + $quantity_diff;
-
-                    if ($new_quantity < 0) {
-                        throw new Exception("موجودی کافی برای محصول '{$old_item['product_name']}' نیست. موجودی: $current_quantity");
-                    }
-
-                    $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                    $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 }
-            }
 
-            foreach ($new_items_dict as $product_id => $new_item) {
-                if (!isset($old_items_dict[$product_id])) {
-                    // محصول جدید اضافه شده، موجودی کسر بشه
+                // کسر موجودی اقلام جدید
+                foreach ($new_items_map as $product_id => $new_item) {
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                     $stmt_inventory->execute([$partner1_id, $product_id]);
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
@@ -447,7 +463,7 @@ switch ($action) {
                 }
             }
 
-            // به‌روزرسانی سفارش
+            // به‌روزرسانی سفارش (حتی اگه فقط تخفیف یا نام مشتری تغییر کرده باشه)
             $stmt = $pdo->prepare("
                 UPDATE Orders 
                 SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
@@ -455,11 +471,10 @@ switch ($action) {
             ");
             $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $order_id]);
 
-            // حذف اقلام قبلی
+            // حذف اقلام قبلی و اضافه کردن اقلام جدید (برای اطمینان از همگام‌سازی)
             $stmt = $pdo->prepare("DELETE FROM Order_Items WHERE order_id = ?");
             $stmt->execute([$order_id]);
 
-            // اضافه کردن اقلام جدید
             foreach ($new_items as $item) {
                 $stmt = $pdo->prepare("
                     INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price)
