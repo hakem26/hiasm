@@ -189,9 +189,9 @@ $_SESSION['is_order_in_progress'] = true;
                                 <td><?= number_format($item['unit_price'], 0) ?></td>
                                 <td><?= number_format($item['total_price'], 0) ?></td>
                                 <td>
-                                    <button type="button" class="btn btn-warning btn-sm edit-item" data-index="<?= $index ?>">
+                                    <!-- <button type="button" class="btn btn-warning btn-sm edit-item" data-index="<?= $index ?>">
                                         <i class="fas fa-edit"></i>
-                                    </button>
+                                    </button> -->
                                     <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
                                         <i class="fas fa-trash"></i>
                                     </button>
