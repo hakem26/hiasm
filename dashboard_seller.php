@@ -529,51 +529,47 @@ if ($current_work_month_id) {
 
     <div class="row">
         <div class="col-12 col-md-6 mb-4">
-            <div class="col-12 col-md-6 mb-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">فروش با همکاران در ماه
-                            <?php
-                            if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
-                                echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
-                            } else {
-                                echo "نامشخص";
-                            }
-                            ?>
-                        </h5>
-                        <div class="btn-group mb-3" role="group">
-                            <button style="display: none;" type="button" class="btn btn-primary active" id="allBtn"
-                                onclick="showAllPartners()"></button>
-                        </div>
-                        <?php if (empty($partner_data)): ?>
-                            <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
-                        <?php else: ?>
-                            <canvas id="partnerChart"></canvas>
-                        <?php endif; ?>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">فروش با همکاران در ماه
+                        <?php
+                        if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+                            echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
+                        } else {
+                            echo "نامشخص";
+                        }
+                        ?>
+                    </h5>
+                    <div class="btn-group mb-3" role="group">
+                        <button style="display: none;" type="button" class="btn btn-primary active" id="allBtn"
+                            onclick="showAllPartners()"></button>
                     </div>
+                    <?php if (empty($partner_data)): ?>
+                        <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
+                    <?php else: ?>
+                        <canvas id="partnerChart"></canvas>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
 
         <div class="col-12 col-md-6 mb-4">
-            <div class="col-12 col-md-6 mb-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">تعداد آژانس‌ها در ماه
-                            <?php
-                            if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
-                                echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
-                            } else {
-                                echo "نامشخص";
-                            }
-                            ?>
-                        </h5>
-                        <?php if (empty($agency_data_counts)): ?>
-                            <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
-                        <?php else: ?>
-                            <canvas id="agencyChart"></canvas>
-                        <?php endif; ?>
-                    </div>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">تعداد آژانس‌ها در ماه
+                        <?php
+                        if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+                            echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
+                        } else {
+                            echo "نامشخص";
+                        }
+                        ?>
+                    </h5>
+                    <?php if (empty($agency_data_counts)): ?>
+                        <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
+                    <?php else: ?>
+                        <canvas id="agencyChart"></canvas>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
