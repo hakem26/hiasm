@@ -27,10 +27,10 @@ switch ($action) {
         $unit_price = (float) ($_POST['unit_price'] ?? 0);
         $discount = (float) ($_POST['discount'] ?? 0);
         $work_details_id = $_POST['work_details_id'] ?? '';
-        $partner1_id = $_POST['partner1_id'] ?? '';
+        $current_user_id = $_POST['partner1_id'] ?? ''; // حالا current_user_id
 
-        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$work_details_id || !$partner1_id) {
-            error_log("ajax_handler.php - Missing parameters: customer_name=$customer_name, product_id=$product_id, quantity=$quantity, unit_price=$unit_price, work_details_id=$work_details_id, partner1_id=$partner1_id");
+        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$work_details_id || !$current_user_id) {
+            error_log("ajax_handler.php - Missing parameters: customer_name=$customer_name, product_id=$product_id, quantity=$quantity, unit_price=$unit_price, work_details_id=$work_details_id, current_user_id=$current_user_id");
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
         }
 
@@ -44,15 +44,15 @@ switch ($action) {
             respond(false, 'محصول یافت نشد.');
         }
 
-        // کسر موجودی برای همکار ۱
+        // کسر موجودی برای کاربر فعلی
         $pdo->beginTransaction();
         try {
             $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-            $stmt_inventory->execute([$partner1_id, $product_id]);
+            $stmt_inventory->execute([$current_user_id, $product_id]);
             $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
             $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
-            error_log("ajax_handler.php - Checking inventory: user_id=$partner1_id, product_id=$product_id, current_quantity=$current_quantity, requested_quantity=$quantity");
+            error_log("ajax_handler.php - Checking inventory: user_id=$current_user_id, product_id=$product_id, current_quantity=$current_quantity, requested_quantity=$quantity");
 
             if ($current_quantity < $quantity) {
                 throw new Exception("موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
@@ -61,7 +61,7 @@ switch ($action) {
             $new_quantity = $current_quantity - $quantity;
             $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                        ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-            $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
+            $stmt_update->execute([$current_user_id, $product_id, $new_quantity]);
 
             $pdo->commit();
         } catch (Exception $e) {
@@ -93,20 +93,20 @@ switch ($action) {
 
     case 'delete_item':
         $index = (int) ($_POST['index'] ?? -1);
-        $partner1_id = $_POST['partner1_id'] ?? '';
+        $current_user_id = $_POST['partner1_id'] ?? ''; // حالا current_user_id
 
-        if ($index < 0 || !isset($_SESSION['order_items'][$index]) || !$partner1_id) {
+        if ($index < 0 || !isset($_SESSION['order_items'][$index]) || !$current_user_id) {
             respond(false, 'آیتم یافت نشد.');
         }
 
         $items = $_SESSION['order_items'];
         $item = $items[$index];
 
-        // برگرداندن موجودی برای همکار ۱
+        // برگرداندن موجودی برای کاربر فعلی
         $pdo->beginTransaction();
         try {
             $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-            $stmt_inventory->execute([$partner1_id, $item['product_id']]);
+            $stmt_inventory->execute([$current_user_id, $item['product_id']]);
             $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
             $current_quantity = $inventory ? $inventory['quantity'] : 0;
@@ -114,7 +114,7 @@ switch ($action) {
 
             $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                        ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-            $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity]);
+            $stmt_update->execute([$current_user_id, $item['product_id'], $new_quantity]);
 
             $pdo->commit();
         } catch (Exception $e) {
@@ -123,7 +123,7 @@ switch ($action) {
         }
 
         unset($items[$index]);
-        $items = array_values($items); // بازچینی اندیس‌ها
+        $items = array_values($items);
         $_SESSION['order_items'] = $items;
 
         $total_amount = array_sum(array_column($items, 'total_price'));
@@ -159,9 +159,9 @@ switch ($action) {
         $work_details_id = $_POST['work_details_id'] ?? '';
         $customer_name = $_POST['customer_name'] ?? '';
         $discount = (float) ($_POST['discount'] ?? 0);
-        $partner1_id = $_POST['partner1_id'] ?? '';
+        $current_user_id = $_POST['partner1_id'] ?? ''; // حالا current_user_id
 
-        if (!$work_details_id || !$customer_name || !$partner1_id) {
+        if (!$work_details_id || !$customer_name || !$current_user_id) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
         }
 
@@ -175,15 +175,13 @@ switch ($action) {
 
         $pdo->beginTransaction();
         try {
-            // ثبت سفارش در جدول Orders
             $stmt = $pdo->prepare("
-                INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount, user_id)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([$work_details_id, $customer_name, $total_amount, $discount, $final_amount]);
+            $stmt->execute([$work_details_id, $customer_name, $total_amount, $discount, $final_amount, $current_user_id]);
             $order_id = $pdo->lastInsertId();
 
-            // ثبت اقلام در Order_Items
             foreach ($items as $item) {
                 $stmt = $pdo->prepare("
                     INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price)
@@ -200,7 +198,6 @@ switch ($action) {
 
             $pdo->commit();
 
-            // ریست کردن سشن
             unset($_SESSION['order_items']);
             unset($_SESSION['discount']);
             $_SESSION['is_order_in_progress'] = false;
@@ -217,3 +214,4 @@ switch ($action) {
     default:
         respond(false, 'Action not recognized.');
 }
+?>

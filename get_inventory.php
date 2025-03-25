@@ -21,13 +21,9 @@ if (!$product_id || !$user_id) {
     respond(false, 'شناسه محصول یا کاربر مشخص نشده است.', ['product_id' => $product_id, 'user_id' => $user_id]);
 }
 
-// بررسی دسترسی
-if ($_SESSION['role'] === 'seller') {
-    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ? AND user_id1 = ?");
-    $stmt_check->execute([$_SESSION['user_id'], $user_id]);
-    if ($stmt_check->fetchColumn() == 0) {
-        respond(false, 'شما دسترسی به موجودی این کاربر ندارید.');
-    }
+// بررسی دسترسی: فقط کاربر فعلی به موجودی خودش دسترسی داره
+if ($_SESSION['user_id'] != $user_id) {
+    respond(false, 'شما دسترسی به موجودی این کاربر ندارید.');
 }
 
 try {
@@ -37,7 +33,6 @@ try {
 
     $quantity = $inventory ? (int)$inventory['quantity'] : 0;
 
-    // لاگ برای دیباگ
     error_log("get_inventory.php - user_id: $user_id, product_id: $product_id, quantity: $quantity");
 
     respond(true, 'موجودی با موفقیت دریافت شد.', ['inventory' => $quantity]);
