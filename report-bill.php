@@ -118,8 +118,8 @@ $total_debt = 0;
                 <label for="partner_role" class="form-label">نقش همکار</label>
                 <select name="partner_role" id="partner_role" class="form-select">
                     <option value="all" <?= $partner_role_filter === 'all' ? 'selected' : '' ?>>همه</option>
-                    <option value="partner1" <?= $partner_role_filter === 'partner1' ? 'selected' : '' ?>>همکار ۱</option>
-                    <option value="partner2" <?= $partner_role_filter === 'partner2' ? 'selected' : '' ?>>همکار ۲</option>
+                    <option value="partner1" <?= $partner_role_filter === 'partner1' ? 'selected' : '' ?>>سرگروه</option>
+                    <option value="partner2" <?= $partner_role_filter === 'partner2' ? 'selected' : '' ?>>زیرگروه</option>
                 </select>
             </div>
             <div class="col-md-3">
