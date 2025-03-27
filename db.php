@@ -1,10 +1,10 @@
 <?php
 // [BLOCK-DB-001]
 $host = 'localhost';
-// main 👇
+// main
 $dbname = 'yshcvdau_hiasm';
 $username = 'yshcvdau_hiasmadmin';
-// test 👇
+// test
 // $dbname = 'ukvojota_hiasm';
 // $username = 'ukvojota_hiasmadmin'; 
 $password = 'H72j51300!';

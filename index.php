@@ -24,7 +24,7 @@ session_start(); // این خط باید در ابتدای فایل باشد
             justify-content: center;
         }
         .login-box {
-            max-width: 400px;
+            max-width: 350px;
             width: 100%;
             padding: 20px;
             background: white;
