@@ -111,7 +111,7 @@ if (!empty($selected_work_month_ids)) {
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
         $summary = $stmt->fetch(PDO::FETCH_ASSOC);
-        $total_sales = $summary['total_sales'] / 2 ?? 0;
+        $total_sales = $summary['total_sales'] ?? 0;
         $total_quantity = $summary['total_quantity'] ?? 0;
 
         // لاگ برای دیباگ
