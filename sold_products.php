@@ -79,56 +79,81 @@ $total_sales = 0;
 $total_quantity = 0;
 if (!empty($selected_work_month_ids)) {
     try {
-        $query = "
-            SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
-                   COALESCE(SUM(oi.quantity), 0) AS total_quantity
+        // محاسبه total_sales جداگانه
+        $sales_query = "
+            SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales
             FROM Orders o
-            JOIN Order_Items oi ON o.order_id = oi.order_id
             JOIN Work_Details wd ON o.work_details_id = wd.id
             WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
-            AND EXISTS (
-                SELECT 1 FROM Partners p 
-                WHERE p.partner_id = wd.partner_id 
-                AND (p.user_id1 = ? OR p.user_id2 = ?)
-            )
         ";
-        $params = array_merge($selected_work_month_ids, [$current_user_id, $current_user_id]);
+        $sales_params = $selected_work_month_ids;
 
-        if ($user_role === 'admin') {
-            $query = "
-                SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
-                       COALESCE(SUM(oi.quantity), 0) AS total_quantity
-                FROM Orders o
-                JOIN Order_Items oi ON o.order_id = oi.order_id
-                JOIN Work_Details wd ON o.work_details_id = wd.id
-                WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
-            ";
-            $params = $selected_work_month_ids;
-        }
+        // محاسبه total_quantity جداگانه
+        $quantity_query = "
+            SELECT COALESCE(SUM(oi.quantity), 0) AS total_quantity
+            FROM Order_Items oi
+            JOIN Orders o ON oi.order_id = o.order_id
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+        ";
+        $quantity_params = $selected_work_month_ids;
 
-        if ($selected_month !== 'all') {
-            $query .= " AND wd.work_month_id = ?";
-            $params[] = $selected_month;
-        }
-
-        if ($selected_partner_id !== 'all') {
-            $query .= " AND EXISTS (
+        // شرط‌های مشترک برای کاربران غیرادمین
+        if ($user_role !== 'admin') {
+            $sales_query .= " AND EXISTS (
                 SELECT 1 FROM Partners p 
                 WHERE p.partner_id = wd.partner_id 
                 AND (p.user_id1 = ? OR p.user_id2 = ?)
             )";
-            $params[] = $selected_partner_id;
-            $params[] = $selected_partner_id;
+            $quantity_query .= " AND EXISTS (
+                SELECT 1 FROM Partners p 
+                WHERE p.partner_id = wd.partner_id 
+                AND (p.user_id1 = ? OR p.user_id2 = ?)
+            )";
+            $sales_params[] = $current_user_id;
+            $sales_params[] = $current_user_id;
+            $quantity_params[] = $current_user_id;
+            $quantity_params[] = $current_user_id;
         }
 
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $summary = $stmt->fetch(PDO::FETCH_ASSOC);
-        $total_sales = $summary['total_sales'] ?? 0;
-        $total_quantity = $summary['total_quantity'] ?? 0;
+        // شرط ماه انتخاب‌شده
+        if ($selected_month !== 'all') {
+            $sales_query .= " AND wd.work_month_id = ?";
+            $quantity_query .= " AND wd.work_month_id = ?";
+            $sales_params[] = $selected_month;
+            $quantity_params[] = $selected_month;
+        }
+
+        // شرط همکار انتخاب‌شده
+        if ($selected_partner_id !== 'all') {
+            $sales_query .= " AND EXISTS (
+                SELECT 1 FROM Partners p 
+                WHERE p.partner_id = wd.partner_id 
+                AND (p.user_id1 = ? OR p.user_id2 = ?)
+            )";
+            $quantity_query .= " AND EXISTS (
+                SELECT 1 FROM Partners p 
+                WHERE p.partner_id = wd.partner_id 
+                AND (p.user_id1 = ? OR p.user_id2 = ?)
+            )";
+            $sales_params[] = $selected_partner_id;
+            $sales_params[] = $selected_partner_id;
+            $quantity_params[] = $selected_partner_id;
+            $quantity_params[] = $selected_partner_id;
+        }
+
+        // اجرای کوئری برای total_sales
+        $stmt_sales = $pdo->prepare($sales_query);
+        $stmt_sales->execute($sales_params);
+        $total_sales = $stmt_sales->fetchColumn() ?? 0;
+
+        // اجرای کوئری برای total_quantity
+        $stmt_quantity = $pdo->prepare($quantity_query);
+        $stmt_quantity->execute($quantity_params);
+        $total_quantity = $stmt_quantity->fetchColumn() ?? 0;
 
         // لاگ برای دیباگ
-        error_log("Total sales and quantity: " . print_r($summary, true));
+        error_log("Total sales: $total_sales, Total quantity: $total_quantity");
     } catch (Exception $e) {
         error_log("Error fetching total sales and quantity: " . $e->getMessage());
     }
