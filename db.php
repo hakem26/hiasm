@@ -1,9 +1,13 @@
 <?php
 // [BLOCK-DB-001]
 $host = 'localhost';
-$dbname = 'ukvojota_hiasm';
-$username = 'ukvojota_hiasmadmin'; // نام کاربری دیتابیس خود را وارد کنید
-$password = 'H72j51300!'; // رمز عبور دیتابیس خود را وارد کنید
+// main 👇
+$dbname = 'yshcvdau_hiasm';
+$username = 'yshcvdau_hiasmadmin';
+// test 👇
+// $dbname = 'ukvojota_hiasm';
+// $username = 'ukvojota_hiasmadmin'; 
+$password = 'H72j51300!';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
