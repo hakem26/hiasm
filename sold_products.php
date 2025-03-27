@@ -85,16 +85,25 @@ if (!empty($selected_work_month_ids)) {
             FROM Orders o
             JOIN Order_Items oi ON o.order_id = oi.order_id
             JOIN Work_Details wd ON o.work_details_id = wd.id
-            JOIN Partners p ON wd.partner_id = p.partner_id
-            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
             WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+            AND EXISTS (
+                SELECT 1 FROM Partners p 
+                WHERE p.partner_id = wd.partner_id 
+                AND (p.user_id1 = ? OR p.user_id2 = ?)
+            )
         ";
-        $params = $selected_work_month_ids;
+        $params = array_merge($selected_work_month_ids, [$current_user_id, $current_user_id]);
 
-        if ($user_role !== 'admin') {
-            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-            $params[] = $current_user_id;
-            $params[] = $current_user_id;
+        if ($user_role === 'admin') {
+            $query = "
+                SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
+                       COALESCE(SUM(oi.quantity), 0) AS total_quantity
+                FROM Orders o
+                JOIN Order_Items oi ON o.order_id = oi.order_id
+                JOIN Work_Details wd ON o.work_details_id = wd.id
+                WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+            ";
+            $params = $selected_work_month_ids;
         }
 
         if ($selected_month !== 'all') {
@@ -103,7 +112,11 @@ if (!empty($selected_work_month_ids)) {
         }
 
         if ($selected_partner_id !== 'all') {
-            $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+            $query .= " AND EXISTS (
+                SELECT 1 FROM Partners p 
+                WHERE p.partner_id = wd.partner_id 
+                AND (p.user_id1 = ? OR p.user_id2 = ?)
+            )";
             $params[] = $selected_partner_id;
             $params[] = $selected_partner_id;
         }
