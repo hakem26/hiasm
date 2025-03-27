@@ -79,16 +79,18 @@ $total_sales = 0;
 $total_quantity = 0;
 if (!empty($selected_work_month_ids)) {
     try {
-        // محاسبه total_sales جداگانه
+        // محاسبه total_sales با زیرکوئری برای جلوگیری از تکرار
         $sales_query = "
-            SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales
-            FROM Orders o
-            JOIN Work_Details wd ON o.work_details_id = wd.id
-            WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+            SELECT COALESCE(SUM(total_amount), 0) AS total_sales
+            FROM (
+                SELECT DISTINCT o.order_id, o.total_amount
+                FROM Orders o
+                JOIN Work_Details wd ON o.work_details_id = wd.id
+                WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
         ";
         $sales_params = $selected_work_month_ids;
 
-        // محاسبه total_quantity جداگانه
+        // محاسبه total_quantity
         $quantity_query = "
             SELECT COALESCE(SUM(oi.quantity), 0) AS total_quantity
             FROM Order_Items oi
@@ -141,6 +143,8 @@ if (!empty($selected_work_month_ids)) {
             $quantity_params[] = $selected_partner_id;
             $quantity_params[] = $selected_partner_id;
         }
+
+        $sales_query .= ") AS unique_orders";
 
         // اجرای کوئری برای total_sales
         $stmt_sales = $pdo->prepare($sales_query);
