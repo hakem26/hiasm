@@ -75,6 +75,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             border: 1px solid #ccc;
             /* برای نمایش در صفحه */
             position: relative;
+            overflow: hidden;
         }
 
         .invoice-header {
@@ -113,10 +114,10 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
         .invoice-footer {
             position: absolute;
-            bottom: 5mm;
+            bottom: 2mm;
             left: 0;
             right: 0;
-            font-size: 9pt;
+            font-size: 8pt;
             text-align: center;
         }
 
@@ -129,6 +130,10 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             @page {
                 size: A5 portrait;
                 margin: 0;
+            }
+            body {
+                margin: 0;
+                padding: 0;
             }
         }
     </style>
