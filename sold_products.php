@@ -232,7 +232,7 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
     <!-- نمایش جمع کل‌ها -->
     <div class="summary-text">
         <p>تعداد کل: <span id="total-quantity"><?= number_format($total_quantity, 0) ?></span> عدد</p>
-        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
+        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0)/2 ?></span> تومان</p>
     </div>
 
     <!-- فرم فیلترها -->
