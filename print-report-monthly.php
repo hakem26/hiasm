@@ -12,7 +12,7 @@ require_once 'jdf.php';
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%02d/%02d/%04d", $jd, $jm, $jy);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd); // فرمت کامل 1404/01/09
 }
 
 // بررسی دسترسی کاربر
@@ -27,7 +27,7 @@ if (!$work_month_id || !$partner_id) {
 // دریافت اطلاعات ماه کاری
 $stmt = $pdo->prepare("
     SELECT wm.start_date, wm.end_date, p.user_id1, p.user_id2, u1.full_name AS user1_name, u2.full_name AS user2_name,
-           SUM(o.total_amount) AS total_sales
+           SUM(o.final_amount) AS total_sales
     FROM Work_Months wm
     JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
     JOIN Partners p ON wd.partner_id = p.partner_id
@@ -50,7 +50,7 @@ $user1_name = $month_data['user1_name'] ?: 'نامشخص';
 $user2_name = $month_data['user2_name'] ?: 'نامشخص';
 $total_sales = $month_data['total_sales'] ?? 0;
 
-// دریافت روزهای کاری و سفارشات
+// دریافت روزهای کاری، سفارشات و پرداخت‌ها
 $stmt = $pdo->prepare("
     SELECT wd.id, wd.work_date, o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount
     FROM Work_Details wd
@@ -61,6 +61,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([$work_month_id, $partner_id]);
 $work_days = [];
 $current_day = null;
+$orders_data = [];
 
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $work_date = $row['work_date'];
@@ -87,23 +88,51 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         }
         $items_display = implode(' - ', $items_str);
 
-        $day_data['orders'][] = [
-            'customer_name' => $row['customer_name'],
-            'items' => $items_display,
-            'total_amount' => $row['total_amount'],
-            'discount' => $row['discount'],
-            'final_amount' => $row['final_amount'],
-            'payment_type' => 'نقدی', // فعلاً ثابت (برای گزارش‌های بعدی تغییر می‌کنه)
-            'payment_date' => '', // فعلاً خالی
-            'remaining' => 0 // فعلاً صفر
-        ];
+        // دریافت پرداخت‌ها
+        $payments_stmt = $pdo->prepare("SELECT amount, payment_date, payment_type, payment_code FROM Order_Payments WHERE order_id = ?");
+        $payments_stmt->execute([$row['order_id']]);
+        $payments = $payments_stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $total_paid = array_sum(array_column($payments, 'amount'));
+        $remaining = $row['final_amount'] - $total_paid;
+
+        if (empty($payments)) {
+            $day_data['orders'][] = [
+                'customer_name' => $row['customer_name'],
+                'items' => $items_display,
+                'total_amount' => $row['total_amount'],
+                'discount' => $row['discount'],
+                'final_amount' => $row['final_amount'],
+                'payments' => [['amount' => 0, 'payment_date' => '-', 'payment_type' => '-', 'payment_code' => '-']],
+                'remaining' => $row['final_amount']
+            ];
+        } else {
+            $payment_rows = [];
+            foreach ($payments as $payment) {
+                $payment_rows[] = [
+                    'amount' => $payment['amount'],
+                    'payment_date' => gregorian_to_jalali_format($payment['payment_date']),
+                    'payment_type' => $payment['payment_type'],
+                    'payment_code' => $payment['payment_code']
+                ];
+            }
+            $day_data['orders'][] = [
+                'customer_name' => $row['customer_name'],
+                'items' => $items_display,
+                'total_amount' => $row['total_amount'],
+                'discount' => $row['discount'],
+                'final_amount' => $row['final_amount'],
+                'payments' => $payment_rows,
+                'remaining' => $remaining
+            ];
+        }
     }
 }
 if ($current_day !== null) {
     $work_days[] = $day_data;
 }
 
-// تنظیمات صفحه‌بندی (2 جدول در هر صفحه)
+// تنظیمات صفحه‌بندی
 $tables_per_page = 2;
 $total_tables = count($work_days);
 $total_pages = ceil($total_tables / $tables_per_page);
@@ -111,13 +140,10 @@ $total_pages = ceil($total_tables / $tables_per_page);
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <title>چاپ گزارش ماهانه</title>
     <style>
         @page {
@@ -125,7 +151,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
             margin: 3mm;
             orientation: landscape;
         }
-
         body {
             font-family: "Vazirmatn", sans-serif;
             font-size: 10pt;
@@ -133,7 +158,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
             padding: 0;
             direction: rtl;
         }
-
         .page {
             width: 297mm;
             height: 210mm;
@@ -143,55 +167,45 @@ $total_pages = ceil($total_tables / $tables_per_page);
             page-break-after: always;
             border: 1px solid #000;
         }
-
         .header {
             text-align: center;
             margin-bottom: 10mm;
             font-size: 12pt;
             font-weight: bold;
         }
-
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10mm;
         }
-
         th, td {
             border: 1px solid #000;
             padding: 2mm;
             text-align: center;
+            vertical-align: middle;
         }
-
         th {
             background-color: #f0f0f0;
             font-weight: bold;
         }
-
-        /* تنظیم عرض ستون‌ها */
-        .col-date { width: auto; white-space: nowrap; }
-        .col-customer { width: auto; white-space: nowrap; }
-        .col-items { width: 100%; } /* این ستون باقی‌مانده عرض رو پر می‌کنه */
-        .col-total { width: auto; white-space: nowrap; }
-        .col-discount { width: auto; white-space: nowrap; }
-        .col-final { width: auto; white-space: nowrap; }
-        .col-payment-type { width: auto; white-space: nowrap; }
-        .col-payment-date { width: auto; white-space: nowrap; }
-        .col-remaining { width: auto; white-space: nowrap; }
+        .col-date { width: 10%; white-space: nowrap; }
+        .col-customer { width: 10%; white-space: nowrap; }
+        .col-items { width: 30%; }
+        .col-total { width: 10%; white-space: nowrap; }
+        .col-discount { width: 8%; white-space: nowrap; }
+        .col-final { width: 10%; white-space: nowrap; }
+        .col-payment { width: 22%; }
     </style>
 </head>
-
 <body>
     <?php for ($page = 1; $page <= $total_pages; $page++): ?>
         <div class="page">
-            <!-- هدر -->
             <div class="header">
                 گزارش کاری <?= htmlspecialchars($user1_name) ?> و <?= htmlspecialchars($user2_name) ?>
                 از تاریخ <?= $start_date ?> تا تاریخ <?= $end_date ?>
                 مبلغ <?= number_format($total_sales, 0) ?> تومان
             </div>
 
-            <!-- جدول‌ها -->
             <?php
             $start_table = ($page - 1) * $tables_per_page;
             $end_table = min($start_table + $tables_per_page, $total_tables);
@@ -206,9 +220,8 @@ $total_pages = ceil($total_tables / $tables_per_page);
                             <th class="col-items">اقلام و قیمت</th>
                             <th class="col-total">جمع</th>
                             <th class="col-discount">تخفیف</th>
-                            <th class="col-final">رقم پرداختی</th>
-                            <th class="col-payment-type">نوع پ</th>
-                            <th class="col-payment-date">تاریخ پ</th>
+                            <th class="col-final">قابل پرداخت</th>
+                            <th class="col-payment">پرداخت‌ها (مبلغ / نوع / تاریخ / کد)</th>
                             <th class="col-remaining">مانده</th>
                         </tr>
                     </thead>
@@ -221,23 +234,37 @@ $total_pages = ceil($total_tables / $tables_per_page);
                                 <td class="col-total">-</td>
                                 <td class="col-discount">-</td>
                                 <td class="col-final">-</td>
-                                <td class="col-payment-type">-</td>
-                                <td class="col-payment-date">-</td>
+                                <td class="col-payment">-</td>
                                 <td class="col-remaining">-</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($day['orders'] as $order): ?>
-                                <tr>
-                                    <td class="col-date"><?= $day['work_date'] ?></td>
-                                    <td class="col-customer"><?= htmlspecialchars($order['customer_name']) ?></td>
-                                    <td class="col-items"><?= htmlspecialchars($order['items']) ?></td>
-                                    <td class="col-total"><?= number_format($order['total_amount'], 0) ?></td>
-                                    <td class="col-discount"><?= number_format($order['discount'], 0) ?></td>
-                                    <td class="col-final"><?= number_format($order['final_amount'], 0) ?></td>
-                                    <td class="col-payment-type"><?= $order['payment_type'] ?></td>
-                                    <td class="col-payment-date"><?= $order['payment_date'] ?: '-' ?></td>
-                                    <td class="col-remaining"><?= number_format($order['remaining'], 0) ?></td>
-                                </tr>
+                                <?php
+                                $rowspan = count($order['payments']) > 0 ? count($order['payments']) : 1;
+                                $first_payment = true;
+                                foreach ($order['payments'] as $payment):
+                                ?>
+                                    <tr>
+                                        <?php if ($first_payment): ?>
+                                            <td class="col-date" rowspan="<?= $rowspan ?>"><?= $day['work_date'] ?></td>
+                                            <td class="col-customer" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($order['customer_name']) ?></td>
+                                            <td class="col-items" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($order['items']) ?></td>
+                                            <td class="col-total" rowspan="<?= $rowspan ?>"><?= number_format($order['total_amount'], 0) ?></td>
+                                            <td class="col-discount" rowspan="<?= $rowspan ?>"><?= number_format($order['discount'], 0) ?></td>
+                                            <td class="col-final" rowspan="<?= $rowspan ?>"><?= number_format($order['final_amount'], 0) ?></td>
+                                        <?php endif; ?>
+                                        <td class="col-payment">
+                                            <?= number_format($payment['amount'], 0) ?> / 
+                                            <?= htmlspecialchars($payment['payment_type']) ?> / 
+                                            <?= $payment['payment_date'] ?> / 
+                                            <?= htmlspecialchars($payment['payment_code']) ?>
+                                        </td>
+                                        <?php if ($first_payment): ?>
+                                            <td class="col-remaining" rowspan="<?= $rowspan ?>"><?= number_format($order['remaining'], 0) ?></td>
+                                        <?php endif; ?>
+                                    </tr>
+                                    <?php $first_payment = false; ?>
+                                <?php endforeach; ?>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </tbody>
@@ -246,5 +273,4 @@ $total_pages = ceil($total_tables / $tables_per_page);
         </div>
     <?php endfor; ?>
 </body>
-
 </html>
