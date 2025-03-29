@@ -164,7 +164,6 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         .main-table td {
             border: 1px solid black;
             width: 50%;
-            height: 50%;
             vertical-align: top;
             padding: 5mm;
         }
@@ -180,7 +179,6 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         .details {
         }
         .debtors {
-            height: 50%;
         }
         .debtors-table {
             width: 100%;
