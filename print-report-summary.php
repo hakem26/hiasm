@@ -134,12 +134,15 @@ foreach ($work_days as $day) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Vazirmatn Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <title>چاپ گزارش خلاصه</title>
     <style>
         body {
-            font-family: 'Vazirmatn', sans-serif;
-            font-size: 11pt;
+            font-family: "Vazirmatn", sans-serif;
+            font-size: 10pt;
             margin: 0;
+            padding: 0;
+            direction: rtl;
         }
         .page {
             width: 210mm;
@@ -164,7 +167,7 @@ foreach ($work_days as $day) {
             margin-bottom: 16pt;
         }
         .report-table {
-            width: 561.95pt;
+            width: 100%; /* عرض جدول 100% */
             margin-right: auto;
             margin-left: auto;
             border-collapse: collapse;
@@ -175,17 +178,17 @@ foreach ($work_days as $day) {
             vertical-align: top;
         }
         .report-table .day-cell {
-            width: 268.75pt;
+            width: 50%;
         }
         .report-table .debtor-name-cell {
-            width: 128.95pt;
+            width: 50%;
         }
         .report-table .debtor-amount-cell {
-            width: 129pt;
+            width: 50%;
         }
         .report-table p {
             margin: 0;
-            line-height: 150%;
+            line-height: 200%;
             font-size: 11pt;
             font-family: 'Vazirmatn', sans-serif;
             font-weight: bold;
