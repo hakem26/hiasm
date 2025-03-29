@@ -184,7 +184,7 @@ function get_jalali_month_name($month)
         .products-table td {
             border: 1px solid #ccc;
             text-align: center;
-            padding: 5px;
+            padding: 5px 0;
         }
 
         .products-table td:last-child {
