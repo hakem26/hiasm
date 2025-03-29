@@ -171,6 +171,7 @@ function get_jalali_month_name($month)
             padding: 10px;
             font-size: 24px;
             font-weight: bold;
+            padding: 5px auto;
             border: 1px solid #ccc;
         }
 
