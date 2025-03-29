@@ -146,11 +146,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <title>چاپ گزارش ماهانه</title>
     <style>
-        @page {
-            size: A4;
-            margin: 3mm;
-            orientation: landscape;
-        }
         body {
             font-family: "Vazirmatn", sans-serif;
             font-size: 10pt;
@@ -195,6 +190,17 @@ $total_pages = ceil($total_tables / $tables_per_page);
         .col-discount { white-space: nowrap; }
         .col-final {  white-space: nowrap; }
         .col-payment { white-space: nowrap; }
+
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+            }
+        }
     </style>
 </head>
 <body>

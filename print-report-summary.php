@@ -136,14 +136,19 @@ foreach ($work_days as $day) {
     <!-- Vazirmatn Font -->
     <title>چاپ گزارش خلاصه</title>
     <style>
-        @page {
-            size: A4 portrait;
-            margin: 10mm;
-        }
         body {
             font-family: 'Vazirmatn', sans-serif;
             font-size: 11pt;
             margin: 0;
+        }
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            box-sizing: border-box;
+            page-break-after: always;
+            border: 1px solid #000;
+            overflow: hidden;
         }
         .title {
             text-align: center;
@@ -195,15 +200,21 @@ foreach ($work_days as $day) {
             page-break-before: always;
         }
         @media print {
-            .no-print {
-                display: none;
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
             }
         }
     </style>
 </head>
 
 <body>
-    <div>
+    <div class="page">
         <p class="title">
             گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?> 
             از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?> 
@@ -419,8 +430,6 @@ foreach ($work_days as $day) {
         }
         ?>
     </div>
-
-    <button class="no-print btn btn-secondary mt-3" onclick="window.print()">چاپ</button>
 </body>
 
 </html>
