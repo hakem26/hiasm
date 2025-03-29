@@ -217,24 +217,25 @@ foreach ($work_days as $day) {
 
 <body>
     <div class="page">
-        <h3 style="text-align: center;">
-            گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?> 
-            از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?> 
-            مبلغ <?= number_format($total_sales, 0) ?> تومان
-        </h3>
-
         <?php
         // تقسیم روزهای کاری به گروه‌های دوتایی
         $work_days_chunks = array_chunk($work_days_with_month, 2);
         $debtor_chunks = array_chunk($debtors, 10); // حداکثر 10 بدهکار در هر جدول (5 در هر ستون)
 
         foreach ($work_days_chunks as $index => $chunk) {
+            // عنوان صفحه گزارش
+            echo `<h3 style="text-align: center;">
+            گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?> 
+            از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?> 
+            مبلغ <?= number_format($total_sales, 0) ?> تومان
+            </h3>`; 
+
             echo '<div class="table-container">';
             echo '<table class="report-table">';
             echo '<tbody>';
 
             // ردیف روزهای کاری
-            echo '<tr style="height: 170pt;">';
+            echo '<tr style="height: 190pt;">';
             echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.35pt;"></td>';
 
             // روز اول
