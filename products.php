@@ -246,7 +246,6 @@ if ($is_admin && $is_partner1) {
                 style="width: 100%; min-width: 1200px;">
                 <thead>
                     <tr>
-                        <th>شناسه</th>
                         <th>نام محصول</th>
                         <th>قیمت واحد (تومان)</th>
                         <?php if ($is_admin): ?>
@@ -266,7 +265,6 @@ if ($is_admin && $is_partner1) {
                 <tbody>
                     <?php foreach ($products as $product): ?>
                         <tr>
-                            <td><?= $product['product_id'] ?></td>
                             <td><?= htmlspecialchars($product['product_name']) ?></td>
                             <td>
                                 <?php
