@@ -92,19 +92,29 @@ foreach ($debts as $debt) {
 }
 
 // تبدیل تاریخ به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%02d / %02d / %04d", $jd, $jm, $jy);
 }
 
 // تابع برای دریافت نام ماه شمسی
-function get_jalali_month_name($month) {
+function get_jalali_month_name($month)
+{
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
-        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
-        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+        1 => 'فروردین',
+        2 => 'اردیبهشت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -134,7 +144,9 @@ foreach ($work_days as $day) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Vazirmatn Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <title>چاپ گزارش خلاصه</title>
     <style>
         body {
@@ -144,6 +156,7 @@ foreach ($work_days as $day) {
             padding: 0;
             direction: rtl;
         }
+
         .page {
             width: 210mm;
             height: 297mm;
@@ -153,6 +166,7 @@ foreach ($work_days as $day) {
             border: 1px solid #000;
             overflow: hidden;
         }
+
         .title {
             text-align: center;
             margin-top: 0;
@@ -162,29 +176,36 @@ foreach ($work_days as $day) {
             font-family: 'Vazirmatn', sans-serif;
             font-weight: bold;
         }
+
         .table-container {
             text-align: center;
             margin-bottom: 16pt;
         }
+
         .report-table {
             width: 95%;
             margin: 0 auto;
             border-collapse: collapse;
         }
+
         .report-table td {
             border: 2.25pt solid black;
             padding: 4.28pt;
             vertical-align: top;
         }
+
         .report-table .day-cell {
             width: 268.75pt;
         }
+
         .report-table .debtor-name-cell {
             width: 128.95pt;
         }
+
         .report-table .debtor-amount-cell {
             width: 129pt;
         }
+
         .report-table p {
             margin: 0;
             line-height: 150%;
@@ -192,15 +213,19 @@ foreach ($work_days as $day) {
             font-family: 'Vazirmatn', sans-serif;
             font-weight: bold;
         }
+
         .debtor-table p {
             text-align: center;
         }
+
         .spacer {
             height: 0pt;
         }
+
         .page-break {
             page-break-before: always;
         }
+
         @media print {
             @page {
                 size: A4 portrait;
@@ -217,21 +242,19 @@ foreach ($work_days as $day) {
 
 <body>
     <div class="page">
+        // عنوان صفحه گزارش
+        <h3 style="text-align: center;">
+            گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?>
+            از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?>
+            مبلغ <?= number_format($total_sales, 0) ?> تومان
+        </h3>
+
         <?php
         // تقسیم روزهای کاری به گروه‌های دوتایی
         $work_days_chunks = array_chunk($work_days_with_month, 2);
         $debtor_chunks = array_chunk($debtors, 10); // حداکثر 10 بدهکار در هر جدول (5 در هر ستون)
-
+        
         foreach ($work_days_chunks as $index => $chunk) {
-            ?>
-            // عنوان صفحه گزارش
-            <h3 style="text-align: center;">
-            گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?> 
-            از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?> 
-            مبلغ <?= number_format($total_sales, 0) ?> تومان
-            </h3>
-            
-            <?php
             echo '<div class="table-container">';
             echo '<table class="report-table">';
             echo '<tbody>';
@@ -389,7 +412,7 @@ foreach ($work_days as $day) {
             echo '</tr>';
 
             // ردیف بدهکاران (خالی)
-            echo '<tr style="height: 220pt;" class="debtor-table">';
+            echo '<tr style="height: 260pt;" class="debtor-table">';
             echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>';
             echo '<td colspan="2" class="debtor-name-cell">';
             echo '<p>نام بدهکاران</p>';
