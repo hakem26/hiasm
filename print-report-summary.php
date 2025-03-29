@@ -148,13 +148,12 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             page-break-after: always;
             box-sizing: border-box;
             padding: 10mm;
-            border: 1px solid #ccc; /* برای نمایش در صفحه */
         }
         .header {
             text-align: center;
-            font-size: 11pt;
+            font-size: 14pt;
             font-weight: bold;
-            margin-bottom: 5mm;
+            margin-bottom: 10mm;
         }
         .main-table {
             width: 189mm; /* 90% of 210mm */
@@ -165,7 +164,9 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         .main-table td {
             border: 1px solid black;
             width: 50%;
+            height: 50%;
             vertical-align: top;
+            padding: 5mm;
         }
         .day-table {
             width: 100%;
@@ -177,9 +178,11 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             vertical-align: top;
         }
         .details {
-            padding: 0 2mm;
+            height: 50%;
+            padding: 5mm;
         }
         .debtors {
+            height: 50%;
         }
         .debtors-table {
             width: 100%;
@@ -189,6 +192,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         .debtors-table td {
             border: 1px solid black;
             width: 50%;
+            padding: 2mm;
             text-align: center;
             vertical-align: top;
         }
@@ -211,9 +215,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
 <body>
     <?php
     foreach ($work_days_chunks as $page_index => $chunk) {
-        while (count($chunk) < $days_per_page) {
-            $chunk[] = null;
-        }
+        // اینجا پر نمی‌کنیم چون می‌خواهیم سلول‌ها خالی بمونن
     ?>
         <div class="page">
             <div class="header">
@@ -248,7 +250,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= htmlspecialchars($debtor['name']) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                                 <td>
@@ -257,7 +259,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= number_format($debtor['amount'], 0) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                             </tr>
@@ -266,21 +268,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                 </tr>
                             </table>
                         <?php } else { ?>
-                            <table class="day-table">
-                                <tr>
-                                    <td class="details"></td>
-                                </tr>
-                                <tr>
-                                    <td class="debtors">
-                                        <table class="debtors-table">
-                                            <tr>
-                                                <td><p>نام بدهکاران</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                                <td><p>مبلغ</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
+                            <!-- سلول کاملاً خالی -->
                         <?php } ?>
                     </td>
                     <td>
@@ -307,7 +295,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= htmlspecialchars($debtor['name']) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                                 <td>
@@ -316,7 +304,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= number_format($debtor['amount'], 0) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                             </tr>
@@ -325,21 +313,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                 </tr>
                             </table>
                         <?php } else { ?>
-                            <table class="day-table">
-                                <tr>
-                                    <td class="details"></td>
-                                </tr>
-                                <tr>
-                                    <td class="debtors">
-                                        <table class="debtors-table">
-                                            <tr>
-                                                <td><p>نام بدهکاران</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                                <td><p>مبلغ</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
+                            <!-- سلول کاملاً خالی -->
                         <?php } ?>
                     </td>
                 </tr>
@@ -368,7 +342,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= htmlspecialchars($debtor['name']) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                                 <td>
@@ -377,7 +351,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= number_format($debtor['amount'], 0) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                             </tr>
@@ -386,21 +360,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                 </tr>
                             </table>
                         <?php } else { ?>
-                            <table class="day-table">
-                                <tr>
-                                    <td class="details"></td>
-                                </tr>
-                                <tr>
-                                    <td class="debtors">
-                                        <table class="debtors-table">
-                                            <tr>
-                                                <td><p>نام بدهکاران</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                                <td><p>مبلغ</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
+                            <!-- سلول کاملاً خالی -->
                         <?php } ?>
                     </td>
                     <td>
@@ -427,7 +387,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= htmlspecialchars($debtor['name']) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                                 <td>
@@ -436,7 +396,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                                         <p><?= number_format($debtor['amount'], 0) ?></p>
                                                     <?php } ?>
                                                     <?php for ($i = count($debtors); $i < 5; $i++) { ?>
-                                                        <p>&nbsp;</p>
+                                                        <p> </p>
                                                     <?php } ?>
                                                 </td>
                                             </tr>
@@ -445,21 +405,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                                 </tr>
                             </table>
                         <?php } else { ?>
-                            <table class="day-table">
-                                <tr>
-                                    <td class="details"></td>
-                                </tr>
-                                <tr>
-                                    <td class="debtors">
-                                        <table class="debtors-table">
-                                            <tr>
-                                                <td><p>نام بدهکاران</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                                <td><p>مبلغ</p><?php for ($i = 0; $i < 5; $i++) { echo '<p>&nbsp;</p>'; } ?></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
+                            <!-- سلول کاملاً خالی -->
                         <?php } ?>
                     </td>
                 </tr>
