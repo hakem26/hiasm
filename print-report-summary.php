@@ -107,10 +107,11 @@ function get_jalali_month_name($month) {
     return $month_names[$month] ?? '';
 }
 
-// تبدیل تاریخ‌ها به شمسی و اضافه کردن نام ماه
+// تبدیل تاریخ‌ها به شمسی
 $start_date_jalali = gregorian_to_jalali_format($start_date);
 $end_date_jalali = gregorian_to_jalali_format($end_date);
 
+// دریافت نام ماه برای هر روز کاری
 $work_days_with_month = [];
 foreach ($work_days as $day) {
     list($gy, $gm, $gd) = explode('-', $day['work_date']);
@@ -122,7 +123,7 @@ foreach ($work_days as $day) {
     ]);
 }
 
-// تنظیم روزهای کاری به تعداد ثابت (حداکثر 4 در هر صفحه)
+// تنظیم روزهای کاری به تعداد ثابت (4 در هر صفحه)
 $days_per_page = 4;
 $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
 ?>
@@ -212,7 +213,14 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
     </style>
 </head>
 <body>
-    <?php foreach ($work_days_chunks as $page_index => $chunk): ?>
+    <?php
+    foreach ($work_days_chunks as $page_index => $chunk) {
+        // پر کردن chunk تا 4 روز اگه کمتر بود
+        while (count($chunk) < $days_per_page) {
+            $chunk[] = null;
+        }
+        $chunk_pairs = array_chunk($chunk, 2); // تقسیم به دوتا دوتا برای هر جدول
+    ?>
         <div class="page">
             <h3 class="title">
                 گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?>
@@ -221,141 +229,230 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             </h3>
 
             <?php
-            // پر کردن chunk تا 4 روز اگه کمتر بود
-            while (count($chunk) < $days_per_page) {
-                $chunk[] = null;
+            foreach ($chunk_pairs as $pair_index => $pair) {
+                echo '<div class="table-container">';
+                echo '<table class="report-table">';
+                echo '<tbody>';
+
+                // ردیف روزهای کاری
+                echo '<tr style="height: 120pt;">';
+                echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.35pt;"></td>';
+
+                // روز اول
+                if (isset($pair[0]) && $pair[0]) {
+                    $day = $pair[0];
+                    echo '<td colspan="3" class="day-cell">';
+                    echo '<p>تاریخ: ' . htmlspecialchars($day['jalali_date']) . '</p>';
+                    echo '<p>مجموع فروش: ' . number_format($day['total_sales'], 0) . '</p>';
+                    echo '<p>مجموع پورسانت و تخفیف: ' . number_format($day['total_discount'], 0) . '</p>';
+                    echo '<p>هزینه آژانس: ' . number_format($agency_cost, 0) . ' (' . htmlspecialchars($day['agency_name'] ?? 'نامشخص') . ')</p>';
+                    echo '</td>';
+                } else {
+                    echo '<td colspan="3" class="day-cell"></td>';
+                }
+
+                // روز دوم
+                if (isset($pair[1]) && $pair[1]) {
+                    $day = $pair[1];
+                    echo '<td colspan="3" class="day-cell">';
+                    echo '<p>تاریخ: ' . htmlspecialchars($day['jalali_date']) . '</p>';
+                    echo '<p>مجموع فروش: ' . number_format($day['total_sales'], 0) . '</p>';
+                    echo '<p>مجموع پورسانت و تخفیف: ' . number_format($day['total_discount'], 0) . '</p>';
+                    echo '<p>هزینه آژانس: ' . number_format($agency_cost, 0) . ' (' . htmlspecialchars($day['agency_name'] ?? 'نامشخص') . ')</p>';
+                    echo '</td>';
+                } else {
+                    echo '<td colspan="3" class="day-cell"></td>';
+                }
+
+                echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.65pt;"></td>';
+                echo '</tr>';
+
+                // ردیف بدهکاران (فقط در جدول اول صفحه اول)
+                if ($page_index == 0 && $pair_index == 0 && !empty($debtors)) {
+                    $debtor_half = array_chunk($debtors, ceil(count($debtors) / 2));
+                    $left_debtors = $debtor_half[0] ?? [];
+                    $right_debtors = $debtor_half[1] ?? [];
+                    $row_height = count($debtors) > 8 ? '188.35pt' : '161.1pt';
+
+                    echo '<tr style="height: ' . $row_height . ';" class="debtor-table">';
+                    echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>';
+
+                    // بدهکاران سمت راست
+                    echo '<td colspan="2" class="debtor-name-cell">';
+                    echo '<p>نام بدهکاران</p>';
+                    if (count($left_debtors) > 0) {
+                        foreach ($left_debtors as $debtor) {
+                            echo '<p>' . htmlspecialchars($debtor['name']) . '</p>';
+                        }
+                        for ($i = count($left_debtors); $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    } else {
+                        for ($i = 0; $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    }
+                    echo '</td>';
+
+                    echo '<td class="debtor-amount-cell">';
+                    echo '<p>مبلغ</p>';
+                    if (count($left_debtors) > 0) {
+                        foreach ($left_debtors as $debtor) {
+                            echo '<p>' . number_format($debtor['amount'], 0) . '</p>';
+                        }
+                        for ($i = count($left_debtors); $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    } else {
+                        for ($i = 0; $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    }
+                    echo '</td>';
+
+                    // بدهکاران سمت چپ
+                    echo '<td colspan="2" class="debtor-name-cell">';
+                    echo '<p>نام بدهکاران</p>';
+                    if (count($right_debtors) > 0) {
+                        foreach ($right_debtors as $debtor) {
+                            echo '<p>' . htmlspecialchars($debtor['name']) . '</p>';
+                        }
+                        for ($i = count($right_debtors); $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    } else {
+                        for ($i = 0; $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    }
+                    echo '</td>';
+
+                    echo '<td class="debtor-amount-cell">';
+                    echo '<p>مبلغ</p>';
+                    if (count($right_debtors) > 0) {
+                        foreach ($right_debtors as $debtor) {
+                            echo '<p>' . number_format($debtor['amount'], 0) . '</p>';
+                        }
+                        for ($i = count($right_debtors); $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    } else {
+                        for ($i = 0; $i < 5; $i++) {
+                            echo '<p>&nbsp;</p>';
+                        }
+                    }
+                    echo '</td>';
+
+                    echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.65pt;"></td>';
+                    echo '</tr>';
+                } else {
+                    echo '<tr style="height: 161.1pt;" class="debtor-table">';
+                    echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>';
+                    echo '<td colspan="2" class="debtor-name-cell">';
+                    echo '<p>نام بدهکاران</p>';
+                    for ($i = 0; $i < 5; $i++) {
+                        echo '<p>&nbsp;</p>';
+                    }
+                    echo '</td>';
+                    echo '<td class="debtor-amount-cell">';
+                    echo '<p>مبلغ</p>';
+                    for ($i = 0; $i < 5; $i++) {
+                        echo '<p>&nbsp;</p>';
+                    }
+                    echo '</td>';
+                    echo '<td colspan="2" class="debtor-name-cell">';
+                    echo '<p>نام بدهکاران</p>';
+                    for ($i = 0; $i < 5; $i++) {
+                        echo '<p>&nbsp;</p>';
+                    }
+                    echo '</td>';
+                    echo '<td class="debtor-amount-cell">';
+                    echo '<p>مبلغ</p>';
+                    for ($i = 0; $i < 5; $i++) {
+                        echo '<p>&nbsp;</p>';
+                    }
+                    echo '</td>';
+                    echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.65pt;"></td>';
+                    echo '</tr>';
+                }
+
+                // ردیف فاصله‌گذار
+                echo '<tr class="spacer">';
+                echo '<td style="width: 0.35pt;"></td>';
+                echo '<td style="width: 139.4pt;"></td>';
+                echo '<td style="width: 139.8pt;"></td>';
+                echo '<td style="width: 0.35pt;"></td>';
+                echo '<td style="width: 139.4pt;"></td>';
+                echo '<td style="width: 139.75pt;"></td>';
+                echo '<td style="width: 0.65pt;"></td>';
+                echo '</tr>';
+
+                echo '</tbody>';
+                echo '</table>';
+                echo '</div>';
             }
 
-            $chunk_pairs = array_chunk($chunk, 2); // تقسیم به دوتا دوتا برای هر جدول
-            foreach ($chunk_pairs as $pair_index => $pair):
+            // اگه هیچ روز کاری‌ای وجود نداشت، یه جدول خالی نمایش بده
+            if (empty($work_days_chunks)) {
+                echo '<div class="table-container">';
+                echo '<table class="report-table">';
+                echo '<tbody>';
+
+                echo '<tr style="height: 148.35pt;">';
+                echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.35pt;"></td>';
+                echo '<td colspan="3" class="day-cell"></td>';
+                echo '<td colspan="3" class="day-cell"></td>';
+                echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.65pt;"></td>';
+                echo '</tr>';
+
+                echo '<tr style="height: 161.1pt;" class="debtor-table">';
+                echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>';
+                echo '<td colspan="2" class="debtor-name-cell">';
+                echo '<p>نام بدهکاران</p>';
+                for ($i = 0; $i < 5; $i++) {
+                    echo '<p>&nbsp;</p>';
+                }
+                echo '</td>';
+                echo '<td class="debtor-amount-cell">';
+                echo '<p>مبلغ</p>';
+                for ($i = 0; $i < 5; $i++) {
+                    echo '<p>&nbsp;</p>';
+                }
+                echo '</td>';
+                echo '<td colspan="2" class="debtor-name-cell">';
+                echo '<p>نام بدهکاران</p>';
+                for ($i = 0; $i < 5; $i++) {
+                    echo '<p>&nbsp;</p>';
+                }
+                echo '</td>';
+                echo '<td class="debtor-amount-cell">';
+                echo '<p>مبلغ</p>';
+                for ($i = 0; $i < 5; $i++) {
+                    echo '<p>&nbsp;</p>';
+                }
+                echo '</td>';
+                echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.65pt;"></td>';
+                echo '</tr>';
+
+                echo '<tr class="spacer">';
+                echo '<td style="width: 0.35pt;"></td>';
+                echo '<td style="width: 139.4pt;"></td>';
+                echo '<td style="width: 139.8pt;"></td>';
+                echo '<td style="width: 0.35pt;"></td>';
+                echo '<td style="width: 139.4pt;"></td>';
+                echo '<td style="width: 139.75pt;"></td>';
+                echo '<td style="width: 0.65pt;"></td>';
+                echo '</tr>';
+
+                echo '</tbody>';
+                echo '</table>';
+                echo '</div>';
+            }
             ?>
-                <div class="table-container">
-                    <table class="report-table">
-                        <tbody>
-                            <!-- ردیف روزهای کاری -->
-                            <tr style="height: 120pt;">
-                                <td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.35pt;"></td>
-                                <!-- روز اول -->
-                                <?php if (isset($pair[0]) && $pair[0]): $day = $pair[0]; ?>
-                                    <td colspan="3" class="day-cell">
-                                        <p>تاریخ: <?= htmlspecialchars($day['jalali_date']) ?></p>
-                                        <p>مجموع فروش: <?= number_format($day['total_sales'], 0) ?></p>
-                                        <p>مجموع پورسانت و تخفیف: <?= number_format($day['total_discount'], 0) ?></p>
-                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?> (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
-                                    </td>
-                                <?php else: ?>
-                                    <td colspan="3" class="day-cell"></td>
-                                <?php endif; ?>
-                                <!-- روز دوم -->
-                                <?php if (isset($pair[1]) && $pair[1]): $day = $pair[1]; ?>
-                                    <td colspan="3" class="day-cell">
-                                        <p>تاریخ: <?= htmlspecialchars($day['jalali_date']) ?></p>
-                                        <p>مجموع فروش: <?= number_format($day['total_sales'], 0) ?></p>
-                                        <p>مجموع پورسانت و تخفیف: <?= number_format($day['total_discount'], 0) ?></p>
-                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?> (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
-                                    </td>
-                                <?php else: ?>
-                                    <td colspan="3" class="day-cell"></td>
-                                <?php endif; ?>
-                                <td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.65pt;"></td>
-                            </tr>
-
-                            <!-- ردیف بدهکاران (فقط در جدول اول صفحه اول) -->
-                            <?php if ($page_index == 0 && $pair_index == 0 && !empty($debtors)): ?>
-                                <?php
-                                $debtor_half = array_chunk($debtors, ceil(count($debtors) / 2));
-                                $left_debtors = $debtor_half[0] ?? [];
-                                $right_debtors = $debtor_half[1] ?? [];
-                                $row_height = count($debtors) > 8 ? '188.35pt' : '161.1pt';
-                                ?>
-                                <tr style="height: <?= $row_height ?>;" class="debtor-table">
-                                    <td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>
-                                    <!-- بدهکاران سمت راست -->
-                                    <td colspan="2" class="debtor-name-cell">
-                                        <p>نام بدهکاران</p>
-                                        <?php foreach ($left_debtors as $debtor): ?>
-                                            <p><?= htmlspecialchars($debtor['name']) ?></p>
-                                        <?php endforeach; ?>
-                                        <?php for ($i = count($left_debtors); $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <td class="debtor-amount-cell">
-                                        <p>مبلغ</p>
-                                        <?php foreach ($left_debtors as $debtor): ?>
-                                            <p><?= number_format($debtor['amount'], 0) ?></p>
-                                        <?php endfor; ?>
-                                        <?php for ($i = count($left_debtors); $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <!-- بدهکاران سمت چپ -->
-                                    <td colspan="2" class="debtor-name-cell">
-                                        <p>نام بدهکاران</p>
-                                        <?php foreach ($right_debtors as $debtor): ?>
-                                            <p><?= htmlspecialchars($debtor['name']) ?></p>
-                                        <?php endforeach; ?>
-                                        <?php for ($i = count($right_debtors); $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <td class="debtor-amount-cell">
-                                        <p>مبلغ</p>
-                                        <?php foreach ($right_debtors as $debtor): ?>
-                                            <p><?= number_format($debtor['amount'], 0) ?></p>
-                                        <?php endfor; ?>
-                                        <?php for ($i = count($right_debtors); $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.65pt;"></td>
-                                </tr>
-                            <?php else: ?>
-                                <tr style="height: 161.1pt;" class="debtor-table">
-                                    <td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>
-                                    <td colspan="2" class="debtor-name-cell">
-                                        <p>نام بدهکاران</p>
-                                        <?php for ($i = 0; $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <td class="debtor-amount-cell">
-                                        <p>مبلغ</p>
-                                        <?php for ($i = 0; $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <td colspan="2" class="debtor-name-cell">
-                                        <p>نام بدهکاران</p>
-                                        <?php for ($i = 0; $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <td class="debtor-amount-cell">
-                                        <p>مبلغ</p>
-                                        <?php for ($i = 0; $i < 5; $i++): ?>
-                                            <p> </p>
-                                        <?php endfor; ?>
-                                    </td>
-                                    <td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.65pt;"></td>
-                                </tr>
-                            <?php endif; ?>
-
-                            <!-- ردیف فاصله‌گذار -->
-                            <tr class="spacer">
-                                <td style="width: 0.35pt;"></td>
-                                <td style="width: 139.4pt;"></td>
-                                <td style="width: 139.8pt;"></td>
-                                <td style="width: 0.35pt;"></td>
-                                <td style="width: 139.4pt;"></td>
-                                <td style="width: 139.75pt;"></td>
-                                <td style="width: 0.65pt;"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endforeach; ?>
         </div>
-    <?php endforeach; ?>
+        <?php if ($page_index < count($work_days_chunks) - 1) { ?>
+            <div class="page-break"></div>
+        <?php } ?>
+    <?php } ?>
 </body>
 </html>
