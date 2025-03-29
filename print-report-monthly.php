@@ -27,7 +27,7 @@ if (!$work_month_id || !$partner_id) {
 // دریافت اطلاعات ماه کاری
 $stmt = $pdo->prepare("
     SELECT wm.start_date, wm.end_date, p.user_id1, p.user_id2, u1.full_name AS user1_name, u2.full_name AS user2_name,
-           SUM(o.final_amount) AS total_sales
+           SUM(o.total_amount) AS total_sales
     FROM Work_Months wm
     JOIN Work_Details wd ON wm.work_month_id = wd.work_month_id
     JOIN Partners p ON wd.partner_id = p.partner_id

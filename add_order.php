@@ -223,7 +223,7 @@ $_SESSION['is_order_in_progress'] = true;
         </div>
 
         <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">ثبت فاکتور</button>
-        <a href="works.php" class="btn btn-secondary mt-3">بازگشت</a>
+        <a href="orders.php" class="btn btn-secondary mt-3">بازگشت</a>
     </form>
 </div>
 
