@@ -218,11 +218,11 @@ foreach ($work_days as $day) {
 
 <body>
     <div class="page">
-        <p class="title">
+        <h3>
             گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?> 
             از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?> 
             مبلغ <?= number_format($total_sales, 0) ?> تومان
-        </p>
+        </h3>
 
         <?php
         // تقسیم روزهای کاری به گروه‌های دوتایی
@@ -235,7 +235,7 @@ foreach ($work_days as $day) {
             echo '<tbody>';
 
             // ردیف روزهای کاری
-            echo '<tr style="height: 148.35pt;">';
+            echo '<tr style="height: 170pt;">';
             echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.35pt;"></td>';
 
             // روز اول
