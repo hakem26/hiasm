@@ -235,7 +235,7 @@ foreach ($work_days as $day) {
             echo '<tbody>';
 
             // ردیف روزهای کاری
-            echo '<tr style="height: 190pt;">';
+            echo '<tr style="height: 150pt;">';
             echo '<td style="border-bottom-style: solid; border-bottom-width: 2.25pt; width: 0.35pt;"></td>';
 
             // روز اول
@@ -387,7 +387,7 @@ foreach ($work_days as $day) {
             echo '</tr>';
 
             // ردیف بدهکاران (خالی)
-            echo '<tr style="height: 161.1pt;" class="debtor-table">';
+            echo '<tr style="height: 220pt;" class="debtor-table">';
             echo '<td style="border-top-style: solid; border-top-width: 2.25pt; width: 0.35pt;"></td>';
             echo '<td colspan="2" class="debtor-name-cell">';
             echo '<p>نام بدهکاران</p>';
