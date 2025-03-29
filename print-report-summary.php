@@ -223,13 +223,15 @@ foreach ($work_days as $day) {
         $debtor_chunks = array_chunk($debtors, 10); // حداکثر 10 بدهکار در هر جدول (5 در هر ستون)
 
         foreach ($work_days_chunks as $index => $chunk) {
+            ?>
             // عنوان صفحه گزارش
-            echo `<h3 style="text-align: center;">
+            <h3 style="text-align: center;">
             گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?> 
             از تاریخ <?= $start_date_jalali ?> تا تاریخ <?= $end_date_jalali ?> 
             مبلغ <?= number_format($total_sales, 0) ?> تومان
-            </h3>`; 
-
+            </h3>
+            
+            <?php
             echo '<div class="table-container">';
             echo '<table class="report-table">';
             echo '<tbody>';
