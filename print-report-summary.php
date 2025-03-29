@@ -151,7 +151,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         }
         .header {
             text-align: center;
-            font-size: 14pt;
+            font-size: 12pt;
             font-weight: bold;
             margin-bottom: 10mm;
         }
@@ -178,8 +178,6 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             vertical-align: top;
         }
         .details {
-            height: 50%;
-            padding: 5mm;
         }
         .debtors {
             height: 50%;
