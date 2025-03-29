@@ -144,8 +144,8 @@ function get_jalali_month_name($month)
         }
 
         .page-container {
-            width: 297mm;
-            height: 210mm;
+            width: 210mm;
+            height: 297mm;
             margin: 0 auto;
             padding: 0 5mm;
             box-sizing: border-box;
