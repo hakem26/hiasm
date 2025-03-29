@@ -243,7 +243,7 @@ if ($is_admin && $is_partner1) {
     <?php if (!empty($products)): ?>
         <div class="table-responsive" style="overflow-x: auto; width: 100%;">
             <table id="productsTable" class="table table-light table-hover display nowrap"
-                style="width: 100%; min-width: 1200px;">
+                style="width: 100%; min-width: 800px;">
                 <thead>
                     <tr>
                         <th>نام محصول</th>
