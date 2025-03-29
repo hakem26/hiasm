@@ -188,13 +188,13 @@ $total_pages = ceil($total_tables / $tables_per_page);
             background-color: #f0f0f0;
             font-weight: bold;
         }
-        /* .col-date { width: 10%; white-space: nowrap; }
-        .col-customer { width: 10%; white-space: nowrap; }
-        .col-items { width: 30%; }
-        .col-total { width: 10%; white-space: nowrap; }
-        .col-discount { width: 8%; white-space: nowrap; }
-        .col-final { width: 10%; white-space: nowrap; }
-        .col-payment { width: 22%; } */
+        .col-date {  white-space: nowrap; }
+        .col-customer {  white-space: nowrap; }
+        .col-items {  }
+        .col-total {  white-space: nowrap; }
+        .col-discount { white-space: nowrap; }
+        .col-final {  white-space: nowrap; }
+        .col-payment { white-space: nowrap; }
     </style>
 </head>
 <body>
