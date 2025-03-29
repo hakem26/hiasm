@@ -148,6 +148,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             page-break-after: always;
             box-sizing: border-box;
             padding: 10mm;
+            border: 1px solid #ccc; /* برای نمایش در صفحه */
         }
         .header {
             text-align: center;
@@ -165,7 +166,6 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             border: 1px solid black;
             width: 50%;
             vertical-align: top;
-            padding: 5mm;
         }
         .day-table {
             width: 100%;
@@ -188,7 +188,6 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         .debtors-table td {
             border: 1px solid black;
             width: 50%;
-            padding: 2mm;
             text-align: center;
             vertical-align: top;
         }
