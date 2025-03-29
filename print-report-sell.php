@@ -169,6 +169,7 @@ function get_jalali_month_name($month)
 
         .summary-box td {
             padding: 10px;
+            font-size: 24px;
             border: 1px solid #ccc;
         }
 
@@ -181,8 +182,12 @@ function get_jalali_month_name($month)
         .products-table th,
         .products-table td {
             border: 1px solid #ccc;
-            padding: 8px;
+            padding: 5px;
             text-align: center;
+        }
+
+        .products-table td:last-child {
+            min-width: 30mm;
         }
 
         .total-row {
