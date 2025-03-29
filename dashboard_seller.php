@@ -436,9 +436,9 @@ if ($current_work_month_id) {
                     </div>
                     <?php if (!empty($partners_today) && $work_details_id): ?>
                         <div class="mt-3">
-                            <a href="https://hakemo26.persiasptool.com/add_order.php?work_details_id=<?= $work_details_id ?>"
+                            <a href="add_order.php?work_details_id=<?= $work_details_id ?>"
                                 class="btn btn-primary me-2">ثبت سفارش</a>
-                            <a href="https://hakemo26.persiasptool.com/orders.php?year=<?= $selected_year ?>&work_month_id=<?= $current_work_month_id ?>&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>"
+                            <a href="orders.php?year=<?= $selected_year ?>&work_month_id=<?= $current_work_month_id ?>&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>"
                                 class="btn btn-secondary">لیست سفارشات</a>
                         </div>
                     <?php endif; ?>
