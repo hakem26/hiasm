@@ -178,17 +178,17 @@ foreach ($work_days as $day) {
             vertical-align: top;
         }
         .report-table .day-cell {
-            width: 50%;
+            width: 268.75pt;
         }
         .report-table .debtor-name-cell {
-            width: 50%;
+            width: 128.95pt;
         }
         .report-table .debtor-amount-cell {
-            width: 50%;
+            width: 129pt;
         }
         .report-table p {
             margin: 0;
-            line-height: 200%;
+            line-height: 150%;
             font-size: 11pt;
             font-family: 'Vazirmatn', sans-serif;
             font-weight: bold;
