@@ -111,7 +111,7 @@ function get_jalali_month_name($month)
 {
     $month_names = [
         1 => 'فروردین',
-        2 => 'اردیبشهت',
+        2 => 'اردیبهشت',
         3 => 'خرداد',
         4 => 'تیر',
         5 => 'مرداد',
@@ -134,9 +134,7 @@ function get_jalali_month_name($month)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>چاپ گزارش فروش</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
     <style>
         body {
@@ -199,7 +197,7 @@ function get_jalali_month_name($month)
         .grand-total-row {
             background-color: #fff3cd;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 16px; /* فونت بزرگ‌تر */
         }
 
         .page-break {
@@ -224,7 +222,7 @@ function get_jalali_month_name($month)
     <!-- صفحه اول: جمع کل‌ها -->
     <div class="page-container">
         <?php
-            echo '<h1 style="text-align: center; margin: 3mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h1>';
+        echo '<h1 style="text-align: center; margin: 3mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h1>';
         ?>
         <div class="summary-box">
             <table>
@@ -245,65 +243,62 @@ function get_jalali_month_name($month)
     </div>
 
     <!-- صفحه دوم به بعد: لیست محصولات -->
-    <div class="page-container">
-        <?php
-        $items_per_page = 30;
-        $total_items = count($products);
-        $total_pages = ceil($total_items / $items_per_page);
+    <?php
+    $items_per_page = 30;
+    $total_items = count($products);
+    $total_pages = ceil($total_items / $items_per_page);
 
-        for ($page = 0; $page < $total_pages; $page++) {
-            if ($page > 0) {
-                echo '<div class="page-break"></div>';
-            }
-            $start = $page * $items_per_page;
-            $end = min(($page + 1) * $items_per_page, $total_items);
-            $page_items = array_slice($products, $start, $items_per_page);
+    for ($page = 0; $page < $total_pages; $page++) {
+        echo '<div class="page-container page-break">';
+        $start = $page * $items_per_page;
+        $end = min(($page + 1) * $items_per_page, $total_items);
+        $page_items = array_slice($products, $start, $items_per_page);
 
-            // تیتر صفحه
-            echo '<h4 style="text-align: center; margin: 3mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
+        // تیتر صفحه
+        echo '<h4 style="text-align: center; margin: 3mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
 
-            // جدول محصولات (با ستون سود)
-            echo '<table class="products-table">';
-            echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th></tr></thead>';
-            echo '<tbody>';
+        // جدول محصولات (با ستون سود)
+        echo '<table class="products-table">';
+        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th></tr></thead>';
+        echo '<tbody>';
 
-            $page_total = 0;
-            for ($i = 0; $i < count($page_items); $i++) {
-                $item = $page_items[$i];
-                $row_number = $start + $i + 1;
-                $total_price = $item['total_price'];
-                $page_total += $total_price;
+        $page_total = 0;
+        for ($i = 0; $i < count($page_items); $i++) {
+            $item = $page_items[$i];
+            $row_number = $start + $i + 1;
+            $total_price = $item['total_price'];
+            $page_total += $total_price;
 
-                echo '<tr>';
-                echo '<td>' . $row_number . '</td>';
-                echo '<td>' . htmlspecialchars($item['product_name']) . '</td>';
-                echo '<td>' . number_format($item['unit_price'], 0) . ' تومان</td>';
-                echo '<td>' . $item['total_quantity'] . '</td>';
-                echo '<td>' . number_format($total_price, 0) . ' تومان</td>';
-                echo '<td></td>'; // ستون سود (فعلاً خالی)
-                echo '</tr>';
-            }
-
-            // ردیف جمع کل
-            echo '<tr class="total-row">';
-            echo '<td colspan="4">جمع کل</td>';
-            echo '<td>' . number_format($page_total, 0) . ' تومان</td>';
-            echo '<td></td>'; // ستون سود برای جمع کل
+            echo '<tr>';
+            echo '<td>' . $row_number . '</td>';
+            echo '<td>' . htmlspecialchars($item['product_name']) . '</td>';
+            echo '<td>' . number_format($item['unit_price'], 0) . ' تومان</td>';
+            echo '<td>' . $item['total_quantity'] . '</td>';
+            echo '<td>' . number_format($total_price, 0) . ' تومان</td>';
+            echo '<td></td>'; // ستون سود (فعلاً خالی)
             echo '</tr>';
-
-            // اگر صفحه آخر باشه و تعداد محصولات ≤ 30 باشه، ردیف جمع کل فروش رو اضافه کن
-            if ($end == $total_items && $total_items <= 30) {
-                echo '<tr class="grand-total-row">';
-                echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
-                echo '<td>' . number_format($total_sales, 0) . ' تومان</td>';
-                echo '<td></td>'; // ستون سود برای جمع کل فروش
-                echo '</tr>';
-            }
-
-            echo '</tbody></table>';
         }
-        ?>
-    </div>
+
+        // ردیف جمع کل صفحه
+        echo '<tr class="total-row">';
+        echo '<td colspan="4">جمع کل</td>';
+        echo '<td>' . number_format($page_total, 0) . ' تومان</td>';
+        echo '<td></td>'; // ستون سود برای جمع کل
+        echo '</tr>';
+
+        // اگر صفحه آخر باشه، ردیف جمع کل فروش رو اضافه کن
+        if ($page == $total_pages - 1) {
+            echo '<tr class="grand-total-row">';
+            echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
+            echo '<td>' . number_format($total_sales, 0) . ' تومان</td>';
+            echo '<td></td>'; // ستون سود برای جمع کل فروش
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+        echo '</div>'; // بستن page-container
+    }
+    ?>
 </body>
 
 </html>
