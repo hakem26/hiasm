@@ -36,7 +36,8 @@ h5 {
 
 /* منوی کناری (Offcanvas) */
 .offcanvas {
-  width: 280px; /* عرض ثابت منو */
+  width: auto; /* عرض خودکار بر اساس محتوا */
+  max-width: 300px; /* حداکثر عرض برای جلوگیری از خیلی باز شدن */
   background-color: #e7eedb; /* تم سبز روشن */
 }
 
@@ -52,7 +53,7 @@ h5 {
 
 .offcanvas-body {
   overflow-y: auto; /* اسکرول عمودی */
-  padding: 1rem;
+  padding: 1rem; /* فقط 1rem پدینگ */
 }
 
 .offcanvas .nav-link {
@@ -244,6 +245,6 @@ select {
   }
 
   .offcanvas {
-    width: 250px; /* عرض کمتر در موبایل */
+    max-width: 250px; /* حداکثر عرض در موبایل */
   }
 }

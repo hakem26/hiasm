@@ -62,7 +62,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </nav>
 
     <!-- منوی کناری (Offcanvas) -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+    <div class="offcanvas offcanvas-start" data-bs-backdrop="static" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
         <div class="offcanvas-header" style="background-color: #e7eedb;">
             <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">منوی سیستم</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
