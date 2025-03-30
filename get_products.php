@@ -80,9 +80,9 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
                 $html .= '<tr>';
                 $html .= '<td>' . $row_number++ . '</td>';
                 $html .= '<td>' . htmlspecialchars($product['product_name']) . '</td>';
-                $html .= '<td>' . number_format($product['unit_price'], 0) . ' تومان</td>';
+                $html .= '<td>' . number_format($product['unit_price'], 0) . ' </td>';
                 $html .= '<td>' . $product['total_quantity'] . '</td>';
-                $html .= '<td>' . number_format($product['total_price'], 0) . ' تومان</td>';
+                $html .= '<td>' . number_format($product['total_price'], 0) . ' </td>';
                 $html .= '</tr>';
             }
         }
@@ -147,6 +147,6 @@ if ($work_details_id) {
 }
 
 foreach ($products as $product) {
-    echo "<a href='#' class='list-group-item list-group-item-action product-suggestion' data-product='" . json_encode($product) . "'>" . htmlspecialchars($product['product_name']) . " - " . number_format($product['unit_price'], 0) . " تومان</a>";
+    echo "<a href='#' class='list-group-item list-group-item-action product-suggestion' data-product='" . json_encode($product) . "'>" . htmlspecialchars($product['product_name']) . " - " . number_format($product['unit_price'], 0) . " </a>";
 }
 ?>

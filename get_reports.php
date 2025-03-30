@@ -131,7 +131,7 @@ try {
             $html .= '<tr>';
             $html .= '<td>' . htmlspecialchars($report['month_name']) . '</td>';
             $html .= '<td>' . htmlspecialchars($report['partner_name']) . '</td>';
-            $html .= '<td>' . number_format($report['total_sales'], 0) . ' تومان</td>';
+            $html .= '<td>' . number_format($report['total_sales'], 0) . '</td>';
             $html .= '<td>' . $report['status'] . '</td>';
             $link = $report_type === 'summary' ? 'print-report-summary.php' : 'print-report-monthly.php';
             $html .= '<td><a href="' . $link . '?work_month_id=' . $report['work_month_id'] . '&partner_id=' . $report['partner_id'] . '" class="btn btn-info btn-sm"><i class="fas fa-eye"></i> مشاهده</a></td>';
