@@ -157,7 +157,7 @@ function get_jalali_month_name($month)
 
         .summary-box {
             width: 50%;
-            margin: 3mm auto;
+            margin: 2mm auto;
         }
 
         .summary-box table {
@@ -182,7 +182,7 @@ function get_jalali_month_name($month)
         .products-table td {
             border: 1px solid #ccc;
             text-align: center;
-            padding: 5px 0;
+            padding: 3px 0;
         }
 
         .products-table td:last-child {
@@ -222,7 +222,7 @@ function get_jalali_month_name($month)
     <!-- صفحه اول: جمع کل‌ها -->
     <div class="page-container">
         <?php
-        echo '<h1 style="text-align: center; margin: 3mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h1>';
+        echo '<h5 style="text-align: center; margin: 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
         ?>
         <div class="summary-box">
             <table>
@@ -255,7 +255,7 @@ function get_jalali_month_name($month)
         $page_items = array_slice($products, $start, $items_per_page);
 
         // تیتر صفحه
-        echo '<h4 style="text-align: center; margin: 3mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
+        echo '<h5 style="text-align: center; margin: 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
 
         // جدول محصولات (با ستون سود)
         echo '<table class="products-table">';
