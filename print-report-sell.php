@@ -272,9 +272,9 @@ function get_jalali_month_name($month)
             echo '<tr>';
             echo '<td>' . $row_number . '</td>';
             echo '<td>' . htmlspecialchars($item['product_name']) . '</td>';
-            echo '<td>' . number_format($item['unit_price'], 0) . ' تومان</td>';
+            echo '<td>' . number_format($item['unit_price'], 0) . ' </td>';
             echo '<td>' . $item['total_quantity'] . '</td>';
-            echo '<td>' . number_format($total_price, 0) . ' تومان</td>';
+            echo '<td>' . number_format($total_price, 0) . ' </td>';
             echo '<td></td>'; // ستون سود (فعلاً خالی)
             echo '</tr>';
         }
