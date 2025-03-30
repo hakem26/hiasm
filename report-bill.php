@@ -48,7 +48,7 @@ $stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC
 $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $years_jalali = [];
-$year_mapping = []; // برای نگاشت سال شمسی به بازه تاریخ
+$year_mapping = [];
 foreach ($months as $month) {
     $jalali_year = get_jalali_year($month['start_date']);
     $gregorian_year = (int)date('Y', strtotime($month['start_date']));
@@ -68,9 +68,8 @@ foreach ($months as $month) {
     }
 }
 sort($years_jalali, SORT_NUMERIC);
-$years_jalali = array_reverse($years_jalali); // مرتب‌سازی نزولی
+$years_jalali = array_reverse($years_jalali);
 
-// دیباگ سال‌ها
 error_log("report-bill.php: Available years (jalali): " . implode(", ", $years_jalali));
 
 // تنظیم پیش‌فرض به جدیدترین سال شمسی
@@ -79,8 +78,8 @@ $selected_year_jalali = $_GET['year'] ?? (in_array($current_jalali_year, $years_
 
 // دریافت پارامترهای انتخاب‌شده
 $selected_month = $_GET['work_month_id'] ?? '';
-$display_filter = $_GET['display_filter'] ?? 'all'; // پیش‌فرض "همه"
-$partner_role_filter = $_GET['partner_role'] ?? 'all'; // پیش‌فرض "همه"
+$display_filter = $_GET['display_filter'] ?? 'all';
+$partner_role_filter = $_GET['partner_role'] ?? 'all';
 
 // متغیرهای جمع کل (برای نمایش اولیه)
 $total_invoices = 0;
@@ -110,7 +109,7 @@ $total_debt = 0;
                 <div class="input-group">
                     <select name="work_month_id" id="work_month_id" class="form-select">
                         <option value="">انتخاب ماه</option>
-                        <!-- ماه‌ها اینجا با AJAX بارگذاری می‌شن -->
+                        <!-- ماه‌ها با AJAX بارگذاری می‌شن -->
                     </select>
                 </div>
             </div>
@@ -132,7 +131,7 @@ $total_debt = 0;
         </div>
     </div>
 
-    <!-- اطلاعات اضافی (بعد از انتخاب ماه) -->
+    <!-- اطلاعات اضافی -->
     <div id="summary" class="mb-4" style="display: <?= $selected_month ? 'block' : 'none' ?>;">
         <p>جمع کل فاکتورها: <strong id="total_invoices"><?= number_format($total_invoices, 0) ?> تومان</strong></p>
         <p>مجموع پرداختی‌ها: <strong id="total_payments"><?= number_format($total_payments, 0) ?> تومان</strong></p>
@@ -161,12 +160,9 @@ $total_debt = 0;
 </div>
 
 <style>
-    /* اطمینان از RTL بودن جدول */
     #billsTable {
         direction: rtl !important;
     }
-
-    /* تنظیمات برای دیتاتیبل */
     #billsTable_wrapper {
         width: 100%;
         overflow-x: auto;
@@ -178,15 +174,14 @@ $total_debt = 0;
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     $(document).ready(function() {
-        // تعریف دیتاتیبل
         let billsTable = $('#billsTable').DataTable({
-            "pageLength": 10, // 10 ردیف در هر صفحه
-            "scrollX": true, // فعال کردن اسکرول افقی
-            "scrollCollapse": true, // اجازه می‌دهد اسکرول افقی با عرض صفحه تنظیم بشه
-            "paging": true, // فعال کردن صفحه‌بندی
-            "autoWidth": true, // فعال کردن تنظیم خودکار عرض
-            "ordering": true, // فعال کردن مرتب‌سازی ستون‌ها
-            "responsive": false, // غیرفعال کردن حالت ریسپانسیو
+            "pageLength": 10,
+            "scrollX": true,
+            "scrollCollapse": true,
+            "paging": true,
+            "autoWidth": true,
+            "ordering": true,
+            "responsive": false,
             "language": {
                 "decimal": "",
                 "emptyTable": "داده‌ای در جدول وجود ندارد",
@@ -206,7 +201,7 @@ $total_debt = 0;
                 }
             },
             "columnDefs": [
-                { "targets": "_all", "className": "text-center" } // وسط‌چین کردن همه ستون‌ها
+                { "targets": "_all", "className": "text-center" }
             ],
             "ajax": {
                 url: 'get_bills.php',
@@ -219,7 +214,6 @@ $total_debt = 0;
                     d.partner_role = $('#partner_role').val();
                 },
                 dataSrc: function(json) {
-                    // به‌روزرسانی جمع کل‌ها
                     if (json.success) {
                         $('#summary').show();
                         $('#total_invoices').text(json.total_invoices ? new Intl.NumberFormat('fa-IR').format(json.total_invoices) + ' تومان' : '0 تومان');
@@ -243,7 +237,6 @@ $total_debt = 0;
             ]
         });
 
-        // تابع برای بارگذاری ماه‌ها بر اساس سال
         function loadMonths(year) {
             console.log('Loading months for year:', year);
             if (!year) {
@@ -271,7 +264,6 @@ $total_debt = 0;
             });
         }
 
-        // بارگذاری اولیه
         const initial_year = $('#year').val();
         if (initial_year) {
             loadMonths(initial_year);
@@ -279,7 +271,6 @@ $total_debt = 0;
             billsTable.ajax.reload();
         }
 
-        // رویدادهای تغییر
         $('#year').on('change', function() {
             loadMonths($(this).val());
         });

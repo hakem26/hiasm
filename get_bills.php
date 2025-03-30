@@ -1,5 +1,5 @@
 <?php
-ob_start(); // شروع بافر خروجی در ابتدای فایل
+ob_start(); // شروع بافر خروجی
 session_start();
 require_once 'db.php';
 require_once 'jdf.php';
@@ -55,10 +55,9 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
     $bills = [];
 
     try {
-        error_log("Executing total_invoices query...");
-        // جمع کل فاکتورها (فروش - تخفیف)
+        // جمع کل فاکتورها (final_amount = total_amount - discount)
         $query = "
-            SELECT COALESCE(SUM(o.total_amount - o.discount), 0) AS total_invoices
+            SELECT COALESCE(SUM(o.total_amount - COALESCE(o.discount, 0)), 0) AS total_invoices
             FROM Orders o
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
@@ -91,8 +90,7 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
         $total_invoices = $stmt->fetchColumn() ?? 0;
         error_log("Total invoices result: $total_invoices");
 
-        error_log("Executing total_payments query...");
-        // مجموع پرداختی‌ها (از جدول Order_Payments)
+        // مجموع پرداختی‌ها
         $query = "
             SELECT COALESCE(SUM(op.amount), 0) AS total_payments
             FROM Order_Payments op
@@ -130,24 +128,21 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
 
         // مانده بدهی
         $total_debt = $total_invoices - $total_payments;
+        error_log("Total debt calculated: $total_debt");
 
-        error_log("Executing bills query...");
         // لیست فاکتورها برای دیتاتیبل
         $query = "
-            SELECT o.created_at AS order_date, o.customer_name, 
-                   (o.total_amount - o.discount) AS invoice_amount,
-                   (o.total_amount - o.discount - COALESCE((
-                       SELECT SUM(op.amount) 
-                       FROM Order_Payments op 
-                       WHERE op.order_id = o.order_id
-                   ), 0)) AS remaining_debt,
+            SELECT o.order_id, o.created_at AS order_date, o.customer_name, 
+                   (o.total_amount - COALESCE(o.discount, 0)) AS invoice_amount,
+                   COALESCE(SUM(op.amount), 0) AS paid_amount,
                    u1.full_name AS partner1_name,
                    u2.full_name AS partner2_name
             FROM Orders o
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
-            JOIN Users u1 ON p.user_id1 = u1.user_id
-            JOIN Users u2 ON p.user_id2 = u2.user_id
+            LEFT JOIN Order_Payments op ON o.order_id = op.order_id
+            LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+            LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
             JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
             WHERE wd.work_month_id = ?
             " . ($year_jalali ? "AND wm.start_date >= ? AND wm.start_date < ?" : "") . "
@@ -172,12 +167,9 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
             }
         }
 
+        $query .= " GROUP BY o.order_id, o.created_at, o.customer_name, o.total_amount, o.discount";
         if ($display_filter === 'debtors') {
-            $query .= " AND (o.total_amount - o.discount - COALESCE((
-                       SELECT SUM(op.amount) 
-                       FROM Order_Payments op 
-                       WHERE op.order_id = o.order_id
-                   ), 0)) > 0";
+            $query .= " HAVING (o.total_amount - COALESCE(o.discount, 0) - COALESCE(SUM(op.amount), 0)) > 0";
         }
         $query .= " ORDER BY o.created_at DESC";
 
@@ -192,12 +184,13 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
             error_log("No bills found.");
         } else {
             foreach ($bills as $bill) {
+                $remaining_debt = $bill['invoice_amount'] - $bill['paid_amount'];
                 $data[] = [
                     'order_date' => gregorian_to_jalali_format($bill['order_date']),
                     'customer_name' => htmlspecialchars($bill['customer_name']),
-                    'partners' => $user_role === 'seller' || $user_role === 'admin' ? htmlspecialchars($bill['partner1_name']) . ' - ' . htmlspecialchars($bill['partner2_name']) : '',
+                    'partners' => ($user_role === 'seller' || $user_role === 'admin') ? htmlspecialchars($bill['partner1_name']) . ' - ' . htmlspecialchars($bill['partner2_name']) : '',
                     'invoice_amount' => number_format($bill['invoice_amount'], 0) . ' تومان',
-                    'remaining_debt' => number_format($bill['remaining_debt'], 0) . ' تومان'
+                    'remaining_debt' => number_format($remaining_debt, 0) . ' تومان'
                 ];
             }
         }
@@ -213,7 +206,6 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
         ];
         error_log("Response before echo: " . json_encode($response, JSON_UNESCAPED_UNICODE));
         
-        // پاک کردن بافر و ارسال خروجی
         ob_end_clean();
         echo json_encode($response, JSON_UNESCAPED_UNICODE);
     } catch (Exception $e) {
@@ -223,8 +215,6 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
             'message' => 'خطایی در سرور رخ داد: ' . $e->getMessage(),
             'data' => []
         ];
-        
-        // پاک کردن بافر و ارسال خطا
         ob_end_clean();
         echo json_encode($error_response, JSON_UNESCAPED_UNICODE);
     }
@@ -236,8 +226,6 @@ if ($action === 'get_bill_report' && $work_month_id && $current_user_id) {
         'message' => 'درخواست نامعتبر است.',
         'data' => []
     ];
-    
-    // پاک کردن بافر و ارسال خطا
     ob_end_clean();
     echo json_encode($error_response, JSON_UNESCAPED_UNICODE);
     exit;
