@@ -46,25 +46,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
-    <!-- <style>
-        #productsTable th,
-        #productsTable td {
-            text-align: center !important;
-            vertical-align: middle !important;
-        }
-
-        /* وسط‌چین کردن هدر و بدنه جدول */
-        table.dataTable thead th,
-        table.dataTable tbody td {
-            text-align: center !important;
-            vertical-align: middle !important;
-            white-space: nowrap !important;
-            /* جلوگیری از شکستن متن */
-            overflow: hidden;
-            text-overflow: ellipsis;
-            /* نمایش ... برای متن طولانی */
-        }
-    </style> -->
 </head>
 
 <body>
@@ -72,179 +53,163 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <nav class="navbar navbar-expand navbar-light fixed-top" style="background-color: #e7eedb;">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
-                <button class="btn btn-outline-secondary me-3" type="button" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
+                <!-- دکمه همبرگر برای باز کردن منوی کناری -->
+                <button class="navbar-toggler me-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
+                    <span class="navbar-toggler-icon"></span>
                 </button>
-                <!-- <span class="navbar-text">صفحه <?php echo $page_name; ?></span> -->
             </div>
             <h6 class="navbar-text mx-auto" style="color: #690974;"><?php echo $jalali_date; ?></h6>
         </div>
     </nav>
 
-    <!-- منوی کناری -->
-    <div class="sidebar collapsed mb-3" style="overflow-y: auto;"> <!-- پیش‌فرض باریک (collapsed) -->
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
-                    href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>پیشخوان</span>
-                </a>
-            </li>
-            <hr class="sidebar-divider">
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#productsSubmenu"
-                    aria-expanded="true" aria-controls="productsSubmenu"> <!-- پیش‌فرض باز -->
-                    <i class="fas fa-box"></i>
-                    <span>محصولات</span>
-                </a>
-                <ul class="collapse list-unstyled show" id="productsSubmenu"> <!-- پیش‌فرض باز -->
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'products.php' ? 'active' : ''; ?>"
-                            href="products.php">
-                            <i class="fas fa-list"></i>
-                            <span>لیست </span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'sold_products.php' ? 'active' : ''; ?>"
-                            href="sold_products.php">
-                            <i class="fas fa-chart-bar"></i>
-                            <span>تجمیع</span>
-                        </a>
-                    </li>
-                    <?php if ($_SESSION['role'] === 'admin'): ?>
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'inventery_products.php' ? 'active' : ''; ?>"
-                            href="inventery_products.php">
-                            <i class="fas fa-boxes"></i>
-                            <span>موجودی</span>
-                        </a>
-                    </li>
-                    <?php endif; ?>
-                </ul>
-            </li>
-            <hr class="sidebar-divider">
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>" href="orders.php">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span>سفارشات</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'work_details.php' ? 'active' : ''; ?>"
-                    href="work_details.php">
-                    <i class="fas fa-info-circle"></i>
-                    <span>اطلاعات کار</span>
-                </a>
-            </li>
-            <hr class="sidebar-divider">
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu"
-                    aria-expanded="true" aria-controls="reportsSubmenu"> <!-- پیش‌فرض باز -->
-                    <i class="fas fa-box"></i>
-                    <span>گزارشات</span>
-                </a>
-                <ul class="collapse list-unstyled show" id="reportsSubmenu"> <!-- پیش‌فرض باز -->
-                    <?php if ($_SESSION['role'] === 'seller'): ?>
+    <!-- منوی کناری (Offcanvas) -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+        <div class="offcanvas-header" style="background-color: #e7eedb;">
+            <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">منوی سیستم</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body" style="overflow-y: auto;">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'dashboard_admin.php' || $current_page == 'dashboard_seller.php' ? 'active' : ''; ?>"
+                        href="<?php echo $_SESSION['role'] === 'admin' ? 'dashboard_admin.php' : 'dashboard_seller.php'; ?>">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>پیشخوان</span>
+                    </a>
+                </li>
+                <hr class="sidebar-divider">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#productsSubmenu"
+                        aria-expanded="true" aria-controls="productsSubmenu">
+                        <i class="fas fa-box"></i>
+                        <span>محصولات</span>
+                    </a>
+                    <ul class="collapse list-unstyled show" id="productsSubmenu">
                         <li class="nav-item">
-                            <a class="nav-link <?php echo $current_page == 'report-daily.php' ? 'active' : ''; ?>"
-                                href="report-monthly.php">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span>ماهانه</span>
+                            <a class="nav-link <?php echo $current_page == 'products.php' ? 'active' : ''; ?>"
+                                href="products.php">
+                                <i class="fas fa-list"></i>
+                                <span>لیست</span>
                             </a>
                         </li>
-                    <?php endif; ?>
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'report-summary.php' ? 'active' : ''; ?>"
-                            href="<?php echo $_SESSION['role'] === 'admin' ? 'report_summary_admin.php' : 'report-summary.php'; ?>">
-                            <i class="fas fa-chart-pie"></i>
-                            <span>خلاصه</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'report-sell.php' || $current_page == 'report-admin-sell.php' ? 'active' : ''; ?>"
-                            href="<?php echo $_SESSION['role'] === 'admin' ? 'report-admin-sell.php' : 'report-sell.php'; ?>">
-                            <i class="fas fa-dollar-sign"></i>
-                            <span>فروش</span>
-                        </a>
-                    </li>
-                    <?php if ($_SESSION['role'] === 'seller'): ?>
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
-                            href="report-bill.php">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span>مالی</span>
-                        </a>
-                    </li>
-                    <?php endif; ?>
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
-                            href="inventory_report.php">
-                            <i class="fas fa-warehouse"></i>
-                            <span>موجودی</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-            <hr class="sidebar-divider">
-            <!-- ادمین -->
-            <?php if ($_SESSION['role'] === 'admin'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page == 'sold_products.php' ? 'active' : ''; ?>"
+                                href="sold_products.php">
+                                <i class="fas fa-chart-bar"></i>
+                                <span>تجمیع</span>
+                            </a>
+                        </li>
+                        <?php if ($_SESSION['role'] === 'admin'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page == 'inventery_products.php' ? 'active' : ''; ?>"
+                                href="inventery_products.php">
+                                <i class="fas fa-boxes"></i>
+                                <span>موجودی</span>
+                            </a>
+                        </li>
+                        <?php endif; ?>
+                    </ul>
+                </li>
+                <hr class="sidebar-divider">
                 <li class="nav-item">
-                    <a class="nav-link" href="users.php">
-                        <i class="fas fa-users"></i>
-                        <span>کاربران</span>
+                    <a class="nav-link <?php echo $current_page == 'orders.php' ? 'active' : ''; ?>" href="orders.php">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>سفارشات</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="partners.php">
-                        <i class="fas fa-handshake"></i>
-                        <span>همکاران</span>
+                    <a class="nav-link <?php echo $current_page == 'work_details.php' ? 'active' : ''; ?>"
+                        href="work_details.php">
+                        <i class="fas fa-info-circle"></i>
+                        <span>اطلاعات کار</span>
                     </a>
                 </li>
+                <hr class="sidebar-divider">
                 <li class="nav-item">
-                    <a class="nav-link" href="work_months.php">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span>ماه کاری</span>
+                    <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu"
+                        aria-expanded="true" aria-controls="reportsSubmenu">
+                        <i class="fas fa-box"></i>
+                        <span>گزارشات</span>
+                    </a>
+                    <ul class="collapse list-unstyled show" id="reportsSubmenu">
+                        <?php if ($_SESSION['role'] === 'seller'): ?>
+                            <li class="nav-item">
+                                <a class="nav-link <?php echo $current_page == 'report-daily.php' ? 'active' : ''; ?>"
+                                    href="report-monthly.php">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>ماهانه</span>
+                                </a>
+                            </li>
+                        <?php endif; ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page == 'report-summary.php' ? 'active' : ''; ?>"
+                                href="<?php echo $_SESSION['role'] === 'admin' ? 'report_summary_admin.php' : 'report-summary.php'; ?>">
+                                <i class="fas fa-chart-pie"></i>
+                                <span>خلاصه</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page == 'report-sell.php' || $current_page == 'report-admin-sell.php' ? 'active' : ''; ?>"
+                                href="<?php echo $_SESSION['role'] === 'admin' ? 'report-admin-sell.php' : 'report-sell.php'; ?>">
+                                <i class="fas fa-dollar-sign"></i>
+                                <span>فروش</span>
+                            </a>
+                        </li>
+                        <?php if ($_SESSION['role'] === 'seller'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
+                                href="report-bill.php">
+                                <i class="fas fa-money-bill-wave"></i>
+                                <span>مالی</span>
+                            </a>
+                        </li>
+                        <?php endif; ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
+                                href="inventory_report.php">
+                                <i class="fas fa-warehouse"></i>
+                                <span>موجودی</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <hr class="sidebar-divider">
+                <?php if ($_SESSION['role'] === 'admin'): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="users.php">
+                            <i class="fas fa-users"></i>
+                            <span>کاربران</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="partners.php">
+                            <i class="fas fa-handshake"></i>
+                            <span>همکاران</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="work_months.php">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>ماه کاری</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+                <li class="nav-item">
+                    <a class="nav-link" href="logout.php">
+                        <i class="fas fa-sign-out-alt me-2"></i>
+                        <span>خروج</span>
                     </a>
                 </li>
-            <?php endif; ?>
-            <li class="nav-item">
-                <a class="nav-link" href="logout.php">
-                    <i class="fas fa-sign-out-alt me-2"></i>
-                    <span>خروج</span>
-                </a>
-            </li>
-        </ul>
+            </ul>
+        </div>
     </div>
 
     <!-- محتوای اصلی -->
     <div class="main-content">
         <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
 
-        <script>
-            // مدیریت منوی کناری
-            document.addEventListener('DOMContentLoaded', () => {
-                const sidebarToggle = document.querySelector('#sidebarToggle');
-                const sidebar = document.querySelector('.sidebar');
-
-                sidebarToggle.addEventListener('click', () => {
-                    if (window.innerWidth <= 600) {
-                        // در موبایل: کامل باز یا بسته می‌شه
-                        sidebar.classList.toggle('open');
-                        if (!sidebar.classList.contains('open')) {
-                            sidebar.classList.remove('collapsed'); // مطمئن می‌شیم در حالت بسته کامل بسته بشه
-                        }
-                    } else {
-                        // در دسکتاپ و تا 600px: حالت باریک یا باز
-                        sidebar.classList.toggle('collapsed');
-                        document.cookie = `side_nav_collapsed=${sidebar.classList.contains('collapsed') ? '1' : '0'}; path=/`;
-                    }
-                });
-
-                // تنظیم اولیه منو به حالت باریک (collapsed) در دسکتاپ
-                if (window.innerWidth > 600) {
-                    sidebar.classList.add('collapsed');
-                }
-            });
-        </script>
+    <!-- اسکریپت بوتسترپ برای کار کردن Offcanvas -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
