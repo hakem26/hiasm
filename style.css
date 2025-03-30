@@ -2,76 +2,16 @@ body {
   font-family: "Vazirmatn", sans-serif;
   background-color: #f8f9fa;
   margin: 0;
-  padding-top: 50px; /* برای جلوگیری از تداخل با هدر ثابت */
-  padding-right: 0; /* فاصله پیش‌فرض از منوی کناری */
+  padding-top: 60px; /* فاصله برای هدر ثابت */
 }
 
 h5 {
   color: #690974; /* رنگ بنفش برای عناوین */
 }
 
-.table-work-details thead tr th,
-.table-work-details tbody tr td {
-  white-space: nowrap !important; /* جلوگیری از شکستن خطوط */
-}
-
-.sidebar {
-  position: fixed; /* همیشه سمت راست فیکس */
-  top: 60px; /* زیر هدر */
-  right: 0;
-  bottom: 0;
-  background-color: #e7eedb; /* تم جدید */
-  color: #333;
-  transition: width 0.3s ease;
-  width: 140px; /* عرض پیش‌فرض (حالت باز) */
-  z-index: 900; /* زیر منوی بالا */
-  height: 100vh; /* ارتفاع کل صفحه */
-}
-
-.sidebar.collapsed {
-  width: 60px; /* عرض در حالت باریک (تا 768px و دسکتاپ) */
-}
-
-.sidebar.open {
-  width: 140px; /* عرض در حالت باز در موبایل */
-}
-
-.sidebar .nav-link {
-  color: #333;
-  padding: 10px 15px; /* کاهش padding برای کاهش عرض */
-  display: flex;
-  align-items: center;
-  text-decoration: none; /* برای جلوگیری از خط زیر لینک */
-}
-
-.sidebar .nav-link:hover,
-.sidebar .nav-link:focus,
-.sidebar .nav-link.active {
-  color: #690974; /* حفظ استایل قبلی */
-  background-color: #ddd; /* پس‌زمینه تیره‌تر برای هور در تم جدید */
-}
-
-.sidebar .nav-link i {
-  margin-left: 10px; /* برای راست‌چین بودن */
-  width: 20px;
-  text-align: center;
-}
-
-.sidebar .nav-link span {
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.sidebar.collapsed .nav-link span {
-  display: none; /* مخفی کردن متن در حالت باریک */
-}
-
-.sidebar.open .nav-link span {
-  display: inline-block; /* نمایش متن در حالت باز در موبایل */
-}
-
+/* استایل نوار بالا */
 .navbar {
-  background-color: #f8f9fa; /* تم روشن برای هدر */
+  background-color: #e7eedb; /* تم سبز روشن */
   border-bottom: 1px solid #dee2e6;
   z-index: 1000;
   position: fixed;
@@ -80,71 +20,88 @@ h5 {
   left: 0;
 }
 
-.navbar-brand,
 .navbar-text {
-  color: #212529;
+  color: #690974; /* رنگ تاریخ */
 }
 
-.dropdown-menu {
-  background-color: #f8f9fa; /* هماهنگی با هدر */
-  border: 1px solid #dee2e6;
+/* دکمه همبرگر */
+.navbar-toggler {
+  border: 1px solid #690974;
+  color: #690974;
 }
 
-.dropdown-item {
-  color: #212529;
+.navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(105, 9, 116, 0.75)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
-.dropdown-item:hover,
-.dropdown-item:focus {
-  background-color: #e9ecef;
-  color: #007bff;
+/* منوی کناری (Offcanvas) */
+.offcanvas {
+  width: 280px; /* عرض ثابت منو */
+  background-color: #e7eedb; /* تم سبز روشن */
 }
 
-.dropdown-divider {
-  border-top: 1px solid #dee2e6;
+.offcanvas-header {
+  background-color: #e7eedb;
+  border-bottom: 1px solid #dee2e6;
 }
 
-.card {
-  background-color: #f8f9fa;
+.offcanvas-title {
+  color: #690974;
+  font-weight: 600;
 }
 
+.offcanvas-body {
+  overflow-y: auto; /* اسکرول عمودی */
+  padding: 1rem;
+}
+
+.offcanvas .nav-link {
+  color: #333;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  border-radius: 5px;
+}
+
+.offcanvas .nav-link:hover,
+.offcanvas .nav-link:focus,
+.offcanvas .nav-link.active {
+  color: #690974;
+  background-color: #ddd;
+}
+
+.offcanvas .nav-link i {
+  margin-left: 10px;
+  width: 20px;
+  text-align: center;
+}
+
+.offcanvas .nav-link span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* جداکننده‌ها */
+.sidebar-divider {
+  margin: 10px 0;
+  border-top: 1px solid #ccc;
+}
+
+/* زیرمنوها */
+.list-unstyled {
+  padding-right: 20px;
+}
+
+/* محتوای اصلی */
 .main-content {
   padding: 20px;
-  transition: margin-right 0.3s ease; /* برای انیمیشن در موبایل */
 }
 
-.sidebar.collapsed ~ .main-content {
-  margin-right: 60px; /* تنظیم برای حالت باریک */
-}
-
-.sidebar ~ .main-content {
-  margin-right: 140px; /* پیش‌فرض برای حالت باز */
-}
-
-.sidebar.open ~ .main-content {
-  margin-right: 140px; /* تنظیم حاشیه وقتی منو در موبایل بازه */
-}
-
-.dropdown-toggle::after {
-  display: none !important; /* حذف فلش دراپ‌داون */
-  margin: 0 !important; /* حذف هرگونه فاصله */
-  padding: 0 !important; /* حذف هرگونه فاصله */
-}
-
-#ordersTable {
-  overflow-x: hidden; /* جلوگیری از افقی شدن جدول */
-}
-
-.table-wrapper {
-  overflow-x: hidden !important; /* جلوگیری از افقی شدن جدول */
-}
-
-select {
-  width: fit-content !important; /* اندازه‌گیری خودکار */
-}
-
-.select-wdt {
-  width: fit-content !important; /* اندازه‌گیری خودکار */
+/* جداول */
+.table-work-details thead tr th,
+.table-work-details tbody tr td {
+  white-space: nowrap !important;
 }
 
 .table-wrapper {
@@ -154,9 +111,10 @@ select {
 }
 
 .responsive-table {
-  width: auto; /* عرض جدول به صورت خودکار بر اساس محتوا */
-  table-layout: fixed; /* ثابت کردن ساختار جدول */
+  width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
+  min-width: 800px; /* حداقل عرض برای اسکرول افقی */
 }
 
 .responsive-table th,
@@ -164,149 +122,95 @@ select {
   padding: 8px;
   text-align: center;
   vertical-align: middle;
-  white-space: nowrap; /* جلوگیری از شکستن محتوا به خط دوم */
-  overflow: hidden; /* جلوگیری از سرریز محتوا */
-  text-overflow: ellipsis; /* در صورت طولانی بودن محتوا، به صورت ... نمایش داده بشه */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .responsive-table th {
   background-color: #f8f9fa;
   position: sticky;
   top: 0;
+  z-index: 1;
 }
 
-/* تنظیم عرض ستون‌ها بر اساس محتوای نمونه */
+/* تنظیم عرض ستون‌ها */
 .responsive-table th:nth-child(1),
 .responsive-table td:nth-child(1) {
-  /* شناسه */
-  width: 60px;
+  width: 60px; /* شناسه */
 }
 
 .responsive-table th:nth-child(2),
 .responsive-table td:nth-child(2) {
-  /* نام محصول */
-  width: 200px;
+  width: 200px; /* نام محصول */
 }
 
 .responsive-table th:nth-child(3),
 .responsive-table td:nth-child(3) {
-  /* قیمت واحد */
-  width: 120px;
+  width: 120px; /* قیمت واحد */
 }
 
 .responsive-table th:nth-child(4),
 .responsive-table td:nth-child(4) {
-  /* عملیات یا موجودی یا تغییرات */
-  width: 150px;
+  width: 150px; /* عملیات یا موجودی */
 }
 
 .responsive-table th:nth-child(5),
 .responsive-table td:nth-child(5) {
-  /* موجودی یا تغییرات */
-  width: 100px;
+  width: 100px; /* موجودی */
 }
 
 .responsive-table th:nth-child(6),
 .responsive-table td:nth-child(6) {
-  /* تغییرات */
-  width: 100px;
+  width: 100px; /* تغییرات */
 }
 
-/* Custom CSS for table */
+/* استایل DataTables */
 .dataTables_wrapper {
   width: 100%;
-  margin: 0 auto;
+  overflow-x: auto;
 }
 
 .dataTable th,
 .dataTable td {
-  white-space: nowrap; /* Prevent text wrapping */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Ensure buttons stay on one line */
-.btn-sm {
-  margin: 0 2px;
-}
-
-/* Fix modal z-index issue with DataTables */
-.modal {
-  z-index: 1055;
-}
-
-/* اطمینان از وسط‌چین بودن همه سلول‌ها */
-#productsTable th,
-#productsTable td {
   text-align: center !important;
   vertical-align: middle !important;
-  white-space: nowrap !important; /* محتوا توی یک خط بمونه */
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* تنظیمات هدرها */
-#productsTable thead th {
-  text-align: center !important;
-  vertical-align: middle !important;
-  white-space: nowrap !important;
-}
-
-/* جلوگیری از به‌هم‌ریختگی با تغییر سایز */
-.dataTables_wrapper {
-  overflow-x: auto;
+#productsTable {
+  table-layout: fixed;
   width: 100%;
 }
 
-/* تنظیم دکمه‌ها توی یک خط */
-#productsTable td .btn-sm {
+.btn-sm {
   margin: 0 2px;
   display: inline-block;
 }
 
-/* اطمینان از ثابت ماندن عرض ستون‌ها */
-#productsTable {
-  table-layout: fixed; /* عرض ستون‌ها ثابت بمونه */
-  width: 100%;
+/* مودال‌ها */
+.modal {
+  z-index: 1055;
 }
 
-.scrollme {
-  overflow-x: auto;
-}
-
+/* سایر المان‌ها */
 .card {
+  background-color: #f8f9fa;
   margin-bottom: 20px;
 }
+
 canvas {
   max-height: 300px;
 }
 
-.table-wrapper {
-  overflow-x: auto; /* اسکرول افقی برای کل جدول */
-  -webkit-overflow-scrolling: touch;
-  position: relative;
+select {
+  width: fit-content !important;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 800px; /* حداقل عرض برای فعال شدن اسکرول افقی */
-}
-
-th,
-td {
-  text-align: center; /* سنتر کردن محتوا */
-  vertical-align: middle; /* هم‌تراز عمودی */
-  padding: 8px;
-  white-space: nowrap; /* جلوگیری از شکستن متن */
-  min-width: 100px; /* حداقل عرض برای هر ستون */
-}
-
-th {
-  background-color: #f8f9fa;
-  position: sticky; /* ثابت نگه داشتن th */
-  top: 0;
-  z-index: 1; /* اولویت بالاتر برای نمایش */
+.select-wdt {
+  width: fit-content !important;
 }
 
 .table-responsive {
@@ -319,34 +223,27 @@ th {
   width: 100%;
 }
 
+/* تنظیمات موبایل */
 @media (max-width: 600px) {
   body {
-    padding-right: 0; /* حذف پدینگ در موبایل */
+    padding-top: 56px; /* تنظیم برای هدر در موبایل */
   }
-  .sidebar {
-    width: 0; /* کامل بسته در موبایل */
-    overflow: hidden;
-  }
-  .sidebar.open {
-    width: 140px; /* باز شدن کامل در موبایل */
-  }
-  .sidebar ~ .main-content {
-    margin-right: 0px;
-  }
-  .sidebar.open ~ .main-content {
-    margin-right: 140px; /* تنظیم حاشیه وقتی منو در موبایل بازه */
-  }
-  .table-wrapper {
-    overflow-x: auto;
+
+  .main-content {
+    padding: 15px;
   }
 
   .responsive-table {
-    min-width: 600px; /* حداقل عرض جدول برای فعال کردن اسکرول افقی */
+    min-width: 600px;
   }
 
   .responsive-table th,
   .responsive-table td {
     font-size: 14px;
     padding: 6px;
+  }
+
+  .offcanvas {
+    width: 250px; /* عرض کمتر در موبایل */
   }
 }
