@@ -260,9 +260,9 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                             <tr>
                                 <td><?= $row_number++ ?></td>
                                 <td><?= htmlspecialchars($product['product_name']) ?></td>
-                                <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
+                                <td><?= number_format($product['unit_price'], 0) ?> </td>
                                 <td><?= $product['total_quantity'] ?></td>
-                                <td><?= number_format($product['total_price'], 0) ?> تومان</td>
+                                <td><?= number_format($product['total_price'], 0) ?> </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -331,8 +331,8 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                                 console.log('Rendering HTML:', response.html);
                                 $('#products-table').html(response.html);
                                 // به‌روزرسانی جمع کل‌ها
-                                $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان' : '0 تومان');
-                                $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' تومان' : '0 تومان');
+                                $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' ' : '0 ');
+                                $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' ' : '0 ');
                                 $('#total-sessions').text(response.total_sessions ? response.total_sessions : 0);
                                 $('#view-report-btn').prop('disabled', false);
                             } else {
