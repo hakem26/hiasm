@@ -50,15 +50,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <body>
     <!-- منوی بالا -->
-    <nav class="navbar navbar-expand navbar-light fixed-top" style="background-color: #e7eedb;">
+    <nav class="navbar navbar-light fixed-top" style="background-color: #e7eedb;">
         <div class="container-fluid">
-            <div class="d-flex align-items-center">
-                <!-- دکمه همبرگر برای باز کردن منوی کناری -->
-                <button class="navbar-toggler me-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-            </div>
-            <h6 class="navbar-text mx-auto" style="color: #690974;"><?php echo $jalali_date; ?></h6>
+            <!-- دکمه همبرگر -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <!-- تاریخ در وسط -->
+            <span class="navbar-text mx-auto" style="color: #690974;"><?php echo $jalali_date; ?></span>
         </div>
     </nav>
 
@@ -208,7 +207,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="main-content">
         <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
 
-    <!-- اسکریپت بوتسترپ برای کار کردن Offcanvas -->
+    <!-- اسکریپت بوتسترپ -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
