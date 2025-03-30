@@ -11,19 +11,29 @@ require_once 'jdf.php';
 require_once 'persian_year.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 // تابع برای دریافت نام ماه شمسی
-function get_jalali_month_name($month) {
+function get_jalali_month_name($month)
+{
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبشهت', 3 => 'خرداد',
-        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
-        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+        1 => 'فروردین',
+        2 => 'اردیبشهت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -268,7 +278,7 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
     <!-- نمایش جمع کل‌ها -->
     <div class="summary-text">
         <p>تعداد کل: <span id="total-quantity"><?= number_format($total_quantity, 0) ?></span> عدد</p>
-        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0)?></span> تومان</p>
+        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
     </div>
 
     <!-- فرم فیلترها -->
@@ -346,7 +356,7 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         // تابع برای بارگذاری ماه‌ها بر اساس سال
         function loadMonths(year) {
             if (!year) {
@@ -359,12 +369,12 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                 url: 'get_months_for_sold_products.php',
                 type: 'POST',
                 data: { year: year },
-                success: function(response) {
+                success: function (response) {
                     console.log('Months response:', response); // لاگ برای دیباگ
                     $('#work_month_id').html('<option value="all">همه</option>' + response);
                     $('#partner_id').html('<option value="all">همه</option>');
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error('Error loading months:', error, xhr.responseText);
                     $('#work_month_id').html('<option value="all">همه</option>');
                     $('#partner_id').html('<option value="all">همه</option>');
@@ -383,11 +393,11 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                 url: 'get_partners_for_sold_products.php',
                 type: 'POST',
                 data: { year: year, work_month_id: work_month_id },
-                success: function(response) {
+                success: function (response) {
                     console.log('Partners response:', response); // لاگ برای دیباگ
                     $('#partner_id').html('<option value="all">همه</option>' + response);
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error('Error loading partners:', error, xhr.responseText);
                     $('#partner_id').html('<option value="all">همه</option>');
                 }
@@ -400,7 +410,7 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
             const work_month_id = $('#work_month_id').val();
             const partner_id = $('#partner_id').val();
 
-            console.log('Loading products for year:', year, 'month:', work_month_id, 'partner:', partner_id); // لاگ برای دیباگ
+            console.log('Loading products for year:', year, 'month:', work_month_id, 'partner:', partner_id);
             $.ajax({
                 url: 'get_sold_products.php',
                 type: 'GET',
@@ -410,8 +420,8 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                     partner_id: partner_id
                 },
                 dataType: 'json',
-                success: function(response) {
-                    console.log('Products response:', response); // لاگ برای دیباگ
+                success: function (response) {
+                    console.log('Products response:', response);
                     if (response.success) {
                         $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
                         $('#total-sales').text(new Intl.NumberFormat('fa-IR').format(response.total_sales));
@@ -420,9 +430,9 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                         $('#products-table').html('<div class="alert alert-danger text-center">خطا: ' + response.message + '</div>');
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error('AJAX Error:', { status: status, error: error, response: xhr.responseText });
-                    $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + error + '</div>');
+                    $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد: ' + xhr.responseText + '</div>');
                 }
             });
         }
@@ -436,20 +446,20 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
         loadProducts();
 
         // رویدادهای تغییر
-        $('#year').on('change', function() {
+        $('#year').on('change', function () {
             const year = $(this).val();
             loadMonths(year);
             loadProducts();
         });
 
-        $('#work_month_id').on('change', function() {
+        $('#work_month_id').on('change', function () {
             const year = $('#year').val();
             const work_month_id = $(this).val();
             loadPartners(year, work_month_id);
             loadProducts();
         });
 
-        $('#partner_id').on('change', function() {
+        $('#partner_id').on('change', function () {
             loadProducts();
         });
     });

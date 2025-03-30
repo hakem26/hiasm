@@ -4,12 +4,17 @@ require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
 
+// غیرفعال کردن نمایش خطاها در خروجی (فقط لاگ بشن)
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
 $jalali_year = $_GET['year'] ?? null;
 $work_month_id = $_GET['work_month_id'] ?? 'all';
 $partner_id = $_GET['partner_id'] ?? 'all';
 $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$jalali_year || !$current_user_id) {
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'پارامترهای لازم ارائه نشده‌اند']);
     exit;
 }
@@ -25,10 +30,8 @@ foreach ($all_work_months as $month) {
     }
 }
 
-// لاگ برای دیباگ
-error_log("Selected work_month_ids in get_sold_products: " . print_r($selected_work_month_ids, true));
-
 if (empty($selected_work_month_ids)) {
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'سال انتخاب‌شده معتبر نیست']);
     exit;
 }
@@ -58,18 +61,22 @@ $quantity_query = "
     WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
 ";
 $params = $selected_work_month_ids;
+$params_quantity = $selected_work_month_ids;
 
 if ($user_role !== 'admin') {
     $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $current_user_id;
     $params[] = $current_user_id;
+    $params_quantity[] = $current_user_id;
+    $params_quantity[] = $current_user_id;
 }
 
 if ($work_month_id !== 'all') {
     $sales_query .= " AND wd.work_month_id = ?";
     $quantity_query .= " AND wd.work_month_id = ?";
     $params[] = $work_month_id;
+    $params_quantity[] = $work_month_id;
 }
 
 if ($partner_id !== 'all') {
@@ -77,24 +84,27 @@ if ($partner_id !== 'all') {
     $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $partner_id;
     $params[] = $partner_id;
+    $params_quantity[] = $partner_id;
+    $params_quantity[] = $partner_id;
 }
 
-$stmt = $pdo->prepare($sales_query);
-$stmt->execute($params);
-$total_sales = $stmt->fetchColumn() ?? 0;
+try {
+    $stmt = $pdo->prepare($sales_query);
+    $stmt->execute($params);
+    $total_sales = $stmt->fetchColumn() ?? 0;
 
-$stmt = $pdo->prepare($quantity_query);
-$stmt->execute($params);
-$total_quantity = $stmt->fetchColumn() ?? 0;
-
-error_log("Total sales and quantity in get_sold_products: total_sales=$total_sales, total_quantity=$total_quantity");
-
-// لاگ برای دیباگ
-error_log("Total sales and quantity in get_sold_products: " . print_r($summary, true));
+    $stmt = $pdo->prepare($quantity_query);
+    $stmt->execute($params_quantity);
+    $total_quantity = $stmt->fetchColumn() ?? 0;
+} catch (Exception $e) {
+    error_log("Error in get_sold_products queries: " . $e->getMessage());
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'خطا در پایگاه داده']);
+    exit;
+}
 
 // لیست محصولات فروخته‌شده
-$products = [];
-$query = "
+$products_query = "
     SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_price
     FROM Order_Items oi
     JOIN Orders o ON oi.order_id = o.order_id
@@ -103,32 +113,37 @@ $query = "
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
     WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
 ";
-$params = $selected_work_month_ids;
+$params_products = $selected_work_month_ids;
 
 if ($user_role !== 'admin') {
-    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
+    $products_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $params_products[] = $current_user_id;
+    $params_products[] = $current_user_id;
 }
 
 if ($work_month_id !== 'all') {
-    $query .= " AND wd.work_month_id = ?";
-    $params[] = $work_month_id;
+    $products_query .= " AND wd.work_month_id = ?";
+    $params_products[] = $work_month_id;
 }
 
 if ($partner_id !== 'all') {
-    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params[] = $partner_id;
-    $params[] = $partner_id;
+    $products_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $params_products[] = $partner_id;
+    $params_products[] = $partner_id;
 }
 
-$query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$products_query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
 
-// لاگ برای دیباگ
-error_log("Products in get_sold_products: " . print_r($products, true));
+try {
+    $stmt = $pdo->prepare($products_query);
+    $stmt->execute($params_products);
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log("Error fetching products in get_sold_products: " . $e->getMessage());
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'خطا در دریافت محصولات']);
+    exit;
+}
 
 // تولید HTML جدول محصولات
 $html = '<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th></tr></thead><tbody>';
@@ -148,10 +163,12 @@ if (empty($products)) {
 }
 $html .= '</tbody></table>';
 
+header('Content-Type: application/json');
 echo json_encode([
     'success' => true,
     'total_quantity' => $total_quantity,
     'total_sales' => $total_sales,
     'html' => $html
 ]);
+exit;
 ?>
