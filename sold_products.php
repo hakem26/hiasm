@@ -79,14 +79,12 @@ $total_sales = 0;
 $total_quantity = 0;
 if (!empty($selected_work_month_ids)) {
     try {
-        // محاسبه total_sales با زیرکوئری برای جلوگیری از تکرار
+        // محاسبه total_sales بدون جوین با Order_Items
         $sales_query = "
-            SELECT COALESCE(SUM(total_amount), 0) AS total_sales
-            FROM (
-                SELECT DISTINCT o.order_id, o.total_amount
-                FROM Orders o
-                JOIN Work_Details wd ON o.work_details_id = wd.id
-                WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+            SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales
+            FROM Orders o
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
         ";
         $sales_params = $selected_work_month_ids;
 
@@ -144,19 +142,15 @@ if (!empty($selected_work_month_ids)) {
             $quantity_params[] = $selected_partner_id;
         }
 
-        $sales_query .= ") AS unique_orders";
-
-        // اجرای کوئری برای total_sales
+        // اجرای کوئری‌ها
         $stmt_sales = $pdo->prepare($sales_query);
         $stmt_sales->execute($sales_params);
         $total_sales = $stmt_sales->fetchColumn() ?? 0;
 
-        // اجرای کوئری برای total_quantity
         $stmt_quantity = $pdo->prepare($quantity_query);
         $stmt_quantity->execute($quantity_params);
         $total_quantity = $stmt_quantity->fetchColumn() ?? 0;
 
-        // لاگ برای دیباگ
         error_log("Total sales: $total_sales, Total quantity: $total_quantity");
     } catch (Exception $e) {
         error_log("Error fetching total sales and quantity: " . $e->getMessage());

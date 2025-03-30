@@ -40,11 +40,18 @@ $user_role = $stmt->fetchColumn();
 // جمع کل فروش و تعداد کل محصولات
 $total_sales = 0;
 $total_quantity = 0;
-$query = "
-    SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
-           COALESCE(SUM(oi.quantity), 0) AS total_quantity
+$sales_query = "
+    SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales
     FROM Orders o
-    JOIN Order_Items oi ON o.order_id = oi.order_id
+    JOIN Work_Details wd ON o.work_details_id = wd.id
+    JOIN Partners p ON wd.partner_id = p.partner_id
+    JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+    WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+";
+$quantity_query = "
+    SELECT COALESCE(SUM(oi.quantity), 0) AS total_quantity
+    FROM Order_Items oi
+    JOIN Orders o ON oi.order_id = o.order_id
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
@@ -53,27 +60,34 @@ $query = "
 $params = $selected_work_month_ids;
 
 if ($user_role !== 'admin') {
-    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $current_user_id;
     $params[] = $current_user_id;
 }
 
 if ($work_month_id !== 'all') {
-    $query .= " AND wd.work_month_id = ?";
+    $sales_query .= " AND wd.work_month_id = ?";
+    $quantity_query .= " AND wd.work_month_id = ?";
     $params[] = $work_month_id;
 }
 
 if ($partner_id !== 'all') {
-    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $partner_id;
     $params[] = $partner_id;
 }
 
-$stmt = $pdo->prepare($query);
+$stmt = $pdo->prepare($sales_query);
 $stmt->execute($params);
-$summary = $stmt->fetch(PDO::FETCH_ASSOC);
-$total_sales = $summary['total_sales'] ?? 0;
-$total_quantity = $summary['total_quantity'] ?? 0;
+$total_sales = $stmt->fetchColumn() ?? 0;
+
+$stmt = $pdo->prepare($quantity_query);
+$stmt->execute($params);
+$total_quantity = $stmt->fetchColumn() ?? 0;
+
+error_log("Total sales and quantity in get_sold_products: total_sales=$total_sales, total_quantity=$total_quantity");
 
 // لاگ برای دیباگ
 error_log("Total sales and quantity in get_sold_products: " . print_r($summary, true));
