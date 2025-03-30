@@ -222,7 +222,7 @@ function get_jalali_month_name($month)
     <!-- صفحه اول: جمع کل‌ها -->
     <div class="page-container">
         <?php
-        echo '<h5 style="text-align: center; margin: 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
+        echo '<h5 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
         ?>
         <div class="summary-box">
             <table>
@@ -255,7 +255,7 @@ function get_jalali_month_name($month)
         $page_items = array_slice($products, $start, $items_per_page);
 
         // تیتر صفحه
-        echo '<h5 style="text-align: center; margin: 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
+        echo '<h5 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
 
         // جدول محصولات (با ستون سود)
         echo '<table class="products-table">';
