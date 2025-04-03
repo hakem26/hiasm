@@ -39,7 +39,7 @@ if (!$month) {
 $start_date = gregorian_to_jalali_format($month['start_date']);
 $end_date = gregorian_to_jalali_format($month['end_date']);
 list($jy, $jm, $jd) = explode('/', $start_date);
-$month_name = get_jalali_month_name((int)$jm) . ' ' . $jy;
+$month_name = get_jalali_month_name((int) $jm) . ' ' . $jy;
 
 // دریافت نام کاربر گزارش‌گیرنده (برای همکار خاص یا "همه فروشندگان")
 $user_name = 'همه فروشندگان'; // پیش‌فرض برای حالت "همه"
@@ -60,7 +60,8 @@ $stmt = $pdo->prepare("
     WHERE wd.work_month_id = ? " . ($user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
 ");
 $params = [$work_month_id];
-if ($user_id !== 'all') $params[] = $user_id;
+if ($user_id !== 'all')
+    $params[] = $user_id;
 $stmt->execute($params);
 $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sales = $summary['total_sales'] ?? 0;
@@ -74,7 +75,8 @@ $stmt = $pdo->prepare("
     WHERE wd.work_month_id = ? " . ($user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
 ");
 $params = [$work_month_id];
-if ($user_id !== 'all') $params[] = $user_id;
+if ($user_id !== 'all')
+    $params[] = $user_id;
 $stmt->execute($params);
 $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sessions = $sessions['total_sessions'] ?? 0;
@@ -92,23 +94,34 @@ $stmt = $pdo->prepare("
     ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
 ");
 $params = [$work_month_id];
-if ($user_id !== 'all') $params[] = $user_id;
+if ($user_id !== 'all')
+    $params[] = $user_id;
 $stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // تبدیل تاریخ به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
-function get_jalali_month_name($month) {
+function get_jalali_month_name($month)
+{
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
-        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
-        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+        1 => 'فروردین',
+        2 => 'اردیبهشت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -123,47 +136,129 @@ function get_jalali_month_name($month) {
     <title>چاپ گزارش فروش</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
     <style>
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Thin.woff2') format('woff2');
+            font-weight: 100;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
+            font-weight: 200;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
         @page {
             size: A4 portrait;
             margin: 10mm;
         }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Vazirmatn RD FD NL';
             font-size: 12px;
         }
+
         .summary-box {
             border: 2px solid #000;
             width: 50%;
             margin: 0 auto;
             padding: 10px;
         }
+
         .summary-box table {
             width: 100%;
             border-collapse: collapse;
         }
+
         .summary-box td {
             padding: 10px;
             border: 1px solid #ccc;
         }
+
         .products-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-        .products-table th, .products-table td {
+
+        .products-table th,
+        .products-table td {
             border: 1px solid #ccc;
             padding: 8px;
             text-align: center;
         }
+
         .total-row {
             background-color: #f0f0f0;
             font-weight: bold;
         }
+
         .grand-total-row {
             background-color: #fff3cd;
             font-weight: bold;
             font-size: 14px;
         }
+
         .page-break {
             page-break-before: always;
         }
@@ -250,4 +345,5 @@ function get_jalali_month_name($month) {
 
     <button class="btn btn-secondary mt-3" onclick="window.print()">چاپ</button>
 </body>
+
 </html>

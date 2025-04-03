@@ -54,26 +54,103 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاکتور فروش</title>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Thin.woff2') format('woff2');
+            font-weight: 100;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
+            font-weight: 200;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        /* غیرفعال کردن اعداد لاتین در صورت وجود فونت پیش‌فرض */
+        * {
+            font-feature-settings: "lnum" 0;
+            /* غیرفعال کردن اعداد لاتین */
+            font-variant-numeric: normal;
+            /* جلوگیری از تغییر اعداد به لاتین */
+        }
+
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Vazirmatn', sans-serif;
+            font-family: "Vazirmatn RD FD NL";
+            unicode-range: U+06F0-06F9;
             direction: rtl;
             text-align: right;
         }
 
         .invoice-container {
             width: 148mm;
-            /* عرض A5 */
             height: 210mm;
-            /* ارتفاع A5 */
             margin: 0 auto;
             padding: 0 5mm;
             box-sizing: border-box;
             border: 1px solid #ccc;
-            /* برای نمایش در صفحه */
             position: relative;
             overflow: hidden;
         }
@@ -131,6 +208,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
                 size: A5 portrait;
                 margin: 0;
             }
+
             body {
                 margin: 0;
                 padding: 0;
@@ -199,7 +277,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script>
-        window.onload = function() {
+        window.onload = function () {
             window.print();
         };
     </script>

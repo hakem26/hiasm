@@ -92,16 +92,28 @@ foreach ($debts as $debt) {
 }
 
 // تبدیل تاریخ به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%02d / %02d / %04d", $jd, $jm, $jy);
 }
 
-function get_jalali_month_name($month) {
+function get_jalali_month_name($month)
+{
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد', 4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر', 10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+        1 => 'فروردین',
+        2 => 'اردیبهشت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -129,18 +141,91 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
     <title>چاپ گزارش خلاصه</title>
     <style>
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Thin.woff2') format('woff2');
+            font-weight: 100;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
+            font-weight: 200;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
         body {
-            font-family: "Vazirmatn", sans-serif;
+            font-family: "Vazirmatn RD FD NL";
             margin: 0;
             padding: 0;
             direction: rtl;
         }
+
         .page {
             width: 210mm;
             height: 297mm;
@@ -149,18 +234,23 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             box-sizing: border-box;
             padding: 10mm;
         }
+
         .header {
             text-align: center;
             font-size: 14pt;
             font-weight: bold;
             margin-bottom: 10mm;
         }
+
         .main-table {
-            width: 189mm; /* 90% of 210mm */
-            height: 267mm; /* 90% of 297mm */
+            width: 189mm;
+            /* 90% of 210mm */
+            height: 267mm;
+            /* 90% of 297mm */
             border-collapse: collapse;
             margin: 0 auto;
         }
+
         .main-table td {
             border: 1px solid black;
             width: 50%;
@@ -168,27 +258,33 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             vertical-align: top;
             padding: 5mm;
         }
+
         .day-table {
             width: 100%;
             height: 100%;
             border-collapse: collapse;
         }
+
         .day-table td {
             border: 1px solid black;
             vertical-align: top;
         }
+
         .details {
             height: 50%;
             padding: 5mm;
         }
+
         .debtors {
             height: 50%;
         }
+
         .debtors-table {
             width: 100%;
             height: 100%;
             border-collapse: collapse;
         }
+
         .debtors-table td {
             border: 1px solid black;
             width: 50%;
@@ -196,15 +292,18 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             text-align: center;
             vertical-align: top;
         }
+
         p {
             margin: 2mm 0;
             font-size: 11pt;
         }
+
         @media print {
             @page {
                 size: A4 portrait;
                 margin: 0;
             }
+
             body {
                 margin: 0;
                 padding: 0;
@@ -212,11 +311,12 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         }
     </style>
 </head>
+
 <body>
     <?php
     foreach ($work_days_chunks as $page_index => $chunk) {
         // اینجا پر نمی‌کنیم چون می‌خواهیم سلول‌ها خالی بمونن
-    ?>
+        ?>
         <div class="page">
             <div class="header">
                 گزارش کاری <?= htmlspecialchars($partner1_name) ?> و <?= htmlspecialchars($partner2_name) ?>
@@ -230,14 +330,15 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                         <?php if (isset($chunk[0]) && $chunk[0]) {
                             $day = $chunk[0];
                             $debtors = $debtors_by_day[$day['work_date']] ?? [];
-                        ?>
+                            ?>
                             <table class="day-table">
                                 <tr>
                                     <td class="details">
                                         <p>تاریخ: <?= htmlspecialchars($day['jalali_date']) ?></p>
                                         <p>مجموع فروش: <?= number_format($day['total_sales'], 0) ?></p>
                                         <p>مجموع پورسانت و تخفیف: <?= number_format($day['total_discount'], 0) ?></p>
-                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?> (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
+                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?>
+                                            (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -275,14 +376,15 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                         <?php if (isset($chunk[1]) && $chunk[1]) {
                             $day = $chunk[1];
                             $debtors = $debtors_by_day[$day['work_date']] ?? [];
-                        ?>
+                            ?>
                             <table class="day-table">
                                 <tr>
                                     <td class="details">
                                         <p>تاریخ: <?= htmlspecialchars($day['jalali_date']) ?></p>
                                         <p>مجموع فروش: <?= number_format($day['total_sales'], 0) ?></p>
                                         <p>مجموع پورسانت و تخفیف: <?= number_format($day['total_discount'], 0) ?></p>
-                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?> (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
+                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?>
+                                            (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -322,14 +424,15 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                         <?php if (isset($chunk[2]) && $chunk[2]) {
                             $day = $chunk[2];
                             $debtors = $debtors_by_day[$day['work_date']] ?? [];
-                        ?>
+                            ?>
                             <table class="day-table">
                                 <tr>
                                     <td class="details">
                                         <p>تاریخ: <?= htmlspecialchars($day['jalali_date']) ?></p>
                                         <p>مجموع فروش: <?= number_format($day['total_sales'], 0) ?></p>
                                         <p>مجموع پورسانت و تخفیف: <?= number_format($day['total_discount'], 0) ?></p>
-                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?> (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
+                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?>
+                                            (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -367,14 +470,15 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                         <?php if (isset($chunk[3]) && $chunk[3]) {
                             $day = $chunk[3];
                             $debtors = $debtors_by_day[$day['work_date']] ?? [];
-                        ?>
+                            ?>
                             <table class="day-table">
                                 <tr>
                                     <td class="details">
                                         <p>تاریخ: <?= htmlspecialchars($day['jalali_date']) ?></p>
                                         <p>مجموع فروش: <?= number_format($day['total_sales'], 0) ?></p>
                                         <p>مجموع پورسانت و تخفیف: <?= number_format($day['total_discount'], 0) ?></p>
-                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?> (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
+                                        <p>هزینه آژانس: <?= number_format($agency_cost, 0) ?>
+                                            (<?= htmlspecialchars($day['agency_name'] ?? 'نامشخص') ?>)</p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -416,4 +520,5 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         <?php } ?>
     <?php } ?>
 </body>
+
 </html>

@@ -134,13 +134,84 @@ function get_jalali_month_name($month)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>چاپ گزارش فروش</title>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
     <style>
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Thin.woff2') format('woff2');
+            font-weight: 100;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
+            font-weight: 200;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Vazirmatn', sans-serif;
+            font-family: "Vazirmatn RD FD NL";
             direction: rtl;
         }
 
@@ -197,7 +268,8 @@ function get_jalali_month_name($month)
         .grand-total-row {
             background-color: #fff3cd;
             font-weight: bold;
-            font-size: 16px; /* فونت بزرگ‌تر */
+            font-size: 16px;
+            /* فونت بزرگ‌تر */
         }
 
         .page-break {
