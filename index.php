@@ -36,7 +36,7 @@ session_start(); // این خط باید در ابتدای فایل باشد
 <body style="background: linear-gradient(to bottom right, lightgreen, lightcyan);">
     <!-- [BLOCK-LOGIN-002] -->
     <div class="login-box">
-        <h4 class="text-center mb-4">سیستم مدیریت فروش هایفوبیوتی</h4>
+        <h6 class="text-center mb-4">سیستم مدیریت فروش محصولات پوست و مو</h6>
         <?php
         if (isset($_SESSION['error'])) {
             echo '<div class="alert alert-danger">' . $_SESSION['error'] . '</div>';
@@ -44,9 +44,6 @@ session_start(); // این خط باید در ابتدای فایل باشد
         }
         ?>
         <form action="login_process.php" method="POST">
-            <div class="text-center mb-3">
-                <img src="logo.png" alt="Logo" style="width: 128px; height: auto; margin: 10px;">
-            </div>
             <div class="mb-3">
                 <label for="username" class="form-label">نام کاربری</label>
                 <input type="text" class="form-control" id="username" name="username" value="<?php echo isset($_COOKIE['username']) ? htmlspecialchars($_COOKIE['username']) : ''; ?>" required>
