@@ -143,12 +143,15 @@ if ($selected_user_id && $selected_user_id != 'all') {
     $params[] = $selected_user_id;
 }
 
-// اعمال شرایط به هر دو کوئری
+// اعمال شرایط به هر دو کوئری و تکرار پارامترها
 $conditions_sql = !empty($conditions) ? " WHERE " . implode(" AND ", $conditions) : "";
 $full_query = "($transactions_query $conditions_sql) UNION ALL ($requests_query $conditions_sql) ORDER BY transaction_date DESC";
 
+// تکرار پارامترها برای هر دو بخش UNION ALL
+$full_params = array_merge($params, $params); // پارامترها رو دو برابر می‌کنیم
+
 $stmt_full = $pdo->prepare($full_query);
-$stmt_full->execute($params);
+$stmt_full->execute($full_params);
 $records = $stmt_full->fetchAll(PDO::FETCH_ASSOC);
 
 error_log("inventory_report.php: Records fetched: " . count($records));
