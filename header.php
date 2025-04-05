@@ -49,7 +49,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <nav class="navbar navbar-light fixed-top" style="background-color: #e7eedb;">
         <div class="container-fluid">
             <!-- دکمه همبرگر -->
-            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
+                aria-controls="sidebarOffcanvas">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <!-- تاریخ در وسط -->
@@ -58,7 +59,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </nav>
 
     <!-- منوی کناری (Offcanvas) -->
-    <div class="offcanvas offcanvas-start" data-bs-backdrop="static" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+    <div class="offcanvas offcanvas-start" data-bs-backdrop="static" tabindex="-1" id="sidebarOffcanvas"
+        aria-labelledby="sidebarOffcanvasLabel">
         <div class="offcanvas-header" style="background-color: #e7eedb;">
             <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">منوی سیستم</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
@@ -95,13 +97,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             </a>
                         </li>
                         <?php if ($_SESSION['role'] === 'admin'): ?>
-                        <li class="nav-item">
-                            <a class="nav-link <?php echo $current_page == 'inventery_products.php' ? 'active' : ''; ?>"
-                                href="inventery_products.php">
-                                <i class="fas fa-boxes"></i>
-                                <span>موجودی</span>
-                            </a>
-                        </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?php echo $current_page == 'inventery_products.php' ? 'active' : ''; ?>"
+                                    href="inventery_products.php">
+                                    <i class="fas fa-boxes"></i>
+                                    <span>موجودی</span>
+                                </a>
+                            </li>
                         <?php endif; ?>
                     </ul>
                 </li>
@@ -151,13 +153,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             </a>
                         </li>
                         <?php if ($_SESSION['role'] === 'seller'): ?>
-                        <li class="nav-item">
-                            <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
-                                href="report-bill.php">
-                                <i class="fas fa-money-bill-wave"></i>
-                                <span>مالی</span>
-                            </a>
-                        </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?php echo $current_page == 'report-bill.php' ? 'active' : ''; ?>"
+                                    href="report-bill.php">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    <span>مالی</span>
+                                </a>
+                            </li>
                         <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
@@ -202,3 +204,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <!-- محتوای اصلی -->
     <div class="main-content">
         <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
+        <script>
+            // تنظیم فونت پیش‌فرض برای Chart.js
+            Chart.defaults.font.family = "'Vazirmatn RD FD NL'";
+        </script>
