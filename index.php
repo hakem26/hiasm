@@ -1,8 +1,7 @@
 <?php
 session_start();
-require_once 'db.php'; // برای اتصال به دیتابیس
+require_once 'db.php';
 
-// تابع برای ریدایرکت به داشبورد بر اساس نقش کاربر
 function redirectToDashboard($role) {
     if ($role === 'admin') {
         header("Location: dashboard_admin.php");
@@ -12,26 +11,20 @@ function redirectToDashboard($role) {
     exit;
 }
 
-// چک کردن وضعیت لاگین
 if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
-    // اگه سشن فعال باشه، مستقیم به داشبورد بره
     redirectToDashboard($_SESSION['role']);
 } elseif (isset($_COOKIE['login_token'])) {
-    // اگه کوکی توکن وجود داره، اعتبارش رو چک کنیم
     $token = $_COOKIE['login_token'];
-
     $stmt = $pdo->prepare("SELECT user_id, full_name, role FROM Users WHERE login_token = ? AND token_expiry > NOW()");
     $stmt->execute([$token]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {
-        // اگه توکن معتبر بود، سشن رو بازسازی کنیم و به داشبورد بریم
         $_SESSION['user_id'] = $user['user_id'];
         $_SESSION['full_name'] = $user['full_name'];
         $_SESSION['role'] = $user['role'];
         redirectToDashboard($user['role']);
     } else {
-        // اگه توکن نامعتبر بود، کوکی رو پاک کنیم
         setcookie('login_token', '', time() - 3600, '/');
     }
 }
@@ -63,6 +56,20 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+        .password-container {
+            position: relative;
+        }
+        .password-container .form-control {
+            padding-left: 35px;
+        }
+        .password-container .toggle-password {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body style="background: linear-gradient(to bottom right, lightgreen, lightcyan);">
@@ -79,9 +86,10 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
                 <label for="username" class="form-label">نام کاربری</label>
                 <input type="text" class="form-control" id="username" name="username" value="<?php echo isset($_COOKIE['username']) ? htmlspecialchars($_COOKIE['username']) : ''; ?>" required>
             </div>
-            <div class="mb-3">
+            <div class="mb-3 password-container">
                 <label for="password" class="form-label">رمز عبور</label>
                 <input type="password" class="form-control" id="password" name="password" required>
+                <i class="fas fa-eye toggle-password" id="togglePassword"></i>
             </div>
             <div class="mb-3 form-check">
                 <input type="checkbox" class="form-check-input" id="remember" name="remember" <?php echo isset($_COOKIE['username']) ? 'checked' : ''; ?>>
@@ -94,5 +102,16 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        togglePassword.addEventListener('click', function () {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+    </script>
 </body>
 </html>
