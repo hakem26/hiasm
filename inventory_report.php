@@ -101,7 +101,7 @@ if ($user_role === 'admin') {
     $users = $users_query->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// دریافت تراکنش‌ها
+// تعریف کوئری‌های پایه
 $transactions_query = "
     SELECT it.transaction_date, it.quantity, p.product_name, u.full_name, wm.start_date, wm.end_date, 'تراکنش' AS type
     FROM Inventory_Transactions it
@@ -110,7 +110,6 @@ $transactions_query = "
     JOIN Work_Months wm ON it.work_month_id = wm.work_month_id
 ";
 
-// دریافت درخواست‌ها
 $requests_query = "
     SELECT ir.request_date AS transaction_date, ir.quantity, p.product_name, u.full_name, wm.start_date, wm.end_date, 
            CASE ir.status 
@@ -124,6 +123,7 @@ $requests_query = "
     JOIN Work_Months wm ON ir.work_month_id = wm.work_month_id
 ";
 
+// ساخت شرایط مشترک
 $conditions = [];
 $params = [];
 
@@ -143,12 +143,10 @@ if ($selected_user_id && $selected_user_id != 'all') {
     $params[] = $selected_user_id;
 }
 
-if (!empty($conditions)) {
-    $transactions_query .= " WHERE " . implode(" AND ", $conditions);
-    $requests_query .= " WHERE " . implode(" AND ", $conditions);
-}
+// اعمال شرایط به هر دو کوئری
+$conditions_sql = !empty($conditions) ? " WHERE " . implode(" AND ", $conditions) : "";
+$full_query = "($transactions_query $conditions_sql) UNION ALL ($requests_query $conditions_sql) ORDER BY transaction_date DESC";
 
-$full_query = "($transactions_query) UNION ALL ($requests_query) ORDER BY transaction_date DESC";
 $stmt_full = $pdo->prepare($full_query);
 $stmt_full->execute($params);
 $records = $stmt_full->fetchAll(PDO::FETCH_ASSOC);
