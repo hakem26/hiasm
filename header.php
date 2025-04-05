@@ -161,13 +161,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                 </a>
                             </li>
                         <?php endif; ?>
-                        <li class="nav-item">
+                        <!-- <li class="nav-item">
                             <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
                                 href="inventory_report.php">
                                 <i class="fas fa-warehouse"></i>
                                 <span>موجودی</span>
                             </a>
-                        </li>
+                        </li> -->
                     </ul>
                 </li>
                 <hr class="sidebar-divider">
