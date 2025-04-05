@@ -100,6 +100,9 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             unset($_SESSION['error']);
         }
         ?>
+        <div class="text-center mb-4">
+            <img src="logo.png" alt="Logo" width="128" height="128">
+        </div>
         <form action="login_process.php" method="POST">
             <div class="mb-3">
                 <label for="username" class="form-label">نام کاربری</label>
