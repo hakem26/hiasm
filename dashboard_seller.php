@@ -837,6 +837,11 @@ if ($current_work_month_id) {
                 console.error('Error loading default charts:', e);
             }
         });
+        
+        // Set the default font family for all charts to "Vazirmatn RD FD NL"
+        salesChart.defaults.font.family = "Vazirmatn RD FD NL";
+        partnerChart.defaults.font.family = "Vazirmatn RD FD NL";
+        agencyChart.defaults.font.family = "Vazirmatn RD FD NL";
     </script>
 
     <?php
