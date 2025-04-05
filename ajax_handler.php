@@ -25,12 +25,13 @@ switch ($action) {
         $product_id = $_POST['product_id'] ?? '';
         $quantity = (int) ($_POST['quantity'] ?? 0);
         $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
         $discount = (float) ($_POST['discount'] ?? 0);
         $work_details_id = $_POST['work_details_id'] ?? '';
         $partner1_id = $_POST['partner1_id'] ?? '';
 
-        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$work_details_id || !$partner1_id) {
-            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$work_details_id || !$partner1_id || $extra_sale < 0) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید و اضافه فروش منفی نباشد.');
         }
 
         $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
@@ -55,12 +56,14 @@ switch ($action) {
             respond(false, "موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
         }
 
+        $adjusted_price = $unit_price + $extra_sale;
         $items[] = [
             'product_id' => $product_id,
             'product_name' => $product['product_name'],
             'quantity' => $quantity,
-            'unit_price' => $unit_price,
-            'total_price' => $quantity * $unit_price
+            'unit_price' => $adjusted_price,
+            'extra_sale' => $extra_sale,
+            'total_price' => $quantity * $adjusted_price
         ];
 
         $_SESSION['order_items'] = $items;
@@ -107,7 +110,7 @@ switch ($action) {
 
         $items[$index] = [
             'product_id' => $product_id,
-            'product_name' => $items[$index]['product_name'], // نام تغییر نمی‌کنه
+            'product_name' => $items[$index]['product_name'],
             'quantity' => $quantity,
             'unit_price' => $unit_price,
             'total_price' => $quantity * $unit_price
@@ -187,7 +190,6 @@ switch ($action) {
 
         $pdo->beginTransaction();
         try {
-            // ثبت سفارش
             $stmt = $pdo->prepare("
                 INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
                 VALUES (?, ?, ?, ?, ?)
@@ -195,21 +197,20 @@ switch ($action) {
             $stmt->execute([$work_details_id, $customer_name, $total_amount, $discount, $final_amount]);
             $order_id = $pdo->lastInsertId();
 
-            // ثبت اقلام سفارش
             foreach ($items as $item) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $order_id,
                     $item['product_name'],
                     $item['quantity'],
                     $item['unit_price'],
+                    $item['extra_sale'],
                     $item['total_price']
                 ]);
 
-                // کسر موجودی
                 $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                 $stmt_inventory->execute([$partner1_id, $item['product_id']]);
                 $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
@@ -327,7 +328,7 @@ switch ($action) {
 
         $items[$index] = [
             'product_id' => $product_id,
-            'product_name' => $items[$index]['product_name'], // نام تغییر نمی‌کنه
+            'product_name' => $items[$index]['product_name'],
             'quantity' => $quantity,
             'unit_price' => $unit_price,
             'total_price' => $quantity * $unit_price
@@ -413,12 +414,10 @@ switch ($action) {
 
         $pdo->beginTransaction();
         try {
-            // دریافت اقلام قبلی سفارش
             $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, total_price FROM Order_Items WHERE order_id = ?");
             $stmt_items->execute([$order_id]);
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-            // نقشه اقلام قبلی
             $old_items_map = [];
             foreach ($old_items as $item) {
                 $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
@@ -436,7 +435,6 @@ switch ($action) {
                 }
             }
 
-            // نقشه اقلام جدید
             $new_items_map = [];
             foreach ($new_items as $item) {
                 if ($item['product_id']) {
@@ -449,10 +447,8 @@ switch ($action) {
                 }
             }
 
-            // محاسبه تغییرات و اعمال به دیتابیس
             foreach ($old_items_map as $product_id => $old_item) {
                 if (!isset($new_items_map[$product_id])) {
-                    // محصول حذف شده، موجودی برگردانده بشه
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                     $stmt_inventory->execute([$partner1_id, $product_id]);
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
@@ -464,7 +460,6 @@ switch ($action) {
                                                ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 } elseif ($new_items_map[$product_id]['quantity'] != $old_item['quantity']) {
-                    // تعداد تغییر کرده
                     $quantity_diff = $old_item['quantity'] - $new_items_map[$product_id]['quantity'];
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                     $stmt_inventory->execute([$partner1_id, $product_id]);
@@ -485,7 +480,6 @@ switch ($action) {
 
             foreach ($new_items_map as $product_id => $new_item) {
                 if (!isset($old_items_map[$product_id])) {
-                    // محصول جدید اضافه شده، موجودی کسر بشه
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                     $stmt_inventory->execute([$partner1_id, $product_id]);
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
@@ -502,7 +496,6 @@ switch ($action) {
                 }
             }
 
-            // به‌روزرسانی سفارش
             $stmt = $pdo->prepare("
                 UPDATE Orders 
                 SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
@@ -510,7 +503,6 @@ switch ($action) {
             ");
             $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $order_id]);
 
-            // حذف اقلام قبلی و اضافه کردن اقلام جدید
             $stmt = $pdo->prepare("DELETE FROM Order_Items WHERE order_id = ?");
             $stmt->execute([$order_id]);
 
