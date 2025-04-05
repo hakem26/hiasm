@@ -37,6 +37,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <script src="assets/js/jquery.dataTables.min.js"></script>
     <script src="assets/js/dataTables.responsive.min.js"></script>
     <!-- Chart.js -->
+    <script>
+        // تنظیم فونت پیش‌فرض برای Chart.js
+        Chart.defaults.font.family = "Vazirmatn RD FD NL";
+    </script>
     <script src="assets/js/chart.js"></script>
     <!-- فقط استایل اصلی DataTables -->
     <link rel="stylesheet" href="assets/css/jquery.dataTables.min.css">
@@ -204,7 +208,3 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <!-- محتوای اصلی -->
     <div class="main-content">
         <!-- محتوا در فایل‌های دیگر قرار می‌گیره -->
-        <script>
-            // تنظیم فونت پیش‌فرض برای Chart.js
-            Chart.defaults.font.family = "'Vazirmatn RD FD NL'";
-        </script>
