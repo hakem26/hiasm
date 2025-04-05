@@ -27,7 +27,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="assets/css/bootstrap.rtl.min.css"
         integrity="sha384-dpuaG1suU0eT09tx5plTaGMLBsfDLzUCCUXOY2j/LSvXYuG6Bqs43ALlhIqAJVRb" crossorigin="anonymous">
     <!-- Font Awesome -->
-    <script src="https://kit.fontawesome.com/af42b389c1.js" crossorigin="anonymous"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Persian Datepicker -->
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
