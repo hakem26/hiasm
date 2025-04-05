@@ -23,6 +23,16 @@ $is_admin = ($_SESSION['role'] === 'admin');
 $is_seller = ($_SESSION['role'] === 'seller');
 echo "<!-- دیباگ: is_admin = " . ($is_admin ? 'true' : 'false') . ", is_seller = " . ($is_seller ? 'true' : 'false') . " -->";
 
+// چک کردن اینکه آیا فروشنده همکار 1 هست یا نه
+$is_partner1 = false;
+if ($is_seller) {
+    $current_user_id = $_SESSION['user_id'];
+    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners WHERE user_id1 = ?");
+    $stmt_check->execute([$current_user_id]);
+    $is_partner1 = $stmt_check->fetchColumn() > 0;
+    echo "<!-- دیباگ: is_partner1 = " . ($is_partner1 ? 'true' : 'false') . " -->";
+}
+
 // پردازش افزودن محصول (فقط برای ادمین)
 if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
     $product_name = trim($_POST['product_name']);
@@ -68,8 +78,8 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_a
     }
 }
 
-// پردازش درخواست تخصیص توسط فروشنده (بدون کسر از موجودی مدیر)
-if ($is_seller && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_inventory'])) {
+// پردازش درخواست تخصیص توسط فروشنده (فقط برای همکار 1)
+if ($is_seller && $is_partner1 && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_inventory'])) {
     $product_id = (int) $_POST['product_id'];
     $quantity = (int) $_POST['quantity'];
     $user_id = (int) $_SESSION['user_id'];
@@ -117,7 +127,7 @@ try {
     }
     unset($product);
 
-    // دریافت موجودی مدیر (فقط برای استفاده بعدی، توی جدول نشون داده نمی‌شه)
+    // دریافت موجودی مدیر (برای استفاده بعدی)
     foreach ($products as &$product) {
         $stmt = $pdo->prepare("SELECT quantity FROM Admin_Inventory WHERE product_id = ?");
         $stmt->execute([$product['product_id']]);
@@ -126,15 +136,17 @@ try {
     }
     unset($product);
 
-    // دریافت موجودی برای فروشنده فعلی
-    $current_user_id = $_SESSION['user_id'];
-    foreach ($products as &$product) {
-        $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
-        $stmt->execute([$current_user_id, $product['product_id']]);
-        $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
-        $product['inventory'] = $inventory ? $inventory['quantity'] : 0;
+    // دریافت موجودی برای فروشنده فعلی (فقط برای همکار 1)
+    if ($is_seller && $is_partner1) {
+        $current_user_id = $_SESSION['user_id'];
+        foreach ($products as &$product) {
+            $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
+            $stmt->execute([$current_user_id, $product['product_id']]);
+            $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+            $product['inventory'] = $inventory ? $inventory['quantity'] : 0;
+        }
+        unset($product);
     }
-    unset($product);
 
     // دریافت تاریخچه قیمت‌ها برای فروشنده
     if ($is_seller) {
@@ -188,9 +200,11 @@ try {
                     <tr>
                         <th>نام محصول</th>
                         <th>قیمت واحد (تومان)</th>
-                        <?php if ($is_seller): ?>
+                        <?php if ($is_seller && $is_partner1): ?>
                             <th>موجودی شما</th>
                             <th>تخصیص</th>
+                        <?php endif; ?>
+                        <?php if ($is_seller): ?>
                             <th>تغییرات</th>
                         <?php endif; ?>
                         <?php if ($is_admin): ?>
@@ -209,7 +223,7 @@ try {
                                 echo number_format($display_price, 0, '', ',');
                                 ?>
                             </td>
-                            <?php if ($is_seller): ?>
+                            <?php if ($is_seller && $is_partner1): ?>
                                 <td>
                                     <span id="inventory_<?= $product['product_id'] ?>"><?= $product['inventory'] ?></span>
                                 </td>
@@ -219,6 +233,8 @@ try {
                                         درخواست
                                     </button>
                                 </td>
+                            <?php endif; ?>
+                            <?php if ($is_seller): ?>
                                 <td>
                                     <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal"
                                         data-bs-target="#priceModal_<?= $product['product_id'] ?>">
@@ -313,8 +329,8 @@ try {
             <?php endforeach; ?>
         <?php endif; ?>
 
-        <!-- Request Inventory Modal (برای فروشنده‌ها) -->
-        <?php if ($is_seller): ?>
+        <!-- Request Inventory Modal (فقط برای همکار 1) -->
+        <?php if ($is_seller && $is_partner1): ?>
             <?php foreach ($products as $product): ?>
                 <div class="modal fade" id="requestModal_<?= $product['product_id'] ?>" tabindex="-1"
                     aria-labelledby="requestModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
