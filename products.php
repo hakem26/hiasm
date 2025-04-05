@@ -68,28 +68,13 @@ if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_a
     }
 }
 
-// پردازش درخواست تخصیص توسط فروشنده
+// پردازش درخواست تخصیص توسط فروشنده (بدون کسر از موجودی مدیر)
 if ($is_seller && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_inventory'])) {
     $product_id = (int) $_POST['product_id'];
     $quantity = (int) $_POST['quantity'];
     $user_id = (int) $_SESSION['user_id'];
 
     try {
-        // بررسی موجودی مدیر
-        $admin_inventory_query = $pdo->prepare("SELECT quantity FROM Admin_Inventory WHERE product_id = ?");
-        $admin_inventory_query->execute([$product_id]);
-        $admin_inventory = $admin_inventory_query->fetch(PDO::FETCH_ASSOC);
-        $admin_quantity = $admin_inventory ? $admin_inventory['quantity'] : 0;
-
-        if ($admin_quantity < $quantity) {
-            echo "<script>alert('موجودی مدیر کافی نیست! موجودی فعلی: $admin_quantity'); window.location.href='products.php';</script>";
-            exit;
-        }
-
-        // کسر از موجودی مدیر
-        $update_admin_query = $pdo->prepare("UPDATE Admin_Inventory SET quantity = quantity - ? WHERE product_id = ?");
-        $update_admin_query->execute([$quantity, $product_id]);
-
         // اضافه کردن به موجودی فروشنده
         $update_user_query = $pdo->prepare("
             INSERT INTO Inventory (user_id, product_id, quantity) 
@@ -132,7 +117,7 @@ try {
     }
     unset($product);
 
-    // دریافت موجودی مدیر
+    // دریافت موجودی مدیر (فقط برای استفاده بعدی، توی جدول نشون داده نمی‌شه)
     foreach ($products as &$product) {
         $stmt = $pdo->prepare("SELECT quantity FROM Admin_Inventory WHERE product_id = ?");
         $stmt->execute([$product['product_id']]);
@@ -203,10 +188,9 @@ try {
                     <tr>
                         <th>نام محصول</th>
                         <th>قیمت واحد (تومان)</th>
-                        <th>موجودی مدیر</th>
                         <?php if ($is_seller): ?>
                             <th>موجودی شما</th>
-                            <th>تخصیص به فروشنده‌ها</th>
+                            <th>تخصیص</th>
                             <th>تغییرات</th>
                         <?php endif; ?>
                         <?php if ($is_admin): ?>
@@ -224,16 +208,6 @@ try {
                                 $display_price = $product['latest_price'] ?? $product['unit_price'];
                                 echo number_format($display_price, 0, '', ',');
                                 ?>
-                            </td>
-                            <td>
-                                <span
-                                    id="admin_inventory_<?= $product['product_id'] ?>"><?= $product['admin_inventory'] ?></span>
-                                <?php if ($is_admin): ?>
-                                    <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal"
-                                        data-bs-target="#adminInventoryModal_<?= $product['product_id'] ?>">
-                                        تغییر
-                                    </button>
-                                <?php endif; ?>
                             </td>
                             <?php if ($is_seller): ?>
                                 <td>
@@ -276,7 +250,7 @@ try {
             </table>
         </div>
 
-        <!-- Admin Inventory Modal -->
+        <!-- Admin Inventory Modal (برای ادمین، ولی توی جدول نشون داده نمی‌شه) -->
         <?php if ($is_admin): ?>
             <?php foreach ($products as $product): ?>
                 <div class="modal fade" id="adminInventoryModal_<?= $product['product_id'] ?>" tabindex="-1"
