@@ -45,6 +45,12 @@ $stmt_items = $pdo->prepare("
 ");
 $stmt_items->execute([$order_id]);
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+
+// تقسیم محصولات به گروه‌های 14 تایی
+$items_per_page = 14;
+$total_items = count($items);
+$total_pages = ceil($total_items / $items_per_page);
+$pages = array_chunk($items, $items_per_page);
 ?>
 
 <!DOCTYPE html>
@@ -62,7 +68,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
@@ -70,7 +75,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
@@ -78,7 +82,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
@@ -86,7 +89,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
@@ -94,7 +96,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
@@ -102,7 +103,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
@@ -110,7 +110,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
@@ -118,7 +117,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
@@ -127,12 +125,9 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             font-display: swap;
         }
 
-        /* غیرفعال کردن اعداد لاتین در صورت وجود فونت پیش‌فرض */
         * {
             font-feature-settings: "lnum" 0;
-            /* غیرفعال کردن اعداد لاتین */
             font-variant-numeric: normal;
-            /* جلوگیری از تغییر اعداد به لاتین */
         }
 
         body {
@@ -153,11 +148,24 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
             border: 1px solid #ccc;
             position: relative;
             overflow: hidden;
+            page-break-after: always;
+        }
+
+        .invoice-container:last-child {
+            page-break-after: auto;
         }
 
         .invoice-header {
             text-align: center;
             margin-bottom: 5mm;
+            position: relative;
+        }
+
+        .page-number {
+            position: absolute;
+            top: 2mm;
+            right: 5mm;
+            font-size: 10pt;
         }
 
         .invoice-details {
@@ -201,7 +209,6 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
         @media print {
             .invoice-container {
                 border: none;
-                /* حذف border در پرینت */
             }
 
             @page {
@@ -218,63 +225,66 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 </head>
 
 <body>
-    <div class="invoice-container">
-        <!-- تیتر -->
-        <div class="invoice-header">
-            <h3>فاکتور فروش</h3>
-        </div>
+    <?php for ($page = 0; $page < $total_pages; $page++): ?>
+        <div class="invoice-container">
+            <!-- تیتر و شماره صفحه -->
+            <div class="invoice-header">
+                <h3>فاکتور فروش</h3>
+                <div class="page-number">صفحه <?= ($page + 1) ?> از <?= $total_pages ?></div>
+            </div>
 
-        <!-- خط دوم: اطلاعات فاکتور -->
-        <div class="invoice-details">
-            <div>صورتحساب: <?= htmlspecialchars($order['customer_name']) ?></div>
-            <div>تاریخ: <?= gregorian_to_jalali_format($order['work_date']) ?></div>
-            <div>شماره فاکتور: <?= $order['order_id'] ?></div>
-        </div>
+            <!-- اطلاعات فاکتور -->
+            <div class="invoice-details">
+                <div>صورتحساب: <?= htmlspecialchars($order['customer_name']) ?></div>
+                <div>تاریخ: <?= gregorian_to_jalali_format($order['work_date']) ?></div>
+                <div>شماره فاکتور: <?= $order['order_id'] ?></div>
+            </div>
 
-        <!-- جدول محصولات -->
-        <table class="invoice-table">
-            <thead>
-                <tr>
-                    <th>ردیف</th>
-                    <th>نام محصول</th>
-                    <th>قیمت واحد</th>
-                    <th>تعداد</th>
-                    <th>قیمت کل</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php $index = 1; ?>
-                <?php foreach ($items as $item): ?>
+            <!-- جدول محصولات -->
+            <table class="invoice-table">
+                <thead>
                     <tr>
-                        <td><?= $index++ ?></td>
-                        <td><?= htmlspecialchars($item['product_name']) ?></td>
-                        <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
-                        <td><?= $item['quantity'] ?></td>
-                        <td><?= number_format($item['unit_price'] * $item['quantity'], 0) ?> تومان</td>
+                        <th>ردیف</th>
+                        <th>نام محصول</th>
+                        <th>قیمت واحد</th>
+                        <th>تعداد</th>
+                        <th>قیمت کل</th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php $index = $page * $items_per_page + 1; ?>
+                    <?php foreach ($pages[$page] as $item): ?>
+                        <tr>
+                            <td><?= $index++ ?></td>
+                            <td><?= htmlspecialchars($item['product_name']) ?></td>
+                            <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
+                            <td><?= $item['quantity'] ?></td>
+                            <td><?= number_format($item['unit_price'] * $item['quantity'], 0) ?> تومان</td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
 
-        <!-- جمع‌بندی -->
-        <div class="invoice-summary">
-            <p>مبلغ کل فاکتور: <?= number_format($order['total_amount'], 0) ?> تومان</p>
-            <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
-            <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'], 0) ?> تومان</p>
-        </div>
+            <!-- جمع‌بندی -->
+            <div class="invoice-summary">
+                <p>مبلغ کل فاکتور: <?= number_format($order['total_amount'], 0) ?> تومان</p>
+                <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
+                <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'], 0) ?> تومان</p>
+            </div>
 
-        <!-- پایین صفحه: فروشندگان -->
-        <div class="invoice-footer">
-            <hr>
-            <p>فروشندگان: </p>
-            <p>
-                <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس:
-                <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> |
-                <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس:
-                <?= htmlspecialchars($order['partner2_phone'] ?? 'نامشخص') ?>
-            </p>
+            <!-- پایین صفحه: فروشندگان -->
+            <div class="invoice-footer">
+                <hr>
+                <p>فروشندگان: </p>
+                <p>
+                    <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس:
+                    <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> |
+                    <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس:
+                    <?= htmlspecialchars($order['partner2_phone'] ?? 'نامشخص') ?>
+                </p>
+            </div>
         </div>
-    </div>
+    <?php endfor; ?>
 
     <script>
         window.onload = function () {
