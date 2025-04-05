@@ -1,18 +1,50 @@
 <?php
-// [BLOCK-LOGIN-001]
-session_start(); // این خط باید در ابتدای فایل باشد
+session_start();
+require_once 'db.php'; // برای اتصال به دیتابیس
+
+// تابع برای ریدایرکت به داشبورد بر اساس نقش کاربر
+function redirectToDashboard($role) {
+    if ($role === 'admin') {
+        header("Location: dashboard_admin.php");
+    } elseif ($role === 'seller') {
+        header("Location: dashboard_seller.php");
+    }
+    exit;
+}
+
+// چک کردن وضعیت لاگین
+if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
+    // اگه سشن فعال باشه، مستقیم به داشبورد بره
+    redirectToDashboard($_SESSION['role']);
+} elseif (isset($_COOKIE['login_token'])) {
+    // اگه کوکی توکن وجود داره، اعتبارش رو چک کنیم
+    $token = $_COOKIE['login_token'];
+
+    $stmt = $pdo->prepare("SELECT user_id, full_name, role FROM Users WHERE login_token = ? AND token_expiry > NOW()");
+    $stmt->execute([$token]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($user) {
+        // اگه توکن معتبر بود، سشن رو بازسازی کنیم و به داشبورد بریم
+        $_SESSION['user_id'] = $user['user_id'];
+        $_SESSION['full_name'] = $user['full_name'];
+        $_SESSION['role'] = $user['role'];
+        redirectToDashboard($user['role']);
+    } else {
+        // اگه توکن نامعتبر بود، کوکی رو پاک کنیم
+        setcookie('login_token', '', time() - 3600, '/');
+    }
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ورود به سیستم</title>
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Vazir Font -->
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         body {
@@ -34,7 +66,6 @@ session_start(); // این خط باید در ابتدای فایل باشد
     </style>
 </head>
 <body style="background: linear-gradient(to bottom right, lightgreen, lightcyan);">
-    <!-- [BLOCK-LOGIN-002] -->
     <div class="login-box">
         <h6 class="text-center mb-4">سیستم مدیریت فروش محصولات پوست و مو</h6>
         <?php
@@ -62,7 +93,6 @@ session_start(); // این خط باید در ابتدای فایل باشد
         </form>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

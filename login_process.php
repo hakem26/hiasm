@@ -1,11 +1,10 @@
 <?php
-// [BLOCK-LOGIN-PROCESS-001]
 session_start();
 require_once 'db.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+    $username = $_POST['username'] ?? '';
+    $password = $_POST['password'] ?? '';
     $remember = isset($_POST['remember']) ? true : false;
 
     // دیباگ: لاگ کردن اطلاعات ورودی
@@ -31,8 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $redirect_url = ($_SESSION['role'] === 'admin') ? 'dashboard_admin.php' : 'dashboard_seller.php';
 
         if ($remember) {
+            // ساخت توکن منحصربه‌فرد
+            $token = bin2hex(random_bytes(16));
+            $expiry = date('Y-m-d H:i:s', strtotime('+30 days'));
+
+            // ذخیره توکن توی دیتابیس
+            $stmt = $pdo->prepare("UPDATE Users SET login_token = ?, token_expiry = ? WHERE user_id = ?");
+            $stmt->execute([$token, $expiry, $user['user_id']]);
+
+            // ذخیره توکن و نام کاربری توی کوکی
+            setcookie('login_token', $token, time() + (30 * 24 * 60 * 60), "/"); // 30 روز
             setcookie('username', $username, time() + (30 * 24 * 60 * 60), "/");
         } else {
+            // پاک کردن توکن و کوکی‌ها اگه "ذخیره ورود" تیک نخورده
+            $stmt = $pdo->prepare("UPDATE Users SET login_token = NULL, token_expiry = NULL WHERE user_id = ?");
+            $stmt->execute([$user['user_id']]);
+            setcookie('login_token', '', time() - 3600, "/");
             setcookie('username', '', time() - 3600, "/");
         }
 

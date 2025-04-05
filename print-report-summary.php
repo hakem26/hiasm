@@ -232,21 +232,18 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             margin: 0 auto;
             page-break-after: always;
             box-sizing: border-box;
-            padding: 10mm;
+            padding: 5mm;
         }
 
         .header {
             text-align: center;
-            font-size: 14pt;
             font-weight: bold;
-            margin-bottom: 10mm;
+            margin-bottom: 2mm;
         }
 
         .main-table {
             width: 189mm;
-            /* 90% of 210mm */
             height: 267mm;
-            /* 90% of 297mm */
             border-collapse: collapse;
             margin: 0 auto;
         }
@@ -254,9 +251,8 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         .main-table td {
             border: 1px solid black;
             width: 50%;
-            height: 50%;
+            height: 0;
             vertical-align: top;
-            padding: 5mm;
         }
 
         .day-table {
@@ -272,7 +268,7 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
 
         .details {
             height: 50%;
-            padding: 5mm;
+            padding: 0 2mm;
         }
 
         .debtors {
@@ -288,7 +284,6 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
         .debtors-table td {
             border: 1px solid black;
             width: 50%;
-            padding: 2mm;
             text-align: center;
             vertical-align: top;
         }
