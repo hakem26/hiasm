@@ -92,6 +92,12 @@ $_SESSION['is_order_in_progress'] = true;
     .order-items-table th, .order-items-table td { vertical-align: middle !important; white-space: nowrap !important; padding: 8px; min-width: 120px; }
     .order-items-table .total-row td { font-weight: bold; }
     .order-items-table .total-row input#discount { width: 150px; margin: 0 auto; }
+
+    /* تنظیمات برای موبایل و تبلت */
+    @media (max-width: 991px) {
+        .col-6 { width: 50%; }
+        .col-md-3, .col-md-6 { width: 50%; }
+    }
 </style>
 
 <div class="container-fluid mt-5">
@@ -110,43 +116,48 @@ $_SESSION['is_order_in_progress'] = true;
             <input type="text" class="form-control" id="customer_name" name="customer_name" required autocomplete="off">
         </div>
 
+        <div class="mb-3">
+            <label for="product_name" class="form-label">نام محصول</label>
+            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید...">
+            <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+            <input type="hidden" id="product_id" name="product_id">
+        </div>
+
+        <!-- ردیف اول: تعداد و قیمت واحد -->
         <div class="row g-3 mb-3">
-            <div class="col-12">
-                <label for="product_name" class="form-label">نام محصول</label>
-                <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." style="width: 100%;">
-                <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
-                <input type="hidden" id="product_id" name="product_id">
-            </div>
-            <div class="col-3">
+            <div class="col-6 col-md-3">
                 <label for="quantity" class="form-label">تعداد</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" style="width: 100%;">
+                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1">
             </div>
-            <div class="col-3">
+            <div class="col-6 col-md-3">
                 <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
-                <input type="number" class="form-control" id="unit_price" name="unit_price" readonly style="width: 100%;">
+                <input type="number" class="form-control" id="unit_price" name="unit_price" readonly>
             </div>
-            <div class="col-3">
+
+            <!-- ردیف دوم: اضافه فروش و قیمت نهایی واحد -->
+            <div class="col-6 col-md-3">
                 <label for="extra_sale" class="form-label">اضافه فروش (تومان)</label>
-                <input type="number" class="form-control" id="extra_sale" name="extra_sale" value="0" min="0" style="width: 100%;">
+                <input type="number" class="form-control" id="extra_sale" name="extra_sale" value="0" min="0">
             </div>
-            <div class="col-3">
+            <div class="col-6 col-md-3">
                 <label for="adjusted_price" class="form-label">قیمت نهایی واحد</label>
-                <input type="text" class="form-control" id="adjusted_price" name="adjusted_price" readonly style="width: 100%;">
+                <input type="text" class="form-control" id="adjusted_price" name="adjusted_price" readonly>
             </div>
-            <div class="row mb-3">
-                <div class="col-6">
-                    <label for="total_price" class="form-label">قیمت کل</label>
-                    <input type="text" class="form-control" id="total_price" name="total_price" readonly>
-                </div>
-                <div class="col-6">
-                    <label for="inventory_quantity" class="form-label">موجودی</label>
-                    <p class="form-control-static" id="inventory_quantity">0</p>
-                </div>
+
+            <!-- ردیف سوم: قیمت کل و موجودی -->
+            <div class="col-6 col-md-6">
+                <label for="total_price" class="form-label">قیمت کل</label>
+                <input type="text" class="form-control" id="total_price" name="total_price" readonly>
             </div>
-            <div class="col-12">
-                <button type="button" id="add_item_btn" class="btn btn-primary mb-3">افزودن محصول</button>
-                <button type="button" id="edit_item_btn" class="btn btn-warning mb-3" style="display: none;">ثبت ویرایش</button>
+            <div class="col-6 col-md-6">
+                <label for="inventory_quantity" class="form-label">موجودی</label>
+                <p class="form-control-static" id="inventory_quantity">0</p>
             </div>
+        </div>
+
+        <div class="mb-3">
+            <button type="button" id="add_item_btn" class="btn btn-primary">افزودن محصول</button>
+            <button type="button" id="edit_item_btn" class="btn btn-warning" style="display: none;">ثبت ویرایش</button>
         </div>
 
         <div class="table-wrapper" id="items_table">
