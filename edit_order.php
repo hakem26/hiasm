@@ -252,6 +252,9 @@ $_SESSION['invoice_prices'] = [];
                                         data-index="<?= $index ?>">
                                         تنظیم قیمت
                                     </button>
+                                    <span class="invoice-price"
+                                        data-index="<?= $index ?>"><?= number_format($_SESSION['invoice_prices'][$index] ?? $item['total_price'], 0) ?>
+                                        تومان</span>
                                 </td>
                                 <td>
                                     <button type="button" class="btn btn-warning btn-sm edit-item" data-index="<?= $index ?>">
@@ -337,17 +340,7 @@ $_SESSION['invoice_prices'] = [];
     }
 
     function renderItemsTable(data) {
-        const itemsTable = document.getElementById('items_table');
-        const totalAmountDisplay = document.getElementById('total_amount_display');
-        const finalAmountDisplay = document.getElementById('final_amount_display');
-
-        if (!data.items || data.items.length === 0) {
-            itemsTable.innerHTML = '';
-            totalAmountDisplay.textContent = '0 تومان';
-            finalAmountDisplay.textContent = '0 تومان';
-            return;
-        }
-
+        const invoicePrices = <?= json_encode($_SESSION['invoice_prices']) ?> || {};
         itemsTable.innerHTML = `
         <table class="table table-light order-items-table">
             <thead>
@@ -367,12 +360,13 @@ $_SESSION['invoice_prices'] = [];
                         <td>${item.product_name}</td>
                         <td>${item.quantity}</td>
                         <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                        <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
+                        <td>${Number(item.extra_sale ?? 0).toLocaleString('fa')} تومان</td>
                         <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
                             <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
                                 تنظیم قیمت
                             </button>
+                            <span class="invoice-price" data-index="${index}">${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان</span>
                         </td>
                         <td>
                             <button type="button" class="btn btn-warning btn-sm edit-item" data-index="${index}">
@@ -384,15 +378,7 @@ $_SESSION['invoice_prices'] = [];
                         </td>
                     </tr>
                 `).join('')}
-                <tr class="total-row">
-                    <td colspan="4"><strong>جمع کل</strong></td>
-                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
-                </tr>
-                <tr class="total-row">
-                    <td><label for="discount" class="form-label">تخفیف</label></td>
-                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
-                </tr>
+                <!-- بقیه جدول -->
             </tbody>
         </table>
     `;
@@ -613,9 +599,9 @@ $_SESSION['invoice_prices'] = [];
                 $('#product_id').val(item.product_id);
                 $('#quantity').val(item.quantity);
                 $('#unit_price').val(item.unit_price);
-                $('#extra_sale').val(item.extra_sale);
-                $('#adjusted_price').val((Number(item.unit_price) + Number(item.extra_sale)).toLocaleString('fa') + ' تومان');
-                $('#total_price').val((item.quantity * (Number(item.unit_price) + Number(item.extra_sale))).toLocaleString('fa') + ' تومان');
+                $('#extra_sale').val(item.extra_sale ?? 0); // پیش‌فرض 0 اگه undefined بود
+                $('#adjusted_price').val((Number(item.unit_price) + Number(item.extra_sale ?? 0)).toLocaleString('fa') + ' تومان');
+                $('#total_price').val((item.quantity * (Number(item.unit_price) + Number(item.extra_sale ?? 0))).toLocaleString('fa') + ' تومان');
 
                 $.ajax({
                     url: 'get_inventory.php',
@@ -664,11 +650,16 @@ $_SESSION['invoice_prices'] = [];
                 action: 'set_invoice_price',
                 index: index,
                 invoice_price: invoicePrice,
-                order_id: '<?= $order_id ?>' // اضافه کردن order_id
+                order_id: '<?= $order_id ?>'
             };
 
             const response = await sendRequest('ajax_handler.php', data);
             if (response.success) {
+                // آپدیت قیمت فاکتور توی صفحه
+                const priceSpan = document.querySelector(`.invoice-price[data-index="${index}"]`);
+                if (priceSpan) {
+                    priceSpan.textContent = Number(invoicePrice).toLocaleString('fa') + ' تومان';
+                }
                 $('#invoicePriceModal').modal('hide');
             } else {
                 alert(response.message);
