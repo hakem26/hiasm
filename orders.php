@@ -434,12 +434,6 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     </li>
                 </ul>
             </nav>
-
-            <?php if ($total_orders > $per_page): ?>
-                <div class="text-center mt-3">
-                    <button id="loadMoreBtn" class="btn btn-secondary">نمایش فاکتورهای بیشتر</button>
-                </div>
-            <?php endif; ?>
         <?php else: ?>
             <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
         <?php endif; ?>
@@ -454,7 +448,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 scrollX: true,
                 autoWidth: false,
                 paging: false,
-                ordering: false,
+                ordering: true,
                 info: true,
                 searching: false,
                 "language": {
