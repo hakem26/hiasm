@@ -62,7 +62,7 @@ switch ($action) {
             'product_id' => $product_id,
             'product_name' => $product['product_name'],
             'quantity' => $quantity,
-            'unit_price' => $adjusted_price,
+            'unit_price' => $unit_price,
             'extra_sale' => $extra_sale,
             'total_price' => $quantity * $adjusted_price
         ];
@@ -114,7 +114,8 @@ switch ($action) {
             'product_name' => $items[$index]['product_name'],
             'quantity' => $quantity,
             'unit_price' => $unit_price,
-            'total_price' => $quantity * $unit_price
+            'extra_sale' => $items[$index]['extra_sale'],
+            'total_price' => $quantity * ($unit_price + $items[$index]['extra_sale'])
         ];
 
         $_SESSION['order_items'] = $items;
@@ -142,7 +143,6 @@ switch ($action) {
         $items = array_values($items);
         $_SESSION['order_items'] = $items;
 
-        // حذف قیمت فاکتور مرتبط با این ایندکس
         if (isset($_SESSION['invoice_prices'][$index])) {
             unset($_SESSION['invoice_prices'][$index]);
             $_SESSION['invoice_prices'] = array_values($_SESSION['invoice_prices']);
@@ -235,7 +235,6 @@ switch ($action) {
 
             $pdo->commit();
 
-            // نگه داشتن invoice_prices برای پرینت و پاک کردن بقیه
             $invoice_prices = $_SESSION['invoice_prices'] ?? [];
             unset($_SESSION['order_items']);
             unset($_SESSION['discount']);
@@ -256,6 +255,7 @@ switch ($action) {
         $product_id = $_POST['product_id'] ?? '';
         $quantity = (int) ($_POST['quantity'] ?? 0);
         $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
         $discount = (float) ($_POST['discount'] ?? 0);
         $order_id = $_POST['order_id'] ?? '';
         $partner1_id = $_POST['partner1_id'] ?? '';
@@ -266,40 +266,36 @@ switch ($action) {
 
         $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
         $stmt->execute([$product_id]);
-        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        $product_name = $stmt->fetchColumn();
 
-        if (!$product) {
+        if (!$product_name) {
             respond(false, 'محصول یافت نشد.');
         }
 
-        $items = $_SESSION['edit_order_items'] ?? [];
-        if ($items && array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
-            respond(false, 'این محصول قبلاً در فاکتور ثبت شده است. برای ویرایش از دکمه ویرایش استفاده کنید.');
-        }
+        $total_price = $quantity * ($unit_price + $extra_sale);
 
-        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
-        $stmt_inventory->execute([$partner1_id, $product_id]);
-        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
-
-        if ($current_quantity < $quantity) {
-            respond(false, "موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
-        }
-
-        $items[] = [
+        $new_item = [
             'product_id' => $product_id,
-            'product_name' => $product['product_name'],
+            'product_name' => $product_name,
             'quantity' => $quantity,
             'unit_price' => $unit_price,
-            'total_price' => $quantity * $unit_price
+            'extra_sale' => $extra_sale,
+            'total_price' => $total_price
         ];
 
-        $_SESSION['edit_order_items'] = $items;
-        $total_amount = array_sum(array_column($items, 'total_price'));
-        $final_amount = $total_amount - $discount;
+        if (!isset($_SESSION['edit_order_items'])) {
+            $_SESSION['edit_order_items'] = [];
+        }
+        $_SESSION['edit_order_items'][] = $new_item;
+
+        $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
         respond(true, 'محصول با موفقیت اضافه شد.', [
-            'items' => $items,
+            'items' => $_SESSION['edit_order_items'],
             'total_amount' => $total_amount,
             'discount' => $discount,
             'final_amount' => $final_amount
@@ -311,6 +307,7 @@ switch ($action) {
         $product_id = $_POST['product_id'] ?? '';
         $quantity = (int) ($_POST['quantity'] ?? 0);
         $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
         $discount = (float) ($_POST['discount'] ?? 0);
         $index = (int) ($_POST['index'] ?? -1);
         $order_id = $_POST['order_id'] ?? '';
@@ -320,36 +317,37 @@ switch ($action) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
         }
 
-        $items = $_SESSION['edit_order_items'] ?? [];
-        if (!isset($items[$index])) {
+        $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+        $stmt->execute([$product_id]);
+        $product_name = $stmt->fetchColumn();
+
+        if (!$product_name) {
+            respond(false, 'محصول یافت نشد.');
+        }
+
+        $total_price = $quantity * ($unit_price + $extra_sale);
+
+        if (!isset($_SESSION['edit_order_items'][$index])) {
             respond(false, 'آیتم مورد نظر یافت نشد.');
         }
 
-        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
-        $stmt_inventory->execute([$partner1_id, $product_id]);
-        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
-
-        $old_quantity = $items[$index]['quantity'];
-        $quantity_diff = $old_quantity - $quantity;
-        if ($current_quantity + $quantity_diff < 0) {
-            respond(false, "موجودی کافی برای محصول '{$items[$index]['product_name']}' نیست. موجودی: $current_quantity");
-        }
-
-        $items[$index] = [
+        $_SESSION['edit_order_items'][$index] = [
             'product_id' => $product_id,
-            'product_name' => $items[$index]['product_name'],
+            'product_name' => $product_name,
             'quantity' => $quantity,
             'unit_price' => $unit_price,
-            'total_price' => $quantity * $unit_price
+            'extra_sale' => $extra_sale,
+            'total_price' => $total_price
         ];
 
-        $_SESSION['edit_order_items'] = $items;
-        $total_amount = array_sum(array_column($items, 'total_price'));
-        $final_amount = $total_amount - $discount;
+        $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-        respond(true, 'آیتم با موفقیت ویرایش شد.', [
-            'items' => $items,
+        respond(true, 'محصول با موفقیت ویرایش شد.', [
+            'items' => $_SESSION['edit_order_items'],
             'total_amount' => $total_amount,
             'discount' => $discount,
             'final_amount' => $final_amount
@@ -361,21 +359,29 @@ switch ($action) {
         $order_id = $_POST['order_id'] ?? '';
         $partner1_id = $_POST['partner1_id'] ?? '';
 
-        if ($index < 0 || !isset($_SESSION['edit_order_items'][$index]) || !$order_id || !$partner1_id) {
-            respond(false, 'آیتم یافت نشد.');
+        if ($index < 0 || !$order_id || !$partner1_id) {
+            respond(false, 'ایندکس یا شناسه سفارش نامعتبر است.');
         }
 
-        $items = $_SESSION['edit_order_items'];
-        unset($items[$index]);
-        $items = array_values($items);
-        $_SESSION['edit_order_items'] = $items;
+        if (!isset($_SESSION['edit_order_items'][$index])) {
+            respond(false, 'آیتم مورد نظر یافت نشد.');
+        }
 
-        $total_amount = array_sum(array_column($items, 'total_price'));
+        unset($_SESSION['edit_order_items'][$index]);
+        $_SESSION['edit_order_items'] = array_values($_SESSION['edit_order_items']);
+
+        $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND item_index = ? AND is_postal = FALSE");
+        $stmt->execute([$order_id, $index]);
+
+        $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
         $discount = $_SESSION['edit_order_discount'] ?? 0;
-        $final_amount = $total_amount - $discount;
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-        respond(true, 'آیتم با موفقیت حذف شد.', [
-            'items' => $items,
+        respond(true, 'محصول با موفقیت حذف شد.', [
+            'items' => $_SESSION['edit_order_items'],
             'total_amount' => $total_amount,
             'discount' => $discount,
             'final_amount' => $final_amount
@@ -386,21 +392,83 @@ switch ($action) {
         $discount = (float) ($_POST['discount'] ?? 0);
         $order_id = $_POST['order_id'] ?? '';
 
-        if (!$order_id) {
-            respond(false, 'شناسه سفارش مشخص نشده است.');
+        if ($discount < 0 || !$order_id) {
+            respond(false, 'مقدار تخفیف یا شناسه سفارش نامعتبر است.');
         }
 
+        $_SESSION['edit_order_discount'] = $discount;
         $items = $_SESSION['edit_order_items'] ?? [];
         $total_amount = array_sum(array_column($items, 'total_price'));
-        $final_amount = $total_amount - $discount;
-
-        $_SESSION['edit_order_discount'] = $discount;
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
         respond(true, 'تخفیف با موفقیت به‌روزرسانی شد.', [
             'items' => $items,
             'total_amount' => $total_amount,
             'discount' => $discount,
             'final_amount' => $final_amount
+        ]);
+        break;
+
+    case 'set_invoice_price':
+        $index = (int) ($_POST['index'] ?? -1);
+        $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
+        $order_id = $_POST['order_id'] ?? '';
+
+        if ($index < 0 || $invoice_price < 0 || !$order_id) {
+            respond(false, 'مقدار نامعتبر برای ایندکس، قیمت فاکتور یا شناسه سفارش.');
+        }
+
+        $items = $order_id ? ($_SESSION['edit_order_items'] ?? []) : ($_SESSION['order_items'] ?? []);
+        if (!isset($items[$index])) {
+            respond(false, 'آیتم مورد نظر یافت نشد.');
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
+            VALUES (?, ?, ?, FALSE)
+            ON DUPLICATE KEY UPDATE invoice_price = ?
+        ");
+        $stmt->execute([$order_id, $index, $invoice_price, $invoice_price]);
+
+        respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.');
+        break;
+
+    case 'set_postal_option':
+        $order_id = $_POST['order_id'] ?? '';
+        $enable_postal = filter_var($_POST['enable_postal'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $postal_price = 50000;
+
+        if (!$order_id) {
+            respond(false, 'شناسه سفارش مشخص نشده است.');
+        }
+
+        if ($enable_postal) {
+            $stmt = $pdo->prepare("
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, -1, 0, TRUE, ?)
+                ON DUPLICATE KEY UPDATE postal_price = ?
+            ");
+            $stmt->execute([$order_id, $postal_price, $postal_price]);
+        } else {
+            $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+            $stmt->execute([$order_id]);
+        }
+
+        $items = $_SESSION['edit_order_items'] ?? [];
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $discount = $_SESSION['edit_order_discount'] ?? 0;
+        $final_amount = $total_amount - $discount + ($enable_postal ? $postal_price : 0);
+
+        respond(true, 'گزینه ارسال پستی با موفقیت به‌روزرسانی شد.', [
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $enable_postal,
+            'postal_price' => $postal_price
         ]);
         break;
 
@@ -420,11 +488,14 @@ switch ($action) {
         }
 
         $total_amount = array_sum(array_column($new_items, 'total_price'));
-        $final_amount = $total_amount - $discount;
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
         $pdo->beginTransaction();
         try {
-            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, total_price FROM Order_Items WHERE order_id = ?");
+            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, extra_sale, total_price FROM Order_Items WHERE order_id = ?");
             $stmt_items->execute([$order_id]);
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
@@ -440,6 +511,7 @@ switch ($action) {
                         'quantity' => $item['quantity'],
                         'product_name' => $item['product_name'],
                         'unit_price' => $item['unit_price'],
+                        'extra_sale' => $item['extra_sale'],
                         'total_price' => $item['total_price']
                     ];
                 }
@@ -452,6 +524,7 @@ switch ($action) {
                         'quantity' => $item['quantity'],
                         'product_name' => $item['product_name'],
                         'unit_price' => $item['unit_price'],
+                        'extra_sale' => $item['extra_sale'],
                         'total_price' => $item['total_price']
                     ];
                 }
@@ -518,14 +591,15 @@ switch ($action) {
 
             foreach ($new_items as $item) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, total_price)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $order_id,
                     $item['product_name'],
                     $item['quantity'],
                     $item['unit_price'],
+                    $item['extra_sale'],
                     $item['total_price']
                 ]);
             }
@@ -537,31 +611,12 @@ switch ($action) {
             unset($_SESSION['edit_order_discount']);
 
             respond(true, 'سفارش با موفقیت ویرایش شد.', [
-                'redirect' => "orders.php"
+                'redirect' => "print_invoice.php?order_id=$order_id"
             ]);
         } catch (Exception $e) {
             $pdo->rollBack();
             respond(false, 'خطا در ویرایش سفارش: ' . $e->getMessage());
         }
-        break;
-
-    case 'set_invoice_price':
-        $index = (int) ($_POST['index'] ?? -1);
-        $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
-        $order_id = $_POST['order_id'] ?? ''; // اضافه کردن order_id برای تشخیص ویرایش
-
-        if ($index < 0 || $invoice_price < 0) {
-            respond(false, 'مقدار نامعتبر برای ایندکس یا قیمت فاکتور.');
-        }
-
-        // انتخاب آرایه مناسب بر اساس وجود order_id
-        $items = $order_id ? ($_SESSION['edit_order_items'] ?? []) : ($_SESSION['order_items'] ?? []);
-        if (!isset($items[$index])) {
-            respond(false, 'آیتم مورد نظر یافت نشد.');
-        }
-
-        $_SESSION['invoice_prices'][$index] = $invoice_price;
-        respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.');
         break;
 
     case 'clear_invoice_prices':

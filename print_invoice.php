@@ -35,35 +35,34 @@ if (!$order) {
     exit;
 }
 
-$stmt_items = $pdo->prepare("
-    SELECT product_name, unit_price, quantity, extra_sale
-    FROM Order_Items
-    WHERE order_id = ?
-");
+$stmt_items = $pdo->prepare("SELECT * FROM Order_Items WHERE order_id = ?");
 $stmt_items->execute([$order_id]);
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-// اضافه کردن قیمت فاکتور از سشن
-$invoice_prices = $_SESSION['invoice_prices'] ?? [];
-foreach ($items as &$item) {
-    $index = array_search($item['product_name'], array_column($_SESSION['order_items'] ?? [], 'product_name'));
-    if ($index !== false && isset($invoice_prices[$index])) {
-        $item['invoice_price'] = $invoice_prices[$index];
+// دریافت قیمت‌های فاکتور و پست از جدول Invoice_Prices
+$invoice_prices = [];
+$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ?");
+$stmt_invoice->execute([$order_id]);
+$invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
+$postal_enabled = false;
+$postal_price = 0;
+foreach ($invoice_data as $row) {
+    if ($row['is_postal']) {
+        $postal_enabled = true;
+        $postal_price = $row['postal_price'];
     } else {
-        $item['invoice_price'] = $item['unit_price'] + ($item['extra_sale'] ?? 0); // پیش‌فرض قیمت اصلی
+        $invoice_prices[$row['item_index']] = $row['invoice_price'];
     }
 }
-unset($item);
 
 $items_per_page = 14;
-$total_items = count($items);
+$total_items = count($items) + ($postal_enabled ? 1 : 0); // اضافه کردن ردیف پست به تعداد کل
 $total_pages = ceil($total_items / $items_per_page);
 $pages = array_chunk($items, $items_per_page);
 ?>
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -231,7 +230,6 @@ $pages = array_chunk($items, $items_per_page);
         }
     </style>
 </head>
-
 <body>
     <?php for ($page = 0; $page < $total_pages; $page++): ?>
         <div class="invoice-container">
@@ -253,28 +251,50 @@ $pages = array_chunk($items, $items_per_page);
                         <th>نام محصول</th>
                         <th>قیمت واحد</th>
                         <th>تعداد</th>
+                        <th>اضافه فروش</th>
                         <th>قیمت کل</th>
+                        <th>قیمت فاکتور</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php $index = $page * $items_per_page + 1; ?>
-                    <?php foreach ($pages[$page] as $item): ?>
+                    <?php 
+                    $start_index = $page * $items_per_page;
+                    $end_index = min(($page + 1) * $items_per_page, $total_items);
+                    $index = $start_index + 1;
+                    $page_items = array_slice($items, $start_index, $items_per_page - ($postal_enabled && $end_index == $total_items ? 1 : 0));
+                    foreach ($page_items as $i => $item): 
+                    ?>
                         <tr>
                             <td><?= $index++ ?></td>
                             <td><?= htmlspecialchars($item['product_name']) ?></td>
-                            <td><?= number_format($item['invoice_price'], 0) ?> تومان</td>
+                            <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
                             <td><?= $item['quantity'] ?></td>
-                            <td><?= number_format($item['invoice_price'] * $item['quantity'], 0) ?> تومان</td>
+                            <td><?= number_format($item['extra_sale'] ?? 0, 0) ?> تومان</td>
+                            <td><?= number_format($item['total_price'], 0) ?> تومان</td>
+                            <td><?= number_format($invoice_prices[$start_index + $i] ?? $item['total_price'], 0) ?> تومان</td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php if ($postal_enabled && $end_index == $total_items): ?>
+                        <tr>
+                            <td><?= $index++ ?></td>
+                            <td>ارسال پستی</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td><?= number_format($postal_price, 0) ?> تومان</td>
+                            <td><?= number_format($postal_price, 0) ?> تومان</td>
+                        </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
 
-            <div class="invoice-summary">
-                <p>مبلغ کل فاکتور: <?= number_format($order['total_amount'], 0) ?> تومان</p>
-                <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
-                <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'], 0) ?> تومان</p>
-            </div>
+            <?php if ($page == $total_pages - 1): ?>
+                <div class="invoice-summary">
+                    <p>مبلغ کل فاکتور: <?= number_format($order['total_amount'], 0) ?> تومان</p>
+                    <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
+                    <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'] + ($postal_enabled ? $postal_price : 0), 0) ?> تومان</p>
+                </div>
+            <?php endif; ?>
 
             <div class="invoice-footer">
                 <hr>
@@ -292,7 +312,7 @@ $pages = array_chunk($items, $items_per_page);
     <script>
         window.onload = function () {
             window.print();
-            // پاک کردن سشن قیمت‌های فاکتور بعد از پرینت
+            // پاک کردن سشن قیمت‌های فاکتور (در صورت نیاز، اگر هنوز از سشن استفاده می‌کردیم)
             fetch('ajax_handler.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -301,5 +321,4 @@ $pages = array_chunk($items, $items_per_page);
         };
     </script>
 </body>
-
 </html>
