@@ -436,8 +436,8 @@ if ($current_work_month_id) {
                     </div>
                     <?php if (!empty($partners_today) && $work_details_id): ?>
                         <div class="mt-3">
-                            <a href="add_order.php?work_details_id=<?= $work_details_id ?>"
-                                class="btn btn-primary me-2">ثبت سفارش</a>
+                            <a href="add_order.php?work_details_id=<?= $work_details_id ?>" class="btn btn-primary me-2">ثبت
+                                سفارش</a>
                             <a href="orders.php?year=<?= $selected_year ?>&work_month_id=<?= $current_work_month_id ?>&user_id=<?= $current_user_id ?>&work_day_id=<?= $work_details_id ?>"
                                 class="btn btn-secondary">لیست سفارشات</a>
                         </div>
@@ -449,19 +449,20 @@ if ($current_work_month_id) {
         <div class="col-12 col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">آمار بدهکاران</h5>
-                    <ul class="list-group">
-                        <?php if (empty($debtors)): ?>
-                            <li class="list-group-item">بدهی‌ای یافت نشد.</li>
-                        <?php else: ?>
-                            <?php foreach ($debtors as $debtor): ?>
-                                <li class="list-group-item">
-                                    <?= htmlspecialchars($debtor['name']) ?> - بدهی: <?= number_format($debtor['amount'], 0) ?>
-                                    تومان
-                                </li>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </ul>
+                    <h5 class="card-title">تعداد آژانس‌ها در ماه
+                        <?php
+                        if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
+                            echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
+                        } else {
+                            echo "نامشخص";
+                        }
+                        ?>
+                    </h5>
+                    <?php if (empty($agency_data_counts)): ?>
+                        <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
+                    <?php else: ?>
+                        <canvas id="agencyChart"></canvas>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -556,20 +557,19 @@ if ($current_work_month_id) {
         <div class="col-12 col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">تعداد آژانس‌ها در ماه
-                        <?php
-                        if ($current_start_month && preg_match('/^\d{4}-\d{2}-\d{2}$/', $current_start_month)) {
-                            echo jalali_month_name(gregorian_to_jalali_format($current_start_month));
-                        } else {
-                            echo "نامشخص";
-                        }
-                        ?>
-                    </h5>
-                    <?php if (empty($agency_data_counts)): ?>
-                        <div class="alert alert-warning text-center">داده‌ای برای نمایش وجود ندارد.</div>
-                    <?php else: ?>
-                        <canvas id="agencyChart"></canvas>
-                    <?php endif; ?>
+                    <h5 class="card-title">آمار بدهکاران</h5>
+                    <ul class="list-group">
+                        <?php if (empty($debtors)): ?>
+                            <li class="list-group-item">بدهی‌ای یافت نشد.</li>
+                        <?php else: ?>
+                            <?php foreach ($debtors as $debtor): ?>
+                                <li class="list-group-item">
+                                    <?= htmlspecialchars($debtor['name']) ?> - بدهی: <?= number_format($debtor['amount'], 0) ?>
+                                    تومان
+                                </li>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -837,7 +837,7 @@ if ($current_work_month_id) {
                 console.error('Error loading default charts:', e);
             }
         });
-        
+
         // Set the default font family for all charts to "Vazirmatn RD FD NL"
         salesChart.defaults.font.family = "Vazirmatn RD FD NL";
         partnerChart.defaults.font.family = "Vazirmatn RD FD NL";
