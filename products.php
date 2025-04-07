@@ -106,6 +106,44 @@ if ($is_seller && $is_partner1 && $_SERVER['REQUEST_METHOD'] === 'POST' && isset
     }
 }
 
+// پردازش بازگشت محصول توسط فروشنده (فقط برای همکار 1)
+if ($is_seller && $is_partner1 && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['return_inventory'])) {
+    $product_id = (int) $_POST['product_id'];
+    $quantity = (int) $_POST['quantity'];
+    $user_id = (int) $_SESSION['user_id'];
+
+    try {
+        // چک کردن موجودی فعلی فروشنده
+        $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
+        $stmt->execute([$user_id, $product_id]);
+        $current_quantity = $stmt->fetchColumn() ?: 0;
+
+        if ($current_quantity < $quantity) {
+            echo "<script>alert('موجودی کافی برای بازگشت ندارید!'); window.location.href='products.php';</script>";
+            exit;
+        }
+
+        // کاهش موجودی فروشنده
+        $update_user_query = $pdo->prepare("
+            UPDATE Inventory 
+            SET quantity = quantity - ? 
+            WHERE user_id = ? AND product_id = ?
+        ");
+        $update_user_query->execute([$quantity, $user_id, $product_id]);
+
+        // ثبت تراکنش بازگشت (با مقدار منفی)
+        $transaction_query = $pdo->prepare("
+            INSERT INTO Inventory_Transactions (product_id, user_id, quantity) 
+            VALUES (?, ?, ?)
+        ");
+        $transaction_query->execute([$product_id, $user_id, -$quantity]);
+
+        echo "<script>alert('محصول با موفقیت به مدیر بازگردانده شد!'); window.location.href='products.php';</script>";
+    } catch (Exception $e) {
+        echo "<script>alert('خطا در بازگشت محصول: " . $e->getMessage() . "');</script>";
+    }
+}
+
 // دریافت محصولات
 $products = [];
 try {
@@ -127,7 +165,7 @@ try {
     }
     unset($product);
 
-    // دریافت موجودی مدیر (برای استفاده بعدی)
+    // دریافت موجودی مدیر
     foreach ($products as &$product) {
         $stmt = $pdo->prepare("SELECT quantity FROM Admin_Inventory WHERE product_id = ?");
         $stmt->execute([$product['product_id']]);
@@ -179,12 +217,10 @@ try {
                 <input type="text" class="form-control" name="product_name" placeholder="نام محصول" required>
             </div>
             <div class="col-auto">
-                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01"
-                    required>
+                <input type="number" class="form-control" name="unit_price" placeholder="قیمت واحد (تومان)" step="0.01" required>
             </div>
             <div class="col-auto">
-                <input type="number" class="form-control" name="partner_profit" placeholder="سود همکار (درصد)" step="0.01"
-                    value="0.00">
+                <input type="number" class="form-control" name="partner_profit" placeholder="سود همکار (درصد)" step="0.01" value="0.00">
             </div>
             <div class="col-auto">
                 <button type="submit" name="add_product" class="btn btn-primary">افزودن محصول</button>
@@ -194,8 +230,7 @@ try {
 
     <?php if (!empty($products)): ?>
         <div class="table-responsive" style="overflow-x: auto; width: 100%;">
-            <table id="productsTable" class="table table-light table-hover display nowrap"
-                style="width: 100%; min-width: 800px;">
+            <table id="productsTable" class="table table-light table-hover display nowrap" style="width: 100%; min-width: 800px;">
                 <thead>
                     <tr>
                         <th>نام محصول</th>
@@ -232,6 +267,10 @@ try {
                                         data-bs-target="#requestModal_<?= $product['product_id'] ?>">
                                         درخواست
                                     </button>
+                                    <button type="button" class="btn btn-warning btn-sm ms-1" data-bs-toggle="modal"
+                                        data-bs-target="#returnModal_<?= $product['product_id'] ?>">
+                                        بازگشت
+                                    </button>
                                 </td>
                             <?php endif; ?>
                             <?php if ($is_seller): ?>
@@ -244,20 +283,17 @@ try {
                             <?php endif; ?>
                             <?php if ($is_admin): ?>
                                 <td>
-                                    <span
-                                        id="partner_profit_<?= $product['product_id'] ?>"><?= number_format($product['partner_profit'], 2) ?></span>
+                                    <span id="partner_profit_<?= $product['product_id'] ?>"><?= number_format($product['partner_profit'], 2) ?></span>
                                     <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-toggle="modal"
                                         data-bs-target="#partnerProfitModal_<?= $product['product_id'] ?>">
                                         تغییر
                                     </button>
                                 </td>
                                 <td>
-                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>"
-                                        class="btn btn-warning btn-sm">ویرایش</a>
+                                    <a href="edit_product.php?id=<?= $product['product_id'] ?>" class="btn btn-warning btn-sm">ویرایش</a>
                                     <a href="products.php?delete=<?= $product['product_id'] ?>" class="btn btn-danger btn-sm"
                                         onclick="return confirm('آیا مطمئن هستید؟')">حذف</a>
-                                    <a href="manage_price.php?product_id=<?= $product['product_id'] ?>"
-                                        class="btn btn-info btn-sm">مدیریت قیمت</a>
+                                    <a href="manage_price.php?product_id=<?= $product['product_id'] ?>" class="btn btn-info btn-sm">مدیریت قیمت</a>
                                 </td>
                             <?php endif; ?>
                         </tr>
@@ -266,7 +302,7 @@ try {
             </table>
         </div>
 
-        <!-- Admin Inventory Modal (برای ادمین، ولی توی جدول نشون داده نمی‌شه) -->
+        <!-- Admin Inventory Modal -->
         <?php if ($is_admin): ?>
             <?php foreach ($products as $product): ?>
                 <div class="modal fade" id="adminInventoryModal_<?= $product['product_id'] ?>" tabindex="-1"
@@ -274,16 +310,14 @@ try {
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="adminInventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی
-                                    مدیر برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="adminInventoryModalLabel_<?= $product['product_id'] ?>">ویرایش موجودی مدیر برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <form method="POST">
                                     <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                     <div class="mb-3">
-                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد
-                                            جدید</label>
+                                        <label for="new_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد جدید</label>
                                         <input type="number" class="form-control" id="new_quantity_<?= $product['product_id'] ?>"
                                             name="new_quantity" min="0" required>
                                     </div>
@@ -303,19 +337,16 @@ try {
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="partnerProfitModalLabel_<?= $product['product_id'] ?>">ویرایش سود همکار
-                                    برای <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="partnerProfitModalLabel_<?= $product['product_id'] ?>">ویرایش سود همکار برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <form method="POST">
                                     <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                                     <div class="mb-3">
-                                        <label for="partner_profit_<?= $product['product_id'] ?>" class="form-label">سود همکار
-                                            (درصد)</label>
+                                        <label for="partner_profit_<?= $product['product_id'] ?>" class="form-label">سود همکار (درصد)</label>
                                         <input type="number" class="form-control" id="partner_profit_<?= $product['product_id'] ?>"
-                                            name="partner_profit" step="0.01" min="0" value="<?= $product['partner_profit'] ?>"
-                                            required>
+                                            name="partner_profit" step="0.01" min="0" value="<?= $product['partner_profit'] ?>" required>
                                     </div>
                                     <button type="submit" name="update_partner_profit" class="btn btn-primary">ذخیره</button>
                                 </form>
@@ -337,8 +368,7 @@ try {
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="requestModalLabel_<?= $product['product_id'] ?>">درخواست تخصیص برای
-                                    <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="requestModalLabel_<?= $product['product_id'] ?>">درخواست تخصیص برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
@@ -358,6 +388,34 @@ try {
                         </div>
                     </div>
                 </div>
+
+                <!-- Return Inventory Modal (فقط برای همکار 1) -->
+                <div class="modal fade" id="returnModal_<?= $product['product_id'] ?>" tabindex="-1"
+                    aria-labelledby="returnModalLabel_<?= $product['product_id'] ?>" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="returnModalLabel_<?= $product['product_id'] ?>">بازگشت محصول <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form method="POST">
+                                    <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+                                    <div class="mb-3">
+                                        <label for="return_quantity_<?= $product['product_id'] ?>" class="form-label">تعداد بازگشتی</label>
+                                        <input type="number" class="form-control" id="return_quantity_<?= $product['product_id'] ?>"
+                                            name="quantity" min="1" max="<?= $product['inventory'] ?>" required>
+                                        <small class="form-text text-muted">موجودی فعلی شما: <?= $product['inventory'] ?></small>
+                                    </div>
+                                    <button type="submit" name="return_inventory" class="btn btn-warning">بازگشت محصول</button>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             <?php endforeach; ?>
         <?php endif; ?>
 
@@ -369,8 +427,7 @@ try {
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای
-                                    <?= htmlspecialchars($product['product_name']) ?></h5>
+                                <h5 class="modal-title" id="priceModalLabel_<?= $product['product_id'] ?>">تغییرات قیمت برای <?= htmlspecialchars($product['product_name']) ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
