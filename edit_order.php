@@ -10,7 +10,8 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
@@ -113,17 +114,51 @@ $_SESSION['invoice_prices'] = [];
 ?>
 
 <style>
-    body, .container-fluid { overflow-x: hidden !important; }
-    .table-wrapper { width: 100%; overflow-x: auto !important; overflow-y: visible; -webkit-overflow-scrolling: touch; }
-    .order-items-table { width: 100%; min-width: 800px; border-collapse: collapse; }
-    .order-items-table th, .order-items-table td { vertical-align: middle !important; white-space: nowrap !important; padding: 8px; min-width: 120px; }
-    .order-items-table .total-row td { font-weight: bold; }
-    .order-items-table .total-row input#discount { width: 150px; margin: 0 auto; }
+    body,
+    .container-fluid {
+        overflow-x: hidden !important;
+    }
+
+    .table-wrapper {
+        width: 100%;
+        overflow-x: auto !important;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .order-items-table {
+        width: 100%;
+        min-width: 800px;
+        border-collapse: collapse;
+    }
+
+    .order-items-table th,
+    .order-items-table td {
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+        padding: 8px;
+        min-width: 120px;
+    }
+
+    .order-items-table .total-row td {
+        font-weight: bold;
+    }
+
+    .order-items-table .total-row input#discount {
+        width: 150px;
+        margin: 0 auto;
+    }
 
     /* تنظیمات برای موبایل و تبلت */
     @media (max-width: 991px) {
-        .col-6 { width: 50%; }
-        .col-md-3, .col-md-6 { width: 50%; }
+        .col-6 {
+            width: 50%;
+        }
+
+        .col-md-3,
+        .col-md-6 {
+            width: 50%;
+        }
     }
 </style>
 
@@ -140,13 +175,16 @@ $_SESSION['invoice_prices'] = [];
     <form id="edit-order-form">
         <div class="mb-3">
             <label for="customer_name" class="form-label">نام مشتری</label>
-            <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($order['customer_name']) ?>" required autocomplete="off">
+            <input type="text" class="form-control" id="customer_name" name="customer_name"
+                value="<?= htmlspecialchars($order['customer_name']) ?>" required autocomplete="off">
         </div>
 
         <div class="mb-3">
             <label for="product_name" class="form-label">نام محصول</label>
-            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید...">
-            <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+            <input type="text" class="form-control" id="product_name" name="product_name"
+                placeholder="جستجو یا وارد کنید...">
+            <div id="product_suggestions" class="list-group position-absolute"
+                style="width: 100%; z-index: 1000; display: none;"></div>
             <input type="hidden" id="product_id" name="product_id">
         </div>
 
@@ -210,7 +248,8 @@ $_SESSION['invoice_prices'] = [];
                                 <td><?= number_format($item['extra_sale'], 0) ?></td>
                                 <td><?= number_format($item['total_price'], 0) ?></td>
                                 <td>
-                                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="<?= $index ?>">
+                                    <button type="button" class="btn btn-info btn-sm set-invoice-price"
+                                        data-index="<?= $index ?>">
                                         تنظیم قیمت
                                     </button>
                                 </td>
@@ -235,7 +274,8 @@ $_SESSION['invoice_prices'] = [];
                         </tr>
                         <tr class="total-row">
                             <td><label for="discount" class="form-label">تخفیف</label></td>
-                            <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount"
+                                    value="<?= $discount ?>" min="0"></td>
                             <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
                         </tr>
                     </tbody>
@@ -244,8 +284,10 @@ $_SESSION['invoice_prices'] = [];
         </div>
 
         <div class="mb-3">
-            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?> تومان</span></p>
-            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?> تومان</span></p>
+            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount, 0) ?>
+                    تومان</span></p>
+            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount, 0) ?>
+                    تومان</span></p>
         </div>
 
         <button type="button" id="save_changes_btn" class="btn btn-success mt-3">ذخیره تغییرات</button>
@@ -254,7 +296,8 @@ $_SESSION['invoice_prices'] = [];
 </div>
 
 <!-- مودال تنظیم قیمت فاکتور -->
-<div class="modal fade" id="invoicePriceModal" tabindex="-1" aria-labelledby="invoicePriceModalLabel" aria-hidden="true">
+<div class="modal fade" id="invoicePriceModal" tabindex="-1" aria-labelledby="invoicePriceModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -279,33 +322,33 @@ $_SESSION['invoice_prices'] = [];
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-async function sendRequest(url, data) {
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams(data)
-        });
-        return await response.json();
-    } catch (error) {
-        console.error('Error:', error);
-        return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
-    }
-}
-
-function renderItemsTable(data) {
-    const itemsTable = document.getElementById('items_table');
-    const totalAmountDisplay = document.getElementById('total_amount_display');
-    const finalAmountDisplay = document.getElementById('final_amount_display');
-
-    if (!data.items || data.items.length === 0) {
-        itemsTable.innerHTML = '';
-        totalAmountDisplay.textContent = '0 تومان';
-        finalAmountDisplay.textContent = '0 تومان';
-        return;
+    async function sendRequest(url, data) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(data)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error:', error);
+            return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+        }
     }
 
-    itemsTable.innerHTML = `
+    function renderItemsTable(data) {
+        const itemsTable = document.getElementById('items_table');
+        const totalAmountDisplay = document.getElementById('total_amount_display');
+        const finalAmountDisplay = document.getElementById('final_amount_display');
+
+        if (!data.items || data.items.length === 0) {
+            itemsTable.innerHTML = '';
+            totalAmountDisplay.textContent = '0 تومان';
+            finalAmountDisplay.textContent = '0 تومان';
+            return;
+        }
+
+        itemsTable.innerHTML = `
         <table class="table table-light order-items-table">
             <thead>
                 <tr>
@@ -354,237 +397,66 @@ function renderItemsTable(data) {
         </table>
     `;
 
-    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    let initialInventory = 0;
-    let editingIndex = null;
-
-    $('#product_name').on('input', function () {
-        let query = $(this).val();
-        const work_details_id = '<?= htmlspecialchars($order['work_details_id'], ENT_QUOTES, 'UTF-8') ?>';
-        if (query.length >= 3) {
-            $.ajax({
-                url: 'get_products.php',
-                type: 'POST',
-                data: { query: query, work_details_id: work_details_id },
-                success: function (response) {
-                    if (response.trim() === '') {
-                        $('#product_suggestions').hide();
-                    } else {
-                        $('#product_suggestions').html(response).show();
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error('AJAX Error:', status, error);
-                    $('#product_suggestions').hide();
-                }
-            });
-        } else {
-            $('#product_suggestions').hide();
-        }
-    });
-
-    $(document).on('click', '.product-suggestion', function (e) {
-        e.preventDefault();
-        let product = $(this).data('product');
-        if (typeof product === 'string') {
-            product = JSON.parse(product);
-        }
-        $('#product_name').val(product.product_name).prop('disabled', false);
-        $('#product_id').val(product.product_id);
-        $('#unit_price').val(product.unit_price);
-        $('#extra_sale').val(0);
-        $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa') + ' تومان');
-        $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
-        $('#product_suggestions').hide();
-
-        $.ajax({
-            url: 'get_inventory.php',
-            type: 'POST',
-            data: {
-                product_id: product.product_id,
-                user_id: '<?= $partner1_id ?>',
-                work_details_id: '<?= $order['work_details_id'] ?>'
-            },
-            success: function (response) {
-                if (response.success) {
-                    initialInventory = response.data.inventory || 0;
-                    $('#inventory_quantity').text(initialInventory);
-                    $('#quantity').val(1);
-                    updateInventoryDisplay();
-                } else {
-                    $('#inventory_quantity').text('0');
-                    alert('خطا در دریافت موجودی: ' + response.message);
-                }
-            },
-            error: function () {
-                $('#inventory_quantity').text('0');
-                alert('خطا در دریافت موجودی.');
-            }
-        });
-
-        $('#quantity').focus();
-    });
-
-    $('#quantity, #extra_sale').on('input', function () {
-        let quantity = Number($('#quantity').val()) || 0;
-        let unit_price = Number($('#unit_price').val()) || 0;
-        let extra_sale = Number($('#extra_sale').val()) || 0;
-        let adjusted_price = unit_price + extra_sale;
-        let total = quantity * adjusted_price;
-        $('#adjusted_price').val(adjusted_price.toLocaleString('fa') + ' تومان');
-        $('#total_price').val(total.toLocaleString('fa') + ' تومان');
-        updateInventoryDisplay();
-    });
-
-    function updateInventoryDisplay() {
-        let quantity = Number($('#quantity').val()) || 0;
-        let items = <?= json_encode($_SESSION['edit_order_items']) ?>;
-        let product_id = $('#product_id').val();
-        let totalUsed = 0;
-
-        items.forEach(item => {
-            if (item.product_id === product_id && (editingIndex === null || item !== items[editingIndex])) {
-                totalUsed += parseInt(item.quantity);
-            }
-        });
-
-        let remainingInventory = initialInventory - totalUsed - (editingIndex === null ? quantity : 0);
-        $('#inventory_quantity').text(remainingInventory);
+        totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
+        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
     }
 
-    document.getElementById('add_item_btn').addEventListener('click', async () => {
-        const customer_name = document.getElementById('customer_name').value;
-        const product_id = document.getElementById('product_id').value;
-        const quantity = Number(document.getElementById('quantity').value) || 0;
-        const unit_price = Number(document.getElementById('unit_price').value) || 0;
-        const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
-        const discount = document.getElementById('discount')?.value || 0;
+    document.addEventListener('DOMContentLoaded', () => {
+        let initialInventory = 0;
+        let editingIndex = null;
 
-        if (!customer_name || !product_id || quantity <= 0 || unit_price <= 0) {
-            alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
-            return;
-        }
-
-        const items = <?= json_encode($_SESSION['edit_order_items']) ?>;
-        if (items.some(item => item.product_id === product_id && (editingIndex === null || items[editingIndex].product_id !== product_id))) {
-            alert('این محصول قبلاً در فاکتور ثبت شده است. برای تغییر تعداد از دکمه ویرایش استفاده کنید.');
-            return;
-        }
-
-        const data = {
-            action: 'add_edit_item',
-            customer_name,
-            product_id,
-            quantity,
-            unit_price,
-            extra_sale,
-            discount,
-            order_id: '<?= $order_id ?>',
-            partner1_id: '<?= $partner1_id ?>'
-        };
-
-        const addResponse = await sendRequest('ajax_handler.php', data);
-        if (addResponse.success) {
-            renderItemsTable(addResponse.data);
-            resetForm();
-        } else {
-            alert(addResponse.message);
-        }
-    });
-
-    document.getElementById('edit_item_btn').addEventListener('click', async () => {
-        const customer_name = document.getElementById('customer_name').value;
-        const product_id = document.getElementById('product_id').value;
-        const quantity = Number(document.getElementById('quantity').value) || 0;
-        const unit_price = Number(document.getElementById('unit_price').value) || 0;
-        const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
-        const discount = document.getElementById('discount')?.value || 0;
-
-        if (!quantity || quantity <= 0) {
-            alert('لطفاً تعداد را بیشتر از صفر وارد کنید.');
-            return;
-        }
-
-        const data = {
-            action: 'edit_edit_item',
-            customer_name,
-            product_id,
-            quantity,
-            unit_price,
-            extra_sale,
-            discount,
-            index: editingIndex,
-            order_id: '<?= $order_id ?>',
-            partner1_id: '<?= $partner1_id ?>'
-        };
-
-        const editResponse = await sendRequest('ajax_handler.php', data);
-        if (editResponse.success) {
-            renderItemsTable(editResponse.data);
-            resetForm();
-        } else {
-            alert(editResponse.message);
-        }
-    });
-
-    document.getElementById('items_table').addEventListener('click', async (e) => {
-        if (e.target.closest('.delete-item')) {
-            const index = e.target.closest('.delete-item').getAttribute('data-index');
-            if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
-                const data = {
-                    action: 'delete_edit_item',
-                    index: index,
-                    order_id: '<?= $order_id ?>',
-                    partner1_id: '<?= $partner1_id ?>'
-                };
-
-                const response = await sendRequest('ajax_handler.php', data);
-                if (response.success) {
-                    // حذف قیمت فاکتور مرتبط با این ایندکس
-                    const invoicePrices = <?= json_encode($_SESSION['invoice_prices']) ?>;
-                    delete invoicePrices[index];
-                    $.ajax({
-                        url: 'ajax_handler.php',
-                        type: 'POST',
-                        data: { action: 'update_invoice_prices', invoice_prices: JSON.stringify(invoicePrices) },
-                        success: function () {
-                            renderItemsTable(response.data);
-                            resetForm();
+        $('#product_name').on('input', function () {
+            let query = $(this).val();
+            const work_details_id = '<?= htmlspecialchars($order['work_details_id'], ENT_QUOTES, 'UTF-8') ?>';
+            if (query.length >= 3) {
+                $.ajax({
+                    url: 'get_products.php',
+                    type: 'POST',
+                    data: { query: query, work_details_id: work_details_id },
+                    success: function (response) {
+                        if (response.trim() === '') {
+                            $('#product_suggestions').hide();
+                        } else {
+                            $('#product_suggestions').html(response).show();
                         }
-                    });
-                } else {
-                    alert(response.message);
-                }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('AJAX Error:', status, error);
+                        $('#product_suggestions').hide();
+                    }
+                });
+            } else {
+                $('#product_suggestions').hide();
             }
-        } else if (e.target.closest('.edit-item')) {
-            const index = e.target.closest('.edit-item').getAttribute('data-index');
-            editingIndex = index;
-            const items = <?= json_encode($_SESSION['edit_order_items']) ?>;
-            const item = items[index];
+        });
 
-            $('#product_name').val(item.product_name).prop('disabled', true);
-            $('#product_id').val(item.product_id);
-            $('#quantity').val(item.quantity);
-            $('#unit_price').val(item.unit_price);
-            $('#extra_sale').val(item.extra_sale);
-            $('#adjusted_price').val((Number(item.unit_price) + Number(item.extra_sale)).toLocaleString('fa') + ' تومان');
-            $('#total_price').val((item.quantity * (Number(item.unit_price) + Number(item.extra_sale))).toLocaleString('fa') + ' تومان');
+        $(document).on('click', '.product-suggestion', function (e) {
+            e.preventDefault();
+            let product = $(this).data('product');
+            if (typeof product === 'string') {
+                product = JSON.parse(product);
+            }
+            $('#product_name').val(product.product_name).prop('disabled', false);
+            $('#product_id').val(product.product_id);
+            $('#unit_price').val(product.unit_price);
+            $('#extra_sale').val(0);
+            $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa') + ' تومان');
+            $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
+            $('#product_suggestions').hide();
 
             $.ajax({
                 url: 'get_inventory.php',
                 type: 'POST',
                 data: {
-                    product_id: item.product_id,
+                    product_id: product.product_id,
                     user_id: '<?= $partner1_id ?>',
                     work_details_id: '<?= $order['work_details_id'] ?>'
                 },
                 success: function (response) {
                     if (response.success) {
                         initialInventory = response.data.inventory || 0;
+                        $('#inventory_quantity').text(initialInventory);
+                        $('#quantity').val(1);
                         updateInventoryDisplay();
                     } else {
                         $('#inventory_quantity').text('0');
@@ -597,102 +469,274 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            $('#add_item_btn').hide();
-            $('#edit_item_btn').show();
-        } else if (e.target.closest('.set-invoice-price')) {
-            const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
-            $('#invoice_price_index').val(index);
-            const currentPrice = <?= json_encode($_SESSION['invoice_prices']) ?>[index] || '';
-            $('#invoice_price').val(currentPrice);
-            $('#invoicePriceModal').modal('show');
+            $('#quantity').focus();
+        });
+
+        $('#quantity, #extra_sale').on('input', function () {
+            let quantity = Number($('#quantity').val()) || 0;
+            let unit_price = Number($('#unit_price').val()) || 0;
+            let extra_sale = Number($('#extra_sale').val()) || 0;
+            let adjusted_price = unit_price + extra_sale;
+            let total = quantity * adjusted_price;
+            $('#adjusted_price').val(adjusted_price.toLocaleString('fa') + ' تومان');
+            $('#total_price').val(total.toLocaleString('fa') + ' تومان');
+            updateInventoryDisplay();
+        });
+
+        function updateInventoryDisplay() {
+            let quantity = Number($('#quantity').val()) || 0;
+            let items = <?= json_encode($_SESSION['edit_order_items']) ?>;
+            let product_id = $('#product_id').val();
+            let totalUsed = 0;
+
+            items.forEach(item => {
+                if (item.product_id === product_id && (editingIndex === null || item !== items[editingIndex])) {
+                    totalUsed += parseInt(item.quantity);
+                }
+            });
+
+            let remainingInventory = initialInventory - totalUsed - (editingIndex === null ? quantity : 0);
+            $('#inventory_quantity').text(remainingInventory);
         }
-    });
 
-    document.getElementById('save_invoice_price').addEventListener('click', async () => {
-        const index = $('#invoice_price_index').val();
-        const invoicePrice = $('#invoice_price').val();
+        document.getElementById('add_item_btn').addEventListener('click', async () => {
+            const customer_name = document.getElementById('customer_name').value;
+            const product_id = document.getElementById('product_id').value;
+            const quantity = Number(document.getElementById('quantity').value) || 0;
+            const unit_price = Number(document.getElementById('unit_price').value) || 0;
+            const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
+            const discount = document.getElementById('discount')?.value || 0;
 
-        if (invoicePrice === '' || invoicePrice < 0) {
-            alert('لطفاً یک قیمت معتبر وارد کنید.');
-            return;
-        }
+            if (!customer_name || !product_id || quantity <= 0 || unit_price <= 0) {
+                alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
+                return;
+            }
 
-        const data = {
-            action: 'set_invoice_price',
-            index: index,
-            invoice_price: invoicePrice
-        };
+            const items = <?= json_encode($_SESSION['edit_order_items']) ?>;
+            if (items.some(item => item.product_id === product_id && (editingIndex === null || items[editingIndex].product_id !== product_id))) {
+                alert('این محصول قبلاً در فاکتور ثبت شده است. برای تغییر تعداد از دکمه ویرایش استفاده کنید.');
+                return;
+            }
 
-        const response = await sendRequest('ajax_handler.php', data);
-        if (response.success) {
-            $('#invoicePriceModal').modal('hide');
-        } else {
-            alert(response.message);
-        }
-    });
-
-    document.getElementById('items_table').addEventListener('input', async (e) => {
-        if (e.target.id === 'discount') {
-            const discount = e.target.value || 0;
             const data = {
-                action: 'update_edit_discount',
+                action: 'add_edit_item',
+                customer_name,
+                product_id,
+                quantity,
+                unit_price,
+                extra_sale,
                 discount,
-                order_id: '<?= $order_id ?>'
+                order_id: '<?= $order_id ?>',
+                partner1_id: '<?= $partner1_id ?>'
+            };
+
+            const addResponse = await sendRequest('ajax_handler.php', data);
+            if (addResponse.success) {
+                renderItemsTable(addResponse.data);
+                resetForm();
+            } else {
+                alert(addResponse.message);
+            }
+        });
+
+        document.getElementById('edit_item_btn').addEventListener('click', async () => {
+            const customer_name = document.getElementById('customer_name').value;
+            const product_id = document.getElementById('product_id').value;
+            const quantity = Number(document.getElementById('quantity').value) || 0;
+            const unit_price = Number(document.getElementById('unit_price').value) || 0;
+            const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
+            const discount = document.getElementById('discount')?.value || 0;
+
+            if (!quantity || quantity <= 0) {
+                alert('لطفاً تعداد را بیشتر از صفر وارد کنید.');
+                return;
+            }
+
+            const data = {
+                action: 'edit_edit_item',
+                customer_name,
+                product_id,
+                quantity,
+                unit_price,
+                extra_sale,
+                discount,
+                index: editingIndex,
+                order_id: '<?= $order_id ?>',
+                partner1_id: '<?= $partner1_id ?>'
+            };
+
+            const editResponse = await sendRequest('ajax_handler.php', data);
+            if (editResponse.success) {
+                renderItemsTable(editResponse.data);
+                resetForm();
+            } else {
+                alert(editResponse.message);
+            }
+        });
+
+        document.getElementById('items_table').addEventListener('click', async (e) => {
+            if (e.target.closest('.delete-item')) {
+                const index = e.target.closest('.delete-item').getAttribute('data-index');
+                if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
+                    const data = {
+                        action: 'delete_edit_item',
+                        index: index,
+                        order_id: '<?= $order_id ?>',
+                        partner1_id: '<?= $partner1_id ?>'
+                    };
+
+                    const response = await sendRequest('ajax_handler.php', data);
+                    if (response.success) {
+                        // حذف قیمت فاکتور مرتبط با این ایندکس
+                        const invoicePrices = <?= json_encode($_SESSION['invoice_prices']) ?>;
+                        delete invoicePrices[index];
+                        $.ajax({
+                            url: 'ajax_handler.php',
+                            type: 'POST',
+                            data: { action: 'update_invoice_prices', invoice_prices: JSON.stringify(invoicePrices) },
+                            success: function () {
+                                renderItemsTable(response.data);
+                                resetForm();
+                            }
+                        });
+                    } else {
+                        alert(response.message);
+                    }
+                }
+            } else if (e.target.closest('.edit-item')) {
+                const index = e.target.closest('.edit-item').getAttribute('data-index');
+                editingIndex = index;
+                const items = <?= json_encode($_SESSION['edit_order_items']) ?>;
+                const item = items[index];
+
+                $('#product_name').val(item.product_name).prop('disabled', true);
+                $('#product_id').val(item.product_id);
+                $('#quantity').val(item.quantity);
+                $('#unit_price').val(item.unit_price);
+                $('#extra_sale').val(item.extra_sale);
+                $('#adjusted_price').val((Number(item.unit_price) + Number(item.extra_sale)).toLocaleString('fa') + ' تومان');
+                $('#total_price').val((item.quantity * (Number(item.unit_price) + Number(item.extra_sale))).toLocaleString('fa') + ' تومان');
+
+                $.ajax({
+                    url: 'get_inventory.php',
+                    type: 'POST',
+                    data: {
+                        product_id: item.product_id,
+                        user_id: '<?= $partner1_id ?>',
+                        work_details_id: '<?= $order['work_details_id'] ?>'
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            initialInventory = response.data.inventory || 0;
+                            updateInventoryDisplay();
+                        } else {
+                            $('#inventory_quantity').text('0');
+                            alert('خطا در دریافت موجودی: ' + response.message);
+                        }
+                    },
+                    error: function () {
+                        $('#inventory_quantity').text('0');
+                        alert('خطا در دریافت موجودی.');
+                    }
+                });
+
+                $('#add_item_btn').hide();
+                $('#edit_item_btn').show();
+            } else if (e.target.closest('.set-invoice-price')) {
+                const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
+                $('#invoice_price_index').val(index);
+                const currentPrice = <?= json_encode($_SESSION['invoice_prices']) ?>[index] || '';
+                $('#invoice_price').val(currentPrice);
+                $('#invoicePriceModal').modal('show');
+            }
+        });
+
+        document.getElementById('save_invoice_price').addEventListener('click', async () => {
+            const index = $('#invoice_price_index').val();
+            const invoicePrice = $('#invoice_price').val();
+
+            if (invoicePrice === '' || invoicePrice < 0) {
+                alert('لطفاً یک قیمت معتبر وارد کنید.');
+                return;
+            }
+
+            const data = {
+                action: 'set_invoice_price',
+                index: index,
+                invoice_price: invoicePrice,
+                order_id: '<?= $order_id ?>' // اضافه کردن order_id
             };
 
             const response = await sendRequest('ajax_handler.php', data);
             if (response.success) {
-                document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
-                document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                $('#invoicePriceModal').modal('hide');
             } else {
                 alert(response.message);
             }
+        });
+
+        document.getElementById('items_table').addEventListener('input', async (e) => {
+            if (e.target.id === 'discount') {
+                const discount = e.target.value || 0;
+                const data = {
+                    action: 'update_edit_discount',
+                    discount,
+                    order_id: '<?= $order_id ?>'
+                };
+
+                const response = await sendRequest('ajax_handler.php', data);
+                if (response.success) {
+                    document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                } else {
+                    alert(response.message);
+                }
+            }
+        });
+
+        document.getElementById('save_changes_btn').addEventListener('click', async () => {
+            const customer_name = document.getElementById('customer_name').value;
+            const discount = document.getElementById('discount')?.value || 0;
+
+            if (!customer_name) {
+                alert('لطفاً نام مشتری را وارد کنید.');
+                return;
+            }
+
+            const data = {
+                action: 'save_edit_order',
+                order_id: '<?= $order_id ?>',
+                customer_name,
+                discount,
+                partner1_id: '<?= $partner1_id ?>'
+            };
+
+            const response = await sendRequest('ajax_handler.php', data);
+            if (response.success) {
+                alert(response.message);
+                window.location.href = "print_invoice.php?order_id=<?= $order_id ?>";
+            } else {
+                alert(response.message);
+            }
+        });
+
+        function resetForm() {
+            $('#product_name').val('').prop('disabled', false);
+            $('#product_id').val('');
+            $('#quantity').val('1');
+            $('#unit_price').val('');
+            $('#extra_sale').val('0');
+            $('#adjusted_price').val('');
+            $('#total_price').val('');
+            $('#inventory_quantity').text('0');
+            initialInventory = 0;
+            editingIndex = null;
+            $('#add_item_btn').show();
+            $('#edit_item_btn').hide();
         }
     });
-
-    document.getElementById('save_changes_btn').addEventListener('click', async () => {
-        const customer_name = document.getElementById('customer_name').value;
-        const discount = document.getElementById('discount')?.value || 0;
-
-        if (!customer_name) {
-            alert('لطفاً نام مشتری را وارد کنید.');
-            return;
-        }
-
-        const data = {
-            action: 'save_edit_order',
-            order_id: '<?= $order_id ?>',
-            customer_name,
-            discount,
-            partner1_id: '<?= $partner1_id ?>'
-        };
-
-        const response = await sendRequest('ajax_handler.php', data);
-        if (response.success) {
-            alert(response.message);
-            window.location.href = "print_invoice.php?order_id=<?= $order_id ?>";
-        } else {
-            alert(response.message);
-        }
-    });
-
-    function resetForm() {
-        $('#product_name').val('').prop('disabled', false);
-        $('#product_id').val('');
-        $('#quantity').val('1');
-        $('#unit_price').val('');
-        $('#extra_sale').val('0');
-        $('#adjusted_price').val('');
-        $('#total_price').val('');
-        $('#inventory_quantity').text('0');
-        initialInventory = 0;
-        editingIndex = null;
-        $('#add_item_btn').show();
-        $('#edit_item_btn').hide();
-    }
-});
 </script>
 
 <?php require_once 'footer.php'; ?>

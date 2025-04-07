@@ -4,7 +4,8 @@ require_once 'db.php';
 
 header('Content-Type: application/json');
 
-function respond($success, $message = '', $data = []) {
+function respond($success, $message = '', $data = [])
+{
     echo json_encode([
         'success' => $success,
         'message' => $message,
@@ -50,7 +51,7 @@ switch ($action) {
         $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
         $stmt_inventory->execute([$partner1_id, $product_id]);
         $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+        $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
         if ($current_quantity < $quantity) {
             respond(false, "موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
@@ -100,7 +101,7 @@ switch ($action) {
         $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
         $stmt_inventory->execute([$partner1_id, $product_id]);
         $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+        $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
         $old_quantity = $items[$index]['quantity'];
         $quantity_diff = $old_quantity - $quantity;
@@ -279,7 +280,7 @@ switch ($action) {
         $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
         $stmt_inventory->execute([$partner1_id, $product_id]);
         $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+        $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
         if ($current_quantity < $quantity) {
             respond(false, "موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
@@ -327,7 +328,7 @@ switch ($action) {
         $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
         $stmt_inventory->execute([$partner1_id, $product_id]);
         $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+        $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
         $old_quantity = $items[$index]['quantity'];
         $quantity_diff = $old_quantity - $quantity;
@@ -547,12 +548,14 @@ switch ($action) {
     case 'set_invoice_price':
         $index = (int) ($_POST['index'] ?? -1);
         $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
+        $order_id = $_POST['order_id'] ?? ''; // اضافه کردن order_id برای تشخیص ویرایش
 
         if ($index < 0 || $invoice_price < 0) {
             respond(false, 'مقدار نامعتبر برای ایندکس یا قیمت فاکتور.');
         }
 
-        $items = $_SESSION['order_items'] ?? [];
+        // انتخاب آرایه مناسب بر اساس وجود order_id
+        $items = $order_id ? ($_SESSION['edit_order_items'] ?? []) : ($_SESSION['order_items'] ?? []);
         if (!isset($items[$index])) {
             respond(false, 'آیتم مورد نظر یافت نشد.');
         }
