@@ -10,14 +10,12 @@ function gregorian_to_jalali_format($gregorian_date)
     return "$jy/$jm/$jd";
 }
 
-// دریافت اطلاعات فاکتور
 $order_id = isset($_GET['order_id']) ? (int) $_GET['order_id'] : 0;
 if ($order_id <= 0) {
     echo "فاکتور نامعتبر است.";
     exit;
 }
 
-// دریافت اطلاعات سفارش
 $stmt = $pdo->prepare("
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date,
            u1.full_name AS partner1_name, u1.phone_number AS partner1_phone,
@@ -37,16 +35,26 @@ if (!$order) {
     exit;
 }
 
-// دریافت محصولات فاکتور
 $stmt_items = $pdo->prepare("
-    SELECT product_name, unit_price, quantity
+    SELECT product_name, unit_price, quantity, extra_sale
     FROM Order_Items
     WHERE order_id = ?
 ");
 $stmt_items->execute([$order_id]);
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-// تقسیم محصولات به گروه‌های 14 تایی
+// اضافه کردن قیمت فاکتور از سشن
+$invoice_prices = $_SESSION['invoice_prices'] ?? [];
+foreach ($items as &$item) {
+    $index = array_search($item['product_name'], array_column($_SESSION['order_items'] ?? [], 'product_name'));
+    if ($index !== false && isset($invoice_prices[$index])) {
+        $item['invoice_price'] = $invoice_prices[$index];
+    } else {
+        $item['invoice_price'] = $item['unit_price'] + ($item['extra_sale'] ?? 0); // پیش‌فرض قیمت اصلی
+    }
+}
+unset($item);
+
 $items_per_page = 14;
 $total_items = count($items);
 $total_pages = ceil($total_items / $items_per_page);
@@ -227,20 +235,17 @@ $pages = array_chunk($items, $items_per_page);
 <body>
     <?php for ($page = 0; $page < $total_pages; $page++): ?>
         <div class="invoice-container">
-            <!-- تیتر و شماره صفحه -->
             <div class="invoice-header">
                 <h3>فاکتور فروش</h3>
                 <div class="page-number">صفحه <?= ($page + 1) ?> از <?= $total_pages ?></div>
             </div>
 
-            <!-- اطلاعات فاکتور -->
             <div class="invoice-details">
                 <div>صورتحساب: <?= htmlspecialchars($order['customer_name']) ?></div>
                 <div>تاریخ: <?= gregorian_to_jalali_format($order['work_date']) ?></div>
                 <div>شماره فاکتور: <?= $order['order_id'] ?></div>
             </div>
 
-            <!-- جدول محصولات -->
             <table class="invoice-table">
                 <thead>
                     <tr>
@@ -257,22 +262,20 @@ $pages = array_chunk($items, $items_per_page);
                         <tr>
                             <td><?= $index++ ?></td>
                             <td><?= htmlspecialchars($item['product_name']) ?></td>
-                            <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
+                            <td><?= number_format($item['invoice_price'], 0) ?> تومان</td>
                             <td><?= $item['quantity'] ?></td>
-                            <td><?= number_format($item['unit_price'] * $item['quantity'], 0) ?> تومان</td>
+                            <td><?= number_format($item['invoice_price'] * $item['quantity'], 0) ?> تومان</td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
 
-            <!-- جمع‌بندی -->
             <div class="invoice-summary">
                 <p>مبلغ کل فاکتور: <?= number_format($order['total_amount'], 0) ?> تومان</p>
                 <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
                 <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'], 0) ?> تومان</p>
             </div>
 
-            <!-- پایین صفحه: فروشندگان -->
             <div class="invoice-footer">
                 <hr>
                 <p>فروشندگان: </p>
@@ -289,6 +292,12 @@ $pages = array_chunk($items, $items_per_page);
     <script>
         window.onload = function () {
             window.print();
+            // پاک کردن سشن قیمت‌های فاکتور بعد از پرینت
+            fetch('ajax_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=clear_invoice_prices'
+            });
         };
     </script>
 </body>

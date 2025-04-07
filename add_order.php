@@ -80,8 +80,10 @@ if (!$partner1_id) {
 
 unset($_SESSION['order_items']);
 unset($_SESSION['discount']);
+unset($_SESSION['invoice_prices']); // آرایه جدید برای قیمت‌های فاکتور
 $_SESSION['order_items'] = [];
 $_SESSION['discount'] = 0;
+$_SESSION['invoice_prices'] = [];
 $_SESSION['is_order_in_progress'] = true;
 ?>
 
@@ -92,8 +94,6 @@ $_SESSION['is_order_in_progress'] = true;
     .order-items-table th, .order-items-table td { vertical-align: middle !important; white-space: nowrap !important; padding: 8px; min-width: 120px; }
     .order-items-table .total-row td { font-weight: bold; }
     .order-items-table .total-row input#discount { width: 150px; margin: 0 auto; }
-
-    /* تنظیمات برای موبایل و تبلت */
     @media (max-width: 991px) {
         .col-6 { width: 50%; }
         .col-md-3, .col-md-6 { width: 50%; }
@@ -123,7 +123,6 @@ $_SESSION['is_order_in_progress'] = true;
             <input type="hidden" id="product_id" name="product_id">
         </div>
 
-        <!-- ردیف اول: تعداد و قیمت واحد -->
         <div class="row g-3 mb-3">
             <div class="col-6 col-md-3">
                 <label for="quantity" class="form-label">تعداد</label>
@@ -133,8 +132,6 @@ $_SESSION['is_order_in_progress'] = true;
                 <label for="unit_price" class="form-label">قیمت واحد (تومان)</label>
                 <input type="number" class="form-control" id="unit_price" name="unit_price" readonly>
             </div>
-
-            <!-- ردیف دوم: اضافه فروش و قیمت نهایی واحد -->
             <div class="col-6 col-md-3">
                 <label for="extra_sale" class="form-label">اضافه فروش (تومان)</label>
                 <input type="number" class="form-control" id="extra_sale" name="extra_sale" value="0" min="0">
@@ -143,8 +140,6 @@ $_SESSION['is_order_in_progress'] = true;
                 <label for="adjusted_price" class="form-label">قیمت نهایی واحد</label>
                 <input type="text" class="form-control" id="adjusted_price" name="adjusted_price" readonly>
             </div>
-
-            <!-- ردیف سوم: قیمت کل و موجودی -->
             <div class="col-6 col-md-6">
                 <label for="total_price" class="form-label">قیمت کل</label>
                 <input type="text" class="form-control" id="total_price" name="total_price" readonly>
@@ -170,6 +165,7 @@ $_SESSION['is_order_in_progress'] = true;
                             <th>قیمت واحد</th>
                             <th>اضافه فروش</th>
                             <th>قیمت کل</th>
+                            <th>قیمت فاکتور</th>
                             <th>عملیات</th>
                         </tr>
                     </thead>
@@ -181,6 +177,11 @@ $_SESSION['is_order_in_progress'] = true;
                                 <td><?= number_format($item['unit_price'], 0) ?></td>
                                 <td><?= number_format($item['extra_sale'], 0) ?></td>
                                 <td><?= number_format($item['total_price'], 0) ?></td>
+                                <td>
+                                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="<?= $index ?>">
+                                        تنظیم قیمت
+                                    </button>
+                                </td>
                                 <td>
                                     <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
                                         <i class="fas fa-trash"></i>
@@ -194,7 +195,7 @@ $_SESSION['is_order_in_progress'] = true;
                         $final_amount = $total_amount - $discount;
                         ?>
                         <tr class="total-row">
-                            <td colspan="3"><strong>جمع کل</strong></td>
+                            <td colspan="4"><strong>جمع کل</strong></td>
                             <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
                         </tr>
                         <tr class="total-row">
@@ -215,6 +216,29 @@ $_SESSION['is_order_in_progress'] = true;
         <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">ثبت فاکتور</button>
         <a href="orders.php" class="btn btn-secondary mt-3">بازگشت</a>
     </form>
+</div>
+
+<!-- مودال تنظیم قیمت فاکتور -->
+<div class="modal fade" id="invoicePriceModal" tabindex="-1" aria-labelledby="invoicePriceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="invoicePriceModalLabel">تنظیم قیمت فاکتور</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="invoice_price" class="form-label">قیمت فاکتور (تومان)</label>
+                    <input type="number" class="form-control" id="invoice_price" name="invoice_price" min="0" required>
+                    <input type="hidden" id="invoice_price_index" name="invoice_price_index">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="save_invoice_price">ذخیره</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -255,6 +279,7 @@ function renderItemsTable(data) {
                     <th>قیمت واحد</th>
                     <th>اضافه فروش</th>
                     <th>قیمت کل</th>
+                    <th>قیمت فاکتور</th>
                     <th>عملیات</th>
                 </tr>
             </thead>
@@ -267,6 +292,11 @@ function renderItemsTable(data) {
                         <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
                         <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
+                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
+                                تنظیم قیمت
+                            </button>
+                        </td>
+                        <td>
                             <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -274,7 +304,7 @@ function renderItemsTable(data) {
                     </tr>
                 `).join('')}
                 <tr class="total-row">
-                    <td colspan="3"><strong>جمع کل</strong></td>
+                    <td colspan="4"><strong>جمع کل</strong></td>
                     <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
                 </tr>
                 <tr class="total-row">
@@ -439,12 +469,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
-                    renderItemsTable(response.data);
-                    resetForm();
+                    // حذف قیمت فاکتور مرتبط با این ایندکس
+                    const invoicePrices = <?= json_encode($_SESSION['invoice_prices']) ?>;
+                    delete invoicePrices[index];
+                    $.ajax({
+                        url: 'ajax_handler.php',
+                        type: 'POST',
+                        data: { action: 'update_invoice_prices', invoice_prices: JSON.stringify(invoicePrices) },
+                        success: function () {
+                            renderItemsTable(response.data);
+                            resetForm();
+                        }
+                    });
                 } else {
                     alert(response.message);
                 }
             }
+        } else if (e.target.closest('.set-invoice-price')) {
+            const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
+            $('#invoice_price_index').val(index);
+            const currentPrice = <?= json_encode($_SESSION['invoice_prices']) ?>[index] || '';
+            $('#invoice_price').val(currentPrice);
+            $('#invoicePriceModal').modal('show');
+        }
+    });
+
+    document.getElementById('save_invoice_price').addEventListener('click', async () => {
+        const index = $('#invoice_price_index').val();
+        const invoicePrice = $('#invoice_price').val();
+
+        if (invoicePrice === '' || invoicePrice < 0) {
+            alert('لطفاً یک قیمت معتبر وارد کنید.');
+            return;
+        }
+
+        const data = {
+            action: 'set_invoice_price',
+            index: index,
+            invoice_price: invoicePrice
+        };
+
+        const response = await sendRequest('ajax_handler.php', data);
+        if (response.success) {
+            $('#invoicePriceModal').modal('hide');
+        } else {
+            alert(response.message);
         }
     });
 

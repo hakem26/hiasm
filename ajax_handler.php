@@ -141,6 +141,12 @@ switch ($action) {
         $items = array_values($items);
         $_SESSION['order_items'] = $items;
 
+        // حذف قیمت فاکتور مرتبط با این ایندکس
+        if (isset($_SESSION['invoice_prices'][$index])) {
+            unset($_SESSION['invoice_prices'][$index]);
+            $_SESSION['invoice_prices'] = array_values($_SESSION['invoice_prices']);
+        }
+
         $total_amount = array_sum(array_column($items, 'total_price'));
         $discount = $_SESSION['discount'] ?? 0;
         $final_amount = $total_amount - $discount;
@@ -228,12 +234,15 @@ switch ($action) {
 
             $pdo->commit();
 
+            // نگه داشتن invoice_prices برای پرینت و پاک کردن بقیه
+            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
             unset($_SESSION['order_items']);
             unset($_SESSION['discount']);
             $_SESSION['is_order_in_progress'] = false;
+            $_SESSION['invoice_prices'] = $invoice_prices;
 
             respond(true, 'سفارش با موفقیت ثبت شد.', [
-                'redirect' => "orders.php"
+                'redirect' => "print_invoice.php?order_id=$order_id"
             ]);
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -533,6 +542,28 @@ switch ($action) {
             $pdo->rollBack();
             respond(false, 'خطا در ویرایش سفارش: ' . $e->getMessage());
         }
+        break;
+
+    case 'set_invoice_price':
+        $index = (int) ($_POST['index'] ?? -1);
+        $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
+
+        if ($index < 0 || $invoice_price < 0) {
+            respond(false, 'مقدار نامعتبر برای ایندکس یا قیمت فاکتور.');
+        }
+
+        $items = $_SESSION['order_items'] ?? [];
+        if (!isset($items[$index])) {
+            respond(false, 'آیتم مورد نظر یافت نشد.');
+        }
+
+        $_SESSION['invoice_prices'][$index] = $invoice_price;
+        respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.');
+        break;
+
+    case 'clear_invoice_prices':
+        unset($_SESSION['invoice_prices']);
+        respond(true, 'قیمت‌های فاکتور با موفقیت پاک شدند.');
         break;
 
     default:
