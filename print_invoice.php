@@ -271,14 +271,15 @@ $pages = array_chunk($items, $items_per_page);
                     $index = $start_index + 1;
                     $page_items = array_slice($items, $start_index, $items_per_page - ($postal_enabled && $end_index == $total_items ? 1 : 0));
                     foreach ($page_items as $i => $item):
+                        $item_index = $start_index + $i;
+                        $invoice_price = isset($invoice_prices[$item_index]) ? $invoice_prices[$item_index] : $item['total_price'];
                         ?>
                         <tr>
                             <td><?= $index++ ?></td>
                             <td><?= htmlspecialchars($item['product_name']) ?></td>
-                            <td><?= number_format($invoice_prices[$start_index + $i] ?? $item['total_price'], 0) ?> تومان</td>
+                            <td><?= number_format($invoice_price, 0) ?> تومان</td>
                             <td><?= $item['quantity'] ?></td>
-                            <td><?= number_format(($invoice_prices[$start_index + $i] ?? $item['total_price']) * $item['quantity'], 0) ?>
-                                تومان</td>
+                            <td><?= number_format($invoice_price * $item['quantity'], 0) ?> تومان</td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($postal_enabled && $end_index == $total_items): ?>

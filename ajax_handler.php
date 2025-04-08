@@ -495,7 +495,7 @@ switch ($action) {
 
         $pdo->beginTransaction();
         try {
-            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, extra_sale, total_price FROM Order_Items WHERE order_id = ?");
+            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, extra_sale, total_price FROM Order_Items WHERE order_id = ? ORDER BY id ASC");
             $stmt_items->execute([$order_id]);
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
@@ -522,7 +522,7 @@ switch ($action) {
             foreach ($new_items as $index => $item) {
                 if ($item['product_id']) {
                     $new_items_map[$item['product_id']] = [
-                        'index' => $index,
+                        'index' => $item['original_index'] ?? $index, // استفاده از اندیس اصلی
                         'quantity' => $item['quantity'],
                         'product_name' => $item['product_name'],
                         'unit_price' => $item['unit_price'],
@@ -604,6 +604,14 @@ switch ($action) {
                     $item['extra_sale'],
                     $item['total_price']
                 ]);
+
+                // به‌روزرسانی اندیس‌ها در Invoice_Prices
+                $stmt_invoice = $pdo->prepare("
+                        UPDATE Invoice_Prices 
+                        SET item_index = ? 
+                        WHERE order_id = ? AND item_index = ? AND is_postal = FALSE
+                    ");
+                $stmt_invoice->execute([$index, $order_id, $item['original_index'] ?? $index]);
             }
 
             $pdo->commit();
