@@ -93,11 +93,12 @@ if (!$partner1_id) {
 unset($_SESSION['edit_order_items']);
 unset($_SESSION['edit_order_id']);
 unset($_SESSION['edit_order_discount']);
-$_SESSION['edit_order_items'] = array_map(function ($item) use ($pdo) {
+$_SESSION['edit_order_items'] = [];
+foreach ($items as $index => $item) {
     $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
     $stmt_product->execute([$item['product_name']]);
     $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
-    return [
+    $_SESSION['edit_order_items'][$index] = [
         'product_id' => $product ? $product['product_id'] : null,
         'product_name' => $item['product_name'],
         'quantity' => $item['quantity'],
@@ -105,7 +106,7 @@ $_SESSION['edit_order_items'] = array_map(function ($item) use ($pdo) {
         'extra_sale' => $item['extra_sale'] ?? 0,
         'total_price' => $item['total_price']
     ];
-}, $items);
+}
 $_SESSION['edit_order_id'] = $order_id;
 $_SESSION['edit_order_discount'] = $order['discount'];
 

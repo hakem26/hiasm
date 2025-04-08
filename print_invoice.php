@@ -63,6 +63,7 @@ $pages = array_chunk($items, $items_per_page);
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -75,6 +76,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
@@ -82,6 +84,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
@@ -89,6 +92,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
@@ -96,6 +100,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
@@ -103,6 +108,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
@@ -110,6 +116,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
@@ -117,6 +124,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
@@ -124,6 +132,7 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
+
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
@@ -230,6 +239,7 @@ $pages = array_chunk($items, $items_per_page);
         }
     </style>
 </head>
+
 <body>
     <?php for ($page = 0; $page < $total_pages; $page++): ?>
         <div class="invoice-container">
@@ -249,39 +259,34 @@ $pages = array_chunk($items, $items_per_page);
                     <tr>
                         <th>ردیف</th>
                         <th>نام محصول</th>
-                        <th>قیمت واحد</th>
-                        <th>تعداد</th>
-                        <th>اضافه فروش</th>
-                        <th>قیمت کل</th>
                         <th>قیمت فاکتور</th>
+                        <th>تعداد</th>
+                        <th>قیمت کل</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php 
+                    <?php
                     $start_index = $page * $items_per_page;
                     $end_index = min(($page + 1) * $items_per_page, $total_items);
                     $index = $start_index + 1;
                     $page_items = array_slice($items, $start_index, $items_per_page - ($postal_enabled && $end_index == $total_items ? 1 : 0));
-                    foreach ($page_items as $i => $item): 
-                    ?>
+                    foreach ($page_items as $i => $item):
+                        ?>
                         <tr>
                             <td><?= $index++ ?></td>
                             <td><?= htmlspecialchars($item['product_name']) ?></td>
-                            <td><?= number_format($item['unit_price'], 0) ?> تومان</td>
-                            <td><?= $item['quantity'] ?></td>
-                            <td><?= number_format($item['extra_sale'] ?? 0, 0) ?> تومان</td>
-                            <td><?= number_format($item['total_price'], 0) ?> تومان</td>
                             <td><?= number_format($invoice_prices[$start_index + $i] ?? $item['total_price'], 0) ?> تومان</td>
+                            <td><?= $item['quantity'] ?></td>
+                            <td><?= number_format(($invoice_prices[$start_index + $i] ?? $item['total_price']) * $item['quantity'], 0) ?>
+                                تومان</td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($postal_enabled && $end_index == $total_items): ?>
                         <tr>
                             <td><?= $index++ ?></td>
                             <td>ارسال پستی</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>-</td>
                             <td><?= number_format($postal_price, 0) ?> تومان</td>
+                            <td>-</td>
                             <td><?= number_format($postal_price, 0) ?> تومان</td>
                         </tr>
                     <?php endif; ?>
@@ -292,7 +297,8 @@ $pages = array_chunk($items, $items_per_page);
                 <div class="invoice-summary">
                     <p>مبلغ کل فاکتور: <?= number_format($order['total_amount'], 0) ?> تومان</p>
                     <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
-                    <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'] + ($postal_enabled ? $postal_price : 0), 0) ?> تومان</p>
+                    <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'] + ($postal_enabled ? $postal_price : 0), 0) ?>
+                        تومان</p>
                 </div>
             <?php endif; ?>
 
@@ -321,4 +327,5 @@ $pages = array_chunk($items, $items_per_page);
         };
     </script>
 </body>
+
 </html>

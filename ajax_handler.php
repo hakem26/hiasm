@@ -500,7 +500,7 @@ switch ($action) {
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
             $old_items_map = [];
-            foreach ($old_items as $item) {
+            foreach ($old_items as $index => $item) {
                 $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
                 $stmt_product->execute([$item['product_name']]);
                 $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
@@ -508,6 +508,7 @@ switch ($action) {
 
                 if ($product_id) {
                     $old_items_map[$product_id] = [
+                        'index' => $index,
                         'quantity' => $item['quantity'],
                         'product_name' => $item['product_name'],
                         'unit_price' => $item['unit_price'],
@@ -518,9 +519,10 @@ switch ($action) {
             }
 
             $new_items_map = [];
-            foreach ($new_items as $item) {
+            foreach ($new_items as $index => $item) {
                 if ($item['product_id']) {
                     $new_items_map[$item['product_id']] = [
+                        'index' => $index,
                         'quantity' => $item['quantity'],
                         'product_name' => $item['product_name'],
                         'unit_price' => $item['unit_price'],
@@ -540,7 +542,7 @@ switch ($action) {
                     $new_quantity = $current_quantity + $old_item['quantity'];
 
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 } elseif ($new_items_map[$product_id]['quantity'] != $old_item['quantity']) {
                     $quantity_diff = $old_item['quantity'] - $new_items_map[$product_id]['quantity'];
@@ -556,7 +558,7 @@ switch ($action) {
                     }
 
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 }
             }
@@ -574,27 +576,27 @@ switch ($action) {
 
                     $new_quantity = $current_quantity - $new_item['quantity'];
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 }
             }
 
             $stmt = $pdo->prepare("
-                UPDATE Orders 
-                SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
-                WHERE order_id = ?
-            ");
+                    UPDATE Orders 
+                    SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
+                    WHERE order_id = ?
+                ");
             $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $order_id]);
 
             $stmt = $pdo->prepare("DELETE FROM Order_Items WHERE order_id = ?");
             $stmt->execute([$order_id]);
 
-            foreach ($new_items as $item) {
-                $stmt = $pdo->prepare("
+            $stmt_insert = $pdo->prepare("
                     INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([
+            foreach ($new_items as $index => $item) {
+                $stmt_insert->execute([
                     $order_id,
                     $item['product_name'],
                     $item['quantity'],
