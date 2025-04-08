@@ -126,10 +126,12 @@ foreach ($invoice_data as $row) {
     if ($row['is_postal']) {
         $postal_enabled = true;
         $postal_price = $row['postal_price'];
+        $invoice_prices['postal'] = $postal_price; // اضافه کردن قیمت پستی به invoice_prices
     } else {
         $invoice_prices[$row['item_index']] = $row['invoice_price'];
     }
 }
+$_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
 ?>
 
 <style>
@@ -280,6 +282,10 @@ foreach ($invoice_data as $row) {
                             </tr>
                         <?php endforeach; ?>
                         <?php
+                        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+                        $stmt_postal->execute([$order_id]);
+                        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+
                         $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
                         $discount = $_SESSION['edit_order_discount'];
                         $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
@@ -289,8 +295,15 @@ foreach ($invoice_data as $row) {
                                 <td>-</td>
                                 <td>-</td>
                                 <td>-</td>
-                                <td><?= number_format($postal_price, 0) ?></td>
                                 <td>-</td>
+                                <td>
+                                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
+                                        تنظیم قیمت
+                                    </button>
+                                    <span class="invoice-price"
+                                        data-index="postal"><?= number_format($invoice_prices['postal'] ?? $postal_price, 0) ?>
+                                        تومان</span>
+                                </td>
                                 <td>-</td>
                             </tr>
                         <?php endif; ?>

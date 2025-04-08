@@ -262,48 +262,35 @@ $pages = array_chunk($items, $items_per_page);
                 <div>شماره فاکتور: <?= $order['order_id'] ?></div>
             </div>
 
-            <table>
+            <table class="invoice-table">
                 <thead>
                     <tr>
+                        <th>ردیف</th>
                         <th>نام محصول</th>
-                        <th>تعداد</th>
                         <th>قیمت واحد</th>
-                        <th>اضافه فروش</th>
+                        <th>تعداد</th>
                         <th>قیمت کل</th>
-                        <th>قیمت فاکتور</th>
-                        <th>عملیات</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($_SESSION['edit_order_items'] as $index => $item): ?>
+                    <?php foreach ($items as $index => $item): ?>
                         <tr>
+                            <td><?= $index + 1 ?></td>
                             <td><?= htmlspecialchars($item['product_name']) ?></td>
-                            <td><input type="number" name="items[<?= $index ?>][quantity]" value="<?= $item['quantity'] ?>"
-                                    min="1"></td>
-                            <td><?= number_format($item['unit_price'], 0) ?></td>
-                            <td><?= number_format($item['extra_sale'], 0) ?></td>
-                            <td><?= number_format($item['total_price'], 0) ?></td>
-                            <td><input type="number" name="invoice_prices[<?= $index ?>]"
-                                    value="<?= $_SESSION['invoice_prices'][$index] ?? $item['total_price'] ?>" step="1000"></td>
-                            <td><button type="button" onclick="removeItem(<?= $index ?>)">حذف</button></td>
+                            <td><?= number_format($invoice_prices[$index] ?? $item['total_price'], 0) ?> تومان</td>
+                            <td><?= $item['quantity'] ?></td>
+                            <td><?= number_format($invoice_prices[$index] ?? $item['total_price'], 0) ?> تومان</td>
                         </tr>
                     <?php endforeach; ?>
-                    <tr>
-                        <td>ارسال پستی</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>
-                            <?php
-                            $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-                            $stmt_postal->execute([$order_id]);
-                            $postal_price = $stmt_postal->fetchColumn() ?: 0;
-                            ?>
-                            <input type="number" name="postal_price" value="<?= $postal_price ?>" step="1000" min="0">
-                        </td>
-                        <td>-</td>
-                    </tr>
+                    <?php if ($postal_enabled): ?>
+                        <tr>
+                            <td><?= count($items) + 1 ?></td>
+                            <td>ارسال پستی</td>
+                            <td><?= number_format($postal_price, 0) ?> تومان</td>
+                            <td>-</td>
+                            <td><?= number_format($postal_price, 0) ?> تومان</td>
+                        </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
 
