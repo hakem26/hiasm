@@ -267,19 +267,24 @@ $pages = array_chunk($items, $items_per_page);
                     <tr>
                         <th>ردیف</th>
                         <th>نام محصول</th>
-                        <th>قیمت واحد</th>
+                        <th>قیمت فاکتور</th>
                         <th>تعداد</th>
                         <th>قیمت کل</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($items as $index => $item): ?>
+                    <?php
+                    $invoice_total = 0;
+                    foreach ($items as $index => $item):
+                        $item_invoice_price = $invoice_prices[$index] ?? $item['total_price'];
+                        $invoice_total += $item_invoice_price;
+                        ?>
                         <tr>
                             <td><?= $index + 1 ?></td>
                             <td><?= htmlspecialchars($item['product_name']) ?></td>
-                            <td><?= number_format($invoice_prices[$index] ?? $item['total_price'], 0) ?> تومان</td>
+                            <td><?= number_format($item_invoice_price, 0) ?> تومان</td>
                             <td><?= $item['quantity'] ?></td>
-                            <td><?= number_format($invoice_prices[$index] ?? $item['total_price'], 0) ?> تومان</td>
+                            <td><?= number_format($item_invoice_price, 0) ?> تومان</td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($postal_enabled): ?>
@@ -290,16 +295,16 @@ $pages = array_chunk($items, $items_per_page);
                             <td>-</td>
                             <td><?= number_format($postal_price, 0) ?> تومان</td>
                         </tr>
+                        <?php $invoice_total += $postal_price; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
 
             <?php if ($page == $total_pages - 1): ?>
                 <div class="invoice-summary">
-                    <p>مبلغ کل فاکتور: <?= number_format($order['total_amount'], 0) ?> تومان</p>
+                    <p>مبلغ کل فاکتور: <?= number_format($invoice_total, 0) ?> تومان</p>
                     <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
-                    <p>مبلغ قابل پرداخت: <?= number_format($order['final_amount'] + ($postal_enabled ? $postal_price : 0), 0) ?>
-                        تومان</p>
+                    <p>مبلغ قابل پرداخت: <?= number_format($invoice_total - $order['discount'], 0) ?> تومان</p>
                 </div>
             <?php endif; ?>
 
