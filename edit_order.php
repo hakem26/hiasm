@@ -95,7 +95,7 @@ unset($_SESSION['edit_order_items']);
 unset($_SESSION['edit_order_id']);
 unset($_SESSION['edit_order_discount']);
 $_SESSION['edit_order_items'] = [];
-$stmt_items = $pdo->prepare("SELECT * FROM Order_Items WHERE order_id = ? ORDER BY id ASC");
+$stmt_items = $pdo->prepare("SELECT * FROM Order_Items WHERE order_id = ? ORDER BY item_id ASC");
 $stmt_items->execute([$order_id]);
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 foreach ($items as $index => $item) {

@@ -495,7 +495,7 @@ switch ($action) {
 
         $pdo->beginTransaction();
         try {
-            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, extra_sale, total_price FROM Order_Items WHERE order_id = ? ORDER BY id ASC");
+            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, extra_sale, total_price FROM Order_Items WHERE order_id = ? ORDER BY item_id ASC");
             $stmt_items->execute([$order_id]);
             $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
