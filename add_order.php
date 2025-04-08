@@ -80,11 +80,13 @@ if (!$partner1_id) {
 
 unset($_SESSION['order_items']);
 unset($_SESSION['discount']);
-unset($_SESSION['invoice_prices']); // آرایه جدید برای قیمت‌های فاکتور
+unset($_SESSION['invoice_prices']);
 $_SESSION['order_items'] = [];
 $_SESSION['discount'] = 0;
 $_SESSION['invoice_prices'] = [];
 $_SESSION['is_order_in_progress'] = true;
+$_SESSION['postal_enabled'] = false; // مقدار پیش‌فرض ارسال پستی
+$_SESSION['postal_price'] = 0; // مقدار پیش‌فرض قیمت پستی
 ?>
 
 <style>
@@ -181,6 +183,9 @@ $_SESSION['is_order_in_progress'] = true;
                                     <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="<?= $index ?>">
                                         تنظیم قیمت
                                     </button>
+                                    <span class="invoice-price" data-index="<?= $index ?>">
+                                        <?= number_format($_SESSION['invoice_prices'][$index] ?? $item['total_price'], 0) ?> تومان
+                                    </span>
                                 </td>
                                 <td>
                                     <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
@@ -189,19 +194,44 @@ $_SESSION['is_order_in_progress'] = true;
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+                        <?php if ($_SESSION['postal_enabled']): ?>
+                            <tr class="postal-row">
+                                <td>ارسال پستی</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>
+                                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
+                                        تنظیم قیمت
+                                    </button>
+                                    <span class="invoice-price" data-index="postal">
+                                        <?= number_format($_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'], 0) ?> تومان
+                                    </span>
+                                </td>
+                                <td>-</td>
+                            </tr>
+                        <?php endif; ?>
                         <?php
                         $total_amount = array_sum(array_column($_SESSION['order_items'], 'total_price'));
                         $discount = $_SESSION['discount'];
-                        $final_amount = $total_amount - $discount;
+                        $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
                         ?>
                         <tr class="total-row">
                             <td colspan="4"><strong>جمع کل</strong></td>
                             <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
+                            <td colspan="2"></td>
                         </tr>
                         <tr class="total-row">
                             <td><label for="discount" class="form-label">تخفیف</label></td>
                             <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
                             <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td><label for="postal_option" class="form-label">پست سفارش</label></td>
+                            <td><input type="checkbox" id="postal_option" name="postal_option" <?= $_SESSION['postal_enabled'] ? 'checked' : '' ?>></td>
+                            <td colspan="3"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -262,6 +292,9 @@ function renderItemsTable(data) {
     const itemsTable = document.getElementById('items_table');
     const totalAmountDisplay = document.getElementById('total_amount_display');
     const finalAmountDisplay = document.getElementById('final_amount_display');
+    const invoicePrices = <?= json_encode($_SESSION['invoice_prices']) ?> || {};
+    const postalEnabled = data.postal_enabled || <?= $_SESSION['postal_enabled'] ? 'true' : 'false' ?>;
+    const postalPrice = data.postal_price || <?= $_SESSION['postal_price'] ?>;
 
     if (!data.items || data.items.length === 0) {
         itemsTable.innerHTML = '';
@@ -295,6 +328,9 @@ function renderItemsTable(data) {
                             <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
                                 تنظیم قیمت
                             </button>
+                            <span class="invoice-price" data-index="${index}">
+                                ${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان
+                            </span>
                         </td>
                         <td>
                             <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
@@ -303,14 +339,39 @@ function renderItemsTable(data) {
                         </td>
                     </tr>
                 `).join('')}
+                ${postalEnabled ? `
+                    <tr class="postal-row">
+                        <td>ارسال پستی</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>
+                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
+                                تنظیم قیمت
+                            </button>
+                            <span class="invoice-price" data-index="postal">
+                                ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان
+                            </span>
+                        </td>
+                        <td>-</td>
+                    </tr>
+                ` : ''}
                 <tr class="total-row">
                     <td colspan="4"><strong>جمع کل</strong></td>
                     <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
                     <td><label for="discount" class="form-label">تخفیف</label></td>
                     <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
                     <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td colspan="2"></td>
+                </tr>
+                <tr class="total-row">
+                    <td><label for="postal_option" class="form-label">پست سفارش</label></td>
+                    <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
+                    <td colspan="3"></td>
                 </tr>
             </tbody>
         </table>
@@ -322,6 +383,7 @@ function renderItemsTable(data) {
 
 document.addEventListener('DOMContentLoaded', () => {
     let initialInventory = 0;
+    let editingIndex = null;
 
     $('#product_name').on('input', function () {
         let query = $(this).val();
@@ -408,12 +470,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalUsed = 0;
 
         items.forEach(item => {
-            if (item.product_id === product_id) {
+            if (item.product_id === product_id && (editingIndex === null || item !== items[editingIndex])) {
                 totalUsed += parseInt(item.quantity);
             }
         });
 
-        let remainingInventory = initialInventory - totalUsed;
+        let remainingInventory = initialInventory - totalUsed - (editingIndex === null ? quantity : 0);
         $('#inventory_quantity').text(remainingInventory);
     }
 
@@ -469,18 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
-                    // حذف قیمت فاکتور مرتبط با این ایندکس
-                    const invoicePrices = <?= json_encode($_SESSION['invoice_prices']) ?>;
-                    delete invoicePrices[index];
-                    $.ajax({
-                        url: 'ajax_handler.php',
-                        type: 'POST',
-                        data: { action: 'update_invoice_prices', invoice_prices: JSON.stringify(invoicePrices) },
-                        success: function () {
-                            renderItemsTable(response.data);
-                            resetForm();
-                        }
-                    });
+                    renderItemsTable(response.data);
+                    resetForm();
                 } else {
                     alert(response.message);
                 }
@@ -511,9 +563,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const response = await sendRequest('ajax_handler.php', data);
         if (response.success) {
+            const priceSpan = document.querySelector(`.invoice-price[data-index="${index}"]`);
+            if (priceSpan) {
+                priceSpan.textContent = Number(invoicePrice).toLocaleString('fa') + ' تومان';
+            }
             $('#invoicePriceModal').modal('hide');
         } else {
             alert(response.message);
+        }
+    });
+
+    document.getElementById('items_table').addEventListener('change', async (e) => {
+        if (e.target.id === 'postal_option') {
+            const enablePostal = e.target.checked;
+            const data = {
+                action: 'set_postal_option',
+                enable_postal: enablePostal
+            };
+
+            const response = await sendRequest('ajax_handler.php', data);
+            if (response.success) {
+                renderItemsTable(response.data);
+            } else {
+                alert(response.message);
+            }
         }
     });
 
@@ -527,10 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await sendRequest('ajax_handler.php', data);
             if (response.success) {
-                document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
-                document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                renderItemsTable(response.data);
             } else {
                 alert(response.message);
             }
@@ -573,6 +643,9 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#total_price').val('');
         $('#inventory_quantity').text('0');
         initialInventory = 0;
+        editingIndex = null;
+        $('#add_item_btn').show();
+        $('#edit_item_btn').hide();
     }
 });
 </script>

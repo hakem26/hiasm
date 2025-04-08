@@ -193,22 +193,23 @@ switch ($action) {
         }
 
         $total_amount = array_sum(array_column($items, 'total_price'));
-        $final_amount = $total_amount - $discount;
+        $postal_price = $_SESSION['postal_enabled'] && isset($_SESSION['invoice_prices']['postal']) ? (float) $_SESSION['invoice_prices']['postal'] : 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare("
-                INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
-                VALUES (?, ?, ?, ?, ?)
-            ");
+                    INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
             $stmt->execute([$work_details_id, $customer_name, $total_amount, $discount, $final_amount]);
             $order_id = $pdo->lastInsertId();
 
-            foreach ($items as $item) {
+            foreach ($items as $index => $item) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ");
+                        INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ");
                 $stmt->execute([
                     $order_id,
                     $item['product_name'],
@@ -229,17 +230,33 @@ switch ($action) {
 
                 $new_quantity = $current_quantity - $item['quantity'];
                 $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                           ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                 $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity]);
+            }
+
+            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
+            if (!empty($invoice_prices)) {
+                $stmt_invoice = $pdo->prepare("
+                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                        VALUES (?, ?, ?, ?, ?)
+                    ");
+                foreach ($invoice_prices as $index => $price) {
+                    if ($index === 'postal') {
+                        $stmt_invoice->execute([$order_id, -1, 0, TRUE, $price]);
+                    } else {
+                        $stmt_invoice->execute([$order_id, $index, $price, FALSE, 0]);
+                    }
+                }
             }
 
             $pdo->commit();
 
-            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
             unset($_SESSION['order_items']);
             unset($_SESSION['discount']);
+            unset($_SESSION['invoice_prices']);
+            unset($_SESSION['postal_enabled']);
+            unset($_SESSION['postal_price']);
             $_SESSION['is_order_in_progress'] = false;
-            $_SESSION['invoice_prices'] = $invoice_prices;
 
             respond(true, 'سفارش با موفقیت ثبت شد.', [
                 'redirect' => "print_invoice.php?order_id=$order_id"
@@ -412,66 +429,82 @@ switch ($action) {
         ]);
         break;
 
-        case 'set_invoice_price':
-            $index = $_POST['index'] ?? ''; // اینجا int نمی‌کنیم چون 'postal' رشته است
-            $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
-            $order_id = $_POST['order_id'] ?? '';
-        
-            if ($index === '' || $invoice_price < 0 || !$order_id) {
-                respond(false, 'مقدار نامعتبر برای ایندکس، قیمت فاکتور یا شناسه سفارش.');
-            }
-        
-            // ذخیره در سشن
-            $_SESSION['invoice_prices'][$index] = $invoice_price;
-        
-            // ذخیره در دیتابیس
+    case 'set_invoice_price':
+        $index = $_POST['index'] ?? '';
+        $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
+        $order_id = $_POST['order_id'] ?? '';
+
+        if ($index === '' || $invoice_price < 0) {
+            respond(false, 'مقدار نامعتبر برای ایندکس یا قیمت فاکتور.');
+        }
+
+        $_SESSION['invoice_prices'][$index] = $invoice_price;
+
+        if ($order_id) { // برای edit_order.php
             if ($index === 'postal') {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                    VALUES (?, -1, 0, TRUE, ?)
-                    ON DUPLICATE KEY UPDATE postal_price = ?
-                ");
+                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                        VALUES (?, -1, 0, TRUE, ?)
+                        ON DUPLICATE KEY UPDATE postal_price = ?
+                    ");
                 $stmt->execute([$order_id, $invoice_price, $invoice_price]);
+                $_SESSION['postal_price'] = $invoice_price;
             } else {
-                $items = $order_id ? ($_SESSION['edit_order_items'] ?? []) : ($_SESSION['order_items'] ?? []);
+                $items = $_SESSION['edit_order_items'] ?? [];
                 if (!isset($items[$index])) {
                     respond(false, 'آیتم مورد نظر یافت نشد.');
                 }
                 $stmt = $pdo->prepare("
-                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
-                    VALUES (?, ?, ?, FALSE)
-                    ON DUPLICATE KEY UPDATE invoice_price = ?
-                ");
+                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
+                        VALUES (?, ?, ?, FALSE)
+                        ON DUPLICATE KEY UPDATE invoice_price = ?
+                    ");
                 $stmt->execute([$order_id, $index, $invoice_price, $invoice_price]);
             }
-        
-            respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.');
-            break;
+        } elseif ($index === 'postal') { // برای add_order.php
+            $_SESSION['postal_price'] = $invoice_price;
+            $_SESSION['postal_enabled'] = true; // فعال کردن ارسال پستی
+        }
+
+        respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.');
+        break;
 
     case 'set_postal_option':
         $order_id = $_POST['order_id'] ?? '';
         $enable_postal = filter_var($_POST['enable_postal'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $postal_price = 50000;
+        $postal_price = $_SESSION['postal_price'] ?? 50000; // مقدار پیش‌فرض یا مقدار قبلی
 
-        if (!$order_id) {
-            respond(false, 'شناسه سفارش مشخص نشده است.');
+        if ($order_id) { // برای edit_order.php
+            if ($enable_postal) {
+                $stmt = $pdo->prepare("
+                            INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                            VALUES (?, -1, 0, TRUE, ?)
+                            ON DUPLICATE KEY UPDATE postal_price = ?
+                        ");
+                $stmt->execute([$order_id, $postal_price, $postal_price]);
+                $_SESSION['invoice_prices']['postal'] = $postal_price;
+            } else {
+                $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+                $stmt->execute([$order_id]);
+                unset($_SESSION['invoice_prices']['postal']);
+            }
+            $items = $_SESSION['edit_order_items'] ?? [];
+            $total_amount = array_sum(array_column($items, 'total_price'));
+            $discount = $_SESSION['edit_order_discount'] ?? 0;
+        } else { // برای add_order.php
+            $_SESSION['postal_enabled'] = $enable_postal;
+            if ($enable_postal) {
+                $_SESSION['postal_price'] = $postal_price;
+                $_SESSION['invoice_prices']['postal'] = $postal_price;
+            } else {
+                $_SESSION['postal_price'] = 0;
+                unset($_SESSION['invoice_prices']['postal']);
+            }
+            $items = $_SESSION['order_items'] ?? [];
+            $total_amount = array_sum(array_column($items, 'total_price'));
+            $discount = $_SESSION['discount'] ?? 0;
         }
 
-        if ($enable_postal) {
-            $stmt = $pdo->prepare("
-                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                VALUES (?, -1, 0, TRUE, ?)
-                ON DUPLICATE KEY UPDATE postal_price = ?
-            ");
-            $stmt->execute([$order_id, $postal_price, $postal_price]);
-        } else {
-            $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-            $stmt->execute([$order_id]);
-        }
-
-        $items = $_SESSION['edit_order_items'] ?? [];
-        $total_amount = array_sum(array_column($items, 'total_price'));
-        $discount = $_SESSION['edit_order_discount'] ?? 0;
         $final_amount = $total_amount - $discount + ($enable_postal ? $postal_price : 0);
 
         respond(true, 'گزینه ارسال پستی با موفقیت به‌روزرسانی شد.', [
@@ -484,172 +517,172 @@ switch ($action) {
         ]);
         break;
 
-        case 'save_edit_order':
-            $order_id = $_POST['order_id'] ?? '';
-            $customer_name = $_POST['customer_name'] ?? '';
-            $discount = (float) ($_POST['discount'] ?? 0);
-            $partner1_id = $_POST['partner1_id'] ?? '';
-            $postal_enabled = isset($_POST['postal_option']) && $_POST['postal_option'] === 'on';
-        
-            if (!$order_id || !$customer_name || !$partner1_id) {
-                respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+    case 'save_edit_order':
+        $order_id = $_POST['order_id'] ?? '';
+        $customer_name = $_POST['customer_name'] ?? '';
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $partner1_id = $_POST['partner1_id'] ?? '';
+        $postal_enabled = isset($_POST['postal_option']) && $_POST['postal_option'] === 'on';
+
+        if (!$order_id || !$customer_name || !$partner1_id) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        }
+
+        $new_items = $_SESSION['edit_order_items'] ?? [];
+        if (empty($new_items)) {
+            respond(false, 'هیچ محصولی برای ویرایش سفارش وجود ندارد.');
+        }
+
+        $total_amount = array_sum(array_column($new_items, 'total_price'));
+        $postal_price = $postal_enabled && isset($_SESSION['invoice_prices']['postal']) ? (float) $_SESSION['invoice_prices']['postal'] : 0;
+        $final_amount = $total_amount - $discount + $postal_price;
+
+        $pdo->beginTransaction();
+        try {
+            $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, extra_sale, total_price FROM Order_Items WHERE order_id = ? ORDER BY item_id ASC");
+            $stmt_items->execute([$order_id]);
+            $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+
+            $old_items_map = [];
+            foreach ($old_items as $index => $item) {
+                $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
+                $stmt_product->execute([$item['product_name']]);
+                $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
+                $product_id = $product ? $product['product_id'] : null;
+
+                if ($product_id) {
+                    $old_items_map[$product_id] = [
+                        'index' => $index,
+                        'quantity' => $item['quantity'],
+                        'product_name' => $item['product_name'],
+                        'unit_price' => $item['unit_price'],
+                        'extra_sale' => $item['extra_sale'],
+                        'total_price' => $item['total_price']
+                    ];
+                }
             }
-        
-            $new_items = $_SESSION['edit_order_items'] ?? [];
-            if (empty($new_items)) {
-                respond(false, 'هیچ محصولی برای ویرایش سفارش وجود ندارد.');
+
+            $new_items_map = [];
+            foreach ($new_items as $index => $item) {
+                if ($item['product_id']) {
+                    $new_items_map[$item['product_id']] = [
+                        'index' => $item['original_index'] ?? $index,
+                        'quantity' => $item['quantity'],
+                        'product_name' => $item['product_name'],
+                        'unit_price' => $item['unit_price'],
+                        'extra_sale' => $item['extra_sale'],
+                        'total_price' => $item['total_price']
+                    ];
+                }
             }
-        
-            $total_amount = array_sum(array_column($new_items, 'total_price'));
-            $postal_price = $postal_enabled && isset($_SESSION['invoice_prices']['postal']) ? (float) $_SESSION['invoice_prices']['postal'] : 0;
-            $final_amount = $total_amount - $discount + $postal_price;
-        
-            $pdo->beginTransaction();
-            try {
-                $stmt_items = $pdo->prepare("SELECT product_name, quantity, unit_price, extra_sale, total_price FROM Order_Items WHERE order_id = ? ORDER BY item_id ASC");
-                $stmt_items->execute([$order_id]);
-                $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
-        
-                $old_items_map = [];
-                foreach ($old_items as $index => $item) {
-                    $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ? LIMIT 1");
-                    $stmt_product->execute([$item['product_name']]);
-                    $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
-                    $product_id = $product ? $product['product_id'] : null;
-        
-                    if ($product_id) {
-                        $old_items_map[$product_id] = [
-                            'index' => $index,
-                            'quantity' => $item['quantity'],
-                            'product_name' => $item['product_name'],
-                            'unit_price' => $item['unit_price'],
-                            'extra_sale' => $item['extra_sale'],
-                            'total_price' => $item['total_price']
-                        ];
-                    }
-                }
-        
-                $new_items_map = [];
-                foreach ($new_items as $index => $item) {
-                    if ($item['product_id']) {
-                        $new_items_map[$item['product_id']] = [
-                            'index' => $item['original_index'] ?? $index,
-                            'quantity' => $item['quantity'],
-                            'product_name' => $item['product_name'],
-                            'unit_price' => $item['unit_price'],
-                            'extra_sale' => $item['extra_sale'],
-                            'total_price' => $item['total_price']
-                        ];
-                    }
-                }
-        
-                foreach ($old_items_map as $product_id => $old_item) {
-                    if (!isset($new_items_map[$product_id])) {
-                        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                        $stmt_inventory->execute([$partner1_id, $product_id]);
-                        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        
-                        $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                        $new_quantity = $current_quantity + $old_item['quantity'];
-        
-                        $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
+
+            foreach ($old_items_map as $product_id => $old_item) {
+                if (!isset($new_items_map[$product_id])) {
+                    $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+                    $stmt_inventory->execute([$partner1_id, $product_id]);
+                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+
+                    $current_quantity = $inventory ? $inventory['quantity'] : 0;
+                    $new_quantity = $current_quantity + $old_item['quantity'];
+
+                    $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                                    ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                        $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
-                    } elseif ($new_items_map[$product_id]['quantity'] != $old_item['quantity']) {
-                        $quantity_diff = $old_item['quantity'] - $new_items_map[$product_id]['quantity'];
-                        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                        $stmt_inventory->execute([$partner1_id, $product_id]);
-                        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        
-                        $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                        $new_quantity = $current_quantity + $quantity_diff;
-        
-                        if ($new_quantity < 0) {
-                            throw new Exception("موجودی کافی برای محصول '{$old_item['product_name']}' نیست. موجودی: $current_quantity");
-                        }
-        
-                        $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                        $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
+                    $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
+                } elseif ($new_items_map[$product_id]['quantity'] != $old_item['quantity']) {
+                    $quantity_diff = $old_item['quantity'] - $new_items_map[$product_id]['quantity'];
+                    $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+                    $stmt_inventory->execute([$partner1_id, $product_id]);
+                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+
+                    $current_quantity = $inventory ? $inventory['quantity'] : 0;
+                    $new_quantity = $current_quantity + $quantity_diff;
+
+                    if ($new_quantity < 0) {
+                        throw new Exception("موجودی کافی برای محصول '{$old_item['product_name']}' نیست. موجودی: $current_quantity");
                     }
-                }
-        
-                foreach ($new_items_map as $product_id => $new_item) {
-                    if (!isset($old_items_map[$product_id])) {
-                        $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                        $stmt_inventory->execute([$partner1_id, $product_id]);
-                        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-        
-                        $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                        if ($current_quantity < $new_item['quantity']) {
-                            throw new Exception("موجودی کافی برای محصول '{$new_item['product_name']}' نیست. موجودی: $current_quantity، درخواست: {$new_item['quantity']}");
-                        }
-        
-                        $new_quantity = $current_quantity - $new_item['quantity'];
-                        $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
+
+                    $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                                    ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                        $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
-                    }
+                    $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
                 }
-        
-                $stmt = $pdo->prepare("
+            }
+
+            foreach ($new_items_map as $product_id => $new_item) {
+                if (!isset($old_items_map[$product_id])) {
+                    $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+                    $stmt_inventory->execute([$partner1_id, $product_id]);
+                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+
+                    $current_quantity = $inventory ? $inventory['quantity'] : 0;
+                    if ($current_quantity < $new_item['quantity']) {
+                        throw new Exception("موجودی کافی برای محصول '{$new_item['product_name']}' نیست. موجودی: $current_quantity، درخواست: {$new_item['quantity']}");
+                    }
+
+                    $new_quantity = $current_quantity - $new_item['quantity'];
+                    $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
+                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                    $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
+                }
+            }
+
+            $stmt = $pdo->prepare("
                     UPDATE Orders 
                     SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
                     WHERE order_id = ?
                 ");
-                $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $order_id]);
-        
-                $stmt = $pdo->prepare("DELETE FROM Order_Items WHERE order_id = ?");
-                $stmt->execute([$order_id]);
-        
-                $stmt_insert = $pdo->prepare("
+            $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $order_id]);
+
+            $stmt = $pdo->prepare("DELETE FROM Order_Items WHERE order_id = ?");
+            $stmt->execute([$order_id]);
+
+            $stmt_insert = $pdo->prepare("
                     INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                foreach ($new_items as $index => $item) {
-                    $stmt_insert->execute([
-                        $order_id,
-                        $item['product_name'],
-                        $item['quantity'],
-                        $item['unit_price'],
-                        $item['extra_sale'],
-                        $item['total_price']
-                    ]);
-                }
-        
-                // حذف همه ردیف‌های قبلی Invoice_Prices برای این سفارش
-                $stmt_delete = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ?");
-                $stmt_delete->execute([$order_id]);
-        
-                // درج یا به‌روزرسانی قیمت‌های فاکتور (شامل ارسال پستی)
-                $stmt_invoice = $pdo->prepare("
+            foreach ($new_items as $index => $item) {
+                $stmt_insert->execute([
+                    $order_id,
+                    $item['product_name'],
+                    $item['quantity'],
+                    $item['unit_price'],
+                    $item['extra_sale'],
+                    $item['total_price']
+                ]);
+            }
+
+            // حذف همه ردیف‌های قبلی Invoice_Prices برای این سفارش
+            $stmt_delete = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ?");
+            $stmt_delete->execute([$order_id]);
+
+            // درج یا به‌روزرسانی قیمت‌های فاکتور (شامل ارسال پستی)
+            $stmt_invoice = $pdo->prepare("
                     INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
                     VALUES (?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE invoice_price = VALUES(invoice_price), postal_price = VALUES(postal_price)
                 ");
-                foreach ($_SESSION['invoice_prices'] ?? [] as $index => $price) {
-                    if ($index === 'postal') {
-                        $stmt_invoice->execute([$order_id, -1, 0, TRUE, $price]);
-                    } else {
-                        $stmt_invoice->execute([$order_id, $index, $price, FALSE, 0]);
-                    }
+            foreach ($_SESSION['invoice_prices'] ?? [] as $index => $price) {
+                if ($index === 'postal') {
+                    $stmt_invoice->execute([$order_id, -1, 0, TRUE, $price]);
+                } else {
+                    $stmt_invoice->execute([$order_id, $index, $price, FALSE, 0]);
                 }
-        
-                $pdo->commit();
-        
-                unset($_SESSION['edit_order_items']);
-                unset($_SESSION['edit_order_id']);
-                unset($_SESSION['edit_order_discount']);
-                unset($_SESSION['invoice_prices']);
-        
-                respond(true, 'سفارش با موفقیت ویرایش شد.', [
-                    'redirect' => "print_invoice.php?order_id=$order_id"
-                ]);
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                respond(false, 'خطا در ویرایش سفارش: ' . $e->getMessage());
             }
-            break;
+
+            $pdo->commit();
+
+            unset($_SESSION['edit_order_items']);
+            unset($_SESSION['edit_order_id']);
+            unset($_SESSION['edit_order_discount']);
+            unset($_SESSION['invoice_prices']);
+
+            respond(true, 'سفارش با موفقیت ویرایش شد.', [
+                'redirect' => "print_invoice.php?order_id=$order_id"
+            ]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            respond(false, 'خطا در ویرایش سفارش: ' . $e->getMessage());
+        }
+        break;
 
     case 'clear_invoice_prices':
         unset($_SESSION['invoice_prices']);
