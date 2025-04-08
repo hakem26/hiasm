@@ -35,13 +35,13 @@ if (!$order) {
     exit;
 }
 
-$stmt_items = $pdo->prepare("SELECT * FROM Order_Items WHERE order_id = ?");
+$stmt_items = $pdo->prepare("SELECT * FROM Order_Items WHERE order_id = ? ORDER BY item_id ASC");
 $stmt_items->execute([$order_id]);
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
 // دریافت قیمت‌های فاکتور و پست از جدول Invoice_Prices
 $invoice_prices = [];
-$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ?");
+$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ? ORDER BY id DESC");
 $stmt_invoice->execute([$order_id]);
 $invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
 $postal_enabled = false;
@@ -51,9 +51,17 @@ foreach ($invoice_data as $row) {
         $postal_enabled = true;
         $postal_price = $row['postal_price'];
     } else {
-        $invoice_prices[$row['item_index']] = $row['invoice_price'];
+        // فقط اولین (آخرین به دلیل ORDER BY id DESC) مقدار برای هر item_index رو نگه می‌داریم
+        if (!isset($invoice_prices[$row['item_index']])) {
+            $invoice_prices[$row['item_index']] = $row['invoice_price'];
+        }
     }
 }
+
+$items_per_page = 14;
+$total_items = count($items) + ($postal_enabled ? 1 : 0);
+$total_pages = ceil($total_items / $items_per_page);
+$pages = array_chunk($items, $items_per_page);
 
 $items_per_page = 14;
 $total_items = count($items) + ($postal_enabled ? 1 : 0); // اضافه کردن ردیف پست به تعداد کل

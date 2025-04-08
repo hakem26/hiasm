@@ -522,7 +522,7 @@ switch ($action) {
             foreach ($new_items as $index => $item) {
                 if ($item['product_id']) {
                     $new_items_map[$item['product_id']] = [
-                        'index' => $item['original_index'] ?? $index, // استفاده از اندیس اصلی
+                        'index' => $item['original_index'] ?? $index,
                         'quantity' => $item['quantity'],
                         'product_name' => $item['product_name'],
                         'unit_price' => $item['unit_price'],
@@ -604,21 +604,36 @@ switch ($action) {
                     $item['extra_sale'],
                     $item['total_price']
                 ]);
-
-                // به‌روزرسانی اندیس‌ها در Invoice_Prices
-                $stmt_invoice = $pdo->prepare("
-                        UPDATE Invoice_Prices 
-                        SET item_index = ? 
-                        WHERE order_id = ? AND item_index = ? AND is_postal = FALSE
-                    ");
-                $stmt_invoice->execute([$index, $order_id, $item['original_index'] ?? $index]);
             }
+
+            // حذف همه ردیف‌های قبلی Invoice_Prices برای این سفارش
+            $stmt_delete = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND is_postal = FALSE");
+            $stmt_delete->execute([$order_id]);
+
+            // درج یا به‌روزرسانی قیمت‌های فاکتور
+            $stmt_invoice = $pdo->prepare("
+                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                    VALUES (?, ?, ?, FALSE, 0)
+                    ON DUPLICATE KEY UPDATE invoice_price = VALUES(invoice_price)
+                ");
+            foreach ($_SESSION['invoice_prices'] ?? [] as $index => $price) {
+                $stmt_invoice->execute([$order_id, $index, $price]);
+            }
+
+            // به‌روزرسانی یا درج هزینه پست
+            $stmt_postal_update = $pdo->prepare("
+                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                    VALUES (?, -1, 0, TRUE, ?)
+                    ON DUPLICATE KEY UPDATE postal_price = VALUES(postal_price)
+                ");
+            $stmt_postal_update->execute([$order_id, $postal_price]);
 
             $pdo->commit();
 
             unset($_SESSION['edit_order_items']);
             unset($_SESSION['edit_order_id']);
             unset($_SESSION['edit_order_discount']);
+            unset($_SESSION['invoice_prices']);
 
             respond(true, 'سفارش با موفقیت ویرایش شد.', [
                 'redirect' => "print_invoice.php?order_id=$order_id"
