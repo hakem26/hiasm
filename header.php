@@ -179,7 +179,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link <?php echo $current_page == 'seller-inventory-report.php' ? 'active' : ''; ?>"
-                                    href="inventory_report.php">
+                                    href="seller-inventory-report.php">
                                     <i class="fas fa-warehouse"></i>
                                     <span>تخصیص</span>
                                 </a>
