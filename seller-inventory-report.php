@@ -8,31 +8,35 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی (فقط روز)
-function gregorian_to_jalali_day($gregorian_date) {
+// تابع تبدیل تاریخ میلادی به شمسی
+function gregorian_to_jalali_full($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return $jd; // فقط روز
+    return gregorian_to_jalali($gy, $gm, $gd);
 }
 
-// گرفتن سال‌ها از Work_Months
-$stmt = $pdo->query("SELECT DISTINCT YEAR(start_date) as year FROM Work_Months ORDER BY year DESC");
-$years = $stmt->fetchAll(PDO::FETCH_COLUMN);
-if (empty($years)) {
-    $years = [gregorian_to_jalali(date('Y'), 1, 1)[0]]; // سال جاری شمسی
+// تابع گرفتن فقط روز شمسی
+function gregorian_to_jalali_day($gregorian_date) {
+    list($jy, $jm, $jd) = gregorian_to_jalali_full($gregorian_date);
+    return $jd;
 }
 
-// سال جاری شمسی
-$current_jalali_year = gregorian_to_jalali(date('Y'), 1, 1)[0]; // مثلاً 1404
+// محاسبه سال‌های شمسی (شروع از 21 مارچ)
+$years = [];
+$current_gregorian_year = date('Y');
+$current_jalali = gregorian_to_jalali_full(date('Y-m-d'));
+$current_jalali_year = $current_jalali[0];
+for ($i = $current_jalali_year - 5; $i <= $current_jalali_year + 1; $i++) {
+    $years[] = $i;
+}
 $selected_year = $_GET['year'] ?? $current_jalali_year;
 
 // گرفتن ماه‌های کاری برای سال انتخاب‌شده
-$gregorian_start_year = $selected_year - 579;
-$gregorian_end_year = $gregorian_start_year + 1;
-$start_date = "$gregorian_start_year-03-21";
-$end_date = "$gregorian_end_year-03-20";
+$gregorian_start = jalali_to_gregorian($selected_year, 1, 1);
+$gregorian_end = jalali_to_gregorian($selected_year + 1, 1, 1);
+$start_date = sprintf("%04d-%02d-%02d", $gregorian_start[0], $gregorian_start[1], $gregorian_start[2]);
+$end_date = sprintf("%04d-%02d-%02d", $gregorian_end[0], $gregorian_end[1], $gregorian_end[2]);
 
-$stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND end_date <= ? ORDER BY start_date DESC");
+$stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND end_date < ? ORDER BY start_date DESC");
 $stmt_months->execute([$start_date, $end_date]);
 $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
@@ -70,7 +74,6 @@ if ($work_month_id) {
         $transactions_raw = $stmt_transactions->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($transactions_raw as $transaction) {
-            // محاسبه موجودی قبل
             $stmt_before = $pdo->prepare("
                 SELECT SUM(quantity) as total_before
                 FROM Inventory_Transactions
@@ -90,84 +93,81 @@ if ($work_month_id) {
     }
 }
 ?>
+    <div class="container-fluid mt-5">
+        <h5 class="card-title mb-4">گزارش تخصیص موجودی فروشنده</h5>
 
-<style>
-    .table-responsive {
-        overflow-x: auto;
-        width: 100%;
-    }
-    .table-inventory {
-        width: 100%;
-        min-width: 600px;
-        border-collapse: collapse;
-    }
-    .table-inventory th, .table-inventory td {
-        vertical-align: middle;
-        white-space: nowrap;
-        padding: 8px;
-        text-align: center;
-    }
-</style>
-
-<div class="container-fluid mt-5">
-    <h5 class="card-title mb-4">گزارش تخصیص موجودی فروشنده</h5>
-
-    <form method="GET" class="row g-3 mb-3">
-        <div class="col-auto">
-            <label for="year" class="form-label">سال</label>
-            <select name="year" id="year" class="form-select" onchange="this.form.submit()">
-                <?php foreach ($years as $year): ?>
-                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
-                        <?= $year ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="col-auto">
-            <label for="work_month_id" class="form-label">ماه کاری</label>
-            <select name="work_month_id" id="work_month_id" class="form-select" onchange="this.form.submit()">
-                <option value="" <?= !$work_month_id ? 'selected' : '' ?>>انتخاب ماه</option>
-                <?php foreach ($work_months as $month): ?>
-                    <option value="<?= $month['work_month_id'] ?>" <?= $work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
-                        <?= gregorian_to_jalali_day($month['start_date']) . ' ' . jdate('F', strtotime($month['start_date'])) ?> تا
-                        <?= gregorian_to_jalali_day($month['end_date']) . ' ' . jdate('F', strtotime($month['end_date'])) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-    </form>
-
-    <?php if ($work_month_id && !empty($transactions)): ?>
-        <div class="table-responsive">
-            <table class="table table-light table-inventory table-hover">
-                <thead>
-                    <tr>
-                        <th>تاریخ</th>
-                        <th>نام محصول</th>
-                        <th>تعداد</th>
-                        <th>وضعیت تخصیص</th>
-                        <th>موجودی قبل</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($transactions as $transaction): ?>
-                        <tr>
-                            <td><?= $transaction['date'] ?></td>
-                            <td><?= htmlspecialchars($transaction['product_name']) ?></td>
-                            <td><?= $transaction['quantity'] ?></td>
-                            <td><?= $transaction['status'] ?></td>
-                            <td><?= $transaction['previous_inventory'] ?></td>
-                        </tr>
+        <form method="GET" class="row g-3 mb-4">
+            <div class="col-auto">
+                <label for="year" class="form-label">سال</label>
+                <select name="year" id="year" class="form-select" onchange="this.form.submit()">
+                    <?php foreach ($years as $year): ?>
+                        <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                            <?= $year ?>
+                        </option>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    <?php elseif ($work_month_id): ?>
-        <div class="alert alert-warning text-center">تراکنشی برای این ماه یافت نشد.</div>
-    <?php else: ?>
-        <div class="alert alert-info text-center">لطفاً یک ماه کاری انتخاب کنید.</div>
-    <?php endif; ?>
-</div>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label for="work_month_id" class="form-label">ماه کاری</label>
+                <select name="work_month_id" id="work_month_id" class="form-select" onchange="this.form.submit()">
+                    <option value="" <?= !$work_month_id ? 'selected' : '' ?>>انتخاب ماه</option>
+                    <?php foreach ($work_months as $month): 
+                        $start_j = gregorian_to_jalali_full($month['start_date']);
+                        $end_j = gregorian_to_jalali_full($month['end_date']);
+                    ?>
+                        <option value="<?= $month['work_month_id'] ?>" <?= $work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
+                            <?= $start_j[2] . ' ' . jdate('F', strtotime($month['start_date'])) ?> تا
+                            <?= $end_j[2] . ' ' . jdate('F', strtotime($month['end_date'])) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </form>
+
+        <?php if ($work_month_id && !empty($transactions)): ?>
+            <div class="table-responsive">
+                <table id="inventoryTable" class="table table-light table-inventory table-hover">
+                    <thead>
+                        <tr>
+                            <th>تاریخ</th>
+                            <th>نام محصول</th>
+                            <th>تعداد</th>
+                            <th>وضعیت تخصیص</th>
+                            <th>موجودی قبل</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($transactions as $transaction): ?>
+                            <tr>
+                                <td><?= $transaction['date'] ?></td>
+                                <td><?= htmlspecialchars($transaction['product_name']) ?></td>
+                                <td><?= $transaction['quantity'] ?></td>
+                                <td><?= $transaction['status'] ?></td>
+                                <td><?= $transaction['previous_inventory'] ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php elseif ($work_month_id): ?>
+            <div class="alert alert-warning text-center">تراکنشی برای این ماه یافت نشد.</div>
+        <?php else: ?>
+            <div class="alert alert-info text-center">لطفاً یک ماه کاری انتخاب کنید.</div>
+        <?php endif; ?>
+    </div>
+    <script>
+        $(document).ready(function() {
+            $('#inventoryTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
+                },
+                "paging": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "lengthMenu": [10, 25, 50, 100]
+            });
+        });
+    </script>
 
 <?php require_once 'footer.php'; ?>
