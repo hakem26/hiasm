@@ -177,12 +177,19 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                     <span>مالی</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?php echo $current_page == 'seller-inventory-report.php' ? 'active' : ''; ?>"
+                                    href="inventory_report.php">
+                                    <i class="fas fa-warehouse"></i>
+                                    <span>تخصیص</span>
+                                </a>
+                            </li>
                         <?php endif; ?>
                         <!-- <li class="nav-item">
                             <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
                                 href="inventory_report.php">
                                 <i class="fas fa-warehouse"></i>
-                                <span>موجودی</span>
+                                <span>تخصیص</span>
                             </a>
                         </li> -->
                     </ul>
