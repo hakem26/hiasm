@@ -640,9 +640,8 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             if (e.target.id === 'discount') {
                 const discount = e.target.value || 0;
                 const data = {
-                    action: 'update_edit_discount',
-                    discount,
-                    order_id: '<?= $order_id ?>'
+                    action: 'update_discount',
+                    discount
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
