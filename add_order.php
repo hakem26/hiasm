@@ -636,17 +636,21 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             }
         });
 
-        document.getElementById('items_table').addEventListener('change', async (e) => {
+        document.getElementById('items_table').addEventListener('input', async (e) => {
             if (e.target.id === 'discount') {
                 const discount = e.target.value || 0;
                 const data = {
-                    action: 'update_discount',
-                    discount
+                    action: 'update_edit_discount',
+                    discount,
+                    order_id: '<?= $order_id ?>'
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
-                    renderItemsTable(response.data);
+                    document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
                 } else {
                     alert(response.message);
                 }
