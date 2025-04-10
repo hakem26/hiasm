@@ -196,16 +196,25 @@ if ($work_month_id) {
                     data: { query: request.term },
                     dataType: "html",
                     success: function (data) {
+                        console.log("Raw response:", data); // برای دیباگ
                         var suggestions = [];
                         $(data).each(function () {
-                            var product = JSON.parse($(this).attr('data-product'));
-                            suggestions.push({
-                                label: product.product_name,
-                                value: product.product_name,
-                                id: product.product_id
-                            });
+                            try {
+                                var product = JSON.parse($(this).attr('data-product'));
+                                suggestions.push({
+                                    label: product.product_name,
+                                    value: product.product_name,
+                                    id: product.product_id
+                                });
+                            } catch (e) {
+                                console.error("Error parsing product:", e);
+                            }
                         });
+                        console.log("Suggestions:", suggestions); // برای دیباگ
                         response(suggestions);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("AJAX error:", status, error);
                     }
                 });
             },
@@ -213,6 +222,7 @@ if ($work_month_id) {
             select: function (event, ui) {
                 $("#product_id").val(ui.item.id);
                 $("#filter_product").prop("disabled", false);
+                console.log("Selected product ID:", ui.item.id); // برای دیباگ
             }
         });
 

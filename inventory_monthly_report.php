@@ -15,8 +15,9 @@ $start_date = $month['start_date'];
 $end_date = $month['end_date'];
 
 $query = "
-    SELECT p.product_name,
-           SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as requested,
+    SELECT it.product_id, p.product_name,
+           GROUP_CONCAT(CASE WHEN it.quantity > 0 THEN it.quantity END SEPARATOR '-') as requested,
+           SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as total_requested,
            SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned
     FROM Inventory_Transactions it
     JOIN Products p ON it.product_id = p.product_id
@@ -27,7 +28,7 @@ if ($product_id) {
     $query .= " AND it.product_id = ?";
     $params[] = $product_id;
 }
-$query .= " GROUP BY p.product_name";
+$query .= " GROUP BY it.product_id, p.product_name ORDER BY it.product_id ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -76,7 +77,7 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
     <?php
-    $rows_per_page = 17;
+    $rows_per_page = 32; // تغییر از 17 به 32
     $row_count = 0;
     foreach ($report as $index => $item):
         if ($row_count % $rows_per_page == 0):
@@ -99,10 +100,10 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <tr>
                     <td><?= $index + 1 ?></td>
                     <td><?= htmlspecialchars($item['product_name']) ?></td>
-                    <td><?= $item['requested'] ? $item['requested'] : '-' ?></td>
-                    <td><?= $item['requested'] ?></td>
+                    <td><?= $item['requested'] ?: '-' ?></td> <!-- نمایش 2-1-4 -->
+                    <td><?= $item['total_requested'] ?></td>
                     <td><?= $item['returned'] ? $item['returned'] : '-' ?></td>
-                    <td><?= $item['requested'] - ($item['returned'] ?: 0) ?></td>
+                    <td><?= $item['total_requested'] - ($item['returned'] ?: 0) ?></td>
                 </tr>
                 <?php
                 $row_count++;

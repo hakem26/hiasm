@@ -83,7 +83,7 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
     <?php
-    $rows_per_page = 17;
+    $rows_per_page = 32;
     $row_count = 0;
     foreach ($report as $index => $item):
         if ($row_count % $rows_per_page == 0):
