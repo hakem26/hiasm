@@ -28,7 +28,7 @@ if ($product_id) {
     $query .= " AND it.product_id = ?";
     $params[] = $product_id;
 }
-$query .= " GROUP BY it.product_id, p.product_name ORDER BY it.product_id ASC";
+$query .= " GROUP BY it.product_id, p.product_name ORDER BY it.product_name ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -41,14 +41,86 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <title>گزارش ماهانه</title>
     <style>
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Thin.woff2') format('woff2');
+            font-weight: 100;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
+            font-weight: 200;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: Vazirmatn RD FD NL;
+            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
         @page {
             size: A4 portrait;
-            margin: 20mm;
+            margin: 10mm;
         }
 
         body {
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
+            font-family: 'Vazirmatn RD FD NL';
+            font-size: 12px;
         }
 
         table {
