@@ -28,7 +28,7 @@ if ($product_id) {
     $query .= " AND it.product_id = ?";
     $params[] = $product_id;
 }
-$query .= " GROUP BY it.product_id, p.product_name ORDER BY it.product_name ASC";
+$query .= " GROUP BY it.product_id, p.product_name ORDER BY p.product_name ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
