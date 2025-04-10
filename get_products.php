@@ -121,14 +121,17 @@ if ($work_details_id) {
 
     if ($work_date) {
         $stmt = $pdo->prepare("
-            SELECT p.product_id, p.product_name, COALESCE(
-                (SELECT unit_price 
-                 FROM Product_Price_History h 
-                 WHERE h.product_id = p.product_id 
-                 AND h.start_date <= ? 
-                 AND (h.end_date IS NULL OR h.end_date >= ?) 
-                 ORDER BY h.start_date DESC LIMIT 1), p.unit_price
-            ) AS unit_price
+            SELECT p.product_id, p.product_name, 
+                   COALESCE(
+                       (SELECT h.unit_price 
+                        FROM Product_Price_History h 
+                        WHERE h.product_id = p.product_id 
+                        AND h.start_date <= ? 
+                        AND (h.end_date IS NULL OR h.end_date >= ?) 
+                        ORDER BY h.start_date DESC 
+                        LIMIT 1),
+                       p.unit_price
+                   ) AS unit_price
             FROM Products p 
             WHERE p.product_name LIKE ? 
             LIMIT 10
@@ -138,12 +141,43 @@ if ($work_details_id) {
         error_log("Debug: Products fetched with work_date = $work_date, count = " . count($products));
     } else {
         error_log("Debug: No work_date found for work_details_id = $work_details_id");
+        // اگه تاریخ کار پیدا نشد، آخرین قیمت رو بگیریم
+        $stmt = $pdo->prepare("
+            SELECT p.product_id, p.product_name, 
+                   COALESCE(
+                       (SELECT h.unit_price 
+                        FROM Product_Price_History h 
+                        WHERE h.product_id = p.product_id 
+                        ORDER BY h.start_date DESC 
+                        LIMIT 1),
+                       p.unit_price
+                   ) AS unit_price
+            FROM Products p 
+            WHERE p.product_name LIKE ? 
+            LIMIT 10
+        ");
+        $stmt->execute(['%' . $query . '%']);
+        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 } else {
-    $stmt = $pdo->prepare("SELECT product_id, product_name, unit_price FROM Products WHERE product_name LIKE ? LIMIT 10");
+    // اگه work_details_id نباشه، آخرین قیمت از تاریخچه
+    $stmt = $pdo->prepare("
+        SELECT p.product_id, p.product_name, 
+               COALESCE(
+                   (SELECT h.unit_price 
+                    FROM Product_Price_History h 
+                    WHERE h.product_id = p.product_id 
+                    ORDER BY h.start_date DESC 
+                    LIMIT 1),
+                   p.unit_price
+               ) AS unit_price
+        FROM Products p 
+        WHERE p.product_name LIKE ? 
+        LIMIT 10
+    ");
     $stmt->execute(['%' . $query . '%']);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    error_log("Debug: No work_details_id, using base prices, count = " . count($products));
+    error_log("Debug: No work_details_id, using latest prices, count = " . count($products));
 }
 
 foreach ($products as $product) {

@@ -10,8 +10,10 @@ require_once 'jdf.php';
 echo "<!-- دیباگ: بعد از لود header -->";
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_format($gregorian_date) {
-    if (!$gregorian_date) return "نامشخص";
+function gregorian_to_jalali_format($gregorian_date)
+{
+    if (!$gregorian_date)
+        return "نامشخص";
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
@@ -23,7 +25,7 @@ if (!$is_admin) {
     exit;
 }
 
-$product_id = isset($_GET['product_id']) && is_numeric($_GET['product_id']) ? (int)$_GET['product_id'] : null;
+$product_id = isset($_GET['product_id']) && is_numeric($_GET['product_id']) ? (int) $_GET['product_id'] : null;
 if (!$product_id) {
     die("شناسه محصول نامعتبر است!");
 }
@@ -68,7 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
     $start_date = trim($_POST['start_date'] ?? '');
     $end_date = trim($_POST['end_date'] ?? '');
     $unit_price = trim($_POST['unit_price'] ?? '');
-
     // تبدیل تاریخ شمسی به میلادی برای تاریخ شروع
     if (!empty($start_date)) {
         list($jy, $jm, $jd) = explode('/', $start_date);
@@ -88,8 +89,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 
     if (!empty($unit_price) && is_numeric($unit_price) && $start_gregorian) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO Product_Price_History (product_id, start_date, end_date, unit_price) VALUES (?, ?, ?, ?)");
+            // غیرفعال کردن قیمت قبلی (ست کردن end_date)
+            $stmt_update = $pdo->prepare("
+            UPDATE Product_Price_History 
+            SET end_date = ? 
+            WHERE product_id = ? AND end_date IS NULL
+        ");
+            $stmt_update->execute([$start_gregorian, $product_id]);
+
+            // ثبت قیمت جدید
+            $stmt = $pdo->prepare("
+            INSERT INTO Product_Price_History (product_id, start_date, end_date, unit_price) 
+            VALUES (?, ?, ?, ?)
+        ");
             $stmt->execute([$product_id, $start_gregorian, $end_gregorian, $unit_price]);
+
             echo "<script>alert('قیمت با موفقیت اضافه شد!'); window.location.href='manage_price.php?product_id=$product_id';</script>";
         } catch (Exception $e) {
             echo "<script>alert('خطا در ثبت قیمت: " . $e->getMessage() . "');</script>";
@@ -136,7 +150,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                     <?php else: ?>
                         (تاکنون)
                     <?php endif; ?>
-                    : از <?= number_format($price['previous_price'], 0, '', ',') ?> به <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
+                    : از <?= number_format($price['previous_price'], 0, '', ',') ?> به
+                    <?= number_format($price['unit_price'], 0, '', ',') ?> تومان
                 </li>
             <?php endforeach; ?>
         </ul>
@@ -146,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
 <script>
     console.log('اسکریپت شروع شد...');
 
-    window.onload = function() {
+    window.onload = function () {
         console.log('صفحه کامل لود شد، شروع اجرای جاوااسکریپت...');
 
         // چک کردن لود شدن jQuery و Persian Datepicker
@@ -173,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                     digits: true
                 }
             },
-            onSelect: function(unix) {
+            onSelect: function (unix) {
                 var altValue = $(this.altField).val();
                 console.log('تاریخ شروع انتخاب شد: ' + altValue);
             }
@@ -192,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_price'])) {
                     digits: true
                 }
             },
-            onSelect: function(unix) {
+            onSelect: function (unix) {
                 var altValue = $(this.altField).val();
                 console.log('تاریخ پایان انتخاب شد: ' + altValue);
             }
