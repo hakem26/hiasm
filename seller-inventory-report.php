@@ -14,10 +14,11 @@ function gregorian_to_jalali_full($gregorian_date) {
     return gregorian_to_jalali($gy, $gm, $gd);
 }
 
-// تابع گرفتن فقط روز شمسی
-function gregorian_to_jalali_day($gregorian_date) {
-    list($jy, $jm, $jd) = gregorian_to_jalali_full($gregorian_date);
-    return $jd;
+// تابع تبدیل تاریخ میلادی به شمسی (تاریخ کامل بدون ساعت و دقیقه)
+function gregorian_to_jalali_full_date($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd); // مثلاً 1404/01/17
 }
 
 // محاسبه سال‌های شمسی (شروع از 21 مارچ)
@@ -83,7 +84,7 @@ if ($work_month_id) {
             $total_before = $stmt_before->fetchColumn() ?: 0;
 
             $transactions[] = [
-                'date' => gregorian_to_jalali_day($transaction['transaction_date']),
+                'date' => gregorian_to_jalali_full_date($transaction['transaction_date']), // این خط تغییر کرده
                 'product_name' => $transaction['product_name'],
                 'quantity' => abs($transaction['quantity']),
                 'status' => $transaction['quantity'] > 0 ? 'درخواست' : 'بازگشت',
