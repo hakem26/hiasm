@@ -248,18 +248,34 @@ if ($work_month_id) {
     });
 </script>
 <script>
-    $(document).ready(function () {
-        $('#inventoryTable').DataTable({
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
-            },
-            "paging": true,
-            "searching": false, // حذف جستجو
-            "ordering": true,
-            "info": true,
-            "lengthMenu": [10, 25, 50, 100]
-        });
+$(document).ready(function() {
+    $('#inventoryTable').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
+        },
+        "paging": true,
+        "searching": false,
+        "ordering": true,
+        "info": true,
+        "lengthMenu": [10, 25, 50, 100],
+        "columnDefs": [
+            {
+                "targets": 1, // ستون "نام محصول"
+                "type": "string",
+                "render": function(data, type, row) {
+                    return data; // فقط داده رو برگردون
+                },
+                "createdCell": function(td, cellData, rowData, row, col) {
+                    $(td).data("sort", cellData); // داده برای مرتب‌سازی
+                },
+                "orderDataType": "dom-text",
+                "sort": function(a, b) {
+                    return persianSort(a, b); // استفاده از تابع فارسی
+                }
+            }
+        ]
     });
+});
 </script>
 
 <?php require_once 'footer.php'; ?>

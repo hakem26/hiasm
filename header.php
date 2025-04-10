@@ -59,6 +59,23 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="assets/css/jquery.dataTables.min.css">
     <!-- قرار دادن کدهای style و کاستوم -->
     <link rel="stylesheet" href="style.css">
+    <script>
+        function persianSort(a, b) {
+            const persianAlphabet = 'آابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی';
+            const getCharIndex = char => {
+                const index = persianAlphabet.indexOf(char);
+                return index === -1 ? char.charCodeAt(0) : index;
+            };
+            a = a.trim();
+            b = b.trim();
+            for (let i = 0; i < Math.min(a.length, b.length); i++) {
+                const charA = getCharIndex(a[i]);
+                const charB = getCharIndex(b[i]);
+                if (charA !== charB) return charA - charB;
+            }
+            return a.length - b.length;
+        }
+    </script>
 </head>
 
 <body>
