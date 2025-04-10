@@ -126,7 +126,7 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         body {
             font-family: 'Vazirmatn RD FD NL';
-            font-size: 12px;
+            font-size: 13px;
         }
 
         table {

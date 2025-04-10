@@ -133,9 +133,9 @@ if ($work_month_id) {
         </div>
         <div class="col-auto">
             <label for="product_search" class="form-label">جستجوی محصول</label>
-            <input type="text" id="product_search" name="product_name" class="form-control"
-                placeholder="نام محصول را وارد کنید"
+            <input type="text" id="product_search" class="form-control" placeholder="حداقل ۳ حرف تایپ کنید"
                 value="<?= isset($_GET['product_name']) ? htmlspecialchars($_GET['product_name']) : '' ?>">
+            <select id="product_list" class="form-select" style="display: none;" size="5"></select>
             <input type="hidden" id="product_id" name="product_id"
                 value="<?= isset($_GET['product_id']) ? $_GET['product_id'] : '' ?>">
         </div>
@@ -188,42 +188,57 @@ if ($work_month_id) {
 </div>
 <script>
     $(document).ready(function () {
-        $("#product_search").autocomplete({
-            source: function (request, response) {
+        var timeout;
+        $("#product_search").on("input", function () {
+            clearTimeout(timeout);
+            var query = $(this).val().trim();
+            var $productList = $("#product_list");
+            var $filterButton = $("#filter_product");
+
+            if (query.length < 3) {
+                $productList.hide().empty();
+                $("#product_id").val("");
+                $filterButton.prop("disabled", true);
+                return;
+            }
+
+            timeout = setTimeout(function () {
                 $.ajax({
                     url: "get_products.php",
                     method: "POST",
-                    data: { query: request.term },
+                    data: { query: query },
                     dataType: "html",
                     success: function (data) {
-                        console.log("Raw response:", data); // برای دیباگ
-                        var suggestions = [];
-                        $(data).each(function () {
-                            try {
-                                var product = JSON.parse($(this).attr('data-product'));
-                                suggestions.push({
-                                    label: product.product_name,
-                                    value: product.product_name,
-                                    id: product.product_id
-                                });
-                            } catch (e) {
-                                console.error("Error parsing product:", e);
-                            }
-                        });
-                        console.log("Suggestions:", suggestions); // برای دیباگ
-                        response(suggestions);
+                        $productList.empty();
+                        if (data) {
+                            $(data).each(function () {
+                                var product = JSON.parse($(this).attr("data-product"));
+                                $productList.append(
+                                    $("<option>", {
+                                        value: product.product_id,
+                                        text: product.product_name
+                                    })
+                                );
+                            });
+                            $productList.show();
+                        } else {
+                            $productList.hide();
+                        }
                     },
                     error: function (xhr, status, error) {
                         console.error("AJAX error:", status, error);
                     }
                 });
-            },
-            minLength: 2,
-            select: function (event, ui) {
-                $("#product_id").val(ui.item.id);
-                $("#filter_product").prop("disabled", false);
-                console.log("Selected product ID:", ui.item.id); // برای دیباگ
-            }
+            }, 300); // 300ms تأخیر برای جلوگیری از درخواست‌های زیاد
+        });
+
+        $("#product_list").on("change", function () {
+            var selectedId = $(this).val();
+            var selectedName = $(this).find("option:selected").text();
+            $("#product_id").val(selectedId);
+            $("#product_search").val(selectedName);
+            $("#product_list").hide();
+            $("#filter_product").prop("disabled", false);
         });
 
         // غیرفعال کردن دکمه اگر محصول انتخاب نشده
