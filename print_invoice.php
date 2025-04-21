@@ -41,17 +41,16 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
 // دریافت قیمت‌های فاکتور و پست از جدول Invoice_Prices
 $invoice_prices = [];
+$postal_enabled = false;
+$postal_price = 0;
 $stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ? ORDER BY id DESC");
 $stmt_invoice->execute([$order_id]);
 $invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
-$postal_enabled = false;
-$postal_price = 0;
 foreach ($invoice_data as $row) {
-    if ($row['is_postal']) {
+    if ($row['is_postal'] && $row['postal_price'] > 0) {
         $postal_enabled = true;
         $postal_price = $row['postal_price'];
-    } else {
-        // فقط اولین (آخرین به دلیل ORDER BY id DESC) مقدار برای هر item_index رو نگه می‌داریم
+    } elseif (!$row['is_postal']) {
         if (!isset($invoice_prices[$row['item_index']])) {
             $invoice_prices[$row['item_index']] = $row['invoice_price'];
         }

@@ -193,7 +193,7 @@ switch ($action) {
         }
 
         $total_amount = array_sum(array_column($items, 'total_price'));
-        $postal_price = $_SESSION['postal_enabled'] && isset($_SESSION['invoice_prices']['postal']) ? (float) $_SESSION['invoice_prices']['postal'] : 0;
+        $postal_price = $_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0;
         $final_amount = $total_amount - $discount + $postal_price;
 
         $pdo->beginTransaction();
@@ -230,7 +230,7 @@ switch ($action) {
 
                 $new_quantity = $current_quantity - $item['quantity'];
                 $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                               ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
+                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                 $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity]);
             }
 
@@ -241,9 +241,9 @@ switch ($action) {
                         VALUES (?, ?, ?, ?, ?)
                     ");
                 foreach ($invoice_prices as $index => $price) {
-                    if ($index === 'postal') {
+                    if ($index === 'postal' && $_SESSION['postal_enabled']) {
                         $stmt_invoice->execute([$order_id, -1, 0, TRUE, $price]);
-                    } else {
+                    } elseif ($index !== 'postal') {
                         $stmt_invoice->execute([$order_id, $index, $price, FALSE, 0]);
                     }
                 }
@@ -472,21 +472,22 @@ switch ($action) {
     case 'set_postal_option':
         $order_id = $_POST['order_id'] ?? '';
         $enable_postal = filter_var($_POST['enable_postal'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $postal_price = $_SESSION['postal_price'] ?? 50000; // مقدار پیش‌فرض یا مقدار قبلی
+        $postal_price = $_SESSION['postal_price'] ?? 50000;
 
         if ($order_id) { // برای edit_order.php
             if ($enable_postal) {
                 $stmt = $pdo->prepare("
-                            INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                            VALUES (?, -1, 0, TRUE, ?)
-                            ON DUPLICATE KEY UPDATE postal_price = ?
-                        ");
+                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                        VALUES (?, -1, 0, TRUE, ?)
+                        ON DUPLICATE KEY UPDATE postal_price = ?
+                    ");
                 $stmt->execute([$order_id, $postal_price, $postal_price]);
                 $_SESSION['invoice_prices']['postal'] = $postal_price;
             } else {
                 $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
                 $stmt->execute([$order_id]);
                 unset($_SESSION['invoice_prices']['postal']);
+                $_SESSION['postal_price'] = 0;
             }
             $items = $_SESSION['edit_order_items'] ?? [];
             $total_amount = array_sum(array_column($items, 'total_price'));
@@ -513,7 +514,7 @@ switch ($action) {
             'discount' => $discount,
             'final_amount' => $final_amount,
             'postal_enabled' => $enable_postal,
-            'postal_price' => $postal_price
+            'postal_price' => $enable_postal ? $postal_price : 0
         ]);
         break;
 
