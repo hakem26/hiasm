@@ -48,15 +48,13 @@ switch ($action) {
             respond(false, 'این محصول قبلاً در فاکتور ثبت شده است. برای ویرایش از دکمه ویرایش استفاده کنید.');
         }
 
+        // حذف چک موجودی یا اجازه دادن به موجودی منفی
         $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
         $stmt_inventory->execute([$partner1_id, $product_id]);
         $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
         $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
-        if ($current_quantity < $quantity) {
-            respond(false, "موجودی کافی برای محصول '{$product['product_name']}' نیست. موجودی: $current_quantity، درخواست: $quantity");
-        }
-
+        // بدون چک موجودی، مستقیم اضافه می‌کنیم
         $adjusted_price = $unit_price + $extra_sale;
         $items[] = [
             'product_id' => $product_id,
@@ -219,19 +217,20 @@ switch ($action) {
                     $item['total_price']
                 ]);
 
+                // آپدیت موجودی (اجازه دادن به منفی)
                 $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                 $stmt_inventory->execute([$partner1_id, $item['product_id']]);
                 $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
                 $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                if ($current_quantity < $item['quantity']) {
-                    throw new Exception("موجودی کافی برای محصول '{$item['product_name']}' نیست. موجودی: $current_quantity");
-                }
-
                 $new_quantity = $current_quantity - $item['quantity'];
-                $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
-                                                   ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
-                $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity]);
+
+                $stmt_update = $pdo->prepare("
+                        INSERT INTO Inventory (user_id, product_id, quantity)
+                        VALUES (?, ?, ?)
+                        ON DUPLICATE KEY UPDATE quantity = ?
+                    ");
+                $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity, $new_quantity]);
             }
 
             $invoice_prices = $_SESSION['invoice_prices'] ?? [];
@@ -693,4 +692,3 @@ switch ($action) {
     default:
         respond(false, 'Action not recognized.');
 }
-?>
