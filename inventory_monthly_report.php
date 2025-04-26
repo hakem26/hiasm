@@ -5,8 +5,9 @@ require_once 'jdf.php';
 
 $work_month_id = $_GET['work_month_id'] ?? null;
 $product_id = $_GET['product_id'] ?? null;
-if (!$work_month_id)
+if (!$work_month_id) {
     exit;
+}
 
 $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
 $month_query->execute([$work_month_id]);
@@ -14,16 +15,20 @@ $month = $month_query->fetch(PDO::FETCH_ASSOC);
 $start_date = $month['start_date'];
 $end_date = $month['end_date'];
 
+// گرفتن موجودی اولیه (ماه قبل) و تخصیص‌ها
 $query = "
-    SELECT it.product_id, p.product_name,
-           GROUP_CONCAT(CASE WHEN it.quantity > 0 THEN it.quantity END SEPARATOR '-') as requested,
-           SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as total_requested,
-           SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned
+    SELECT 
+        it.product_id,
+        p.product_name,
+        GROUP_CONCAT(CASE WHEN it.quantity > 0 THEN it.quantity END ORDER BY it.transaction_date SEPARATOR '-') as requested,
+        SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as total_requested,
+        SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned,
+        (SELECT SUM(quantity) FROM Inventory_Transactions WHERE user_id = it.user_id AND product_id = it.product_id AND transaction_date < ?) as initial_inventory
     FROM Inventory_Transactions it
     JOIN Products p ON it.product_id = p.product_id
     WHERE it.transaction_date >= ? AND it.transaction_date <= ? AND it.user_id = ?
 ";
-$params = [$start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
+$params = [$start_date, $start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
 if ($product_id) {
     $query .= " AND it.product_id = ?";
     $params[] = $product_id;
@@ -31,7 +36,71 @@ if ($product_id) {
 $query .= " GROUP BY it.product_id, p.product_name ORDER BY p.product_name ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
-$report = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// گرفتن تعداد فروش‌ها از فاکتورها
+$sales_query = "
+    SELECT 
+        oi.product_name,
+        SUM(oi.quantity) as total_sold
+    FROM Order_Items oi
+    JOIN Orders o ON oi.order_id = o.order_id
+    JOIN Work_Details wd ON o.work_details_id = wd.id
+    WHERE wd.work_date >= ? AND wd.work_date <= ? 
+    AND EXISTS (
+        SELECT 1 FROM Partners p 
+        WHERE p.partner_id = wd.partner_id 
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
+    )
+";
+$sales_params = [$start_date, $end_date, $_SESSION['user_id'], $_SESSION['user_id']];
+if ($product_id) {
+    $sales_query .= " AND EXISTS (SELECT 1 FROM Products p WHERE p.product_name = oi.product_name AND p.product_id = ?)";
+    $sales_params[] = $product_id;
+}
+$sales_query .= " GROUP BY oi.product_name";
+$stmt_sales = $pdo->prepare($sales_query);
+$stmt_sales->execute($sales_params);
+$sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
+
+// ترکیب داده‌ها
+$report = [];
+foreach ($inventory_data as $item) {
+    $initial_inventory = $item['initial_inventory'] ? (int)$item['initial_inventory'] : 0;
+    $total_requested = $item['total_requested'] ? (int)$item['total_requested'] : 0;
+    $returned = $item['returned'] ? (int)$item['returned'] : 0;
+
+    // پیدا کردن فروش برای این محصول
+    $total_sold = 0;
+    foreach ($sales_data as $sale) {
+        if ($sale['product_name'] === $item['product_name']) {
+            $total_sold = (int)$sale['total_sold'];
+            break;
+        }
+    }
+
+    // محاسبه موجودی فعلی (برگشت از فروش)
+    $current_inventory = $initial_inventory + $total_requested - $total_sold;
+
+    // اصلاح رشته تخصیص‌ها با اضافه کردن موجودی اولیه
+    $requested_display = $item['requested'] ? $item['requested'] : '';
+    if ($initial_inventory > 0) {
+        $requested_display = $initial_inventory . ($requested_display ? '+' . $requested_display : '');
+    } elseif ($initial_inventory < 0) {
+        $requested_display = $initial_inventory . ($requested_display ? '+' . $requested_display : '');
+    } elseif ($requested_display === '') {
+        $requested_display = '-';
+    }
+
+    $report[] = [
+        'product_name' => $item['product_name'],
+        'requested' => $requested_display,
+        'total_requested' => $total_requested + $initial_inventory,
+        'returned' => $returned,
+        'current_inventory' => $current_inventory,
+        'total_sold' => $total_sold
+    ];
+}
 ?>
 
 <!DOCTYPE html>
@@ -149,7 +218,7 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
     <?php
-    $rows_per_page = 32; // تغییر از 17 به 32
+    $rows_per_page = 32;
     $row_count = 0;
     foreach ($report as $index => $item):
         if ($row_count % $rows_per_page == 0):
@@ -163,8 +232,9 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <th>نام کالا</th>
                         <th>تعداد اجناس برده شده طی یک ماه</th>
                         <th>جمع</th>
-                        <th>تعداد برگشتی</th>
-                        <th>تعداد نهایی</th>
+                        <th>بازگشت به شرکت</th>
+                        <th>برگشت از فروش</th>
+                        <th>تعداد فروش نهایی</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -172,10 +242,11 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <tr>
                     <td><?= $index + 1 ?></td>
                     <td><?= htmlspecialchars($item['product_name']) ?></td>
-                    <td><?= $item['requested'] ?: '-' ?></td> <!-- نمایش 2-1-4 -->
+                    <td><?= $item['requested'] ?></td>
                     <td><?= $item['total_requested'] ?></td>
-                    <td><?= $item['returned'] ? $item['returned'] : '-' ?></td>
-                    <td><?= $item['total_requested'] - ($item['returned'] ?: 0) ?></td>
+                    <td><?= $item['returned'] ?: '-' ?></td>
+                    <td><?= $item['current_inventory'] >= 0 ? $item['current_inventory'] : 0 ?></td>
+                    <td><?= $item['total_sold'] ?></td>
                 </tr>
                 <?php
                 $row_count++;
