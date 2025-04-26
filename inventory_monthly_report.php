@@ -15,25 +15,33 @@ $month = $month_query->fetch(PDO::FETCH_ASSOC);
 $start_date = $month['start_date'];
 $end_date = $month['end_date'];
 
-// گرفتن موجودی اولیه (ماه قبل) و تخصیص‌ها
+// گرفتن همه محصولات و تراکنش‌ها
 $query = "
     SELECT 
-        it.product_id,
+        p.product_id,
         p.product_name,
-        GROUP_CONCAT(CASE WHEN it.quantity > 0 THEN it.quantity END ORDER BY it.transaction_date SEPARATOR '-') as requested,
+        GROUP_CONCAT(
+            CASE 
+                WHEN it.quantity > 0 THEN it.quantity 
+                WHEN it.quantity < 0 THEN CONCAT('(', it.quantity, ')')
+            END 
+            ORDER BY it.transaction_date DESC SEPARATOR '+'
+        ) as requested,
         SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as total_requested,
         SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned,
-        (SELECT SUM(quantity) FROM Inventory_Transactions WHERE user_id = it.user_id AND product_id = it.product_id AND transaction_date < ?) as initial_inventory
-    FROM Inventory_Transactions it
-    JOIN Products p ON it.product_id = p.product_id
-    WHERE it.transaction_date >= ? AND it.transaction_date <= ? AND it.user_id = ?
+        (SELECT SUM(quantity) FROM Inventory_Transactions WHERE user_id = ? AND product_id = p.product_id AND transaction_date < ?) as initial_inventory
+    FROM Products p
+    LEFT JOIN Inventory_Transactions it ON p.product_id = it.product_id 
+        AND it.transaction_date >= ? 
+        AND it.transaction_date <= ? 
+        AND it.user_id = ?
 ";
-$params = [$start_date, $start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
+$params = [$_SESSION['user_id'], $start_date, $start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
 if ($product_id) {
-    $query .= " AND it.product_id = ?";
+    $query .= " WHERE p.product_id = ?";
     $params[] = $product_id;
 }
-$query .= " GROUP BY it.product_id, p.product_name ORDER BY p.product_name ASC";
+$query .= " GROUP BY p.product_id, p.product_name ORDER BY p.product_name ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -84,10 +92,9 @@ foreach ($inventory_data as $item) {
 
     // اصلاح رشته تخصیص‌ها با اضافه کردن موجودی اولیه
     $requested_display = $item['requested'] ? $item['requested'] : '';
-    if ($initial_inventory > 0) {
-        $requested_display = $initial_inventory . ($requested_display ? '+' . $requested_display : '');
-    } elseif ($initial_inventory < 0) {
-        $requested_display = $initial_inventory . ($requested_display ? '+' . $requested_display : '');
+    if ($initial_inventory != 0) {
+        $initial_display = $initial_inventory < 0 ? "($initial_inventory)" : $initial_inventory;
+        $requested_display = $requested_display ? $requested_display . "+<u>$initial_display</u>" : "<u>$initial_display</u>";
     } elseif ($requested_display === '') {
         $requested_display = '-';
     }
@@ -213,6 +220,12 @@ foreach ($inventory_data as $item) {
         thead {
             display: table-header-group;
         }
+
+        /* برای راست‌چین کردن متن در ستون تخصیص‌ها */
+        .requested-column {
+            direction: rtl;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -242,7 +255,7 @@ foreach ($inventory_data as $item) {
                 <tr>
                     <td><?= $index + 1 ?></td>
                     <td><?= htmlspecialchars($item['product_name']) ?></td>
-                    <td><?= $item['requested'] ?></td>
+                    <td class="requested-column"><?= $item['requested'] ?></td>
                     <td><?= $item['total_requested'] ?></td>
                     <td><?= $item['returned'] ?: '-' ?></td>
                     <td><?= $item['current_inventory'] >= 0 ? $item['current_inventory'] : 0 ?></td>
