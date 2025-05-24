@@ -47,7 +47,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 $invoice_prices = [];
 $postal_enabled = false;
 $postal_price = 0;
-$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ? ORDER BY id DESC tabernacle WHERE order_id = ? ORDER BY id DESC");
+$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ? ORDER BY id DESC");
 $stmt_invoice->execute([$order_id]);
 $invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
 foreach ($invoice_data as $row) {
