@@ -74,6 +74,7 @@ $pages = array_chunk($items, $items_per_page);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاکتور فروش</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @font-face {
             font-family: Vazirmatn RD FD NL;
@@ -228,9 +229,33 @@ $pages = array_chunk($items, $items_per_page);
             text-align: center;
         }
 
+        /* استایل دکمه ذخیره PNG */
+        .save-png-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Vazirmatn RD FD NL";
+            font-size: 12pt;
+            z-index: 1000;
+        }
+
+        .save-png-btn:hover {
+            background-color: #218838;
+        }
+
         @media print {
             .invoice-container {
                 border: none;
+            }
+
+            .save-png-btn {
+                display: none;
             }
 
             @page {
@@ -247,8 +272,10 @@ $pages = array_chunk($items, $items_per_page);
 </head>
 
 <body>
+    <button class="save-png-btn" onclick="saveInvoiceAsPNG()">ذخیره به‌صورت PNG</button>
+
     <?php for ($page = 0; $page < $total_pages; $page++): ?>
-        <div class="invoice-container">
+        <div class="invoice-container" id="invoice-page-<?= $page + 1 ?>">
             <div class="invoice-header">
                 <h3>فاکتور فروش</h3>
                 <div class="page-number">صفحه <?= ($page + 1) ?> از <?= $total_pages ?></div>
@@ -321,11 +348,36 @@ $pages = array_chunk($items, $items_per_page);
         </div>
     <?php endfor; ?>
 
-    <!-- <script>
-        window.onload = function () {
-            window.print();
-        };
-    </script> -->
+    <script>
+        // اطمینان از لود کامل فونت‌ها قبل از رندر
+        document.fonts.ready.then(function () {
+            // تابع ذخیره فاکتور به‌صورت PNG
+            function saveInvoiceAsPNG() {
+                const totalPages = <?= $total_pages ?>;
+                const orderId = <?= $order_id ?>;
+
+                for (let page = 1; page <= totalPages; page++) {
+                    const invoiceContainer = document.getElementById(`invoice-page-${page}`);
+                    html2canvas(invoiceContainer, {
+                        scale: 2, // برای کیفیت بالاتر
+                        useCORS: true,
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        const link = document.createElement('a');
+                        link.href = canvas.toDataURL('image/png');
+                        link.download = `فاکتور_شماره_${orderId}_صفحه_${page}.png`;
+                        link.click();
+                    }).catch(error => {
+                        console.error('Error saving PNG:', error);
+                        alert('خطا در ذخیره تصویر فاکتور. لطفاً دوباره تلاش کنید.');
+                    });
+                }
+            }
+
+            // همچنان پرینت خودکار اجرا می‌شه
+            // window.print();
+        });
+    </script>
 </body>
 
 </html>
