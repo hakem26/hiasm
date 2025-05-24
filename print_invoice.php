@@ -74,6 +74,7 @@ $pages = array_chunk($items, $items_per_page);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاکتور فروش</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @font-face {
@@ -349,32 +350,50 @@ $pages = array_chunk($items, $items_per_page);
     <?php endfor; ?>
 
     <script>
-        // اطمینان از لود کامل فونت‌ها قبل از رندر
-        document.fonts.ready.then(function () {
-            // تابع ذخیره فاکتور به‌صورت PNG
-            function saveInvoiceAsPNG() {
-                const totalPages = <?= $total_pages ?>;
-                const orderId = <?= $order_id ?>;
+        console.log('Script loaded'); // برای دیباگ
 
-                for (let page = 1; page <= totalPages; page++) {
-                    const invoiceContainer = document.getElementById(`invoice-page-${page}`);
-                    html2canvas(invoiceContainer, {
-                        scale: 2, // برای کیفیت بالاتر
-                        useCORS: true,
-                        backgroundColor: '#ffffff'
-                    }).then(canvas => {
-                        const link = document.createElement('a');
-                        link.href = canvas.toDataURL('image/png');
-                        link.download = `فاکتور_شماره_${orderId}_صفحه_${page}.png`;
-                        link.click();
-                    }).catch(error => {
-                        console.error('Error saving PNG:', error);
-                        alert('خطا در ذخیره تصویر فاکتور. لطفاً دوباره تلاش کنید.');
-                    });
-                }
+        // تعریف تابع به‌صورت جهانی
+        function saveInvoiceAsPNG() {
+            if (typeof html2canvas === 'undefined') {
+                console.error('html2canvas is not loaded');
+                alert('خطا: کتابخانه html2canvas لود نشده است. لطفاً اتصال اینترنت را بررسی کنید.');
+                return;
             }
 
-            // همچنان پرینت خودکار اجرا می‌شه
+            const totalPages = <?= $total_pages ?>;
+            const orderId = <?= $order_id ?>;
+
+            for (let page = 1; page <= totalPages; page++) {
+                const invoiceContainer = document.getElementById(`invoice-page-${page}`);
+                if (!invoiceContainer) {
+                    console.error(`Invoice container for page ${page} not found`);
+                    continue;
+                }
+
+                html2canvas(invoiceContainer, {
+                    scale: 2, // برای کیفیت بالاتر
+                    useCORS: true,
+                    backgroundColor: '#ffffff'
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = `فاکتور_شماره_${orderId}_صفحه_${page}.png`;
+                    link.click();
+                }).catch(error => {
+                    console.error('Error saving PNG:', error);
+                    alert('خطا در ذخیره تصویر فاکتور. لطفاً دوباره تلاش کنید.');
+                });
+            }
+        }
+
+        // اطمینان از لود فونت‌ها
+        document.fonts.ready.then(function () {
+            console.log('Fonts loaded');
+            // پرینت خودکار
+            // window.print();
+        }).catch(error => {
+            console.error('Error loading fonts:', error);
+            // حتی اگه فونت‌ها لود نشن، پرینت اجرا بشه
             // window.print();
         });
     </script>
