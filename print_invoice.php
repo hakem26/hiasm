@@ -321,11 +321,11 @@ $pages = array_chunk($items, $items_per_page);
         </div>
     <?php endfor; ?>
 
-    <script>
+    <!-- <script>
         window.onload = function () {
             window.print();
         };
-    </script>
+    </script> -->
 </body>
 
 </html>
