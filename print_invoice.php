@@ -12,7 +12,9 @@ function gregorian_to_jalali_format($gregorian_date)
 
 $order_id = isset($_GET['order_id']) ? (int) $_GET['order_id'] : 0;
 if ($order_id <= 0) {
-    echo "فاکتور نامعتبر است.";
+    error_log("Invalid order_id attempted: $order_id");
+    header('HTTP/1.1 400 Bad Request');
+    echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>فاکتور نامعتبر است. لطفاً شماره فاکتور معتبر وارد کنید.</div>";
     exit;
 }
 
@@ -31,7 +33,9 @@ $stmt->execute([$order_id]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$order) {
-    echo "فاکتور یافت نشد.";
+    error_log("Order not found for order_id: $order_id");
+    header('HTTP/1.1 404 Not Found');
+    echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>فاکتور یافت نشد. لطفاً با پشتیبانی تماس بگیرید.</div>";
     exit;
 }
 
@@ -43,7 +47,7 @@ $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 $invoice_prices = [];
 $postal_enabled = false;
 $postal_price = 0;
-$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ? ORDER BY id DESC");
+$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ? ORDER BY id DESC tabernacle WHERE order_id = ? ORDER BY id DESC");
 $stmt_invoice->execute([$order_id]);
 $invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
 foreach ($invoice_data as $row) {
@@ -59,11 +63,6 @@ foreach ($invoice_data as $row) {
 
 $items_per_page = 14;
 $total_items = count($items) + ($postal_enabled ? 1 : 0);
-$total_pages = ceil($total_items / $items_per_page);
-$pages = array_chunk($items, $items_per_page);
-
-$items_per_page = 14;
-$total_items = count($items) + ($postal_enabled ? 1 : 0); // اضافه کردن ردیف پست به تعداد کل
 $total_pages = ceil($total_items / $items_per_page);
 $pages = array_chunk($items, $items_per_page);
 ?>
@@ -274,19 +273,21 @@ $pages = array_chunk($items, $items_per_page);
                 <tbody>
                     <?php
                     $invoice_total = 0;
-                    foreach ($items as $index => $item):
-                        $item_invoice_price = $invoice_prices[$index] ?? $item['total_price'];
+                    $page_items = $pages[$page];
+                    foreach ($page_items as $index => $item):
+                        $global_index = $index + ($page * $items_per_page);
+                        $item_invoice_price = $invoice_prices[$global_index] ?? $item['total_price'];
                         $invoice_total += $item_invoice_price;
                         ?>
                         <tr>
-                            <td><?= $index + 1 ?></td>
+                            <td><?= $global_index + 1 ?></td>
                             <td><?= htmlspecialchars($item['product_name']) ?></td>
                             <td><?= number_format($item_invoice_price, 0) ?> تومان</td>
                             <td><?= $item['quantity'] ?></td>
                             <td><?= number_format($item_invoice_price, 0) ?> تومان</td>
                         </tr>
                     <?php endforeach; ?>
-                    <?php if ($postal_enabled): ?>
+                    <?php if ($postal_enabled && $page == $total_pages - 1): ?>
                         <tr>
                             <td><?= count($items) + 1 ?></td>
                             <td>ارسال پستی</td>
@@ -323,12 +324,6 @@ $pages = array_chunk($items, $items_per_page);
     <script>
         window.onload = function () {
             window.print();
-            // پاک کردن سشن قیمت‌های فاکتور (در صورت نیاز، اگر هنوز از سشن استفاده می‌کردیم)
-            fetch('ajax_handler.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=clear_invoice_prices'
-            });
         };
     </script>
 </body>
