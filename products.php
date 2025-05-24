@@ -100,10 +100,9 @@ if ($is_seller && $is_partner1 && $_SERVER['REQUEST_METHOD'] === 'POST' && isset
         ");
         $transaction_query->execute([$product_id, $user_id, $quantity]);
 
-        header("Location: products.php");
-        exit;
+        echo "<script>alert('درخواست شما با موفقیت ثبت و تخصیص داده شد!'); window.location.href='products.php';</script>";
     } catch (Exception $e) {
-        error_log('خطا در درخواست تخصیص: ' . $e->getMessage());
+        echo "<script>alert('خطا در درخواست تخصیص: " . $e->getMessage() . "');</script>";
     }
 }
 
