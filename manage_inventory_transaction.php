@@ -9,6 +9,9 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// لاگ داده‌های ارسالی
+file_put_contents('debug.log', date('Y-m-d H:i:s') . ' - POST: ' . print_r($_POST, true) . "\n", FILE_APPEND);
+
 $user_id = $_SESSION['user_id'];
 $action = $_POST['action'] ?? '';
 
@@ -18,10 +21,19 @@ try {
     if ($action === 'update') {
         $transaction_id = (int)($_POST['transaction_id'] ?? 0);
         $product_id = (int)($_POST['product_id'] ?? 0);
-        $new_quantity = (int)($_POST['new_quantity'] ?? 0);
+        $new_quantity = isset($_POST['new_quantity']) ? (int)$_POST['new_quantity'] : -1;
 
-        if ($transaction_id <= 0 || $product_id <= 0 || $new_quantity < 0) {
-            throw new Exception('داده‌های نامعتبر.');
+        // لاگ مقادیر
+        file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Update: transaction_id=$transaction_id, product_id=$product_id, new_quantity=$new_quantity\n", FILE_APPEND);
+
+        if ($transaction_id <= 0) {
+            throw new Exception('شناسه تراکنش نامعتبر است.');
+        }
+        if ($product_id <= 0) {
+            throw new Exception('شناسه محصول نامعتبر است.');
+        }
+        if ($new_quantity < 0) {
+            throw new Exception('مقدار تعداد جدید نامعتبر است.');
         }
 
         // چک کردن مالکیت تراکنش
@@ -79,8 +91,14 @@ try {
         $transaction_id = (int)($_POST['transaction_id'] ?? 0);
         $product_id = (int)($_POST['product_id'] ?? 0);
 
-        if ($transaction_id <= 0 || $product_id <= 0) {
-            throw new Exception('شناسه تراکنش یا محصول نامعتبر.');
+        // لاگ مقادیر
+        file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Delete: transaction_id=$transaction_id, product_id=$product_id\n", FILE_APPEND);
+
+        if ($transaction_id <= 0) {
+            throw new Exception('شناسه تراکنش نامعتبر است.');
+        }
+        if ($product_id <= 0) {
+            throw new Exception('شناسه محصول نامعتبر است.');
         }
 
         // چک کردن مالکیت تراکنش
@@ -133,6 +151,7 @@ try {
     throw new Exception('عملیات نامعتبر.');
 } catch (Exception $e) {
     $pdo->rollBack();
+    file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Error: " . $e->getMessage() . "\n", FILE_APPEND);
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
 ?>

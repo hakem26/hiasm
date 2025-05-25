@@ -334,6 +334,30 @@ $(document).ready(function () {
 
     // ثبت تعداد جدید
     $('#saveQuantityBtn').on('click', function () {
+        var transactionId = $('#transaction_id').val();
+        var productId = $('#product_id').val();
+        var newQuantity = $('#modal_new_quantity').val();
+
+        // لاگ داده‌ها در کنسول
+        console.log('Form Data:', {
+            transaction_id: transactionId,
+            product_id: productId,
+            new_quantity: newQuantity
+        });
+
+        if (!transactionId || transactionId <= 0) {
+            alert('شناسه تراکنش نامعتبر است.');
+            return;
+        }
+        if (!productId || productId <= 0) {
+            alert('شناسه محصول نامعتبر است.');
+            return;
+        }
+        if (newQuantity === '' || newQuantity < 0 || isNaN(newQuantity)) {
+            alert('لطفاً مقدار معتبر برای تعداد جدید وارد کنید.');
+            return;
+        }
+
         var formData = $('#editQuantityForm').serialize();
         $.ajax({
             url: 'manage_inventory_transaction.php',
@@ -343,7 +367,7 @@ $(document).ready(function () {
             success: function (response) {
                 if (response.success) {
                     alert('تعداد با موفقیت به‌روزرسانی شد.');
-                    location.reload(); // رفرش صفحه برای نمایش تغییرات
+                    location.reload();
                 } else {
                     alert('خطا: ' + response.message);
                 }
@@ -362,6 +386,13 @@ $(document).ready(function () {
         }
         var transactionId = $('#transaction_id').val();
         var productId = $('#product_id').val();
+
+        // لاگ داده‌ها در کنسول
+        console.log('Delete Data:', {
+            transaction_id: transactionId,
+            product_id: productId
+        });
+
         $.ajax({
             url: 'manage_inventory_transaction.php',
             method: 'POST',
