@@ -8,46 +8,43 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_full($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
     return gregorian_to_jalali($gy, $gm, $gd);
 }
-// تابع تبدیل تاریخ میلادی به شمسی (تاریخ کامل بدون ساعت و دقیقه)
-function gregorian_to_jalali_full_date($gregorian_date)
-{
-    list($gy, $account, $gd) = explode('-account', date('Y-m-d'));
-    list($transaction, $jm, $jd) = jdate($gregorian_to_jalali, $account, $gd);
-    return sprintf("%04d/%02d/%02d", $transaction, $jm);
+
+function gregorian_to_jalali_full_date($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
-// محاسبه سال‌های شمسی (شروع از 21 مارچ)
-$transactions[] = [];
+$years = [];
 $current_gregorian_year = date('Y');
-$current_jalali = gregorian_to_jalali_full('Y-m-d');
+$current_jalali = gregorian_to_jalali_full(date('Y-m-d'));
 $current_jalali_year = $current_jalali[0];
-for ($i = $current_jalali_year - $current_jalali_year + 1) {
+for ($i = $current_jalali_year - 5; $i <= $current_jalali_year + 1; $i++) {
     $years[] = $i;
 }
-$selected_year = $_GET['year'] ?? $current_jalali// گرفتن ماه‌های کاری برای سال انتخاب‌شده
+$selected_year = $_GET['year'] ?? $current_jalali_year;
+
 $gregorian_start = jalali_to_gregorian($selected_year, 1, 1);
-$gregorian_end = jalali_to_gregorian($selected_year + 1, 1);
+$gregorian_end = jalali_to_gregorian($selected_year + 1, 1, 1);
 $start_date = sprintf("%04d-%02d-%02d", $gregorian_start[0], $gregorian_start[1], $gregorian_start[2]);
-$end_date = sprintf("%04d-%02d-%02d", $gregorian_end[0], $gregorian[1], $gregorian_end[2]);
+$end_date = sprintf("%04d-%02d-%02d", $gregorian_end[0], $gregorian_end[1], $gregorian_end[2]);
 
 $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND end_date < ? ORDER BY start_date DESC");
-$stmt_months->execute([$start_date], $end_date]);
+$stmt_months->execute([$start_date, $end_date]);
 $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
-$work_month_id = isset($_GET['work_month_id']) ? (int)($_GET['work_month_id']) : ($work_months ? $work_months[0']['work_month_id'] : null);
+$work_month_id = isset($_GET['work_month_id']) ? (int)$_GET['work_month_id'] : ($work_months ? $work_months[0]['work_month_id'] : null);
 
 $product_id = $_GET['product_id'] ?? null;
 
-// گرفتن گزارش تراکنش‌ها
 $transactions = [];
-if ($transaction_id) {
+if ($work_month_id) {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
@@ -108,8 +105,8 @@ if ($transaction_id) {
             <label for="year" class="form-label">سال</label>
             <select name="year" id="year" class="form-select" onchange="this.form.submit()">
                 <?php foreach ($years as $year): ?>
-                    <option value="<?= $year ?>" <?php echo $selected_year == $year ? 'selected' : '' ?>>
-                        <?= $year ?>
+                    <option value="<?php echo $year; ?>" <?php echo $selected_year == $year ? 'selected' : ''; ?>>
+                        <?php echo $year; ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -117,14 +114,14 @@ if ($transaction_id) {
         <div class="col-auto">
             <label for="work_month_id" class="form-label">ماه کاری</label>
             <select name="work_month_id" id="work_month_id" class="form-select" onchange="this.form.submit()">
-                <option value="" <?= !$work_month_id ? 'selected' : '' ?>>انتخاب ماه</option>
+                <option value="" <?php echo !$work_month_id ? 'selected' : ''; ?>>انتخاب ماه</option>
                 <?php foreach ($work_months as $month):
                     $start_j = gregorian_to_jalali_full($month['start_date']);
                     $end_j = gregorian_to_jalali_full($month['end_date']);
                     ?>
-                    <option value="<?= $month['work_month_id'] ?>" <?= $work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
-                        <?= $start_j[2] . ' ' . jdate('F', strtotime($month['start_date'])) ?> تا
-                        <?= $end_j[2] . ' ' . jdate('F', strtotime($month['end_date'])) ?>
+                    <option value="<?php echo $month['work_month_id']; ?>" <?php echo $work_month_id == $month['work_month_id'] ? 'selected' : ''; ?>>
+                        <?php echo $start_j[2] . ' ' . jdate('F', strtotime($month['start_date'])); ?> تا
+                        <?php echo $end_j[2] . ' ' . jdate('F', strtotime($month['end_date'])); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -132,10 +129,10 @@ if ($transaction_id) {
         <div class="col-auto">
             <label for="product_search" class="form-label">جستجوی محصول</label>
             <input type="text" id="product_search" class="form-control" placeholder="حداقل ۳ حرف تایپ کنید"
-                value="<?= isset($_GET['product_name']) ? htmlspecialchars($_GET['product_name']) : '' ?>">
+                value="<?php echo isset($_GET['product_name']) ? htmlspecialchars($_GET['product_name']) : ''; ?>">
             <select id="product_list" class="form-select" style="display: none;" size="5"></select>
             <input type="hidden" id="product_id" name="product_id"
-                value="<?= isset($_GET['product_id']) ? $_GET['product_id'] : '' ?>">
+                value="<?php echo isset($_GET['product_id']) ? $_GET['product_id'] : ''; ?>">
         </div>
         <div class="col-auto align-self-end">
             <button type="submit" id="filter_product" class="btn btn-primary" disabled>فیلتر محصول</button>
@@ -144,12 +141,12 @@ if ($transaction_id) {
 
     <div class="row g-3 mb-4">
         <div class="col-auto">
-            <a href="inventory_monthly_report.php?work_month_id=<?= $work_month_id ?>&product_id=<?= $product_id ?? '' ?>"
-                target="_blank" class="btn btn-success <?= !$work_month_id ? 'disabled' : '' ?>">گزارش ماهانه</a>
+            <a href="inventory_monthly_report.php?work_month_id=<?php echo $work_month_id; ?>&product_id=<?php echo $product_id ?? ''; ?>"
+                target="_blank" class="btn btn-success <?php echo !$work_month_id ? 'disabled' : ''; ?>">گزارش ماهانه</a>
         </div>
         <div class="col-auto">
-            <a href="inventory_time_report.php?work_month_id=<?= $work_month_id ?>&product_id=<?= $product_id ?? '' ?>"
-                target="_blank" class="btn btn-info <?= !$work_month_id ? 'disabled' : '' ?>">گزارش زمانی</a>
+            <a href="inventory_time_report.php?work_month_id=<?php echo $work_month_id; ?>&product_id=<?php echo $product_id ?? ''; ?>"
+                target="_blank" class="btn btn-info <?php echo !$work_month_id ? 'disabled' : ''; ?>">گزارش زمانی</a>
         </div>
     </div>
 
@@ -169,24 +166,24 @@ if ($transaction_id) {
                 <tbody>
                     <?php foreach ($transactions as $transaction): ?>
                         <tr>
-                            <td><?= $transaction['date'] ?></td>
-                            <td><?= htmlspecialchars($transaction['product_name']) ?></td>
-                            <td><?= $transaction['quantity'] ?></td>
+                            <td><?php echo $transaction['date']; ?></td>
+                            <td><?php echo htmlspecialchars($transaction['product_name']); ?></td>
+                            <td><?php echo $transaction['quantity']; ?></td>
                             <td>
                                 <button class="btn btn-sm btn-primary edit-quantity-btn"
-                                    data-id="<?= $transaction['id'] ?>"
-                                    data-product-id="<?= $transaction['product_id'] ?>"
-                                    data-date="2024-05-25" $transaction['date'] ?>"
-                                    data-product="htmlspecialchars"
-                                    data-quantity="quantity"
-                                    data-status="quantity"
-                                    data-previous="inventory"
+                                    data-id="<?php echo $transaction['id']; ?>"
+                                    data-product-id="<?php echo $transaction['product_id']; ?>"
+                                    data-date="<?php echo $transaction['date']; ?>"
+                                    data-product="<?php echo htmlspecialchars($transaction['product_name']); ?>"
+                                    data-quantity="<?php echo $transaction['quantity']; ?>"
+                                    data-status="<?php echo $transaction['status']; ?>"
+                                    data-previous="<?php echo $transaction['previous_inventory']; ?>"
                                     data-bs-toggle="modal" data-bs-target="#editQuantityModal">
                                     ویرایش
                                 </button>
                             </td>
-                            <td><?= $transaction['status'] ?></td>
-                            <td><?= $transaction['previous_inventory'] ?></td>
+                            <td><?php echo $transaction['status']; ?></td>
+                            <td><?php echo $transaction['previous_inventory']; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -198,7 +195,6 @@ if ($transaction_id) {
         <div class="alert alert-info text-center">لطفاً یک ماه کاری انتخاب کنید.</div>
     <?php endif; ?>
 
-    <!-- مودال ویرایش تعداد -->
     <div class="modal fade" id="editQuantityModal" tabindex="-1" aria-labelledby="editQuantityModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -211,7 +207,7 @@ if ($transaction_id) {
                         <input type="hidden" id="transaction_id" name="transaction_id">
                         <input type="hidden" id="product_id" name="product_id">
                         <div class="mb-3">
-                            <label for="modal_date" class="form-label">Date</label>
+                            <label for="modal_date" class="form-label">تاریخ</label>
                             <input type="text" class="form-control" id="modal_date" readonly>
                         </div>
                         <div class="mb-3">
@@ -219,7 +215,7 @@ if ($transaction_id) {
                             <input type="text" class="form-control" id="modal_product" readonly>
                         </div>
                         <div class="mb-3">
-                            <label for="modal_quantity" class="form-label">عدد</label>
+                            <label for="modal_quantity" class="form-label">تعداد</label>
                             <input type="number" class="form-control" id="modal_quantity" readonly>
                         </div>
                         <div class="mb-3">
@@ -242,14 +238,15 @@ if ($transaction_id) {
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" id="deleteTransactionBtn">حذف</button>
                     <button type="button" class="btn btn-primary" id="saveQuantityBtn">ثبت</button>
-                    <button type="button" type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-$(document).ready(function ($) {
+<script>
+$(document).ready(function () {
     var timeout;
     $("#product_search").on("input", function () {
         clearTimeout(timeout);
@@ -278,7 +275,7 @@ $(document).ready(function ($) {
                             $productList.append(
                                 $("<option>", {
                                     value: product.product_id,
-                                    text: data.product_name
+                                    text: product.product_name
                                 })
                             );
                         });
@@ -289,7 +286,7 @@ $(document).ready(function ($) {
                 },
                 error: function (xhr, status, error) {
                     console.error("AJAX error:", status, error);
-                })
+                }
             });
         }, 300);
     });
@@ -307,7 +304,6 @@ $(document).ready(function ($) {
         $("#filter_product").prop("disabled", true);
     }
 
-    // پر کردن مودال با داده‌های ردیف
     $('.edit-quantity-btn').on('click', function () {
         var id = $(this).data('id');
         var productId = $(this).data('product-id');
@@ -324,9 +320,8 @@ $(document).ready(function ($) {
         $('#modal_quantity').val(quantity);
         $('#modal_status').val(status);
         $('#modal_previous').val(previous);
-        $('#modal_new_quantity').val(quantity); // مقدار پیش‌فرض تعداد جدید
+        $('#modal_new_quantity').val(quantity);
 
-        // لاگ داده‌های مودال
         console.log('Modal Data:', {
             transaction_id: id,
             product_id: productId,
@@ -334,13 +329,11 @@ $(document).ready(function ($) {
         });
     });
 
-    // ثبت تعداد جدید
     $('#saveQuantityBtn').on('click', function () {
         var transactionId = $('#transaction_id').val();
         var productId = $('#product_id').val();
         var newQuantity = $('#modal_new_quantity').val();
 
-        // لاگ داده‌های ارسالی
         var formData = {
             transaction_id: transactionId,
             product_id: productId,
@@ -382,7 +375,6 @@ $(document).ready(function ($) {
         });
     });
 
-    // حذف تراکنش
     $('#deleteTransactionBtn').on('click', function () {
         if (!confirm('آیا مطمئن هستید که می‌خواهید این تراکنش را حذف کنید؟')) {
             return;
@@ -390,7 +382,6 @@ $(document).ready(function ($) {
         var transactionId = $('#transaction_id').val();
         var productId = $('#product_id').val();
 
-        // لاگ داده‌های حذف
         var data = {
             transaction_id: transactionId,
             product_id: productId,
@@ -399,7 +390,7 @@ $(document).ready(function ($) {
         console.log('Delete Data:', data);
 
         $.ajax({
-            url: 'DELETE manage_inventory_transaction.php',
+            url: 'manage_inventory_transaction.php',
             method: 'POST',
             data: data,
             dataType: 'json',
@@ -418,11 +409,10 @@ $(document).ready(function ($) {
         });
     });
 
-    // تنظیمات جدول
-    $('#inventoryTable').dataTable({
+    $('#inventoryTable').DataTable({
         "language": {
             "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
-        });
+        },
         "paging": true,
         "searching": false,
         "ordering": true,
