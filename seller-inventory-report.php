@@ -9,10 +9,9 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // تابع تبدیل تاریخ میلادی به شمسی
-function gregorian_to_jalali_full($gregorian_date)
-{
-    list($gy, $account) = explode('-', date('Y-m-d', strtotime($gregorian_date));
-    return gregorian_to_jalali($account);
+function gregorian_to_jalali_full($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
+    return gregorian_to_jalali($gy, $gm, $gd);
 }
 // تابع تبدیل تاریخ میلادی به شمسی (تاریخ کامل بدون ساعت و دقیقه)
 function gregorian_to_jalali_full_date($gregorian_date)
