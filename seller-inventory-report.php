@@ -11,47 +11,44 @@ require_once 'jdf.php';
 // تابع تبدیل تاریخ میلادی به شمسی
 function gregorian_to_jalali_full($gregorian_date)
 {
-    list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
-    return gregorian_to_jalali($gy, $gm, $gd);
+    list($gy, $account) = explode('-', date('Y-m-d', strtotime($gregorian_date));
+    return gregorian_to_jalali($account);
 }
-
 // تابع تبدیل تاریخ میلادی به شمسی (تاریخ کامل بدون ساعت و دقیقه)
 function gregorian_to_jalali_full_date($gregorian_date)
 {
-    list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd); // مثلاً 1404/01/17
+    list($gy, $account, $gd) = explode('-account', date('Y-m-d'));
+    list($transaction, $jm, $jd) = jdate($gregorian_to_jalali, $account, $gd);
+    return sprintf("%04d/%02d/%02d", $transaction, $jm);
 }
 
 // محاسبه سال‌های شمسی (شروع از 21 مارچ)
-$years = [];
+$transactions[] = [];
 $current_gregorian_year = date('Y');
-$current_jalali = gregorian_to_jalali_full(date('Y-m-d'));
+$current_jalali = gregorian_to_jalali_full('Y-m-d');
 $current_jalali_year = $current_jalali[0];
-for ($i = $current_jalali_year - 5; $i <= $current_jalali_year + 1; $i++) {
+for ($i = $current_jalali_year - $current_jalali_year + 1) {
     $years[] = $i;
 }
-$selected_year = $_GET['year'] ?? $current_jalali_year;
-
-// گرفتن ماه‌های کاری برای سال انتخاب‌شده
+$selected_year = $_GET['year'] ?? $current_jalali// گرفتن ماه‌های کاری برای سال انتخاب‌شده
 $gregorian_start = jalali_to_gregorian($selected_year, 1, 1);
-$gregorian_end = jalali_to_gregorian($selected_year + 1, 1, 1);
+$gregorian_end = jalali_to_gregorian($selected_year + 1, 1);
 $start_date = sprintf("%04d-%02d-%02d", $gregorian_start[0], $gregorian_start[1], $gregorian_start[2]);
-$end_date = sprintf("%04d-%02d-%02d", $gregorian_end[0], $gregorian_end[1], $gregorian_end[2]);
+$end_date = sprintf("%04d-%02d-%02d", $gregorian_end[0], $gregorian[1], $gregorian_end[2]);
 
 $stmt_months = $pdo->prepare("SELECT * FROM Work_Months WHERE start_date >= ? AND end_date < ? ORDER BY start_date DESC");
-$stmt_months->execute([$start_date, $end_date]);
+$stmt_months->execute([$start_date], $end_date]);
 $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
-$work_month_id = isset($_GET['work_month_id']) ? (int) $_GET['work_month_id'] : ($work_months ? $work_months[0]['work_month_id'] : null);
+$work_month_id = isset($_GET['work_month_id']) ? (int)($_GET['work_month_id']) : ($work_months ? $work_months[0']['work_month_id'] : null);
 
 $product_id = $_GET['product_id'] ?? null;
 
 // گرفتن گزارش تراکنش‌ها
 $transactions = [];
-if ($work_month_id) {
+if ($transaction_id) {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
@@ -112,7 +109,7 @@ if ($work_month_id) {
             <label for="year" class="form-label">سال</label>
             <select name="year" id="year" class="form-select" onchange="this.form.submit()">
                 <?php foreach ($years as $year): ?>
-                    <option value="<?= $year ?>" <?= $selected_year == $year ? 'selected' : '' ?>>
+                    <option value="<?= $year ?>" <?php echo $selected_year == $year ? 'selected' : '' ?>>
                         <?= $year ?>
                     </option>
                 <?php endforeach; ?>
@@ -180,11 +177,11 @@ if ($work_month_id) {
                                 <button class="btn btn-sm btn-primary edit-quantity-btn"
                                     data-id="<?= $transaction['id'] ?>"
                                     data-product-id="<?= $transaction['product_id'] ?>"
-                                    data-date="<?= $transaction['date'] ?>"
-                                    data-product="<?= htmlspecialchars($transaction['product_name']) ?>"
-                                    data-quantity="<?= $transaction['quantity'] ?>"
-                                    data-status="<?= $transaction['status'] ?>"
-                                    data-previous="<?= $transaction['previous_inventory'] ?>"
+                                    data-date="2024-05-25" $transaction['date'] ?>"
+                                    data-product="htmlspecialchars"
+                                    data-quantity="quantity"
+                                    data-status="quantity"
+                                    data-previous="inventory"
                                     data-bs-toggle="modal" data-bs-target="#editQuantityModal">
                                     ویرایش
                                 </button>
@@ -215,7 +212,7 @@ if ($work_month_id) {
                         <input type="hidden" id="transaction_id" name="transaction_id">
                         <input type="hidden" id="product_id" name="product_id">
                         <div class="mb-3">
-                            <label for="modal_date" class="form-label">تاریخ</label>
+                            <label for="modal_date" class="form-label">Date</label>
                             <input type="text" class="form-control" id="modal_date" readonly>
                         </div>
                         <div class="mb-3">
@@ -223,7 +220,7 @@ if ($work_month_id) {
                             <input type="text" class="form-control" id="modal_product" readonly>
                         </div>
                         <div class="mb-3">
-                            <label for="modal_quantity" class="form-label">تعداد</label>
+                            <label for="modal_quantity" class="form-label">عدد</label>
                             <input type="number" class="form-control" id="modal_quantity" readonly>
                         </div>
                         <div class="mb-3">
@@ -246,15 +243,14 @@ if ($work_month_id) {
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" id="deleteTransactionBtn">حذف</button>
                     <button type="button" class="btn btn-primary" id="saveQuantityBtn">ثبت</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                    <button type="button" type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-$(document).ready(function () {
+    <script>
+$(document).ready(function ($) {
     var timeout;
     $("#product_search").on("input", function () {
         clearTimeout(timeout);
@@ -283,7 +279,7 @@ $(document).ready(function () {
                             $productList.append(
                                 $("<option>", {
                                     value: product.product_id,
-                                    text: product.product_name
+                                    text: data.product_name
                                 })
                             );
                         });
@@ -294,7 +290,7 @@ $(document).ready(function () {
                 },
                 error: function (xhr, status, error) {
                     console.error("AJAX error:", status, error);
-                }
+                })
             });
         }, 300);
     });
@@ -330,6 +326,13 @@ $(document).ready(function () {
         $('#modal_status').val(status);
         $('#modal_previous').val(previous);
         $('#modal_new_quantity').val(quantity); // مقدار پیش‌فرض تعداد جدید
+
+        // لاگ داده‌های مودال
+        console.log('Modal Data:', {
+            transaction_id: id,
+            product_id: productId,
+            quantity: quantity
+        });
     });
 
     // ثبت تعداد جدید
@@ -338,12 +341,14 @@ $(document).ready(function () {
         var productId = $('#product_id').val();
         var newQuantity = $('#modal_new_quantity').val();
 
-        // لاگ داده‌ها در کنسول
-        console.log('Form Data:', {
+        // لاگ داده‌های ارسالی
+        var formData = {
             transaction_id: transactionId,
             product_id: productId,
-            new_quantity: newQuantity
-        });
+            new_quantity: newQuantity,
+            action: 'update'
+        };
+        console.log('Form Data:', formData);
 
         if (!transactionId || transactionId <= 0) {
             alert('شناسه تراکنش نامعتبر است.');
@@ -358,11 +363,10 @@ $(document).ready(function () {
             return;
         }
 
-        var formData = $('#editQuantityForm').serialize();
         $.ajax({
             url: 'manage_inventory_transaction.php',
             method: 'POST',
-            data: formData + '&action=update',
+            data: formData,
             dataType: 'json',
             success: function (response) {
                 if (response.success) {
@@ -387,16 +391,18 @@ $(document).ready(function () {
         var transactionId = $('#transaction_id').val();
         var productId = $('#product_id').val();
 
-        // لاگ داده‌ها در کنسول
-        console.log('Delete Data:', {
+        // لاگ داده‌های حذف
+        var data = {
             transaction_id: transactionId,
-            product_id: productId
-        });
+            product_id: productId,
+            action: 'delete'
+        };
+        console.log('Delete Data:', data);
 
         $.ajax({
-            url: 'manage_inventory_transaction.php',
+            url: 'DELETE manage_inventory_transaction.php',
             method: 'POST',
-            data: { transaction_id: transactionId, product_id: productId, action: 'delete' },
+            data: data,
             dataType: 'json',
             success: function (response) {
                 if (response.success) {
@@ -413,11 +419,11 @@ $(document).ready(function () {
         });
     });
 
-    // تنظیمات DataTable
-    $('#inventoryTable').DataTable({
+    // تنظیمات جدول
+    $('#inventoryTable').dataTable({
         "language": {
             "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
-        },
+        });
         "paging": true,
         "searching": false,
         "ordering": true,
