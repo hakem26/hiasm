@@ -92,10 +92,12 @@ if ($work_month_id) {
             $total_before = $stmt_before->fetchColumn() ?: 0;
 
             $transactions[] = [
+                'id' => $transaction['id'],
+                'product_id' => $transaction['product_id'],
                 'date' => gregorian_to_jalali_full_date($transaction['transaction_date']),
                 'product_name' => $transaction['product_name'],
                 'quantity' => abs($transaction['quantity']),
-                'status' => $transaction['quantity'] > 0 ? 'درخواست' : 'بازگشت',
+                'status' => $transaction['quantity'] > 0 ? 'تخصیص' : 'بازگشت',
                 'previous_inventory' => $total_before
             ];
         }
@@ -163,6 +165,7 @@ if ($work_month_id) {
                         <th>تاریخ</th>
                         <th>نام محصول</th>
                         <th>تعداد</th>
+                        <th>ویرایش تعداد</th>
                         <th>وضعیت تخصیص</th>
                         <th>موجودی قبل</th>
                     </tr>
@@ -173,6 +176,19 @@ if ($work_month_id) {
                             <td><?= $transaction['date'] ?></td>
                             <td><?= htmlspecialchars($transaction['product_name']) ?></td>
                             <td><?= $transaction['quantity'] ?></td>
+                            <td>
+                                <button class="btn btn-sm btn-primary edit-quantity-btn"
+                                    data-id="<?= $transaction['id'] ?>"
+                                    data-product-id="<?= $transaction['product_id'] ?>"
+                                    data-date="<?= $transaction['date'] ?>"
+                                    data-product="<?= htmlspecialchars($transaction['product_name']) ?>"
+                                    data-quantity="<?= $transaction['quantity'] ?>"
+                                    data-status="<?= $transaction['status'] ?>"
+                                    data-previous="<?= $transaction['previous_inventory'] ?>"
+                                    data-bs-toggle="modal" data-bs-target="#editQuantityModal">
+                                    ویرایش
+                                </button>
+                            </td>
                             <td><?= $transaction['status'] ?></td>
                             <td><?= $transaction['previous_inventory'] ?></td>
                         </tr>
@@ -185,81 +201,199 @@ if ($work_month_id) {
     <?php else: ?>
         <div class="alert alert-info text-center">لطفاً یک ماه کاری انتخاب کنید.</div>
     <?php endif; ?>
+
+    <!-- مودال ویرایش تعداد -->
+    <div class="modal fade" id="editQuantityModal" tabindex="-1" aria-labelledby="editQuantityModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editQuantityModalLabel">ویرایش تعداد محصول</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editQuantityForm">
+                        <input type="hidden" id="transaction_id" name="transaction_id">
+                        <input type="hidden" id="product_id" name="product_id">
+                        <div class="mb-3">
+                            <label for="modal_date" class="form-label">تاریخ</label>
+                            <input type="text" class="form-control" id="modal_date" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modal_product" class="form-label">نام محصول</label>
+                            <input type="text" class="form-control" id="modal_product" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modal_quantity" class="form-label">تعداد</label>
+                            <input type="number" class="form-control" id="modal_quantity" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modal_status" class="form-label">وضعیت تخصیص</label>
+                            <input type="text" class="form-control" id="modal_status" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modal_previous" class="form-label">موجودی قبل</label>
+                            <input type="number" class="form-control" id="modal_previous" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modal_new_quantity" class="form-label">تعداد جدید</label>
+                            <input type="number" class="form-control" id="modal_new_quantity" name="new_quantity" min="0" required>
+                        </div>
+                        <p class="text-muted" style="font-size: 0.9em;">
+                            لطفاً ویرایش اطلاعات را در اسرع وقت انجام دهید. در صورت تأخیر در اصلاح اطلاعات نادرست، مسئولیت تمامی عواقب خطاها در آمار و گزارش نهایی بر عهده کارشناس مربوطه خواهد بود.
+                        </p>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="deleteTransactionBtn">حذف</button>
+                    <button type="button" class="btn btn-primary" id="saveQuantityBtn">ثبت</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
 <script>
-    $(document).ready(function () {
-        var timeout;
-        $("#product_search").on("input", function () {
-            clearTimeout(timeout);
-            var query = $(this).val().trim();
-            var $productList = $("#product_list");
-            var $filterButton = $("#filter_product");
+$(document).ready(function () {
+    var timeout;
+    $("#product_search").on("input", function () {
+        clearTimeout(timeout);
+        var query = $(this).val().trim();
+        var $productList = $("#product_list");
+        var $filterButton = $("#filter_product");
 
-            if (query.length < 3) {
-                $productList.hide().empty();
-                $("#product_id").val("");
-                $filterButton.prop("disabled", true);
-                return;
-            }
-
-            timeout = setTimeout(function () {
-                $.ajax({
-                    url: "get_products.php",
-                    method: "POST",
-                    data: { query: query },
-                    dataType: "html",
-                    success: function (data) {
-                        $productList.empty();
-                        if (data) {
-                            $(data).each(function () {
-                                var product = JSON.parse($(this).attr("data-product"));
-                                $productList.append(
-                                    $("<option>", {
-                                        value: product.product_id,
-                                        text: product.product_name
-                                    })
-                                );
-                            });
-                            $productList.show();
-                        } else {
-                            $productList.hide();
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("AJAX error:", status, error);
-                    }
-                });
-            }, 300); // 300ms تأخیر برای جلوگیری از درخواست‌های زیاد
-        });
-
-        $("#product_list").on("change", function () {
-            var selectedId = $(this).val();
-            var selectedName = $(this).find("option:selected").text();
-            $("#product_id").val(selectedId);
-            $("#product_search").val(selectedName);
-            $("#product_list").hide();
-            $("#filter_product").prop("disabled", false);
-        });
-
-        // غیرفعال کردن دکمه اگر محصول انتخاب نشده
-        if (!$("#product_id").val()) {
-            $("#filter_product").prop("disabled", true);
+        if (query.length < 3) {
+            $productList.hide().empty();
+            $("#product_id").val("");
+            $filterButton.prop("disabled", true);
+            return;
         }
+
+        timeout = setTimeout(function () {
+            $.ajax({
+                url: "get_products.php",
+                method: "POST",
+                data: { query: query },
+                dataType: "html",
+                success: function (data) {
+                    $productList.empty();
+                    if (data) {
+                        $(data).each(function () {
+                            var product = JSON.parse($(this).attr("data-product"));
+                            $productList.append(
+                                $("<option>", {
+                                    value: product.product_id,
+                                    text: product.product_name
+                                })
+                            );
+                        });
+                        $productList.show();
+                    } else {
+                        $productList.hide();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX error:", status, error);
+                }
+            });
+        }, 300);
     });
-</script>
-<script>
-    $(document).ready(function () {
-        $('#inventoryTable').DataTable({
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
+
+    $("#product_list").on("change", function () {
+        var selectedId = $(this).val();
+        var selectedName = $(this).find("option:selected").text();
+        $("#product_id").val(selectedId);
+        $("#product_search").val(selectedName);
+        $("#product_list").hide();
+        $("#filter_product").prop("disabled", false);
+    });
+
+    if (!$("#product_id").val()) {
+        $("#filter_product").prop("disabled", true);
+    }
+
+    // پر کردن مودال با داده‌های ردیف
+    $('.edit-quantity-btn').on('click', function () {
+        var id = $(this).data('id');
+        var productId = $(this).data('product-id');
+        var date = $(this).data('date');
+        var product = $(this).data('product');
+        var quantity = $(this).data('quantity');
+        var status = $(this).data('status');
+        var previous = $(this).data('previous');
+
+        $('#transaction_id').val(id);
+        $('#product_id').val(productId);
+        $('#modal_date').val(date);
+        $('#modal_product').val(product);
+        $('#modal_quantity').val(quantity);
+        $('#modal_status').val(status);
+        $('#modal_previous').val(previous);
+        $('#modal_new_quantity').val(quantity); // مقدار پیش‌فرض تعداد جدید
+    });
+
+    // ثبت تعداد جدید
+    $('#saveQuantityBtn').on('click', function () {
+        var formData = $('#editQuantityForm').serialize();
+        $.ajax({
+            url: 'manage_inventory_transaction.php',
+            method: 'POST',
+            data: formData + '&action=update',
+            dataType: 'json',
+            success: function (response) {
+                if (response.success) {
+                    alert('تعداد با موفقیت به‌روزرسانی شد.');
+                    location.reload(); // رفرش صفحه برای نمایش تغییرات
+                } else {
+                    alert('خطا: ' + response.message);
+                }
             },
-            "paging": true,
-            "searching": false, // حذف جستجو
-            "ordering": true,
-            "info": true,
-            "lengthMenu": [10, 25, 50, 100]
+            error: function (xhr, status, error) {
+                console.error('AJAX error:', status, error);
+                alert('خطا در ارتباط با سرور.');
+            }
         });
     });
+
+    // حذف تراکنش
+    $('#deleteTransactionBtn').on('click', function () {
+        if (!confirm('آیا مطمئن هستید که می‌خواهید این تراکنش را حذف کنید؟')) {
+            return;
+        }
+        var transactionId = $('#transaction_id').val();
+        var productId = $('#product_id').val();
+        $.ajax({
+            url: 'manage_inventory_transaction.php',
+            method: 'POST',
+            data: { transaction_id: transactionId, product_id: productId, action: 'delete' },
+            dataType: 'json',
+            success: function (response) {
+                if (response.success) {
+                    alert('تراکنش با موفقیت حذف شد.');
+                    location.reload();
+                } else {
+                    alert('خطا: ' + response.message);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('AJAX error:', status, error);
+                alert('خطا در ارتباط با سرور.');
+            }
+        });
+    });
+
+    // تنظیمات DataTable
+    $('#inventoryTable').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
+        },
+        "paging": true,
+        "searching": false,
+        "ordering": true,
+        "info": true,
+        "lengthMenu": [10, 25, 50, 100]
+    });
+});
 </script>
 
 <?php require_once 'footer.php'; ?>
