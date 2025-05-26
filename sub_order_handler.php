@@ -131,7 +131,7 @@ switch ($action) {
         $total_amount = array_sum(array_column($items, 'total_price'));
         $discount = $_SESSION['sub_discount'] ?? 0;
         $postal_price = $_SESSION['sub_postal_enabled'] ? ($_SESSION['sub_invoice_prices']['postal'] ?? 50000) : 0;
-        $final_amount = [$total_amount - $amount] - $discount + $postal_price;
+        $final_amount = $total_amount - $discount + $postal_price;
 
         respond(true, 'قیمت فاکتور پیش‌فاکتور با موفقیت تنظیم شد.', [
             'items' => $items,
@@ -200,6 +200,7 @@ switch ($action) {
         $discount = (float) ($_POST['discount'] ?? 0);
         $partner_id = $_POST['partner_id'] ?? '';
         $convert_to_main = filter_var($_POST['convert_to_main'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $sub_order_id = $_POST['sub_order_id'] ?? null;
 
         if (!$work_details_id || !$customer_name || !$partner_id) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
@@ -214,9 +215,48 @@ switch ($action) {
         $postal_price = $_SESSION['sub_postal_enabled'] ? ($_SESSION['sub_invoice_prices']['postal'] ?? 50000) : 0;
         $final_amount = $total_amount - $discount + $postal_price;
 
-        if ($convert_to_main) {
-            $pdo->beginTransaction();
-            try {
+        $pdo->beginTransaction();
+        try {
+            if (!$convert_to_main) {
+                // ذخیره پیش‌فاکتور در جدول Sub_Orders
+                $stmt = $pdo->prepare("
+                    INSERT INTO Sub_Orders (work_details_id, customer_name, partner_id, total_amount, discount, final_amount, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                ");
+                $stmt->execute([$work_details_id, $customer_name, $partner_id, $total_amount, $discount, $final_amount]);
+                $sub_order_id = $pdo->lastInsertId();
+
+                foreach ($items as $index => $item) {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO Sub_Order_Items (sub_order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $sub_order_id,
+                        $item['product_name'],
+                        $item['quantity'],
+                        $item['unit_price'],
+                        $item['extra_sale'],
+                        $item['total_price']
+                    ]);
+                }
+
+                $invoice_prices = $_SESSION['sub_invoice_prices'] ?? [];
+                if (!empty($invoice_prices)) {
+                    $stmt_invoice = $pdo->prepare("
+                        INSERT INTO Sub_Invoice_Prices (sub_order_id, item_index, invoice_price, is_postal, postal_price)
+                        VALUES (?, ?, ?, ?, ?)
+                    ");
+                    foreach ($invoice_prices as $index => $price) {
+                        if ($index === 'postal' && $_SESSION['sub_postal_enabled']) {
+                            $stmt_invoice->execute([$sub_order_id, -1, 0, TRUE, $price]);
+                        } elseif ($index !== 'postal') {
+                            $stmt_invoice->execute([$sub_order_id, $index, $price, FALSE, 0]);
+                        }
+                    }
+                }
+            } else {
+                // تبدیل به فاکتور اصلی
                 $stmt = $pdo->prepare("
                     INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
                     VALUES (?, ?, ?, ?, ?)
@@ -268,38 +308,72 @@ switch ($action) {
                     }
                 }
 
-                $pdo->commit();
-
-                unset($_SESSION['sub_order_items']);
-                unset($_SESSION['sub_discount']);
-                unset($_SESSION['sub_invoice_prices']);
-                unset($_SESSION['sub_postal_enabled']);
-                unset($_SESSION['sub_postal_price']);
-                $_SESSION['is_sub_order_in_progress'] = false;
-
-                respond(true, 'پیش‌فاکتور با موفقیت به فاکتور اصلی تبدیل شد.', [
-                    'redirect' => "print_invoice.php?order_id=$order_id"
-                ]);
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                respond(false, 'خطا در ثبت فاکتور: ' . $e->getMessage());
+                // حذف پیش‌فاکتور از جدول Sub_Orders اگر وجود داشته باشد
+                if ($sub_order_id) {
+                    $stmt = $pdo->prepare("DELETE FROM Sub_Orders WHERE sub_order_id = ?");
+                    $stmt->execute([$sub_order_id]);
+                    $stmt = $pdo->prepare("DELETE FROM Sub_Order_Items WHERE sub_order_id = ?");
+                    $stmt->execute([$sub_order_id]);
+                    $stmt = $pdo->prepare("DELETE FROM Sub_Invoice_Prices WHERE sub_order_id = ?");
+                    $stmt->execute([$sub_order_id]);
+                }
             }
-        } else {
-            $_SESSION['sub_order_details'] = [
-                'work_details_id' => $work_details_id,
-                'customer_name' => $customer_name,
-                'total_amount' => $total_amount,
-                'discount' => $discount,
-                'final_amount' => $final_amount,
-                'partner_id' => $partner_id,
-                'postal_enabled' => $_SESSION['sub_postal_enabled'] ?? false,
-                'postal_price' => $postal_price
-            ];
 
-            respond(true, 'پیش‌فاکتور با موفقیت ثبت شد.', [
-                'redirect' => 'orders.php'
+            $pdo->commit();
+
+            unset($_SESSION['sub_order_items']);
+            unset($_SESSION['sub_discount']);
+            unset($_SESSION['sub_invoice_prices']);
+            unset($_SESSION['sub_postal_enabled']);
+            unset($_SESSION['sub_postal_price']);
+            $_SESSION['is_sub_order_in_progress'] = false;
+
+            $redirect = $convert_to_main ? "print_invoice.php?order_id=$order_id" : 'orders.php';
+            respond(true, $convert_to_main ? 'پیش‌فاکتور به فاکتور اصلی تبدیل شد.' : 'پیش‌فاکتور ثبت شد.', [
+                'redirect' => $redirect
             ]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            respond(false, 'خطا در ثبت: ' . $e->getMessage());
         }
+        break;
+
+    case 'get_partners':
+        $user_id = $_SESSION['user_id'] ?? 0; // فرض بر اینکه user_id توی سشن ذخیره شده
+        if (!$user_id) {
+            respond(false, 'کاربر شناسایی نشد.');
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT u.user_id, u.username
+            FROM Users u
+            JOIN Partners p ON u.user_id = p.partner_id
+            WHERE p.user_id = ?
+        ");
+        $stmt->execute([$user_id]);
+        $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        respond(true, 'همکارها با موفقیت دریافت شدند.', ['partners' => $partners]);
+        break;
+
+    case 'get_work_days':
+        $partner_id = $_POST['partner_id'] ?? '';
+        $work_details_id = $_POST['work_details_id'] ?? '';
+
+        if (!$partner_id || !$work_details_id) {
+            respond(false, 'همکار یا ماه کاری مشخص نشده.');
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT work_date
+            FROM Work_Days
+            WHERE partner_id = ? AND work_details_id = ?
+            ORDER BY work_date
+        ");
+        $stmt->execute([$partner_id, $work_details_id]);
+        $work_days = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        respond(true, 'روزهای کاری دریافت شدند.', ['work_days' => $work_days]);
         break;
 
     default:
