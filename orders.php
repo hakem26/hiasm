@@ -47,7 +47,6 @@ function number_to_day($day_number)
         7 => 'جمعه'
     ];
     return $days[$day_number] ?? 'نامشخص';
-    return $days[$day_number] ?? null;
 }
 
 $stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC");
@@ -56,8 +55,8 @@ $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = [];
 foreach ($months as $month) {
     $month_start_date = $month['start_date'];
-    list($gy, $gm, $gd) = explode('-', $start_date);
-    $jalali_date = gregorian_to_jalali($gy, $jalali_date = gregorian_to_jalali($month['start_date'], 1, 1);
+    list($gy, $gm, $gd) = explode('-', $month_start_date);
+    $jalali_date = gregorian_to_jalali($gy, $gm, $gd);
     $jalali_year = $jalali_date[0];
     if (!in_array($jalali_year, $years)) {
         $years[] = $jalali_year;
@@ -65,12 +64,11 @@ foreach ($months as $month) {
 }
 sort($years, SORT_NUMERIC);
 $years = array_reverse($years);
-$years = array_reverse($years);
 
 $current_gregorian_year = date('Y');
-$current_jalali_year = gregorian_to_jalali($current_gregorian_year, 1, 1)[0];
+$current_jalali_year = gregorian_year_to_jalali($current_gregorian_year);
 
-$selected_year = $_GET['year'] ?? ($_GET['year'] ?? $years[0] ?? $current_jalali_year]);
+$selected_year = $_GET['year'] ?? ($years[0] ?? $current_jalali_year);
 
 $work_months = [];
 if ($selected_year) {
@@ -247,12 +245,11 @@ if (!$is_admin) {
     $params[] = $current_user_id;
     $params[] = $current_user_id;
     $conditions[] = "EXISTS (
-        SELECT 1 FROM Partners p 
-        WHERE p.partner_id = wd.partner_id 
+        SELECT 1
+        FROM Partners p 
+        WHERE p.partner_id = wd.partner_id
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
 }
 
 if ($selected_year) {
@@ -279,8 +276,9 @@ if ($selected_work_month_id) {
 
 if ($selected_partner_id) {
     $conditions[] = "EXISTS (
-        SELECT 1 FROM Partners p 
-        WHERE p.partner_id = wd.partner_id 
+        SELECT 1
+        FROM Partners p 
+        WHERE p.partner_id = wd.partner_id
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
     $params[] = $selected_partner_id;
