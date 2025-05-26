@@ -4,6 +4,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit;
 }
+
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
@@ -46,6 +47,7 @@ function number_to_day($day_number)
         7 => 'جمعه'
     ];
     return $days[$day_number] ?? 'نامشخص';
+    return $days[$day_number] ?? null;
 }
 
 $stmt = $pdo->query("SELECT start_date FROM Work_Months ORDER BY start_date DESC");
@@ -53,9 +55,9 @@ $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $years = [];
 foreach ($months as $month) {
-    $start_date = $month['start_date'];
+    $month_start_date = $month['start_date'];
     list($gy, $gm, $gd) = explode('-', $start_date);
-    $jalali_date = gregorian_to_jalali($gy, $gm, $gd);
+    $jalali_date = gregorian_to_jalali($gy, $jalali_date = gregorian_to_jalali($month['start_date'], 1, 1);
     $jalali_year = $jalali_date[0];
     if (!in_array($jalali_year, $years)) {
         $years[] = $jalali_year;
@@ -63,11 +65,12 @@ foreach ($months as $month) {
 }
 sort($years, SORT_NUMERIC);
 $years = array_reverse($years);
+$years = array_reverse($years);
 
 $current_gregorian_year = date('Y');
 $current_jalali_year = gregorian_to_jalali($current_gregorian_year, 1, 1)[0];
 
-$selected_year = $_GET['year'] ?? ($years[0] ?? $current_jalali_year);
+$selected_year = $_GET['year'] ?? ($_GET['year'] ?? $years[0] ?? $current_jalali_year]);
 
 $work_months = [];
 if ($selected_year) {
@@ -115,7 +118,7 @@ if ($selected_work_month_id) {
             FROM Orders o
             JOIN Work_Details wd ON o.work_details_id = wd.id
             JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE o.is_main = 0 AND wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+            WHERE o.is_main_order = 0 AND wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
             LIMIT 1
         ");
         $sub_order_check->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
@@ -204,7 +207,7 @@ if ($selected_work_month_id) {
 }
 
 $orders_query = "
-    SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main,
+    SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order,
            SUM(op.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
            wd.work_date, ";
@@ -290,7 +293,7 @@ if ($selected_work_day_id) {
 }
 
 if ($show_sub_orders) {
-    $conditions[] = "o.is_main = 0";
+    $conditions[] = "o.is_main_order = 0";
 }
 
 if (!empty($conditions)) {
@@ -298,7 +301,7 @@ if (!empty($conditions)) {
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main, wd.work_date";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, wd.work_date";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
@@ -422,10 +425,10 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <td><?= number_format($order['total_amount'], 0) ?></td>
                             <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
                             <td><?= number_format($order['remaining_amount'], 0) ?></td>
-                            <td><?= $order['is_main'] ? 'فاکتور اصلی' : 'پیش‌فاکتور' ?></td>
+                            <td><?= $order['is_main_order'] ? 'فاکتور اصلی' : 'پیش‌فاکتور' ?></td>
                             <?php if (!$is_admin): ?>
                                 <td>
-                                    <?php if ($order['is_main']): ?>
+                                    <?php if ($order['is_main_order']): ?>
                                         <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php else: ?>
@@ -457,12 +460,12 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                        href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">قبلی</a>
                 </li>
                 <?php
-                $start_year = max(1, $page - 2);
+                $start_page = max(1, $page - 2);
                 $end_page = min($total_pages, $page + 2);
                 for ($i = $start_page; $i <= $end_page; $i++): ?>
                     <li class="page-item <?= $i == $page ? 'active' : '' ?>">
                         <a class="page-link"
-                           href="?page=<?= $i ?>&work_month_id=$selected_work_month_id&user_id=$selected_partner_id&work_day_id=$selected_work_day_id&year=$selected_year&show_sub_orders=$show_sub_orders ? '1' : '' ?>"><?= $i ?></a>
+                           href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>"><?= $i ?></a>
                     </li>
                 <?php endfor; ?>
                 <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
@@ -490,7 +493,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             searching: true,
             "language": {
                 "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                "infoEmpty: "هیچ فاکتوری یافت نشد",
+                "infoEmpty": "هیچ فاکتوری یافت نشد",
                 "zeroRecords": "هیچ فاکتوری یافت نشد",
                 "lengthMenu": "نمایش _MENU_ ردیف",
                 "search": "جستجو:",
