@@ -97,16 +97,30 @@ $work_details = [];
 $selected_work_month_id = $_GET['work_month_id'] ?? null;
 $selected_partner_id = $_GET['user_id'] ?? null;
 $selected_work_day_id = $_GET['work_day_id'] ?? null;
+$show_sub_orders = isset($_GET['show_sub_orders']) && $_GET['show_sub_orders'] == '1';
 $page = (int) ($_GET['page'] ?? 1);
 $per_page = 10;
 
 $is_partner1 = false;
+$has_sub_orders = false;
 if ($selected_work_month_id) {
     $month_query = $pdo->prepare("SELECT start_date, end_date FROM Work_Months WHERE work_month_id = ?");
     $month_query->execute([$selected_work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
+        // چک کردن وجود پیش‌فاکتور برای کاربر
+        $sub_order_check = $pdo->prepare("
+            SELECT 1 
+            FROM Orders o
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            WHERE o.is_main = 0 AND wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+            LIMIT 1
+        ");
+        $sub_order_check->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
+        $has_sub_orders = $sub_order_check->fetchColumn();
+
         if ($is_admin) {
             $partners_query = $pdo->prepare("
                 SELECT DISTINCT u.user_id, u.full_name 
@@ -190,7 +204,7 @@ if ($selected_work_month_id) {
 }
 
 $orders_query = "
-    SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount,
+    SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main,
            SUM(op.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
            wd.work_date, ";
@@ -275,12 +289,16 @@ if ($selected_work_day_id) {
     $params[] = $selected_work_day_id;
 }
 
+if ($show_sub_orders) {
+    $conditions[] = "o.is_main = 0";
+}
+
 if (!empty($conditions)) {
     $orders_query .= " WHERE " . implode(" AND ", $conditions);
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main, wd.work_date";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
@@ -351,6 +369,16 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <?php endforeach; ?>
             </select>
         </div>
+        <?php if ($has_sub_orders): ?>
+            <div class="col-auto align-self-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="show_sub_orders" id="show_sub_orders" value="1" <?= $show_sub_orders ? 'checked' : '' ?> onchange="this.form.submit()">
+                    <label class="form-check-label" for="show_sub_orders">
+                        نمایش فقط پیش‌فاکتورها
+                    </label>
+                </div>
+            </div>
+        <?php endif; ?>
         <?php if (!$is_admin && $is_partner1): ?>
             <div class="col-auto align-self-end">
                 <a href="add_sub_order.php?work_month_id=<?= $selected_work_month_id ?>" class="btn btn-info">ایجاد پیش‌فاکتور</a>
@@ -376,6 +404,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                         <th>مبلغ کل فاکتور</th>
                         <th>مبلغ پرداختی</th>
                         <th>مانده حساب</th>
+                        <th>نوع فاکتور</th>
                         <?php if (!$is_admin): ?>
                             <th>فاکتور</th>
                             <th>اطلاعات پرداخت</th>
@@ -393,10 +422,16 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <td><?= number_format($order['total_amount'], 0) ?></td>
                             <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
                             <td><?= number_format($order['remaining_amount'], 0) ?></td>
+                            <td><?= $order['is_main'] ? 'فاکتور اصلی' : 'پیش‌فاکتور' ?></td>
                             <?php if (!$is_admin): ?>
                                 <td>
-                                    <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
-                                       class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                    <?php if ($order['is_main']): ?>
+                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
+                                           class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                    <?php else: ?>
+                                        <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>"
+                                           class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                    <?php endif; ?>
                                     <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
                                        onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
@@ -419,25 +454,25 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             <ul class="pagination justify-content-center mt-3">
                 <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
                     <a class="page-link"
-                       href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
+                       href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">قبلی</a>
                 </li>
                 <?php
-                $start_page = max(1, $page - 2);
+                $start_year = max(1, $page - 2);
                 $end_page = min($total_pages, $page + 2);
                 for ($i = $start_page; $i <= $end_page; $i++): ?>
                     <li class="page-item <?= $i == $page ? 'active' : '' ?>">
                         <a class="page-link"
-                           href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
+                           href="?page=<?= $i ?>&work_month_id=$selected_work_month_id&user_id=$selected_partner_id&work_day_id=$selected_work_day_id&year=$selected_year&show_sub_orders=$show_sub_orders ? '1' : '' ?>"><?= $i ?></a>
                     </li>
                 <?php endfor; ?>
                 <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
                     <a class="page-link"
-                       href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
+                       href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">بعدی</a>
                 </li>
             </ul>
         </nav>
     <?php else: ?>
-        <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
+        <div class="alert alert-warning text-center mt-3">سفارشی ثبت نشده است.</div>
     <?php endif; ?>
 </div>
 
@@ -452,12 +487,13 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             paging: false,
             ordering: true,
             info: true,
-            searching: false,
+            searching: true,
             "language": {
                 "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                "infoEmpty": "هیچ فاکتوری یافت نشد",
+                "infoEmpty: "هیچ فاکتوری یافت نشد",
                 "zeroRecords": "هیچ فاکتوری یافت نشد",
                 "lengthMenu": "نمایش _MENU_ ردیف",
+                "search": "جستجو:",
                 "paginate": {
                     "previous": "قبلی",
                     "next": "بعدی"
