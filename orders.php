@@ -144,6 +144,22 @@ if ($selected_work_month_id) {
                 ORDER BY u.full_name
             ");
             $partners_query->execute([$selected_work_month_id, $current_user_id, $current_user_id, $current_user_id]);
+
+            $partner1_check = $pdo->prepare("
+                SELECT 1 
+                FROM Work_Details wd
+                JOIN Partners p ON wd.partner_id = p.partner_id
+                WHERE wd.work_month_id = ? AND p.user_id1 = ?
+                LIMIT 1
+            ");
+            $partner1_check->execute([$selected_work_month_id, $current_user_id]);
+            $is_partner1 = $partner1_check->fetchColumn();
+            if (!$is_partner1) {
+                $_SESSION['message'] = [
+                    'type' => 'warning',
+                    'text' => 'شما به عنوان همکار اصلی در این ماه کاری ثبت نشده‌اید.'
+                ];
+            }
         }
         $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 
@@ -250,11 +266,11 @@ if ($selected_year) {
     $start_date = "$gregorian_start_year-03-21";
     $end_date = "$gregorian_end_year-03-21";
     if ($selected_year == 1404) {
-        $start_date = "2025-03-20";
-        $end_date = "2026-03-25";
+        $start_date = "2025-03-21";
+        $end_date = "2026-03-21";
     } elseif ($selected_year == 1403) {
         $start_date = "2024-03-20";
-        $end_date = "2025-03-20";
+        $end_date = "2025-03-21";
     }
     $conditions[] = "wd.work_date >= ? AND wd.work_date < ?";
     $params[] = $start_date;
@@ -269,7 +285,7 @@ if ($selected_work_month_id) {
 if ($selected_partner_id) {
     $conditions[] = "EXISTS (
         SELECT 1
-        FROM Partners p
+        FROM Partners p 
         WHERE p.partner_id = wd.partner_id
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
@@ -304,7 +320,7 @@ $total_orders = $stmt_count->fetchColumn();
 $total_pages = ceil($total_orders / $per_page);
 $offset = ($page - 1) * $per_page;
 
-$orders_query .= " LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
+$orders_query .= " LIMIT " . (int) $per_page . " OFFSET " . (int) $offset;
 $stmt_orders = $pdo->prepare($orders_query);
 $stmt_orders->execute($params);
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
@@ -372,7 +388,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </div>
         <?php endif; ?>
-        <?php if (!$is_admin && $is_partner1): ?>
+        <?php if (!$is_admin && $selected_work_month_id): ?>
             <div class="col-auto align-self-end">
                 <a href="add_sub_order.php?work_month_id=<?= $selected_work_month_id ?>" class="btn btn-primary">ایجاد پیش‌فاکتور</a>
             </div>
@@ -394,7 +410,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                         <th><?= $is_admin ? 'همکاران' : 'نام همکار' ?></th>
                         <th>شماره فاکتور</th>
                         <th>نام مشتری</th>
-                        <th>مبلغ کل</th>
+                        <th>مبلغ کل فاکتور</th>
                         <th>مبلغ پرداختی</th>
                         <th>مانده حساب</th>
                         <th>نوع فاکتور</th>
@@ -435,7 +451,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                             <td>
                                 <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>"
-                                   class="btn btn-success btn-sm"><i class="fas fa-print"></i> مشاهده</a>
+                                   class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -464,6 +480,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 </li>
             </ul>
         </nav>
+    <?php elseif ($show_sub_orders): ?>
+        <div class="alert alert-warning text-center mt-3">هیچ پیش‌فاکتوری یافت نشد.</div>
     <?php else: ?>
         <div class="alert alert-warning text-center mt-3">سفارشی وجود ندارد.</div>
     <?php endif; ?>
@@ -472,9 +490,9 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         $('#ordersTable').DataTable({
-            responsive: true,
+            responsive: false,
             scrollX: true,
             autoWidth: false,
             paging: false,
@@ -484,7 +502,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             "language": {
                 "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
                 "infoEmpty": "هیچ فاکتوری یافت نشد",
-                "emptyTable": "هیچ داده‌ای موجود نیست",
+                "zeroRecords": "هیچ فاکتوری یافت نشد",
                 "lengthMenu": "نمایش _MENU_ ردیف",
                 "search": "جستجو:",
                 "paginate": {
@@ -494,19 +512,19 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             }
         });
 
-        $('select[name="year"]').change(function() {
+        $('select[name="year"]').change(function () {
             this.form.submit();
         });
 
-        $('select[name="work_month_id"]').change(function() {
+        $('select[name="work_month_id"]').change(function () {
             this.form.submit();
         });
 
-        $('select[name="user_id"]').change(function() {
+        $('select[name="user_id"]').change(function () {
             this.form.submit();
         });
 
-        $('select[name="work_day_id"]').change(function() {
+        $('select[name="work_day_id"]').change(function () {
             this.form.submit();
         });
     });
