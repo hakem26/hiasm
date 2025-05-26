@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             $.ajax({
                 url: 'sub_order_handler.php',
                 type: 'POST',
-                data: { action: 'get_work_days', partner_id: partnerId, work_details_id: workMonthId },
+                data: { action: 'get_work_days', partner_id: partnerId, work_month_id: workMonthId },
                 success: function(response) {
                     if (response.success) {
                         $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
@@ -447,10 +447,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     } else {
                         alert(response.message);
+                        $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                     }
                 },
                 error: function() {
                     alert('خطا در دریافت روزهای کاری.');
+                    $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                 }
             });
         } else {
@@ -535,17 +537,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.getElementById('add_item_btn').addEventListener('click', async () => {
-        const customer_name = document.getElementById('customer_name').value;
+        const customer_name = document.getElementById('customer_name').value.trim();
         const product_id = document.getElementById('product_id').value;
         const quantity = Number(document.getElementById('quantity').value) || 0;
         const unit_price = Number(document.getElementById('unit_price').value) || 0;
         const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
-        const discount = document.getElementById('discount')?.value || 0;
+        const discount = document.getElementById('discount') ? (document.getElementById('discount').value || 0) : 0;
         const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
         const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
 
-        if (!customer_name || !product_id || quantity <= 0 || unit_price <= 0 || ($convertCheckbox.is(':checked') && (!partner_id || !work_details_id))) {
+        if (!customer_name || !product_id || quantity <= 0 || unit_price <= 0) {
             alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
+            return;
+        }
+        if ($convertCheckbox.is(':checked') && (!partner_id || !work_details_id)) {
+            alert('لطفاً همکار و تاریخ را انتخاب کنید.');
             return;
         }
 
@@ -662,14 +668,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('finalize_order_btn').addEventListener('click', async () => {
-        const customer_name = document.getElementById('customer_name').value;
+        const customer_name = document.getElementById('customer_name').value.trim();
         const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
         const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
-        const discount = document.getElementById('discount')?.value || 0;
-        const convert_to_main = document.getElementById('convert_to_main').checked;
+        const convert_to_main = $convertCheckbox.is(':checked');
+        const discount = document.getElementById('discount') ? (document.getElementById('discount').value || 0) : 0;
 
-        if (!customer_name || !work_details_id || ($convertCheckbox.is(':checked') && !partner_id)) {
-            alert('لطفاً همه فیلدها را پر کنید.');
+        // اعتبارسنجی
+        if (!customer_name) {
+            alert('لطفاً نام مشتری را وارد کنید.');
+            return;
+        }
+        if (!work_details_id) {
+            alert('ماه کاری یا روز کاری مشخص نشده است.');
+            return;
+        }
+        if (convert_to_main && (!partner_id || !$workDateSelect.val())) {
+            alert('لطفاً همکار و تاریخ را انتخاب کنید.');
+            return;
+        }
+
+        // چک کردن وجود آیتم‌ها
+        const response = await sendRequest('sub_order_handler.php', { action: 'get_items' });
+        if (!response.success || !response.data.items || response.data.items.length === 0) {
+            alert('لطفاً حداقل یک محصول به پیش‌فاکتور اضافه کنید.');
             return;
         }
 
@@ -682,12 +704,12 @@ document.addEventListener('DOMContentLoaded', () => {
             convert_to_main
         };
 
-        const response = await sendRequest('sub_order_handler.php', data);
-        if (response.success) {
-            alert(response.message);
-            window.location.href = response.data.redirect;
+        const finalizeResponse = await sendRequest('sub_order_handler.php', data);
+        if (finalizeResponse.success) {
+            alert(finalizeResponse.message);
+            window.location.href = finalizeResponse.data.redirect;
         } else {
-            alert(response.message);
+            alert(finalizeResponse.message);
         }
     });
 
