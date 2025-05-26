@@ -462,12 +462,12 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#product_name').on('input', function () {
         let query = $(this).val();
         const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
-        const partner_id = $partnerSelect.val();
-        if (query.length >= 3 && (!$convertCheckbox.is(':checked') || partner_id)) {
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : null;
+        if (query.length >= 3) {
             $.ajax({
-                url: 'get_products.php',
+                url: 'get_sub_order_products.php',
                 type: 'POST',
-                data: { query: query, work_details_id: work_details_id },
+                data: { query: query, work_details_id: work_details_id, partner_id: partner_id },
                 success: function (response) {
                     if (response.trim() === '') {
                         $('#product_suggestions').hide();
@@ -499,33 +499,10 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + ' تومان');
         $('#product_suggestions').hide();
 
-        const partner_id = $partnerSelect.val();
-        if (partner_id || !$convertCheckbox.is(':checked')) {
-            $.ajax({
-                url: 'get_inventory.php',
-                type: 'POST',
-                data: {
-                    product_id: product.product_id,
-                    user_id: partner_id || '<?= $current_user_id ?>',
-                    work_details_id: $workDateSelect.val() || '<?= $work_month_id ?>'
-                },
-                success: function (response) {
-                    if (response.success) {
-                        initialInventory = response.data.inventory || 0;
-                        $('#inventory_quantity').text(initialInventory);
-                        $('#quantity').val(1);
-                        updateInventoryDisplay();
-                    } else {
-                        $('#inventory_quantity').text('0');
-                        alert('خطا در دریافت موجودی: ' + response.message);
-                    }
-                },
-                error: function () {
-                    $('#inventory_quantity').text('0');
-                    alert('خطا در دریافت موجودی.');
-                }
-            });
-        }
+        initialInventory = product.inventory || 0;
+        $('#inventory_quantity').text(initialInventory);
+        $('#quantity').val(1);
+        updateInventoryDisplay();
 
         $('#quantity').focus();
     });
@@ -565,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
         const discount = document.getElementById('discount')?.value || 0;
         const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
-        const partner_id = $partnerSelect.val() || '<?= $current_user_id ?>';
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
 
         if (!customer_name || !product_id || quantity <= 0 || unit_price <= 0 || ($convertCheckbox.is(':checked') && (!partner_id || !work_details_id))) {
             alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
@@ -606,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = {
                     action: 'delete_sub_item',
                     index: index,
-                    partner_id: $partnerSelect.val() || '<?= $current_user_id ?>'
+                    partner_id: $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>'
                 };
 
                 const response = await sendRequest('sub_order_handler.php', data);
@@ -687,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('finalize_order_btn').addEventListener('click', async () => {
         const customer_name = document.getElementById('customer_name').value;
         const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
-        const partner_id = $partnerSelect.val() || '<?= $current_user_id ?>';
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
         const discount = document.getElementById('discount')?.value || 0;
         const convert_to_main = document.getElementById('convert_to_main').checked;
 
