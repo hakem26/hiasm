@@ -146,7 +146,6 @@ if ($selected_work_month_id) {
                 ORDER BY u.full_name
             ");
             $partners_query->execute([$selected_work_month_id, $current_user_id, $current_user_id, $current_user_id]);
-
             $partner1_check = $pdo->prepare("
                 SELECT 1 
                 FROM Work_Details wd
@@ -207,9 +206,13 @@ if ($selected_work_month_id) {
 
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order,
-           COALESCE(wd.work_date, o.created_at) AS order_date,
+           o.created_at AS order_date,
            SUM(op.amount) AS paid_amount,
-           (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,";
+           (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
+           wd.id AS work_details_id,";
+
+$params = [];
+$param_count = 0;
 
 if ($is_admin) {
     $orders_query .= "
@@ -217,7 +220,7 @@ if ($is_admin) {
          FROM Partners p
          LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
          LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-         WHERE p.partner_id = wd.partner_id) AS partners_names, ";
+         WHERE p.partner_id = wd.partner_id) AS partners_names";
 } else {
     $orders_query .= "
         COALESCE(
@@ -231,27 +234,28 @@ if ($is_admin) {
             LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
             WHERE p.partner_id = wd.partner_id),
             'نامشخص'
-        ) AS partner_name, ";
+        ) AS partner_name";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+    $param_count += 2;
 }
 
 $orders_query .= "
-           wd.id AS work_details_id,
-           o.created_at
     FROM Orders o
     LEFT JOIN Order_Payments op ON o.order_id = op.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
+    WHERE 1=1";
 
-$conditions = [];
-$params = [];
 if (!$is_admin) {
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
-    $conditions[] = "EXISTS (
+    $orders_query .= " AND EXISTS (
         SELECT 1
         FROM Partners p 
         WHERE p.partner_id = wd.partner_id
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+    $param_count += 2;
 }
 
 if ($selected_year) {
@@ -266,18 +270,20 @@ if ($selected_year) {
         $start_date = "2024-03-20";
         $end_date = "2025-03-21";
     }
-    $conditions[] = "COALESCE(wd.work_date, o.created_at) >= ? AND COALESCE(wd.work_date, o.created_at) < ?";
+    $orders_query .= " AND o.created_at >= ? AND o.created_at < ?";
     $params[] = $start_date;
     $params[] = $end_date;
+    $param_count += 2;
 }
 
 if ($selected_work_month_id) {
-    $conditions[] = "wd.work_month_id = ?";
+    $orders_query .= " AND wd.work_month_id = ?";
     $params[] = $selected_work_month_id;
+    $param_count += 1;
 }
 
 if ($selected_partner_id) {
-    $conditions[] = "EXISTS (
+    $orders_query .= " AND EXISTS (
         SELECT 1
         FROM Partners p 
         WHERE p.partner_id = wd.partner_id
@@ -285,25 +291,23 @@ if ($selected_partner_id) {
     )";
     $params[] = $selected_partner_id;
     $params[] = $selected_partner_id;
+    $param_count += 2;
 }
 
 if ($selected_work_day_id) {
-    $conditions[] = "wd.id = ?";
+    $orders_query .= " AND wd.id = ?";
     $params[] = $selected_work_day_id;
+    $param_count += 1;
 }
 
 if ($show_sub_orders) {
-    $conditions[] = "o.is_main_order = 0";
+    $orders_query .= " AND o.is_main_order = 0";
 } else {
-    $conditions[] = "(o.is_main_order = 1 OR o.is_main_order IS NULL)";
-}
-
-if (!empty($conditions)) {
-    $orders_query .= " WHERE " . implode(" AND ", $conditions);
+    $orders_query .= " AND o.is_main_order = 1";
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, wd.work_date, o.created_at";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, o.created_at, wd.id";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
@@ -311,6 +315,8 @@ if ($is_admin) {
 }
 
 $orders_query .= " ORDER BY o.created_at DESC";
+
+error_log("Orders Query: $orders_query, params=" . json_encode($params) . ", param_count=$param_count");
 
 $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
 $stmt_count->execute($params);
@@ -322,8 +328,6 @@ $orders_query .= " LIMIT " . (int) $per_page . " OFFSET " . (int) $offset;
 $stmt_orders = $pdo->prepare($orders_query);
 $stmt_orders->execute($params);
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
-
-error_log("Orders Query: $orders_query, params=" . json_encode($params));
 ?>
 
 <div class="container-fluid">
@@ -431,27 +435,27 @@ error_log("Orders Query: $orders_query, params=" . json_encode($params));
                             <td><?= number_format($order['total_amount'], 0) ?></td>
                             <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
                             <td><?= number_format($order['remaining_amount'], 0) ?></td>
-                            <td><?= $order['is_main_order'] === '0' ? 'پیش‌فاکتور' : 'فاکتور اصلی' ?></td>
+                            <td><?= $order['is_main_order'] == 0 ? 'پیش‌فاکتور' : 'فاکتور اصلی' ?></td>
                             <?php if (!$is_admin): ?>
                                 <td>
-                                    <?php if ($order['is_main_order'] === '0'): ?>
+                                    <?php if ($order['is_main_order'] == 0): ?>
                                         <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>"
                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php else: ?>
                                         <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
-                                           class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                           class="btn btn-primary btn-sm"><i class="fas fa-edit"></i></a>
                                     <?php endif; ?>
                                     <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
                                        onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
-                                       class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                       class="btn btn-primary btn-sm"><i class="fas fa-edit"></i></a>
                                 </td>
                             <?php endif; ?>
                             <td>
                                 <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>"
-                                   class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
+                                   class="btn btn-success btn-sm"><i class="fas fa-print"></i> مشاهده</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -465,7 +469,7 @@ error_log("Orders Query: $orders_query, params=" . json_encode($params));
                     <a class="page-link"
                        href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">قبلی</a>
                 </li>
-                <?php
+                <?php 
                 $start_page = max(1, $page - 2);
                 $end_page = min($total_pages, $page + 2);
                 for ($i = $start_page; $i <= $end_page; $i++): ?>
