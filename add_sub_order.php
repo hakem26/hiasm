@@ -267,7 +267,11 @@ async function sendRequest(url, data) {
         const text = await response.text();
         console.log('Raw Response:', text);
         try {
-            return JSON.parse(text);
+            const json = JSON.parse(text);
+            if (!json.success && json.message === 'undefined') {
+                json.message = 'خطای ناشناخته در سرور. لطفاً دوباره تلاش کنید.';
+            }
+            return json;
         } catch (e) {
             console.error('JSON Parse Error:', e, 'Response:', text);
             return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
@@ -401,14 +405,15 @@ document.addEventListener('DOMContentLoaded', () => {
             data: { action: 'get_partners', work_month_id: '<?= $work_month_id ?>' },
             success: function(response) {
                 console.log('Load Partners Response:', response);
-                if (response.success) {
+                if (response.success && response.data.partners.length > 0) {
                     $partnerSelect.empty().append('<option value="">انتخاب همکار</option>');
                     response.data.partners.forEach(partner => {
                         $partnerSelect.append(`<option value="${partner.user_id}">${partner.full_name}</option>`);
                     });
                 } else {
                     console.error('Load Partners Error:', response.message);
-                    alert(response.message);
+                    alert('هیچ همکاری برای این ماه کاری یافت نشد.');
+                    $partnerSelect.empty().append('<option value="">هیچ همکاری یافت نشد</option>');
                 }
             },
             error: function(xhr, status, error) {
@@ -429,15 +434,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: { action: 'get_work_days', partner_id: partnerId, work_month_id: workMonthId },
                 success: function(response) {
                     console.log('Work Days Response:', response);
-                    if (response.success) {
+                    if (response.success && response.data.work_days.length > 0) {
                         $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                         response.data.work_days.forEach(day => {
                             $workDateSelect.append(`<option value="${day.id}">${day.jalali_date}</option>`);
                         });
                     } else {
                         console.error('Work Days Error:', response.message);
-                        alert(response.message);
-                        $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
+                        alert('هیچ روز کاری برای این همکار یافت نشد.');
+                        $workDateSelect.empty().append('<option value="">هیچ تاریخی یافت نشد</option>');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -706,7 +711,8 @@ document.addEventListener('DOMContentLoaded', () => {
             customer_name,
             discount,
             partner_id,
-            convert_to_main
+            convert_to_main,
+            work_month_id: '<?= $work_month_id ?>'
         };
 
         const finalizeResponse = await sendRequest('sub_order_handler.php', data);

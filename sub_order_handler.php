@@ -9,23 +9,11 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date) {
-    if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
-        return 'نامشخص';
-    }
-    try {
-        $parts = explode('-', $gregorian_date);
-        $gy = (int)$parts[0];
-        $gm = (int)$parts[1];
-        $gd = (int)$parts[2];
-        if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
-            return 'نامشخص';
-        }
-        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
-    } catch (Exception $e) {
-        error_log("Error in gregorian_to_jalali_format: " . $e->getMessage());
-        return 'نامشخص';
-    }
+    if (!$gregorian_date) return 'نامشخص';
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) return 'نامشخص';
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
 function sendResponse($success, $message, $data = []) {
@@ -60,12 +48,16 @@ try {
                 SELECT DISTINCT u.user_id, u.full_name
                 FROM Work_Details wd
                 JOIN Partners p ON wd.partner_id = p.partner_id
-                JOIN Users u ON p.user_id1 = u.user_id OR p.user_id2 = u.user_id
+                JOIN Users u ON (p.user_id1 = u.user_id OR p.user_id2 = u.user_id)
                 WHERE wd.work_month_id = ? AND u.user_id != ? AND u.role = 'seller'
                 ORDER BY u.full_name
             ");
             $stmt->execute([$work_month_id, $current_user_id]);
             $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($partners)) {
+                sendResponse(false, 'هیچ همکاری برای این ماه کاری یافت نشد.');
+            }
 
             sendResponse(true, 'موفق', ['partners' => $partners]);
 
@@ -77,16 +69,27 @@ try {
             }
 
             $stmt = $pdo->prepare("
-                SELECT wd.id, wd.work_date, COALESCE(?, ?) AS jalali_date
+                SELECT wd.id, wd.work_date
                 FROM Work_Details wd
                 JOIN Partners p ON wd.partner_id = p.partner_id
                 WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
                 ORDER BY wd.work_date
             ");
-            $stmt->execute([gregorian_to_jalali_format($wd['work_date']), 'نامشخص', $work_month_id, $partner_id, $partner_id]);
+            $stmt->execute([$work_month_id, $partner_id, $partner_id]);
             $work_days = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            sendResponse(true, 'موفق', ['work_days' => $work_days]);
+            $formatted_days = array_map(function($day) {
+                return [
+                    'id' => $day['id'],
+                    'jalali_date' => gregorian_to_jalali_format($day['work_date'])
+                ];
+            }, $work_days);
+
+            if (empty($formatted_days)) {
+                sendResponse(false, 'هیچ روز کاری برای این همکار یافت نشد.');
+            }
+
+            sendResponse(true, 'موفق', ['work_days' => $formatted_days]);
 
         case 'add_sub_item':
             $customer_name = trim($_POST['customer_name'] ?? '');
@@ -233,17 +236,34 @@ try {
             $partner_id = $_POST['partner_id'] ?? $current_user_id;
             $discount = floatval($_POST['discount'] ?? 0);
             $convert_to_main = isset($_POST['convert_to_main']) ? (int)$_POST['convert_to_main'] : 0;
+            $work_month_id = $_POST['work_month_id'] ?? '';
 
-            if (!$customer_name || !$work_details_id) {
-                sendResponse(false, 'نام مشتری یا جزئیات کاری مشخص نیست.');
+            if (!$customer_name || !$work_month_id) {
+                sendResponse(false, 'نام مشتری یا ماه کاری مشخص نیست.');
             }
 
-            if ($convert_to_main && !$partner_id) {
-                sendResponse(false, 'همکار انتخاب نشده است.');
+            if ($convert_to_main && (!$partner_id || !$work_details_id)) {
+                sendResponse(false, 'همکار یا تاریخ کاری انتخاب نشده است.');
             }
 
             if (empty($_SESSION['sub_order_items'])) {
                 sendResponse(false, 'هیچ محصولی در پیش‌فاکتور نیست.');
+            }
+
+            // برای پیش‌فاکتور، work_details_id را از Work_Details می‌گیریم
+            if (!$convert_to_main) {
+                $stmt = $pdo->prepare("
+                    SELECT wd.id
+                    FROM Work_Details wd
+                    JOIN Partners p ON wd.partner_id = p.partner_id
+                    WHERE wd.work_month_id = ? AND p.user_id1 = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([$work_month_id, $current_user_id]);
+                $work_details_id = $stmt->fetchColumn();
+                if (!$work_details_id) {
+                    sendResponse(false, 'جزئیات کاری برای این ماه یافت نشد.');
+                }
             }
 
             $pdo->beginTransaction();
@@ -252,50 +272,49 @@ try {
             $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
             $stmt = $pdo->prepare("
-            INSERT INTO orders (customer_name, total_amount, discount, final_amount, work_details_id, partner_id, is_main_order, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $work_details_id, $partner_id, $convert_to_main]);
+                INSERT INTO Orders (customer_name, total_amount, discount, final_amount, work_details_id, is_main_order, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $work_details_id, $convert_to_main]);
 
             $order_id = $pdo->lastInsertId();
 
-            foreach ($_SESSION['sub_order_items'] as $item) {
-                $invoice_price = $_SESSION['sub_invoice_prices'][$item['product_id']] ?? $item['total_price'];
+            foreach ($_SESSION['sub_order_items'] as $index => $item) {
+                $invoice_price = $_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'];
                 $stmt = $pdo->prepare("
-                    INSERT INTO Order_Items (order_id, product_id, unit_price, extra_sale, quantity, invoice_price)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ");
+                    INSERT INTO Order_Items (order_id, product_id, unit_price, extra_sale, quantity, total)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
                 $stmt->execute([$order_id, $item['product_id'], $item['unit_price'], $item['extra_sale'], $item['quantity'], $invoice_price]);
             }
 
             if ($_SESSION['sub_postal_enabled']) {
                 $postal_price = $_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'];
                 $stmt = $pdo->prepare("
-                    INSERT INTO OrderItems (order_id, item_name, unit_price, quantity)
-                    VALUES (?, 'ارسال پستی', ?, 1)
+                    INSERT INTO Order_Items (order_id, product_id, unit_price, quantity, total)
+                    VALUES (?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$order_id, $postal_price]);
+                $stmt->execute([$order_id, 0, $postal_price, 1, $postal_price]); // product_id=0 برای ارسال پستی
             }
 
             // پاک کردن سشن‌ها
             unset($_SESSION['sub_order_items']);
-            unset($_SESSION['sub_order_discount']);
-            unset($_SESSION['sub_order_invoice_prices']);
+            unset($_SESSION['sub_discount']);
+            unset($_SESSION['sub_invoice_prices']);
             unset($_SESSION['sub_postal_enabled']);
             unset($_SESSION['sub_postal_price']);
             unset($_SESSION['is_sub_order_in_progress']);
 
             $pdo->commit();
 
-            sendResponse(true, 'پیش‌فاکتور ثبت شد.', ['redirect' => 'orders.php']);
+            sendResponse(true, 'پیش‌فاکتور با موفقیت ثبت شد.', ['redirect' => 'orders.php?work_month_id=' . $work_month_id]);
 
         default:
-            sendResponse(false, 'خطا در عملیات خطا');
+            sendResponse(false, 'عملیات نامعتبر.');
     }
 } catch (Exception $e) {
-    $pdo->rollback();
+    $pdo->rollBack();
     error_log("Error in sub_order_handler.php: " . $e->getMessage());
-    sendResponse(false, 'خطای سرور');
+    sendResponse(false, 'خطای سرور: ' . $e->getMessage());
 }
 ?>
-</script>
