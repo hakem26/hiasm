@@ -14,11 +14,11 @@ function gregorian_to_jalali_format($gregorian_date)
     if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
         return 'نامشخص';
     }
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) {
-        return 'نامشخص';
-    }
     try {
+        list($gy, $gm, $gd) = explode('-', $gregorian_date);
+        if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) {
+            return 'نامشخص';
+        }
         list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
         return "$jy/$jm/$jd";
     } catch (Exception $e) {
@@ -218,7 +218,7 @@ $orders_query = "
            o.created_at AS order_date,
            SUM(op.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
-           wd.id AS work_details_id,";
+           wd.id AS work_details_id, wd.work_date,";
 
 $params = [];
 $param_count = 0;
@@ -316,7 +316,7 @@ if ($show_sub_orders) {
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, o.created_at, wd.id";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, o.created_at, wd.id, wd.work_date";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
@@ -437,7 +437,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <tbody>
                     <?php foreach ($orders as $order): ?>
                         <tr>
-                            <td><?= gregorian_to_jalali_format($order['order_date']) ?></td>
+                            <td><?= gregorian_to_jalali_format($order['order_date'] ?: $order['work_date']) ?></td>
                             <td><?= htmlspecialchars($is_admin ? $order['partners_names'] : $order['partner_name']) ?></td>
                             <td><?= $order['order_id'] ?></td>
                             <td><?= htmlspecialchars($order['customer_name']) ?></td>

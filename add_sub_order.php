@@ -11,10 +11,20 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date)
 {
-    if (!$gregorian_date) return '';
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return "$jy/$jm/$jd";
+    if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
+        return 'نامشخص';
+    }
+    try {
+        list($gy, $gm, $gd) = explode('-', $gregorian_date);
+        if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) {
+            return 'نامشخص';
+        }
+        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+        return "$jy/$jm/$jd";
+    } catch (Exception $e) {
+        error_log("Error in gregorian_to_jalali_format: " . $e->getMessage());
+        return 'نامشخص';
+    }
 }
 
 $is_admin = ($_SESSION['role'] === 'admin');
@@ -251,7 +261,14 @@ async function sendRequest(url, data) {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams(data)
         });
-        return await response.json();
+        const text = await response.text();
+        console.log('Raw Response:', text); // لاگ خام برای دیباگ
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('JSON Parse Error:', e, 'Response:', text);
+            return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
+        }
     } catch (error) {
         console.error('SendRequest Error:', error);
         return { success: false, message: 'خطا در ارسال درخواست رخ داد.' };
@@ -387,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         $partnerSelect.append(`<option value="${partner.user_id}">${partner.full_name}</option>`);
                     });
                 } else {
+                    console.error('Load Partners Error:', response.message);
                     alert(response.message);
                 }
             },
@@ -405,16 +423,17 @@ document.addEventListener('DOMContentLoaded', () => {
             $.ajax({
                 url: 'sub_order_handler.php',
                 type: 'POST',
-                data: { action: 'get_work_days', partner_id: partnerId, work_details_id: workMonthId },
+                data: { action: 'get_work_days', partner_id: partnerId, work_month_id: workMonthId },
                 success: function(response) {
                     console.log('Work Days Response:', response);
                     if (response.success) {
                         $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
-                        response.data.work_days.forEach(date => {
-                            const jalaliDate = date.split('-').reverse().join('/');
-                            $workDateSelect.append(`<option value="${date}">${jalaliDate}</option>`);
+                        response.data.work_days.forEach(day => {
+                            const jalaliDate = '<?= gregorian_to_jalali_format($day.date) ?>';
+                            $workDateSelect.append(`<option value="${day.id}">${jalaliDate}</option>`);
                         });
                     } else {
+                        console.error('Work Days Error:', response.message);
                         alert(response.message);
                         $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                     }
@@ -578,31 +597,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('save_invoice_price').addEventListener('click', async () => {
-        const index = $('#invoice_price_index').val();
-        const invoicePrice = Number($('#invoice_price').val());
-
-        if (invoicePrice === '' || invoicePrice < 0) {
-            alert('لطفاً یک قیمت معتبر وارد کنید.');
-            return;
-        }
-
-        const data = {
-            action: 'set_sub_invoice_price',
-            index,
-            invoice_price: invoicePrice
-        };
-
-        const response = await sendRequest('sub_order_handler.php', data);
-        console.log('Set Invoice Price Response:', response);
-        if (response.success) {
-            renderItemsTable(response.data);
-            $('#invoicePriceModal').modal('hide');
-        } else {
-            alert(response.message);
-        }
-    });
-
     document.getElementById('items_table').addEventListener('change', async (e) => {
         if (e.target.id === 'postal_option') {
             const enablePostal = e.target.checked;
@@ -634,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 discount
             };
 
-            const response = await sendRequest('sub_order_handler.php', data);
+            const response = await sendResponse('sub_order_handler.php', data);
             console.log('Update Discount Response:', response);
             if (response.success) {
                 renderItemsTable(response.data);
@@ -647,8 +641,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('finalize_order_btn').addEventListener('click', async () => {
         const customer_name = document.getElementById('customer_name').value.trim();
         const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() : '<?= $work_month_id ?>';
-        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
-        const convert_to_main = $convertCheckbox.is(':checked');
+        const partner_id = $convertCheckbox.checked ? $partnerSelect.val() : '';
+        const convert_to_main = $convertCheckbox.checked;
         const discount = document.getElementById('discount') ? (Number(document.getElementById('discount').value) || 0) : 0;
 
         console.log('Finalize Data:', { customer_name, work_details_id, partner_id, convert_to_main, discount });
@@ -679,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
             customer_name,
             discount,
             partner_id,
-            convert_to_main
+            convert_to_main: convert_to_main ? '1' : '0'
         };
 
         const finalizeResponse = await sendRequest('sub_order_handler.php', data);
@@ -693,7 +687,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function resetForm() {
-        $('#product_name').val('').prop('disabled', false);
+        $('#product_name').val('').prop('disabled');
+        false,
         $('#product_id').val('');
         $('#quantity').val('1');
         $('#unit_price').val('');
