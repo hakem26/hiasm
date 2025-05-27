@@ -95,7 +95,7 @@ try {
 
             sendResponse(true, 'موفق', ['work_days' => $formatted_days]);
 
-            case 'add_sub_order':
+            case 'add_sub_item':
                 $customer_name = trim($_POST['customer_name'] ?? '');
                 $product_id = $_POST['product_id'] ?? '';
                 $quantity = floatval($_POST['quantity'] ?? 0);
