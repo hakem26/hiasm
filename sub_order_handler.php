@@ -95,7 +95,7 @@ try {
 
             sendResponse(true, 'موفق', ['work_days' => $formatted_days]);
 
-            case 'add_sub_item':
+            case 'add_sub_order':
                 $customer_name = trim($_POST['customer_name'] ?? '');
                 $product_id = $_POST['product_id'] ?? '';
                 $quantity = floatval($_POST['quantity'] ?? 0);
@@ -106,7 +106,7 @@ try {
                 $partner_id = $_POST['partner_id'] ?: $current_user_id;
                 $product_name = trim($_POST['product_name'] ?? '');
             
-                if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$product_name) {
+                if (!$customer_name || !$product_id || !$product_name || $quantity <= 0 || $unit_price <= 0) {
                     sendResponse(false, 'لطفاً تمام فیلدها را پر کنید.');
                 }
             
@@ -118,51 +118,53 @@ try {
                 }
             
                 $pdo->beginTransaction();
-                $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-                $stmt_inventory->execute([$current_user_id, $product_id]);
-                $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-                $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+                try {
+                    $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+                    $stmt_inventory->execute([$current_user_id, $product_id]);
+                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+                    $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
             
-                if ($current_quantity < $quantity) {
+                    $new_quantity = $current_quantity - $quantity; // اجازه می‌دهیم منفی بشه
+            
+                    $stmt_update = $pdo->prepare("
+                        INSERT INTO Inventory (user_id, product_id, quantity)
+                        VALUES (?, ?, ?)
+                        ON DUPLICATE KEY UPDATE quantity = ?
+                    ");
+                    $stmt_update->execute([$current_user_id, $product_id, $new_quantity, $new_quantity]);
+            
+                    $total_price = $quantity * ($unit_price + $extra_sale);
+                    $item = [
+                        'product_id' => $product_id,
+                        'product_name' => $product_name,
+                        'quantity' => $quantity,
+                        'unit_price' => $unit_price,
+                        'extra_sale' => $extra_sale,
+                        'total_price' => $total_price
+                    ];
+            
+                    $_SESSION['sub_order_items'][] = $item;
+                    $_SESSION['sub_discount'] = $discount;
+            
+                    $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
+                    $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
+            
+                    $pdo->commit();
+            
+                    sendResponse(true, 'محصول اضافه شد.', [
+                        'items' => $_SESSION['sub_order_items'],
+                        'total_amount' => $amount,
+                        'discount' => $discount,
+                        'final_amount' => $final_amount,
+                        'invoice_prices' => $_SESSION['sub_invoice_prices'],
+                        'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
+                        'sub_postal_price' => $_SESSION['sub_postal_price']
+                    ]);
+                } catch (Exception $e) {
                     $pdo->rollBack();
-                    sendResponse(false, 'موجودی کافی نیست.');
+                    error_log("Error in add_sub_item: " . $e->getMessage());
+                    sendResponse(false, 'خطا در اضافه کردن محصول.');
                 }
-            
-                $new_quantity = $current_quantity - $quantity;
-                $stmt_update = $pdo->prepare("
-                    INSERT INTO Inventory (user_id, product_id, quantity)
-                    VALUES (?, ?, ?)
-                    ON DUPLICATE KEY UPDATE quantity = ?
-                ");
-                $stmt_update->execute([$current_user_id, $product_id, $new_quantity, $new_quantity]);
-            
-                $total_price = $quantity * ($unit_price + $extra_sale);
-                $item = [
-                    'product_id' => $product_id,
-                    'product_name' => $product_name,
-                    'quantity' => $quantity,
-                    'unit_price' => $unit_price,
-                    'extra_sale' => $extra_sale,
-                    'total_price' => $total_price
-                ];
-            
-                $_SESSION['sub_order_items'][] = $item;
-                $_SESSION['sub_discount'] = $discount;
-            
-                $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-                $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
-            
-                $pdo->commit();
-            
-                sendResponse(true, 'محصول اضافه شد.', [
-                    'items' => $_SESSION['sub_order_items'],
-                    'total_amount' => $total_amount,
-                    'discount' => $discount,
-                    'final_amount' => $final_amount,
-                    'invoice_prices' => $_SESSION['sub_invoice_prices'],
-                    'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
-                    'sub_postal_price' => $_SESSION['sub_postal_price']
-                ]);
 
         case 'delete_sub_item':
             $index = $_POST['index'] ?? '';

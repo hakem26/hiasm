@@ -227,7 +227,7 @@ $_SESSION['is_sub_order_in_progress'] = true;
             <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount ?? 0, 0) ?> تومان</span></p>
         </div>
 
-        <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">ثبت پیش‌فاکتور</button>
+        <button type="button" id="save_sub_order_btn" class="btn btn-success mt-3">ثبت پیش‌فاکتور</button>
         <a href="orders.php" class="btn btn-secondary mt-3">بازگشت</a>
     </form>
 </div>
