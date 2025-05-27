@@ -11,9 +11,11 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date)
 {
-    if (!$gregorian_date) return 'نامشخص';
+    if (!$gregorian_date)
+        return 'نامشخص';
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) return 'نامشخص';
+    if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd))
+        return 'نامشخص';
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
@@ -26,7 +28,8 @@ function gregorian_year_to_jalali($gregorian_year)
 
 function calculate_day_of_week($work_date)
 {
-    if (!$work_date) return 1;
+    if (!$work_date)
+        return 1;
     $reference_date = '2025-03-01';
     $reference_timestamp = strtotime($reference_date);
     $current_timestamp = strtotime($work_date);
@@ -365,7 +368,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <option value="" <?= !$selected_partner_id ? 'selected' : '' ?>>انتخاب همکار</option>
                 <?php foreach ($partners as $partner): ?>
                     <option value="<?= htmlspecialchars($partner['user_id']) ?>"
-                            <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
+                        <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
                         <?= htmlspecialchars($partner['full_name']) ?>
                     </option>
                 <?php endforeach; ?>
@@ -385,7 +388,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         <?php if ($has_sub_orders): ?>
             <div class="col-auto align-self-end">
                 <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="show_sub_orders" id="show_sub_orders" value="1" <?= $show_sub_orders ? 'checked' : '' ?> onchange="this.form.submit()">
+                    <input class="form-check-input" type="checkbox" name="show_sub_orders" id="show_sub_orders" value="1"
+                        <?= $show_sub_orders ? 'checked' : '' ?> onchange="this.form.submit()">
                     <label class="form-check-label" for="show_sub_orders">
                         نمایش فقط پیش‌فاکتورها
                     </label>
@@ -394,7 +398,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
         <?php if (!$is_admin && $is_partner1): ?>
             <div class="col-auto align-self-end">
-                <a href="add_sub_order.php?work_month_id=<?= $selected_work_month_id ?>" class="btn btn-info">ایجاد پیش‌فاکتور</a>
+                <a href="add_sub_order.php?work_month_id=<?= $selected_work_month_id ?>" class="btn btn-info">ایجاد
+                    پیش‌فاکتور</a>
             </div>
         <?php endif; ?>
     </form>
@@ -439,23 +444,23 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <?php if (!$is_admin): ?>
                                 <td>
                                     <?php if ($order['is_main_order'] == 0): ?>
-                                        <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>"
-                                           class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>&work_month_id=<?= $selected_work_month_id ?>"
+                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php else: ?>
                                         <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
-                                           class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php endif; ?>
                                     <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
-                                       onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
+                                        onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
-                                       class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                 </td>
                             <?php endif; ?>
                             <td>
-                                <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>"
-                                   class="btn btn-success btn-sm"><i class="fas fa-print"></i> مشاهده</a>
+                                <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>" class="btn btn-success btn-sm"><i
+                                        class="fas fa-print"></i> مشاهده</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -467,7 +472,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
             <ul class="pagination justify-content-center mt-3">
                 <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
                     <a class="page-link"
-                       href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">قبلی</a>
+                        href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">قبلی</a>
                 </li>
                 <?php
                 $start_page = max(1, $page - 2);
@@ -475,12 +480,12 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 for ($i = $start_page; $i <= $end_page; $i++): ?>
                     <li class="page-item <?= $i == $page ? 'active' : '' ?>">
                         <a class="page-link"
-                           href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>"><?= $i ?></a>
+                            href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>"><?= $i ?></a>
                     </li>
                 <?php endfor; ?>
                 <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
                     <a class="page-link"
-                       href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">بعدی</a>
+                        href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">بعدی</a>
                 </li>
             </ul>
         </nav>
