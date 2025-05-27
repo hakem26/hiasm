@@ -254,11 +254,6 @@ $_SESSION['is_sub_order_in_progress'] = true;
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-<script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 let initialInventory = 0;
 let editingIndex = null;
@@ -271,7 +266,7 @@ async function sendRequest(url, data) {
             body: new URLSearchParams(data)
         });
         const text = await response.text();
-        console.log('Raw response:', text); // برای دیباگ
+        console.log('Raw response:', text);
         try {
             const json = JSON.parse(text);
             if (!json.success && !json.message) {
@@ -540,7 +535,7 @@ $(document).ready(function() {
             data: {
                 product_id: product.product_id,
                 user_id: '<?= $current_user_id ?>',
-                is_sub_order: 1 // نشانه برای پیش‌فاکتور
+                is_sub_order: 1
             },
             success: function(response) {
                 if (response.success) {
@@ -738,9 +733,9 @@ $(document).ready(function() {
             work_month_id
         };
 
-        console.log('Sending finalize_sub_order request:', data); // برای دیباگ
+        console.log('Sending finalize_sub_order request:', data);
         const response = await sendRequest('sub_order_handler.php', data);
-        console.log('Finalize response:', response); // برای دیباگ
+        console.log('Finalize response:', response);
         if (response.success) {
             window.location.href = response.data.redirect;
         } else {
@@ -749,18 +744,16 @@ $(document).ready(function() {
     });
 
     // بارگذاری اولیه آیتم‌ها
-sendRequest('sub_order_handler.php', { action: 'get_items' }).then(response => {
-    console.log('Get items response:', response); // برای دیباگ
-    if (response.success) {
-        renderItemsTable(response.data);
-    } else {
-        console.error('Get items failed:', response.message);
-        // اگر آیتم‌ها لود نشدن، جدول خالی نشون بده
-        renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
-    }
+    sendRequest('sub_order_handler.php', { action: 'get_items' }).then(response => {
+        console.log('Get items response:', response);
+        if (response.success) {
+            renderItemsTable(response.data);
+        } else {
+            console.error('Get items failed:', response.message);
+            renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
+        }
+    });
 });
-});
-</script>
 </script>
 
 <?php require_once 'footer.php'; ?>
