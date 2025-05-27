@@ -16,9 +16,9 @@ function gregorian_to_jalali_format($gregorian_date)
     }
     try {
         list($gy, $gm, $gd) = explode('-', $gregorian_date);
-        $gy = (int)$gy;
-        $gm = (int)$gm;
-        $gd = (int)$gd;
+        $gy = (int) $gy;
+        $gm = (int) $gm;
+        $gd = (int) $gd;
         if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
             return 'نامشخص';
         }
@@ -143,82 +143,82 @@ $_SESSION['is_sub_order_in_progress'] = true;
 
         <div class="table-wrapper" id="items_table">
             <?php if (!empty($_SESSION['sub_order_items'])): ?>
-                <table class="table table-light order-items-table">
-                    <thead>
-                        <tr>
-                            <th>نام محصول</th>
-                            <th>تعداد</th>
-                            <th>قیمت واحد</th>
-                            <th>اضافه فروش</th>
-                            <th>قیمت کل</th>
-                            <th>قیمت فاکتور</th>
-                            <th>عملیات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($_SESSION['sub_order_items'] as $index => $item): ?>
-                            <tr id="item_row_<?= $index ?>">
-                                <td><?= htmlspecialchars($item['product_name']) ?></td>
-                                <td><?= $item['quantity'] ?></td>
-                                <td><?= number_format($item['unit_price'], 0) ?></td>
-                                <td><?= number_format($item['extra_sale'], 0) ?></td>
-                                <td><?= number_format($item['total_price'], 0) ?></td>
-                                <td>
-                                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="<?= $index ?>">
-                                        تنظیم قیمت
-                                    </button>
-                                    <span class="invoice-price" data-index="<?= $index ?>">
-                                        <?= number_format($_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'], 0) ?> تومان
-                                    </span>
-                                </td>
-                                <td>
-                                    <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
+                    <table class="table table-light order-items-table">
+                        <thead>
+                            <tr>
+                                <th>نام محصول</th>
+                                <th>تعداد</th>
+                                <th>قیمت واحد</th>
+                                <th>اضافه فروش</th>
+                                <th>قیمت کل</th>
+                                <th>قیمت فاکتور</th>
+                                <th>عملیات</th>
                             </tr>
-                        <?php endforeach; ?>
-                        <?php if ($_SESSION['sub_postal_enabled']): ?>
-                            <tr class="postal-row">
-                                <td>ارسال پستی</td>
-                                <td>-</td>
-                                <td>-</td>
-                                <td>-</td>
-                                <td>-</td>
-                                <td>
-                                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
-                                        تنظیم قیمت
-                                    </button>
-                                    <span class="invoice-price" data-index="postal">
-                                        <?= number_format($_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'], 0) ?> تومان
-                                    </span>
-                                </td>
-                                <td>-</td>
-                            </tr>
-                        <?php endif; ?>
-                        <?php
+                        </thead>
+                        <tbody>
+                            <?php foreach ($_SESSION['sub_order_items'] as $index => $item): ?>
+                                    <tr id="item_row_<?= $index ?>">
+                                        <td><?= htmlspecialchars($item['product_name']) ?></td>
+                                        <td><?= $item['quantity'] ?></td>
+                                        <td><?= number_format($item['unit_price'], 0) ?></td>
+                                        <td><?= number_format($item['extra_sale'], 0) ?></td>
+                                        <td><?= number_format($item['total_price'], 0) ?></td>
+                                        <td>
+                                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="<?= $index ?>">
+                                                تنظیم قیمت
+                                            </button>
+                                            <span class="invoice-price" data-index="<?= $index ?>">
+                                                <?= number_format($_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'], 0) ?> تومان
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                            <?php endforeach; ?>
+                            <?php if ($_SESSION['sub_postal_enabled']): ?>
+                                    <tr class="postal-row">
+                                        <td>ارسال پستی</td>
+                                        <td>-</td>
+                                        <td>-</td>
+                                        <td>-</td>
+                                        <td>-</td>
+                                        <td>
+                                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
+                                                تنظیم قیمت
+                                            </button>
+                                            <span class="invoice-price" data-index="postal">
+                                                <?= number_format($_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'], 0) ?> تومان
+                                            </span>
+                                        </td>
+                                        <td>-</td>
+                                    </tr>
+                            <?php endif; ?>
+                            <?php
                             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
                             $discount = $_SESSION['sub_discount'];
                             $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
-                        ?>
-                        <tr class="total-row">
-                            <td colspan="4"><strong>جمع کل</strong></td>
-                            <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
-                            <td colspan="2"></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><label for="discount" class="form-label">تخفیف</label></td>
-                            <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
-                            <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
-                            <td colspan="2"></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><label for="postal_option" class="form-label">پست سفارش</label></td>
-                            <td><input type="checkbox" id="postal_option" name="postal_option" <?= $_SESSION['sub_postal_enabled'] ? 'checked' : '' ?>></td>
-                            <td colspan="3"></td>
-                        </tr>
-                    </tbody>
-                </table>
+                            ?>
+                            <tr class="total-row">
+                                <td colspan="4"><strong>جمع کل</strong></td>
+                                <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
+                                <td colspan="2"></td>
+                            </tr>
+                            <tr class="total-row">
+                                <td><label for="discount" class="form-label">تخفیف</label></td>
+                                <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
+                                <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
+                                <td colspan="2"></td>
+                            </tr>
+                            <tr class="total-row">
+                                <td><label for="postal_option" class="form-label">پست سفارش</label></td>
+                                <td><input type="checkbox" id="postal_option" name="postal_option" <?= $_SESSION['sub_postal_enabled'] ? 'checked' : '' ?>></td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tbody>
+                    </table>
             <?php endif; ?>
         </div>
 
@@ -520,25 +520,26 @@ $(document).ready(function() {
     });
 
     $(document).on('click', '.product-suggestion', function(e) {
-        e.preventDefault();
-        let product = $(this).data('product');
-        if (typeof product === 'string') {
-            product = JSON.parse(product);
-        }
-        $('#product_name').val(product.product_name).prop('disabled', false);
-        $('#product_id').val(product.product_id);
-        $('#unit_price').val(product.unit_price);
-        $('#extra_sale').val(0);
-        $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa-IR') + ' تومان');
-        $('#total_price').val((1 * product.unit_price).toLocaleString('fa-IR') + ' تومان');
-        $('#product_suggestions').hide();
+    e.preventDefault();
+    let product = $(this).data('product');
+    if (typeof product === 'string') {
+        product = JSON.parse(product);
+    }
+    $('#product_name').val(product.product_name).prop('disabled', false);
+    $('#product_id').val(product.product_id);
+    $('#unit_price').val(product.unit_price);
+    $('#extra_sale').val(0);
+    $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa-IR') + ' تومان');
+    $('#total_price').val((1 * product.unit_price).toLocaleString('fa-IR') + ' تومان');
+    $('#product_suggestions').hide();
 
         $.ajax({
             url: 'get_inventory.php',
             type: 'POST',
             data: {
                 product_id: product.product_id,
-                user_id: '<?= $current_user_id ?>'
+                user_id: '<?= $current_user_id ?>',
+                is_sub_order: 1 // نشانه برای پیش‌فاکتور
             },
             success: function(response) {
                 if (response.success) {
@@ -551,10 +552,10 @@ $(document).ready(function() {
                     alert('خطا در دریافت موجودی: ' + response.message);
                 }
             },
-            error: function() {
-                $('#inventory_quantity').text('0');
-                alert('خطا در دریافت موجودی.');
-            }
+        error: function() {
+            $('#inventory_quantity').text('0');
+            alert('خطا در دریافت موجودی.');
+        }
         });
 
         $('#quantity').focus();

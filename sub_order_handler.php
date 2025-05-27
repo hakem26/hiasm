@@ -110,7 +110,6 @@ try {
                 sendResponse(false, 'لطفاً تمام فیلدها را پر کنید.');
             }
 
-            // چک کردن وجود محصول
             $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
             $stmt->execute([$product_id]);
             $product = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -118,19 +117,18 @@ try {
                 sendResponse(false, 'محصول یافت نشد.');
             }
 
-            // کسر موجودی
             $pdo->beginTransaction();
             $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-            $stmt_inventory->execute([$current_user_id, $product_id]);
+            $stmt_inventory->execute([$current_user_id, $product_id]); // اصلاح اشتباه تایپی
             $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-            $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+            $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
             $new_quantity = $current_quantity - $quantity;
 
             $stmt_update = $pdo->prepare("
-                INSERT INTO Inventory (user_id, product_id, quantity)
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE quantity = ?
-            ");
+        INSERT INTO Inventory (user_id, product_id, quantity)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE quantity = ?
+    ");
             $stmt_update->execute([$current_user_id, $product_id, $new_quantity, $new_quantity]);
 
             $total_price = $quantity * ($unit_price + $extra_sale);
@@ -176,7 +174,7 @@ try {
             $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
             $stmt_inventory->execute([$current_user_id, $product_id]);
             $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-            $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+            $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
             $new_quantity = $current_quantity + $quantity;
 
             $stmt_update = $pdo->prepare("
@@ -285,7 +283,7 @@ try {
             $work_details_id = $_POST['work_details_id'] ?? '';
             $partner_id = $_POST['partner_id'] ?? $current_user_id;
             $discount = floatval($_POST['discount'] ?? 0);
-            $convert_to_main = isset($_POST['convert_to_main']) ? (int)$_POST['convert_to_main'] : 0;
+            $convert_to_main = isset($_POST['convert_to_main']) ? (int) $_POST['convert_to_main'] : 0;
             $work_month_id = $_POST['work_month_id'] ?? '';
 
             if (!$customer_name || !$work_month_id) {
@@ -476,7 +474,7 @@ try {
                     $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                     $stmt_inventory->execute([$current_user_id, $product_id]);
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-                    $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+                    $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
                     $new_quantity = $current_quantity + $item['quantity'];
 
                     $stmt_update = $pdo->prepare("
@@ -495,7 +493,7 @@ try {
                 $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
                 $stmt_inventory->execute([$current_user_id, $product_id]);
                 $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-                $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+                $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
                 $new_quantity = $current_quantity - $quantity;
 
                 $stmt_update = $pdo->prepare("
@@ -614,8 +612,7 @@ try {
         default:
             sendResponse(false, 'عملیات نامعتبر.');
     }
-}
-catch (Exception $e) {
+} catch (Exception $e) {
     $pdo->rollBack();
     error_log("Error in sub_order_handler.php: " . $e->getMessage());
     sendResponse(false, 'خطای سرور: ' . $e->getMessage());
