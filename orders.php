@@ -11,10 +11,20 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date)
 {
-    if (!$gregorian_date) return 'نامشخص';
+    if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
+        return 'نامشخص';
+    }
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return "$jy/$jm/$jd";
+    if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) {
+        return 'نامشخص';
+    }
+    try {
+        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+        return "$jy/$jm/$jd";
+    } catch (Exception $e) {
+        error_log("Error in gregorian_to_jalali_format: " . $e->getMessage());
+        return 'نامشخص';
+    }
 }
 
 function gregorian_year_to_jalali($gregorian_year)
@@ -25,6 +35,7 @@ function gregorian_year_to_jalali($gregorian_year)
 
 function calculate_day_of_week($work_date)
 {
+    if (!$work_date) return 1;
     $reference_date = '2025-03-01';
     $reference_timestamp = strtotime($reference_date);
     $current_timestamp = strtotime($work_date);
@@ -111,7 +122,6 @@ if ($selected_work_month_id) {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
-        // چک کردن وجود پیش‌فاکتور برای کاربر
         $sub_order_check = $pdo->prepare("
             SELECT 1 
             FROM Orders o
@@ -189,7 +199,6 @@ if ($selected_work_month_id) {
         foreach ($work_details_raw as $detail) {
             $work_date = $detail['work_date'];
             $day_number = calculate_day_of_week($work_date);
-
             $work_details[] = [
                 'work_details_id' => $detail['id'],
                 'work_date' => $work_date,
@@ -443,14 +452,14 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php else: ?>
                                         <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
-                                           class="btn btn-primary btn-sm"><i class="fas fa-edit"></i></a>
+                                           class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php endif; ?>
                                     <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
                                        onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
-                                       class="btn btn-primary btn-sm"><i class="fas fa-edit"></i></a>
+                                       class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                 </td>
                             <?php endif; ?>
                             <td>
@@ -469,7 +478,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                     <a class="page-link"
                        href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>&show_sub_orders=<?= $show_sub_orders ? '1' : '' ?>">قبلی</a>
                 </li>
-                <?php 
+                <?php
                 $start_page = max(1, $page - 2);
                 $end_page = min($total_pages, $page + 2);
                 for ($i = $start_page; $i <= $end_page; $i++): ?>
