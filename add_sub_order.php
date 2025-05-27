@@ -1,24 +1,26 @@
 <?php
+// Start session and check authentication
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit;
 }
 
+// Include dependencies
 require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_format($gregorian_date)
-{
+// Convert Gregorian date to Jalali format
+function gregorian_to_jalali_format($gregorian_date) {
     if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
         return 'نامشخص';
     }
     try {
         list($gy, $gm, $gd) = explode('-', $gregorian_date);
-        $gy = (int) $gy;
-        $gm = (int) $gm;
-        $gd = (int) $gd;
+        $gy = (int)$gy;
+        $gm = (int)$gm;
+        $gd = (int)$gd;
         if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
             return 'نامشخص';
         }
@@ -30,6 +32,7 @@ function gregorian_to_jalali_format($gregorian_date)
     }
 }
 
+// Restrict admin access
 $is_admin = ($_SESSION['role'] === 'admin');
 if ($is_admin) {
     header("Location: orders.php");
@@ -37,6 +40,7 @@ if ($is_admin) {
 }
 $current_user_id = $_SESSION['user_id'];
 
+// Validate work_month_id
 $work_month_id = $_GET['work_month_id'] ?? '';
 if (!$work_month_id) {
     echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>ماه کاری مشخص نشده است.</div></div>";
@@ -53,6 +57,7 @@ if (!$month) {
     exit;
 }
 
+// Initialize session variables
 $_SESSION['sub_order_items'] = $_SESSION['sub_order_items'] ?? [];
 $_SESSION['sub_discount'] = $_SESSION['sub_discount'] ?? 0;
 $_SESSION['sub_invoice_prices'] = $_SESSION['sub_invoice_prices'] ?? ['postal' => 50000];
@@ -70,6 +75,7 @@ $_SESSION['is_sub_order_in_progress'] = true;
     .order-items-table .total-row input#discount { width: 150px; margin: 0 auto; }
     @media (max-width: 991px) { .col-6, .col-md-3, .col-md-6 { width: 50%; } }
     .hidden { display: none; }
+    .list-group { max-height: 200px; overflow-y: auto; }
 </style>
 
 <div class="container-fluid mt-5">
@@ -102,10 +108,10 @@ $_SESSION['is_sub_order_in_progress'] = true;
             <input type="text" class="form-control" id="customer_name" name="customer_name" required autocomplete="off">
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 position-relative">
             <label for="product_name" class="form-label">نام محصول</label>
-            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید...">
-            <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." autocomplete="off">
+            <div id="product_suggestions" class="list-group position-absolute w-100" style="z-index: 1000; display: none;"></div>
             <input type="hidden" id="product_id" name="product_id">
         </div>
 
@@ -141,90 +147,11 @@ $_SESSION['is_sub_order_in_progress'] = true;
             <button type="button" id="edit_item_btn" class="btn btn-warning" style="display: none;">ثبت ویرایش</button>
         </div>
 
-        <div class="table-wrapper" id="items_table">
-            <?php if (!empty($_SESSION['sub_order_items'])): ?>
-                            <table class="table table-light order-items-table">
-                                <thead>
-                                    <tr>
-                                        <th>نام محصول</th>
-                                        <th>تعداد</th>
-                                        <th>قیمت واحد</th>
-                                        <th>اضافه فروش</th>
-                                        <th>قیمت کل</th>
-                                        <th>قیمت فاکتور</th>
-                                        <th>عملیات</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($_SESSION['sub_order_items'] as $index => $item): ?>
-                                                    <tr id="item_row_<?= $index ?>">
-                                                        <td><?= htmlspecialchars($item['product_name']) ?></td>
-                                                        <td><?= $item['quantity'] ?></td>
-                                                        <td><?= number_format($item['unit_price'], 0) ?></td>
-                                                        <td><?= number_format($item['extra_sale'], 0) ?></td>
-                                                        <td><?= number_format($item['total_price'], 0) ?></td>
-                                                        <td>
-                                                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="<?= $index ?>">
-                                                                تنظیم قیمت
-                                                            </button>
-                                                            <span class="invoice-price" data-index="<?= $index ?>">
-                                                                <?= number_format($_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'], 0) ?> تومان
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="<?= $index ?>">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                    <?php endforeach; ?>
-                                    <?php if ($_SESSION['sub_postal_enabled']): ?>
-                                                    <tr class="postal-row">
-                                                        <td>ارسال پستی</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>
-                                                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
-                                                                تنظیم قیمت
-                                                            </button>
-                                                            <span class="invoice-price" data-index="postal">
-                                                                <?= number_format($_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'], 0) ?> تومان
-                                                            </span>
-                                                        </td>
-                                                        <td>-</td>
-                                                    </tr>
-                                    <?php endif; ?>
-                                    <?php
-                                    $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-                                    $discount = $_SESSION['sub_discount'];
-                                    $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
-                                    ?>
-                                    <tr class="total-row">
-                                        <td colspan="4"><strong>جمع کل</strong></td>
-                                        <td><strong id="total_amount"><?= number_format($total_amount, 0) ?> تومان</strong></td>
-                                        <td colspan="2"></td>
-                                    </tr>
-                                    <tr class="total-row">
-                                        <td><label for="discount" class="form-label">تخفیف</label></td>
-                                        <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
-                                        <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
-                                        <td colspan="2"></td>
-                                    </tr>
-                                    <tr class="total-row">
-                                        <td><label for="postal_option" class="form-label">پست سفارش</label></td>
-                                        <td><input type="checkbox" id="postal_option" name="postal_option" <?= $_SESSION['sub_postal_enabled'] ? 'checked' : '' ?>></td>
-                                        <td colspan="3"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-            <?php endif; ?>
-        </div>
+        <div class="table-wrapper" id="items_table"></div>
 
         <div class="mb-3">
-            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount ?? 0, 0) ?> تومان</span></p>
-            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount ?? 0, 0) ?> تومان</span></p>
+            <p><strong>جمع کل:</strong> <span id="total_amount_display">0 تومان</span></p>
+            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display">0 تومان</span></p>
         </div>
 
         <button type="button" id="save_sub_order_btn" class="btn btn-success mt-3">ثبت پیش‌فاکتور</button>
@@ -405,17 +332,18 @@ function resetForm() {
 }
 
 function updatePrices() {
-    let quantity = Number($('#quantity').val()) || 0;
-    let unit_price = Number($('#unit_price').val()) || 0;
-    let extra_sale = Number($('#extra_sale').val()) || 0;
-    let adjusted_price = unit_price + extra_sale;
-    let total_price = quantity * adjusted_price;
+    const quantity = Number($('#quantity').val()) || 0;
+    const unit_price = Number($('#unit_price').val()) || 0;
+    const extra_sale = Number($('#extra_sale').val()) || 0;
+    const adjusted_price = unit_price + extra_sale;
+    const total_price = quantity * adjusted_price;
     $('#adjusted_price').val(adjusted_price.toLocaleString('fa-IR') + ' تومان');
     $('#total_price').val(total_price.toLocaleString('fa-IR') + ' تومان');
 }
 
 $(document).ready(function() {
     console.log('Document ready');
+
     $('#convert_to_main').on('change', function() {
         const isChecked = $(this).is(':checked');
         $('#partner_container').toggleClass('hidden', !isChecked);
@@ -440,6 +368,9 @@ $(document).ready(function() {
                     $('#partner_container').addClass('hidden');
                     $('#work_date_container').addClass('hidden');
                 }
+            }).catch(error => {
+                console.error('Get partners error:', error);
+                alert('خطا در دریافت لیست همکاران.');
             });
         }
     });
@@ -462,6 +393,9 @@ $(document).ready(function() {
                     alert(response.message);
                     $('#work_date').html('<option value="">انتخاب تاریخ</option>');
                 }
+            }).catch(error => {
+                console.error('Get work days error:', error);
+                alert('خطا در دریافت روزهای کاری.');
             });
         } else {
             $('#work_date').html('<option value="">انتخاب تاریخ</option>');
@@ -469,14 +403,21 @@ $(document).ready(function() {
     });
 
     $('#product_name').on('input', function() {
-        let query = $(this).val();
+        const query = $(this).val().trim();
+        const work_details_id = $('#work_date').val();
+        const partner_id = $('#partner_id').val() || '<?= $current_user_id ?>';
         if (query.length >= 3) {
-            $.post('get_products.php', { query: query }, function(response) {
-                if (response.trim() === '') {
+            $.post('get_sub_order_products.php', { query, work_details_id, partner_id }, function(response) {
+                console.log('Product suggestions response:', response);
+                if (response.trim() === '' || response.includes('محصولی یافت نشد')) {
                     $('#product_suggestions').hide();
                 } else {
                     $('#product_suggestions').html(response).show();
                 }
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                console.error('Product search error:', textStatus, errorThrown);
+                $('#product_suggestions').hide();
+                alert('خطا در جستجوی محصولات.');
             });
         } else {
             $('#product_suggestions').hide();
@@ -487,7 +428,13 @@ $(document).ready(function() {
         e.preventDefault();
         let product = $(this).data('product');
         if (typeof product === 'string') {
-            product = JSON.parse(product);
+            try {
+                product = JSON.parse(product);
+            } catch (e) {
+                console.error('Product parse error:', e);
+                alert('خطا در انتخاب محصول.');
+                return;
+            }
         }
         $('#product_name').val(product.product_name).prop('disabled', false);
         $('#product_id').val(product.product_id);
@@ -510,6 +457,10 @@ $(document).ready(function() {
                 $('#inventory_quantity').text('0');
                 alert('خطا در دریافت موجودی: ' + response.message);
             }
+        }).catch(error => {
+            console.error('Get inventory error:', error);
+            $('#inventory_quantity').text('0');
+            alert('خطا در دریافت موجودی.');
         });
 
         $('#quantity').focus();
@@ -520,7 +471,7 @@ $(document).ready(function() {
 
     $('#add_item_btn').on('click', async function() {
         console.log('Add item button clicked');
-        const customer_name = $('#customer_name').val().trim();
+        const customerName = $('#customer_name').val().trim();
         const product_id = $('#product_id').val();
         const quantity = Number($('#quantity').val()) || 0;
         const unit_price = Number($('#unit_price').val()) || 0;
@@ -528,42 +479,52 @@ $(document).ready(function() {
         const discount = Number($('#discount').val()) || 0;
         const product_name = $('#product_name').val().trim();
 
-        console.log('Add item data:', { customer_name, product_id, quantity, unit_price, extra_sale, discount, product_name });
+        console.log('Add item data:', { customerName, product_id, quantity, unit_price, extra_sale, discount, product_name });
 
-        if (!customer_name || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
+        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
             alert('لطفاً همه فیلدها را پر کنید.');
             return;
         }
 
-        const response = await sendRequest('sub_order_handler.php', {
-            action: 'add_sub_item',
-            customer_name: customer_name,
-            product_id: product_id,
-            product_name: product_name,
-            quantity: quantity,
-            unit_price: unit_price,
-            extra_sale: extra_sale,
-            discount: discount,
-            work_details_id: $('#work_date').val(),
-            partner_id: $('#partner_id').val() || '<?= $current_user_id ?>'
-        });
+        try {
+            const response = await sendRequest('sub_order_handler.php', {
+                action: 'add_sub_item',
+                customer_name: customerName,
+                product_id: product_id,
+                product_name: product_name,
+                quantity: quantity,
+                unit_price: unit_price,
+                extra_sale: extra_sale,
+                discount: discount,
+                work_details_id: $('#work_date').val(),
+                partner_id: $('#partner_id').val() || '<?= $current_user_id ?>'
+            });
 
-        if (response.success) {
-            renderItemsTable(response.data);
-            resetForm();
-        } else {
-            alert(response.message);
+            if (response.success) {
+                renderItemsTable(response.data);
+                resetForm();
+            } else {
+                alert(response.message);
+            }
+        } catch (error) {
+            console.error('Add item error:', error);
+            alert('خطا در افزودن محصول.');
         }
     });
 
     $('#edit_item_btn').on('click', async function() {
-        await $('#add_item_btn').trigger('click');
+        $('#add_item_btn').trigger('click');
     });
 
     $(document).on('click', '.edit-item', function() {
         const index = $(this).data('index');
         const items = <?= json_encode($_SESSION['sub_order_items'] ?? []) ?>;
         const item = items[index];
+
+        if (!item) {
+            alert('آیتم یافت نشد.');
+            return;
+        }
 
         $('#product_name').val(item.product_name).prop('disabled', true);
         $('#product_id').val(item.product_id);
@@ -581,15 +542,20 @@ $(document).ready(function() {
 
     $(document).on('click', '.delete-item', async function() {
         const index = $(this).data('index');
-        const response = await sendRequest('sub_order_handler.php', {
-            action: 'delete_sub_item',
-            index: index
-        });
+        try {
+            const response = await sendRequest('sub_order_handler.php', {
+                action: 'delete_sub_item',
+                index: index
+            });
 
-        if (response.success) {
-            renderItemsTable(response.data);
-        } else {
-            alert(response.message);
+            if (response.success) {
+                renderItemsTable(response.data);
+            } else {
+                alert(response.message);
+            }
+        } catch (error) {
+            console.error('Delete item error:', error);
+            alert('خطا در حذف محصول.');
         }
     });
 
@@ -608,31 +574,41 @@ $(document).ready(function() {
             alert('قیمت فاکتور نمی‌تواند منفی باشد.');
             return;
         }
-        const response = await sendRequest('sub_order_handler.php', {
-            action: 'set_sub_invoice_price',
-            index: index,
-            invoice_price: invoice_price
-        });
+        try {
+            const response = await sendRequest('sub_order_handler.php', {
+                action: 'set_sub_invoice_price',
+                index: index,
+                invoice_price: invoice_price
+            });
 
-        if (response.success) {
-            renderItemsTable(response.data);
-            $('#invoicePriceModal').modal('hide');
-        } else {
-            alert(response.message);
+            if (response.success) {
+                renderItemsTable(response.data);
+                $('#invoicePriceModal').modal('hide');
+            } else {
+                alert(response.message);
+            }
+        } catch (error) {
+            console.error('Save invoice price error:', error);
+            alert('خطا در تنظیم قیمت فاکتور.');
         }
     });
 
     $('#postal_option').on('change', async function() {
         const enable_postal = $(this).is(':checked');
-        const response = await sendRequest('sub_order_handler.php', {
-            action: 'set_sub_postal_option',
-            enable_postal: enable_postal
-        });
+        try {
+            const response = await sendRequest('sub_order_handler.php', {
+                action: 'set_sub_postal_option',
+                enable_postal: enable_postal
+            });
 
-        if (response.success) {
-            renderItemsTable(response.data);
-        } else {
-            alert(response.message);
+            if (response.success) {
+                renderItemsTable(response.data);
+            } else {
+                alert(response.message);
+            }
+        } catch (error) {
+            console.error('Set postal option error:', error);
+            alert('خطا در تنظیم گزینه پستی.');
         }
     });
 
@@ -643,15 +619,20 @@ $(document).ready(function() {
             $(this).val(0);
             return;
         }
-        const response = await sendRequest('sub_order_handler.php', {
-            action: 'update_sub_discount',
-            discount: discount
-        });
+        try {
+            const response = await sendRequest('sub_order_handler.php', {
+                action: 'update_sub_discount',
+                discount: discount
+            });
 
-        if (response.success) {
-            renderItemsTable(response.data);
-        } else {
-            alert(response.message);
+            if (response.success) {
+                renderItemsTable(response.data);
+            } else {
+                alert(response.message);
+            }
+        } catch (error) {
+            console.error('Update discount error:', error);
+            alert('خطا در به‌روزرسانی تخفیف.');
         }
     });
 
@@ -660,11 +641,11 @@ $(document).ready(function() {
         const customerName = $('#customer_name').val().trim();
         const work_details_id = $('#work_date').val();
         const partner_id = $('#partner_id').val() || '<?= $current_user_id ?>';
-        const discount = Number($('#discount').val() || 0);
+        const discount = Number($('#discount').val()) || 0;
         const convert_to_main = $('#convert_to_main').is(':checked') ? 1 : 0;
         const work_month_id = '<?= $work_month_id ?>';
 
-        console.log('Form data:', { customer_name, work_details_id, partner_id, discount, convert_to_main, work_month_id });
+        console.log('Form data:', { customerName, work_details_id, partner_id, discount, convert_to_main, work_month_id });
 
         if (!customerName) {
             alert('لطفاً نام مشتری را وارد کنید.');
@@ -676,26 +657,30 @@ $(document).ready(function() {
             return;
         }
 
-        const data = {
-            action: 'finalize_sub_order',
-            customer_name: customerName,
-            work_details_id: work_details_id,
-            partner_id: partner_id,
-            discount: discount,
-            convert_to_main: convert_to_main,
-            work_month_id: work_month_id
-        };
-        console.log('Sending finalize_sub_order request:', data);
-        const response = await sendRequest('sub_order_handler.php', data);
+        try {
+            const response = await sendRequest('sub_order_handler.php', {
+                action: 'finalize_sub_order',
+                customer_name: customerName,
+                work_details_id: work_details_id,
+                partner_id: partner_id,
+                discount: discount,
+                convert_to_main: convert_to_main,
+                work_month_id: work_month_id
+            });
 
-        if (response.success) {
-            console.log('Redirecting to:', response.data.redirect');
-            window.location.href = response.data.redirect;
-        } else {
-            alert(response.message);
+            if (response.success) {
+                console.log('Redirecting to:', response.data.redirect);
+                window.location.href = response.data.redirect;
+            } else {
+                alert(response.message);
+            }
+        } catch (error) {
+            console.error('Save order error:', error);
+            alert('خطا در ثبت پیش‌فاکتور.');
         }
     });
 
+    // Initialize items table
     sendRequest('sub_order_handler.php', { action: 'get_items' }).then(response => {
         console.log('Get items response:', response);
         if (response.success) {
@@ -704,7 +689,11 @@ $(document).ready(function() {
             console.error('Get items failed:', response);
             renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
         }
+    }).catch(error => {
+        console.error('Get items error:', error);
+        renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
     });
+});
 </script>
 
 <?php require_once 'footer.php'; ?>
