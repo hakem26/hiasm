@@ -286,87 +286,99 @@ try {
             $convert_to_main = isset($_POST['convert_to_main']) ? (int) $_POST['convert_to_main'] : 0;
             $work_month_id = $_POST['work_month_id'] ?? '';
 
+            error_log("finalize_sub_order - Input: customer_name=$customer_name, work_details_id=$work_details_id, partner_id=$partner_id, discount=$discount, convert_to_main=$convert_to_main, work_month_id=$work_month_id");
+
             if (!$customer_name || !$work_month_id) {
+                error_log("finalize_sub_order - Validation failed: Missing customer_name or work_month_id");
                 sendResponse(false, 'نام مشتری یا ماه کاری مشخص نیست.');
             }
 
             if ($convert_to_main && (!$partner_id || !$work_details_id)) {
+                error_log("finalize_sub_order - Validation failed: Missing partner_id or work_details_id for main order");
                 sendResponse(false, 'همکار یا تاریخ کاری انتخاب نشده است.');
             }
 
             if (empty($_SESSION['sub_order_items'])) {
+                error_log("finalize_sub_order - Validation failed: No items in sub_order_items");
                 sendResponse(false, 'هیچ محصولی در پیش‌فاکتور نیست.');
             }
 
             if (!$convert_to_main) {
                 $stmt = $pdo->prepare("
-                    SELECT wd.id
-                    FROM Work_Details wd
-                    JOIN Partners p ON wd.partner_id = p.partner_id
-                    WHERE wd.work_month_id = ? AND p.user_id1 = ?
-                    LIMIT 1
-                ");
+            SELECT wd.id
+            FROM Work_Details wd
+            JOIN Partners p ON wd.partner_id = p.id
+            WHERE wd.work_month_id = ? AND p.user_id1 = ?
+            LIMIT 1
+        ");
                 $stmt->execute([$work_month_id, $current_user_id]);
                 $work_details_id = $stmt->fetchColumn();
                 if (!$work_details_id) {
+                    error_log("finalize_sub_order - No work_details found for user_id=$current_user_id, work_month_id=$work_month_id");
                     sendResponse(false, 'جزئیات کاری برای این ماه یافت نشد.');
                 }
             }
 
             $pdo->beginTransaction();
+            try {
+                $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
+                $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
-            $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-            $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
+                $stmt = $pdo->prepare("
+            INSERT INTO Orders (customer_name, total_amount, discount, final_amount, work_details_id, is_main_order, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ");
+                $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $work_details_id, $convert_to_main]);
 
-            $stmt = $pdo->prepare("
-                INSERT INTO Orders (customer_name, total_amount, discount, final_amount, work_details_id, is_main_order, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
+                $order_id = $pdo->lastInsertId();
+
+                foreach ($_SESSION['sub_order_items'] as $index => $item) {
+                    $invoice_price = $_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'];
+                    $stmt = $pdo->prepare("
+                INSERT INTO Order_Items (order_id, product_name, unit_price, extra_sale, quantity, total_price)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $work_details_id, $convert_to_main]);
-
-            $order_id = $pdo->lastInsertId();
-
-            foreach ($_SESSION['sub_order_items'] as $index => $item) {
-                $invoice_price = $_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'];
-                $stmt = $pdo->prepare("
-                    INSERT INTO Order_Items (order_id, product_name, unit_price, extra_sale, quantity, total_price)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([$order_id, $item['product_name'], $item['unit_price'], $item['extra_sale'], $item['quantity'], $invoice_price]);
-            }
-
-            if ($_SESSION['sub_postal_enabled']) {
-                $postal_price = $_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'];
-                $stmt = $pdo->prepare("
-                    INSERT INTO Order_Items (order_id, product_name, unit_price, quantity, total_price)
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([$order_id, 'ارسال پستی', $postal_price, 1, $postal_price]);
-            }
-
-            foreach ($_SESSION['sub_invoice_prices'] as $index => $price) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-                if ($index === 'postal') {
-                    $stmt->execute([$order_id, -1, 0, true, $price]);
-                } else {
-                    $stmt->execute([$order_id, $index, $price, false, 0]);
+                    $stmt->execute([$order_id, $item['product_name'], $item['unit_price'], $item['extra_sale'], $item['quantity'], $invoice_price]);
                 }
+
+                if ($_SESSION['sub_postal_enabled']) {
+                    $postal_price = $_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'];
+                    $stmt = $pdo->prepare("
+                INSERT INTO Order_Items (order_id, product_name, unit_price, quantity, total_price)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+                    $stmt->execute([$order_id, 'ارسال پستی', $postal_price, 1, $postal_price]);
+                }
+
+                foreach ($_SESSION['sub_invoice_prices'] as $index => $price) {
+                    $stmt = $pdo->prepare("
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+                    if ($index === 'postal') {
+                        $stmt->execute([$order_id, -1, 0, true, $price]);
+                    } else {
+                        $stmt->execute([$order_id, $index, $price, false, 0]);
+                    }
+                }
+
+                $pdo->commit();
+
+                unset($_SESSION['sub_order_items']);
+                unset($_SESSION['sub_discount']);
+                unset($_SESSION['sub_invoice_prices']);
+                unset($_SESSION['sub_postal_enabled']);
+                unset($_SESSION['sub_postal_price']);
+                unset($_SESSION['is_submitted']);
+
+                $redirect = $convert_to_main ? "print_invoice.php?order_id=$order_id" : "orders.php?work_month_id=$work_month_id";
+                error_log("finalize_sub_order - Success: order_id=$order_id, redirect=$redirect");
+                sendResponse(true, 'پیش‌فاکتور با موفقیت ثبت شد.', ['redirect' => $redirect]);
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                error_log("finalize_sub_order - Error: " . $e->getMessage());
+                sendResponse(false, 'خطا در ثبت پیش‌فاکتور: ' . $e->getMessage());
             }
-
-            $pdo->commit();
-
-            unset($_SESSION['sub_order_items']);
-            unset($_SESSION['sub_discount']);
-            unset($_SESSION['sub_invoice_prices']);
-            unset($_SESSION['sub_postal_enabled']);
-            unset($_SESSION['sub_postal_price']);
-            unset($_SESSION['is_submitted']);
-
-            $redirect = $convert_to_main ? "print_invoice.php?order_id=$order_id" : "orders.php?work_month_id=$work_month_id";
-            sendResponse(true, 'پیش‌فاکتور با موفقیت ثبت شد.', ['redirect' => $redirect]);
 
         case 'load_sub_order':
             $order_id = $_POST['order_id'] ?? '';
