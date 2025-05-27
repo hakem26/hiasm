@@ -286,7 +286,7 @@ try {
             foreach ($_SESSION['sub_order_items'] as $index => $item) {
                 $invoice_price = $_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'];
                 $stmt = $pdo->prepare("
-            INSERT INTO Order_Items (order_id, item_name, unit_price, extra_sale, quantity, total)
+            INSERT INTO Order_Items (order_id, product_name, unit_price, extra_sale, quantity, total_price)
             VALUES (?, ?, ?, ?, ?, ?)
         ");
                 $stmt->execute([$order_id, $item['product_name'], $item['unit_price'], $item['extra_sale'], $item['quantity'], $invoice_price]);
@@ -295,7 +295,7 @@ try {
             if ($_SESSION['sub_postal_enabled']) {
                 $postal_price = $_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'];
                 $stmt = $pdo->prepare("
-            INSERT INTO Order_Items (order_id, item_name, unit_price, quantity, total)
+            INSERT INTO Order_Items (order_id, product_name, unit_price, quantity, total_price)
             VALUES (?, ?, ?, ?, ?)
         ");
                 $stmt->execute([$order_id, 'ارسال پستی', $postal_price, 1, $postal_price]);
