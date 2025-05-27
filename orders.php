@@ -11,6 +11,7 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date)
 {
+    if (!$gregorian_date) return 'نامشخص';
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
@@ -110,6 +111,7 @@ if ($selected_work_month_id) {
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
 
     if ($month) {
+        // چک کردن وجود پیش‌فاکتور برای کاربر
         $sub_order_check = $pdo->prepare("
             SELECT 1 
             FROM Orders o
@@ -154,12 +156,6 @@ if ($selected_work_month_id) {
             ");
             $partner1_check->execute([$selected_work_month_id, $current_user_id]);
             $is_partner1 = $partner1_check->fetchColumn();
-            if (!$is_partner1) {
-                $_SESSION['message'] = [
-                    'type' => 'warning',
-                    'text' => 'شما به عنوان همکار اصلی در این ماه کاری ثبت نشده‌اید.'
-                ];
-            }
         }
         $partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 
@@ -211,12 +207,9 @@ if ($selected_work_month_id) {
 
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order,
+           COALESCE(wd.work_date, o.created_at) AS order_date,
            SUM(op.amount) AS paid_amount,
-           (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
-           wd.work_date, ";
-
-$conditions = [];
-$params = [];
+           (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,";
 
 if ($is_admin) {
     $orders_query .= "
@@ -239,25 +232,26 @@ if ($is_admin) {
             WHERE p.partner_id = wd.partner_id),
             'نامشخص'
         ) AS partner_name, ";
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
 }
 
 $orders_query .= "
-           wd.id AS work_details_id
+           wd.id AS work_details_id,
+           o.created_at
     FROM Orders o
     LEFT JOIN Order_Payments op ON o.order_id = op.order_id
     LEFT JOIN Work_Details wd ON o.work_details_id = wd.id";
 
+$conditions = [];
+$params = [];
 if (!$is_admin) {
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
     $conditions[] = "EXISTS (
         SELECT 1
         FROM Partners p 
         WHERE p.partner_id = wd.partner_id
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
 }
 
 if ($selected_year) {
@@ -272,7 +266,7 @@ if ($selected_year) {
         $start_date = "2024-03-20";
         $end_date = "2025-03-21";
     }
-    $conditions[] = "wd.work_date >= ? AND wd.work_date < ?";
+    $conditions[] = "COALESCE(wd.work_date, o.created_at) >= ? AND COALESCE(wd.work_date, o.created_at) < ?";
     $params[] = $start_date;
     $params[] = $end_date;
 }
@@ -300,6 +294,8 @@ if ($selected_work_day_id) {
 
 if ($show_sub_orders) {
     $conditions[] = "o.is_main_order = 0";
+} else {
+    $conditions[] = "(o.is_main_order = 1 OR o.is_main_order IS NULL)";
 }
 
 if (!empty($conditions)) {
@@ -307,12 +303,14 @@ if (!empty($conditions)) {
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, wd.work_date";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, wd.work_date, o.created_at";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
     $orders_query .= ", partner_name";
 }
+
+$orders_query .= " ORDER BY o.created_at DESC";
 
 $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
 $stmt_count->execute($params);
@@ -324,6 +322,8 @@ $orders_query .= " LIMIT " . (int) $per_page . " OFFSET " . (int) $offset;
 $stmt_orders = $pdo->prepare($orders_query);
 $stmt_orders->execute($params);
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
+
+error_log("Orders Query: $orders_query, params=" . json_encode($params));
 ?>
 
 <div class="container-fluid">
@@ -388,9 +388,9 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </div>
         <?php endif; ?>
-        <?php if (!$is_admin && $selected_work_month_id): ?>
+        <?php if (!$is_admin && $is_partner1): ?>
             <div class="col-auto align-self-end">
-                <a href="add_sub_order.php?work_month_id=<?= $selected_work_month_id ?>" class="btn btn-primary">ایجاد پیش‌فاکتور</a>
+                <a href="add_sub_order.php?work_month_id=<?= $selected_work_month_id ?>" class="btn btn-info">ایجاد پیش‌فاکتور</a>
             </div>
         <?php endif; ?>
     </form>
@@ -424,21 +424,21 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <tbody>
                     <?php foreach ($orders as $order): ?>
                         <tr>
-                            <td><?= $order['work_date'] ? gregorian_to_jalali_format($order['work_date']) : 'نامشخص' ?></td>
+                            <td><?= gregorian_to_jalali_format($order['order_date']) ?></td>
                             <td><?= htmlspecialchars($is_admin ? $order['partners_names'] : $order['partner_name']) ?></td>
                             <td><?= $order['order_id'] ?></td>
                             <td><?= htmlspecialchars($order['customer_name']) ?></td>
                             <td><?= number_format($order['total_amount'], 0) ?></td>
                             <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
                             <td><?= number_format($order['remaining_amount'], 0) ?></td>
-                            <td><?= $order['is_main_order'] ? 'فاکتور اصلی' : 'پیش‌فاکتور' ?></td>
+                            <td><?= $order['is_main_order'] === '0' ? 'پیش‌فاکتور' : 'فاکتور اصلی' ?></td>
                             <?php if (!$is_admin): ?>
                                 <td>
-                                    <?php if ($order['is_main_order']): ?>
-                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
+                                    <?php if ($order['is_main_order'] === '0'): ?>
+                                        <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>"
                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php else: ?>
-                                        <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>"
+                                        <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
                                            class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <?php endif; ?>
                                     <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
@@ -480,10 +480,8 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 </li>
             </ul>
         </nav>
-    <?php elseif ($show_sub_orders): ?>
-        <div class="alert alert-warning text-center mt-3">هیچ پیش‌فاکتوری یافت نشد.</div>
     <?php else: ?>
-        <div class="alert alert-warning text-center mt-3">سفارشی وجود ندارد.</div>
+        <div class="alert alert-warning text-center mt-3">سفارشی ثبت نشده است.</div>
     <?php endif; ?>
 </div>
 

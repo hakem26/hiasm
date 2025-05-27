@@ -15,6 +15,11 @@ if (empty($query) || !$current_user_id) {
     exit;
 }
 
+if (strlen($query) < 3) {
+    error_log("Error: Query length less than 3 characters.");
+    exit;
+}
+
 // تعیین user_id برای موجودی
 $user_id_for_inventory = $partner_id ?: $current_user_id;
 error_log("Using user_id for inventory: $user_id_for_inventory");
@@ -109,7 +114,15 @@ if ($work_details_id) {
     error_log("Debug: No work_details_id, using latest prices, user_id = $user_id_for_inventory, count = " . count($products));
 }
 
-foreach ($products as $product) {
-    echo "<a href='#' class='list-group-item list-group-item-action product-suggestion' data-product='" . json_encode($product) . "'>" . htmlspecialchars($product['product_name']) . " - " . number_format($product['unit_price'], 0) . " تومان (موجودی: " . $product['inventory'] . ")</a>";
+if (empty($products)) {
+    error_log("No products found for query: $query");
+    echo "<div class='list-group-item'>محصولی یافت نشد</div>";
+} else {
+    foreach ($products as $product) {
+        $product_json = json_encode($product, JSON_UNESCAPED_UNICODE);
+        echo "<a href='#' class='list-group-item list-group-item-action product-suggestion' data-product='$product_json'>" 
+             . htmlspecialchars($product['product_name']) . " - " 
+             . number_format($product['unit_price'], 0) . " تومان (موجودی: " . $product['inventory'] . ")</a>";
+    }
 }
 ?>

@@ -214,7 +214,7 @@ $_SESSION['is_sub_order_in_progress'] = true;
             <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount ?? 0, 0) ?> تومان</span></p>
         </div>
 
-        <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">ثبت ثبت پیش‌فاکتور</button>
+        <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">ثبت پیش‌فاکتور</button>
         <a href="orders.php" class="btn btn-secondary mt-3">بازگشت</a>
     </form>
 </div>
@@ -241,8 +241,8 @@ $_SESSION['is_sub_order_in_progress'] = true;
     </div>
 </div>
 
-<script src="text"https://code.jquery.com/jquery-3.6.1.min.js"></script>
-<script src="text"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 async function sendRequest(url, data) {
     try {
@@ -253,7 +253,7 @@ async function sendRequest(url, data) {
         });
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
+        console.error('SendRequest Error:', error);
         return { success: false, message: 'خطا در ارسال درخواست رخ داد.' };
     }
 }
@@ -291,15 +291,15 @@ function renderItemsTable(data) {
                     <tr id="item_row_${index}">
                         <td>${item.product_name}</td>
                         <td>${item.quantity}</td>
-                        <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                        <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
-                        <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                        <td>${Number(item.unit_price).toLocaleString('fa-IR')} تومان</td>
+                        <td>${Number(item.extra_sale).toLocaleString('fa-IR')} تومان</td>
+                        <td>${Number(item.total_price).toLocaleString('fa-IR')} تومان</td>
                         <td>
                             <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
                                 تنظیم قیمت
                             </button>
                             <span class="invoice-price" data-index="${index}">
-                                ${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان
+                                ${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa-IR')} تومان
                             </span>
                         </td>
                         <td>
@@ -321,7 +321,7 @@ function renderItemsTable(data) {
                                 تنظیم قیمت
                             </button>
                             <span class="invoice-price" data-index="postal">
-                                ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان
+                                ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa-IR')} تومان
                             </span>
                         </td>
                         <td>-</td>
@@ -329,13 +329,13 @@ function renderItemsTable(data) {
                 ` : ''}
                 <tr class="total-row">
                     <td colspan="4"><strong>جمع کل</strong></td>
-                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa-IR')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
                     <td><label for="discount" class="form-label">تخفیف</label></td>
                     <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa-IR')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
@@ -345,11 +345,10 @@ function renderItemsTable(data) {
                 </tr>
             </tbody>
         </table>
-    </table>
-`;
+    `;
 
-    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + 'fa') + ' تومان';
-    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + 'fa') + 'fa' تومان';
+    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa-IR') + ' تومان';
+    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa-IR') + ' تومان';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -381,16 +380,18 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'POST',
             data: { action: 'get_partners', work_month_id: '<?= $work_month_id ?>' },
             success: function(response) {
+                console.log('Load Partners Response:', response);
                 if (response.success) {
-                    $partnerSelect.empty().append('<option value="">انتخاب همکار</option>').append(')');
+                    $partnerSelect.empty().append('<option value="">انتخاب همکار</option>');
                     response.data.partners.forEach(partner => {
-                        $partnerSelect.append(`<option value="${partner.user_id}">"${partner.full_name}</option>`);
+                        $partnerSelect.append(`<option value="${partner.user_id}">${partner.full_name}</option>`);
                     });
                 } else {
                     alert(response.message);
                 }
             },
-            error: function() {
+            error: function(xhr, status, error) {
+                console.error('Load Partners Error:', status, error, xhr.responseText);
                 alert('خطا در دریافت همکارها.');
             }
         });
@@ -398,8 +399,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $partnerSelect.on('change', function() {
         const partnerId = $(this).val();
-        const workMonthId = '<?= $work_month_id ?>;
-        if (partnerId && !workMonthId) {
+        const workMonthId = '<?= $work_month_id ?>';
+        if (partnerId && workMonthId) {
             $workDateContainer.removeClass('hidden');
             $.ajax({
                 url: 'sub_order_handler.php',
@@ -410,35 +411,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (response.success) {
                         $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                         response.data.work_days.forEach(date => {
-                            const jalaliDate = date.split('-').reverse().join('/').reverse
-                            $workDateSelect.append(`<option value="${date}">"${jalaliDate}</option>`);
+                            const jalaliDate = date.split('-').reverse().join('/');
+                            $workDateSelect.append(`<option value="${date}">${jalaliDate}</option>`);
                         });
                     } else {
                         alert(response.message);
                         $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.error('Work Days Error:', status, error, xhr.responseText);
                     alert('خطا در دریافت روزهای کاری.');
-                    $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                 }
             });
         } else {
             $workDateContainer.addClass('hidden');
-            $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>').append
+            $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
         }
     });
 
     $('#product_name').on('input', function() {
         let query = $(this).val();
         const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
-        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : null;
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
         if (query.length >= 3) {
             $.ajax({
                 url: 'get_sub_order_products.php',
                 type: 'POST',
                 data: { query: query, work_details_id: work_details_id, partner_id: partner_id },
                 success: function(response) {
+                    console.log('Product Suggestions Response:', response);
                     if (response.trim() === '') {
                         $('#product_suggestions').hide();
                     } else {
@@ -446,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('AJAX Error:', status, error);
+                    console.error('Product AJAX Error:', status, error, xhr.responseText);
                     $('#product_suggestions').hide();
                 }
             });
@@ -465,8 +467,8 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#product_id').val(product.product_id);
         $('#unit_price').val(product.unit_price);
         $('#extra_sale').val(0);
-        $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa') + 'fa') + ' تومان');
-        $('#total_price').val((1 * product.unit_price).toLocaleString('fa') + 'fa') + ' تومان');
+        $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa-IR') + ' تومان');
+        $('#total_price').val((1 * product.unit_price).toLocaleString('fa-IR') + ' تومان');
         $('#product_suggestions').hide();
 
         initialInventory = product.inventory || 0;
@@ -475,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateInventory();
 
         $('#quantity').focus();
-    $('#quantity').focus();
+    });
 
     $('#quantity, #extra_sale').on('input', function() {
         let quantity = Number($('#quantity').val()) || 0;
@@ -483,8 +485,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let extra_sale = Number($('#extra_sale').val()) || 0;
         let adjusted_price = unit_price + extra_sale;
         let total = quantity * adjusted_price;
-        $('#adjusted_price').val(adjusted_price.toLocaleString('fa') + 'fa') + ' تومان');
-        $('#total_price').val(total.toLocaleString('fa') + 'fa') + ' تومان');
+        $('#adjusted_price').val(adjusted_price.toLocaleString('fa-IR') + ' تومان');
+        $('#total_price').val(total.toLocaleString('fa-IR') + ' تومان');
         updateInventory();
     });
 
@@ -495,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalUsed = 0;
 
         items.forEach(item => {
-            if (item.product_id === product_id && item.id === product_id) {
+            if (item.product_id === product_id) {
                 totalUsed += parseInt(item.quantity);
             }
         });
@@ -707,4 +709,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <?php require_once 'footer.php'; ?>
-```
