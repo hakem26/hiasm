@@ -16,11 +16,14 @@ function gregorian_to_jalali_format($gregorian_date)
     }
     try {
         list($gy, $gm, $gd) = explode('-', $gregorian_date);
-        if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) {
+        $gy = (int)$gy;
+        $gm = (int)$gm;
+        $gd = (int)$gd;
+        if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
             return 'نامشخص';
         }
         list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        return "$jy/$jm/$jd";
+        return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
     } catch (Exception $e) {
         error_log("Error in gregorian_to_jalali_format: " . $e->getMessage());
         return 'نامشخص';
@@ -262,7 +265,7 @@ async function sendRequest(url, data) {
             body: new URLSearchParams(data)
         });
         const text = await response.text();
-        console.log('Raw Response:', text); // لاگ خام برای دیباگ
+        console.log('Raw Response:', text);
         try {
             return JSON.parse(text);
         } catch (e) {
@@ -271,7 +274,7 @@ async function sendRequest(url, data) {
         }
     } catch (error) {
         console.error('SendRequest Error:', error);
-        return { success: false, message: 'خطا در ارسال درخواست رخ داد.' };
+        return { success: false, message: 'خطا در ارسال درخواست.' };
     }
 }
 
@@ -409,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Load Partners Error:', status, error, xhr.responseText);
+                console.error('Load Partners AJAX Error:', status, error, xhr.responseText);
                 alert('خطا در دریافت همکارها.');
             }
         });
@@ -429,8 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (response.success) {
                         $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                         response.data.work_days.forEach(day => {
-                            const jalaliDate = '<?= gregorian_to_jalali_format($day.date) ?>';
-                            $workDateSelect.append(`<option value="${day.id}">${jalaliDate}</option>`);
+                            $workDateSelect.append(`<option value="${day.id}">${day.jalali_date}</option>`);
                         });
                     } else {
                         console.error('Work Days Error:', response.message);
@@ -439,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('Work Days Error:', status, error, xhr.responseText);
+                    console.error('Work Days AJAX Error:', status, error, xhr.responseText);
                     alert('خطا در دریافت روزهای کاری.');
                 }
             });
@@ -450,10 +452,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     $('#product_name').on('input', function() {
-        let query = $(this).val();
+        let query = $(this).val().trim();
         const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
-        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
-        if (query.length >= 3) {
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>';
+        if (query.length >= 2) {
             $.ajax({
                 url: 'get_sub_order_products.php',
                 type: 'POST',
@@ -469,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 error: function(xhr, status, error) {
                     console.error('Product AJAX Error:', status, error, xhr.responseText);
                     $('#product_suggestions').hide();
+                    alert('خطا در جستجوی محصولات.');
                 }
             });
         } else {
@@ -480,7 +483,12 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         let product = $(this).data('product');
         if (typeof product === 'string') {
-            product = JSON.parse(product);
+            try {
+                product = JSON.parse(product);
+            } catch (e) {
+                console.error('Product Parse Error:', e);
+                return;
+            }
         }
         $('#product_name').val(product.product_name).prop('disabled', false);
         $('#product_id').val(product.product_id);
@@ -531,9 +539,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const quantity = Number(document.getElementById('quantity').value) || 0;
         const unit_price = Number(document.getElementById('unit_price').value) || 0;
         const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
-        const discount = document.getElementById('discount') ? (Number(document.getElementById('discount').value) || 0) : 0;
+        const discount = document.getElementById('discount') ? Number(document.getElementById('discount').value) || 0 : 0;
         const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() : '<?= $work_month_id ?>';
-        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>';
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>';
 
         console.log('Add Item Data:', { customer_name, product_id, quantity, unit_price, extra_sale, discount, work_details_id, partner_id });
 
@@ -576,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = {
                     action: 'delete_sub_item',
                     index,
-                    partner_id: $convertCheckbox.is(':checked') ? $partnerSelect.val() : '<?= $current_user_id ?>'
+                    partner_id: $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>'
                 };
 
                 const response = await sendRequest('sub_order_handler.php', data);
@@ -594,6 +602,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentPrice = <?= json_encode($_SESSION['sub_invoice_prices']) ?>[index] || '';
             $('#invoice_price').val(currentPrice);
             $('#invoicePriceModal').modal('show');
+        }
+    });
+
+    document.getElementById('save_invoice_price').addEventListener('click', async () => {
+        const index = $('#invoice_price_index').val();
+        const invoicePrice = Number($('#invoice_price').val());
+
+        if (isNaN(invoicePrice) || invoicePrice < 0) {
+            alert('لطفاً یک قیمت معتبر وارد کنید.');
+            return;
+        }
+
+        const data = {
+            action: 'set_sub_invoice_price',
+            index,
+            invoice_price: invoicePrice
+        };
+
+        const response = await sendRequest('sub_order_handler.php', data);
+        console.log('Set Invoice Price Response:', response);
+        if (response.success) {
+            renderItemsTable(response.data);
+            $('#invoicePriceModal').modal('hide');
+        } else {
+            alert(response.message);
         }
     });
 
@@ -617,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('items_table').addEventListener('input', async (e) => {
         if (e.target.id === 'discount') {
-            const discount = parseFloat(e.target.value) || 0;
+            const discount = Number(e.target.value) || 0;
             if (discount < 0) {
                 alert('تخفیف نمی‌تواند منفی باشد.');
                 e.target.value = 0;
@@ -628,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 discount
             };
 
-            const response = await sendResponse('sub_order_handler.php', data);
+            const response = await sendRequest('sub_order_handler.php', data);
             console.log('Update Discount Response:', response);
             if (response.success) {
                 renderItemsTable(response.data);
@@ -641,9 +674,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('finalize_order_btn').addEventListener('click', async () => {
         const customer_name = document.getElementById('customer_name').value.trim();
         const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() : '<?= $work_month_id ?>';
-        const partner_id = $convertCheckbox.checked ? $partnerSelect.val() : '';
-        const convert_to_main = $convertCheckbox.checked;
-        const discount = document.getElementById('discount') ? (Number(document.getElementById('discount').value) || 0) : 0;
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>';
+        const convert_to_main = $convertCheckbox.is(':checked') ? 1 : 0;
+        const discount = document.getElementById('discount') ? Number(document.getElementById('discount').value) || 0 : 0;
 
         console.log('Finalize Data:', { customer_name, work_details_id, partner_id, convert_to_main, discount });
 
@@ -651,11 +684,11 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('لطفاً نام مشتری را وارد کنید.');
             return;
         }
-        if (convert_to_main && (!partner_id || !work_details_id)) {
+        if ($convertCheckbox.is(':checked') && (!partner_id || !work_details_id)) {
             alert('لطفاً همکار و تاریخ را انتخاب کنید.');
             return;
         }
-        if (!convert_to_main && !work_details_id) {
+        if (!work_details_id) {
             alert('ماه کاری مشخص نشده است.');
             return;
         }
@@ -673,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
             customer_name,
             discount,
             partner_id,
-            convert_to_main: convert_to_main ? '1' : '0'
+            convert_to_main
         };
 
         const finalizeResponse = await sendRequest('sub_order_handler.php', data);
@@ -687,8 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function resetForm() {
-        $('#product_name').val('').prop('disabled');
-        false,
+        $('#product_name').val('').prop('disabled', false);
         $('#product_id').val('');
         $('#quantity').val('1');
         $('#unit_price').val('');

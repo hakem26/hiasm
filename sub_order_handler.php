@@ -8,18 +8,20 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_format($gregorian_date)
-{
+function gregorian_to_jalali_format($gregorian_date) {
     if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
         return 'نامشخص';
     }
     try {
-        list($gy, $gm, $gd) = explode('-', $gregorian_date);
-        if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) {
+        $parts = explode('-', $gregorian_date);
+        $gy = (int)$parts[0];
+        $gm = (int)$parts[1];
+        $gd = (int)$parts[2];
+        if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
             return 'نامشخص';
         }
         list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        return "$jy/$jm/$jd";
+        return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
     } catch (Exception $e) {
         error_log("Error in gregorian_to_jalali_format: " . $e->getMessage());
         return 'نامشخص';
@@ -51,19 +53,18 @@ try {
         case 'get_partners':
             $work_month_id = $_POST['work_month_id'] ?? '';
             if (!$work_month_id) {
-                sendResponse(false, 'ماه کاری مشخص نشده است.');
+                sendResponse(false, 'ماه کاری مشخص نیست.');
             }
 
             $stmt = $pdo->prepare("
                 SELECT DISTINCT u.user_id, u.full_name
                 FROM Work_Details wd
                 JOIN Partners p ON wd.partner_id = p.partner_id
-                JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
-                WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
-                AND u.user_id != ? AND u.role = 'seller'
+                JOIN Users u ON p.user_id1 = u.user_id OR p.user_id2 = u.user_id
+                WHERE wd.work_month_id = ? AND u.user_id != ? AND u.role = 'seller'
                 ORDER BY u.full_name
             ");
-            $stmt->execute([$work_month_id, $current_user_id, $current_user_id, $current_user_id]);
+            $stmt->execute([$work_month_id, $current_user_id]);
             $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             sendResponse(true, 'موفق', ['partners' => $partners]);
@@ -72,17 +73,17 @@ try {
             $partner_id = $_POST['partner_id'] ?? '';
             $work_month_id = $_POST['work_month_id'] ?? '';
             if (!$partner_id || !$work_month_id) {
-                sendResponse(false, 'همکار یا ماه کاری مشخص نشده است.');
+                sendResponse(false, 'همکار یا ماه کاری مشخص نیست.');
             }
 
             $stmt = $pdo->prepare("
-                SELECT wd.id, wd.work_date AS date
+                SELECT wd.id, wd.work_date, COALESCE(?, ?) AS jalali_date
                 FROM Work_Details wd
                 JOIN Partners p ON wd.partner_id = p.partner_id
                 WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
                 ORDER BY wd.work_date
             ");
-            $stmt->execute([$work_month_id, $partner_id, $partner_id]);
+            $stmt->execute([gregorian_to_jalali_format($wd['work_date']), 'نامشخص', $work_month_id, $partner_id, $partner_id]);
             $work_days = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             sendResponse(true, 'موفق', ['work_days' => $work_days]);
@@ -95,14 +96,14 @@ try {
             $extra_sale = floatval($_POST['extra_sale'] ?? 0);
             $discount = floatval($_POST['discount'] ?? 0);
             $work_details_id = $_POST['work_details_id'] ?? '';
-            $partner_id = $_POST['partner_id'] ?? '';
+            $partner_id = $_POST['partner_id'] ?: $current_user_id;
             $product_name = trim($_POST['product_name'] ?? '');
 
             if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$product_name) {
-                sendResponse(false, 'لطفاً تمام فیلدها را پر کنید.');
+                sendResponse(false, 'لطفاً همه فیلدها را پر کنید.');
             }
 
-            $total_price = ($quantity * ($unit_price + $extra_sale));
+            $total_price = $quantity * ($unit_price + $extra_sale);
             $item = [
                 'product_id' => $product_id,
                 'product_name' => $product_name,
@@ -118,7 +119,7 @@ try {
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
-            $data = [
+            sendResponse(true, 'محصول اضافه شد.', [
                 'items' => $_SESSION['sub_order_items'],
                 'total_amount' => $total_amount,
                 'discount' => $discount,
@@ -126,9 +127,7 @@ try {
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_postal_price']
-            ];
-
-            sendResponse(true, 'محصول اضافه شد.', $data);
+            ]);
 
         case 'delete_sub_item':
             $index = $_POST['index'] ?? '';
@@ -143,7 +142,7 @@ try {
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
             $final_amount = $total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
-            $data = [
+            sendResponse(true, 'محصول حذف شد.', [
                 'items' => $_SESSION['sub_order_items'],
                 'total_amount' => $total_amount,
                 'discount' => $_SESSION['sub_discount'],
@@ -151,9 +150,7 @@ try {
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_postal_price']
-            ];
-
-            sendResponse(true, 'محصول حذف شد.', $data);
+            ]);
 
         case 'set_sub_invoice_price':
             $index = $_POST['index'] ?? '';
@@ -165,17 +162,18 @@ try {
 
             $_SESSION['sub_invoice_prices'][$index] = $invoice_price;
 
-            $data = [
+            $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
+            $final_amount = $total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
+
+            sendResponse(true, 'قیمت فاکتور تنظیم شد.', [
                 'items' => $_SESSION['sub_order_items'],
-                'total_amount' => array_sum(array_column($_SESSION['sub_order_items'], 'total_price')),
+                'total_amount' => $total_amount,
                 'discount' => $_SESSION['sub_discount'],
-                'final_amount' => $total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0),
+                'final_amount' => $final_amount,
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_postal_price']
-            ];
-
-            sendResponse(true, 'قیمت فاکتور تنظیم شد.', $data);
+            ]);
 
         case 'set_sub_postal_option':
             $enable_postal = filter_var($_POST['enable_postal'], FILTER_VALIDATE_BOOLEAN);
@@ -184,7 +182,7 @@ try {
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
             $final_amount = $total_amount - $_SESSION['sub_discount'] + ($enable_postal ? $_SESSION['sub_postal_price'] : 0);
 
-            $data = [
+            sendResponse(true, 'موفق', [
                 'items' => $_SESSION['sub_order_items'],
                 'total_amount' => $total_amount,
                 'discount' => $_SESSION['sub_discount'],
@@ -192,14 +190,12 @@ try {
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_postal_price']
-            ];
-
-            sendResponse(true, 'Success', $data);
+            ]);
 
         case 'update_sub_discount':
             $discount = floatval($_POST['discount'] ?? 0);
             if ($discount < 0) {
-                sendResponse(false, 'Discount cannot be negative.');
+                sendResponse(false, 'تخفیف نمی‌تواند منفی باشد.');
             }
 
             $_SESSION['sub_discount'] = $discount;
@@ -207,7 +203,7 @@ try {
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
-            $data = [
+            sendResponse(true, 'تخفیف به‌روز شد.', [
                 'items' => $_SESSION['sub_order_items'],
                 'total_amount' => $total_amount,
                 'discount' => $discount,
@@ -215,15 +211,13 @@ try {
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_postal_price']
-            ];
-
-            sendResponse(true, 'تخفیف به‌روز شد.', $data);
+            ]);
 
         case 'get_items':
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
             $final_amount = $total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
-            $data = [
+            sendResponse(true, 'موفقیت', [
                 'items' => $_SESSION['sub_order_items'],
                 'total_amount' => $total_amount,
                 'discount' => $_SESSION['sub_discount'],
@@ -231,19 +225,17 @@ try {
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_postal_price']
-            ];
-
-            sendResponse(true, 'موفق', $data);
+            ]);
 
         case 'finalize_sub_order':
             $customer_name = trim($_POST['customer_name'] ?? '');
             $work_details_id = $_POST['work_details_id'] ?? '';
-            $partner_id = $_POST['partner_id'] ?? '';
+            $partner_id = $_POST['partner_id'] ?? $current_user_id;
             $discount = floatval($_POST['discount'] ?? 0);
-            $convert_to_main = isset($_POST['convert_to_main']) && $_POST['convert_to_main'] === '1' ? 1 : 0;
+            $convert_to_main = isset($_POST['convert_to_main']) ? (int)$_POST['convert_to_main'] : 0;
 
             if (!$customer_name || !$work_details_id) {
-                sendResponse(false, 'نام مشتری یا جزئیات کاری مشخص نشده است.');
+                sendResponse(false, 'نام مشتری یا جزئیات کاری مشخص نیست.');
             }
 
             if ($convert_to_main && !$partner_id) {
@@ -251,47 +243,59 @@ try {
             }
 
             if (empty($_SESSION['sub_order_items'])) {
-                sendResponse(false, 'هیچ محصولی در پیش‌فاکتور وجود ندارد.');
+                sendResponse(false, 'هیچ محصولی در پیش‌فاکتور نیست.');
             }
 
             $pdo->beginTransaction();
 
-            $total_amount = array_sum(array_column($_SESSION['products_order_items'], 'total_price'));
+            $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
             $stmt = $pdo->prepare("
-                INSERT INTO Orders (customer_name, total_amount, discount, final_amount, work_details_id, is_main_order, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
-            ");
-            $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $work_details_id, $convert_to_main]);
+            INSERT INTO orders (customer_name, total_amount, discount, final_amount, work_details_id, partner_id, is_main_order, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $work_details_id, $partner_id, $convert_to_main]);
+
             $order_id = $pdo->lastInsertId();
 
             foreach ($_SESSION['sub_order_items'] as $item) {
+                $invoice_price = $_SESSION['sub_invoice_prices'][$item['product_id']] ?? $item['total_price'];
                 $stmt = $pdo->prepare("
-                    INSERT INTO Order_Items (order_id, product_id, unit_price, quantity, extra_sale, discount)
-                    VALUES (?, ?, ?, ?, ?, 0)
+                    INSERT INTO Order_Items (order_id, product_id, unit_price, extra_sale, quantity, invoice_price)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+                $stmt->execute([$order_id, $item['product_id'], $item['unit_price'], $item['extra_sale'], $item['quantity'], $invoice_price]);
+            }
+
+            if ($_SESSION['sub_postal_enabled']) {
+                $postal_price = $_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'];
+                $stmt = $pdo->prepare("
+                    INSERT INTO OrderItems (order_id, item_name, unit_price, quantity)
+                    VALUES (?, 'ارسال پستی', ?, 1)
                 ");
-                $stmt->execute([$order_id, $item['product_id'], $item['unit_price'], $item['quantity'], $item['extra_sale']]);
+                $stmt->execute([$order_id, $postal_price]);
             }
 
             // پاک کردن سشن‌ها
             unset($_SESSION['sub_order_items']);
-            unset($_SESSION['sub_discount']);
-            unset($_SESSION['sub_invoice_prices']);
+            unset($_SESSION['sub_order_discount']);
+            unset($_SESSION['sub_order_invoice_prices']);
             unset($_SESSION['sub_postal_enabled']);
             unset($_SESSION['sub_postal_price']);
-            unset($_SESSION['is_sub_order']);
+            unset($_SESSION['is_sub_order_in_progress']);
 
             $pdo->commit();
 
             sendResponse(true, 'پیش‌فاکتور ثبت شد.', ['redirect' => 'orders.php']);
 
         default:
-            sendResponse(false, 'عملکرد نامعتبر.');
+            sendResponse(false, 'خطا در عملیات خطا');
     }
 } catch (Exception $e) {
     $pdo->rollback();
     error_log("Error in sub_order_handler.php: " . $e->getMessage());
-    sendResponse(false, 'خطای سرور.');
+    sendResponse(false, 'خطای سرور');
 }
 ?>
+</script>

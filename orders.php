@@ -11,20 +11,11 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date)
 {
-    if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
-        return 'نامشخص';
-    }
-    try {
-        list($gy, $gm, $gd) = explode('-', $gregorian_date);
-        if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) {
-            return 'نامشخص';
-        }
-        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        return "$jy/$jm/$jd";
-    } catch (Exception $e) {
-        error_log("Error in gregorian_to_jalali_format: " . $e->getMessage());
-        return 'نامشخص';
-    }
+    if (!$gregorian_date) return 'نامشخص';
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    if (!is_numeric($gy) || !is_numeric($gm) || !is_numeric($gd)) return 'نامشخص';
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd";
 }
 
 function gregorian_year_to_jalali($gregorian_year)
@@ -215,10 +206,10 @@ if ($selected_work_month_id) {
 
 $orders_query = "
     SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order,
-           o.created_at AS order_date,
+           wd.work_date,
            SUM(op.amount) AS paid_amount,
            (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
-           wd.id AS work_details_id, wd.work_date,";
+           wd.id AS work_details_id,";
 
 $params = [];
 $param_count = 0;
@@ -279,7 +270,7 @@ if ($selected_year) {
         $start_date = "2024-03-20";
         $end_date = "2025-03-21";
     }
-    $orders_query .= " AND o.created_at >= ? AND o.created_at < ?";
+    $orders_query .= " AND wd.work_date >= ? AND wd.work_date < ?";
     $params[] = $start_date;
     $params[] = $end_date;
     $param_count += 2;
@@ -316,14 +307,14 @@ if ($show_sub_orders) {
 }
 
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, o.created_at, wd.id, wd.work_date";
+    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, wd.work_date, wd.id";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
     $orders_query .= ", partner_name";
 }
 
-$orders_query .= " ORDER BY o.created_at DESC";
+$orders_query .= " ORDER BY wd.work_date DESC";
 
 error_log("Orders Query: $orders_query, params=" . json_encode($params) . ", param_count=$param_count");
 
@@ -437,7 +428,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <tbody>
                     <?php foreach ($orders as $order): ?>
                         <tr>
-                            <td><?= gregorian_to_jalali_format($order['order_date'] ?: $order['work_date']) ?></td>
+                            <td><?= gregorian_to_jalali_format($order['work_date']) ?></td>
                             <td><?= htmlspecialchars($is_admin ? $order['partners_names'] : $order['partner_name']) ?></td>
                             <td><?= $order['order_id'] ?></td>
                             <td><?= htmlspecialchars($order['customer_name']) ?></td>
