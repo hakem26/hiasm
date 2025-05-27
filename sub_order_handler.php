@@ -313,6 +313,179 @@ try {
 
             sendResponse(true, 'پیش‌فاکتور با موفقیت ثبت شد.', ['redirect' => 'orders.php?work_month_id=' . $work_month_id]);
 
+        case 'load_sub_order':
+            $order_id = $_POST['order_id'] ?? '';
+            if (!$order_id) {
+                sendResponse(false, 'شناسه سفارش مشخص نیست.');
+            }
+
+            $stmt = $pdo->prepare("
+        SELECT order_id, customer_name, total_amount, discount, final_amount, work_details_id, is_main_order
+        FROM Orders WHERE order_id = ? AND is_main_order = 0
+    ");
+            $stmt->execute([$order_id]);
+            $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$order) {
+                sendResponse(false, 'پیش‌فاکتور یافت نشد یا قابل ویرایش نیست.');
+            }
+
+            $stmt = $pdo->prepare("
+        SELECT item_id, product_name, unit_price, extra_sale, quantity, total_price
+        FROM Order_Items WHERE order_id = ?
+    ");
+            $stmt->execute([$order_id]);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $sub_order_items = [];
+            $sub_invoice_prices = [];
+            $sub_postal_enabled = false;
+            $sub_postal_price = 50000;
+
+            foreach ($items as $index => $item) {
+                if ($item['product_name'] === 'ارسال پستی') {
+                    $sub_postal_enabled = true;
+                    $sub_postal_price = $item['total_price'];
+                    $sub_invoice_prices['postal'] = $item['total_price'];
+                } else {
+                    $sub_order_items[] = [
+                        'product_id' => '', // product_id در Order_Items نیست، فقط برای سازگاری با add_sub_order
+                        'product_name' => $item['product_name'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'extra_sale' => $item['extra_sale'],
+                        'total_price' => $item['total_price']
+                    ];
+                    $sub_invoice_prices[$index] = $item['total_price'];
+                }
+            }
+
+            $_SESSION['sub_order_items'] = $sub_order_items;
+            $_SESSION['sub_discount'] = $order['discount'];
+            $_SESSION['sub_invoice_prices'] = $sub_invoice_prices;
+            $_SESSION['sub_postal_enabled'] = $sub_postal_enabled;
+            $_SESSION['sub_postal_price'] = $sub_postal_price;
+            $_SESSION['is_sub_order_in_progress'] = true;
+
+            sendResponse(true, 'موفق', [
+                'order' => $order,
+                'items' => $sub_order_items,
+                'total_amount' => $order['total_amount'],
+                'discount' => $order['discount'],
+                'final_amount' => $order['final_amount'],
+                'invoice_prices' => $sub_invoice_prices,
+                'sub_postal_enabled' => $sub_postal_enabled,
+                'sub_postal_price' => $sub_postal_price
+            ]);
+
+        case 'update_sub_order':
+            $order_id = $_POST['order_id'] ?? '';
+            $customer_name = trim($_POST['customer_name'] ?? '');
+            $discount = floatval($_POST['discount'] ?? 0);
+            $work_month_id = $_POST['work_month_id'] ?? '';
+
+            if (!$order_id || !$customer_name || !$work_month_id) {
+                sendResponse(false, 'نام مشتری، شناسه سفارش یا ماه کاری مشخص نیست.');
+            }
+
+            if (empty($_SESSION['sub_order_items'])) {
+                sendResponse(false, 'هیچ محصولی در پیش‌فاکتور نیست.');
+            }
+
+            $stmt = $pdo->prepare("SELECT order_id FROM Orders WHERE order_id = ? AND is_main_order = 0");
+            $stmt->execute([$order_id]);
+            if (!$stmt->fetch()) {
+                sendResponse(false, 'پیش‌فاکتور یافت نشد یا قابل ویرایش نیست.');
+            }
+
+            $pdo->beginTransaction();
+
+            $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
+            $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
+
+            $stmt = $pdo->prepare("
+        UPDATE Orders
+        SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
+        WHERE order_id = ? AND is_main_order = 0
+    ");
+            $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $order_id]);
+
+            $stmt = $pdo->prepare("DELETE FROM Order_Items WHERE order_id = ?");
+            $stmt->execute([$order_id]);
+
+            foreach ($_SESSION['sub_order_items'] as $index => $item) {
+                $invoice_price = $_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'];
+                $stmt = $pdo->prepare("
+            INSERT INTO Order_Items (order_id, product_name, unit_price, extra_sale, quantity, total_price)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+                $stmt->execute([$order_id, $item['product_name'], $item['unit_price'], $item['extra_sale'], $item['quantity'], $invoice_price]);
+            }
+
+            if ($_SESSION['sub_postal_enabled']) {
+                $postal_price = $_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'];
+                $stmt = $pdo->prepare("
+            INSERT INTO Order_Items (order_id, product_name, unit_price, quantity, total_price)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+                $stmt->execute([$order_id, 'ارسال پستی', $postal_price, 1, $postal_price]);
+            }
+
+            $pdo->commit();
+
+            unset($_SESSION['sub_order_items']);
+            unset($_SESSION['sub_discount']);
+            unset($_SESSION['sub_invoice_prices']);
+            unset($_SESSION['sub_postal_enabled']);
+            unset($_SESSION['sub_postal_price']);
+            unset($_SESSION['is_sub_order_in_progress']);
+
+            sendResponse(true, 'پیش‌فاکتور با موفقیت به‌روزرسانی شد.', ['redirect' => 'orders.php?work_month_id=' . $work_month_id]);
+
+        case 'convert_to_main_order':
+            $order_id = $_POST['order_id'] ?? '';
+            $work_details_id = $_POST['work_details_id'] ?? '';
+            $partner_id = $_POST['partner_id'] ?? $current_user_id;
+            $work_month_id = $_POST['work_month_id'] ?? '';
+
+            if (!$order_id || !$work_details_id || !$partner_id || !$work_month_id) {
+                sendResponse(false, 'شناسه سفارش، همکار، تاریخ کاری یا ماه کاری مشخص نیست.');
+            }
+
+            $stmt = $pdo->prepare("SELECT order_id FROM Orders WHERE order_id = ? AND is_main_order = 0");
+            $stmt->execute([$order_id]);
+            if (!$stmt->fetch()) {
+                sendResponse(false, 'پیش‌فاکتور یافت نشد یا قبلاً به فاکتور اصلی تبدیل شده است.');
+            }
+
+            $stmt = $pdo->prepare("SELECT id FROM Work_Details WHERE id = ? AND partner_id IN (
+        SELECT partner_id FROM Partners WHERE user_id1 = ? OR user_id2 = ?
+    )");
+            $stmt->execute([$work_details_id, $partner_id, $partner_id]);
+            if (!$stmt->fetch()) {
+                sendResponse(false, 'تاریخ کاری برای این همکار معتبر نیست.');
+            }
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("
+        UPDATE Orders
+        SET work_details_id = ?, is_main_order = 1
+        WHERE order_id = ?
+    ");
+            $stmt->execute([$work_details_id, $order_id]);
+
+            $pdo->commit();
+
+            unset($_SESSION['sub_order_items']);
+            unset($_SESSION['sub_discount']);
+            unset($_SESSION['sub_invoice_prices']);
+            unset($_SESSION['sub_postal_enabled']);
+            unset($_SESSION['sub_postal_price']);
+            unset($_SESSION['is_sub_order_in_progress']);
+
+            sendResponse(true, 'پیش‌فاکتور با موفقیت به فاکتور اصلی تبدیل شد.', ['redirect' => 'orders.php?work_month_id=' . $work_month_id]);
+
         default:
             sendResponse(false, 'عملیات نامعتبر.');
     }
