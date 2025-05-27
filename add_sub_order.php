@@ -260,35 +260,45 @@ $_SESSION['is_sub_order_in_progress'] = true;
 let initialInventory = 0;
 let editingIndex = null;
 
-function sendRequest(url, data) {
-    return $.ajax({
-        url: url,
-        type: 'POST',
-        data: data,
-        dataType: 'json',
-        success: function(response) {
-            console.log('Raw response:', response);
-            return response;
-        },
-        error: function(xhr, status, error) {
-            console.error('AJAX Error:', status, error, 'Response:', xhr.responseText);
-            return { success: false, message: 'خطا در ارتباط با سرور: ' + xhr.responseText.substring(0, 100) };
+async function sendRequest(url, data) {
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(data)
+        });
+        const text = await response.text();
+        console.log('Raw response:', text);
+        try {
+            const json = JSON.parse(text);
+            if (!json.success && !json.message) {
+                json.message = 'خطای ناشناخته در سرور.';
+            }
+            return json;
+        } catch (e) {
+            console.error('JSON Parse Error:', e, 'Response:', text);
+            alert('خطا در پردازش پاسخ سرور: ' + text.substring(0, 100));
+            return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
         }
-    });
+    } catch (error) {
+        console.error('SendRequest Error:', error);
+        alert('خطا در ارسال درخواست.');
+        return { success: false, message: 'خطا در ارسال درخواست.' };
+    }
 }
 
 function renderItemsTable(data) {
-    const itemsTable = $('#items_table');
-    const totalAmountDisplay = $('#total_amount_display');
-    const finalAmountDisplay = $('#final_amount_display');
+    const itemsTable = document.getElementById('items_table');
+    const totalAmountDisplay = document.getElementById('total_amount_display');
+    const finalAmountDisplay = document.getElementById('final_amount_display');
     const invoicePrices = data.invoice_prices || {};
     const postalEnabled = data.sub_postal_enabled || false;
     const postalPrice = data.sub_postal_price || 50000;
 
-    itemsTable.empty();
+    itemsTable.innerHTML = '';
     if (!data.items || data.items.length === 0) {
-        totalAmountDisplay.text('0 تومان');
-        finalAmountDisplay.text('0 تومان');
+        totalAmountDisplay.textContent = '0 تومان';
+        finalAmountDisplay.textContent = '0 تومان';
         return;
     }
 
@@ -362,21 +372,21 @@ function renderItemsTable(data) {
             </tr>
             <tr class="total-row">
                 <td><label for="discount">تخفیف</label></td>
-                <td><input type="number" class="form-control" id="discount" value="${data.discount}" min="0"></td>
+                <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
                 <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa-IR')} تومان</strong></td>
                 <td colspan="2"></td>
             </tr>
             <tr class="total-row">
                 <td><label for="postal_option">پست سفارش</label></td>
-                <td><input type="checkbox" id="postal_option" ${postalEnabled ? 'checked' : ''}></td>
+                <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
                 <td colspan="3"></td>
             </tr>
         </tbody>
         </table>
     `;
-    itemsTable.html(tableHtml);
-    totalAmountDisplay.text(Number(data.total_amount).toLocaleString('fa-IR') + ' تومان');
-    finalAmountDisplay.text(Number(data.final_amount).toLocaleString('fa-IR') + ' تومان');
+    itemsTable.innerHTML = tableHtml;
+    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa-IR') + ' تومان';
+    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa-IR') + ' تومان';
 }
 
 function resetForm() {
@@ -405,6 +415,7 @@ function updatePrices() {
 }
 
 $(document).ready(function() {
+    console.log('Document ready');
     $('#convert_to_main').on('change', function() {
         const isChecked = $(this).is(':checked');
         $('#partner_container').toggleClass('hidden', !isChecked);
@@ -416,7 +427,7 @@ $(document).ready(function() {
             sendRequest('sub_order_handler.php', {
                 action: 'get_partners',
                 work_month_id: '<?= $work_month_id ?>'
-            }).done(response => {
+            }).then(response => {
                 if (response.success) {
                     let options = '<option value="">انتخاب همکار</option>';
                     response.data.partners.forEach(partner => {
@@ -440,7 +451,7 @@ $(document).ready(function() {
                 action: 'get_work_days',
                 partner_id: partner_id,
                 work_month_id: '<?= $work_month_id ?>'
-            }).done(response => {
+            }).then(response => {
                 if (response.success) {
                     let options = '<option value="">انتخاب تاریخ</option>';
                     response.data.work_days.forEach(day => {
@@ -490,7 +501,7 @@ $(document).ready(function() {
             product_id: product.product_id,
             user_id: '<?= $current_user_id ?>',
             is_sub_order: 1
-        }).done(response => {
+        }).then(response => {
             if (response.success) {
                 initialInventory = response.data.inventory || 0;
                 $('#inventory_quantity').text(initialInventory);
@@ -507,7 +518,8 @@ $(document).ready(function() {
 
     $('#quantity, #unit_price, #extra_sale').on('input', updatePrices);
 
-    $('#add_item_btn').on('click', function() {
+    $('#add_item_btn').on('click', async function() {
+        console.log('Add item button clicked');
         const customer_name = $('#customer_name').val().trim();
         const product_id = $('#product_id').val();
         const quantity = Number($('#quantity').val()) || 0;
@@ -516,12 +528,14 @@ $(document).ready(function() {
         const discount = Number($('#discount').val()) || 0;
         const product_name = $('#product_name').val().trim();
 
+        console.log('Add item data:', { customer_name, product_id, quantity, unit_price, extra_sale, discount, product_name });
+
         if (!customer_name || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
             alert('لطفاً همه فیلدها را پر کنید.');
             return;
         }
 
-        sendRequest('sub_order_handler.php', {
+        const response = await sendRequest('sub_order_handler.php', {
             action: 'add_sub_item',
             customer_name: customer_name,
             product_id: product_id,
@@ -532,18 +546,18 @@ $(document).ready(function() {
             discount: discount,
             work_details_id: $('#work_date').val(),
             partner_id: $('#partner_id').val() || '<?= $current_user_id ?>'
-        }).done(response => {
-            if (response.success) {
-                renderItemsTable(response.data);
-                resetForm();
-            } else {
-                alert(response.message);
-            }
         });
+
+        if (response.success) {
+            renderItemsTable(response.data);
+            resetForm();
+        } else {
+            alert(response.message);
+        }
     });
 
-    $('#edit_item_btn').on('click', function() {
-        $('#add_item_btn').trigger('click');
+    $('#edit_item_btn').on('click', async function() {
+        await $('#add_item_btn').trigger('click');
     });
 
     $(document).on('click', '.edit-item', function() {
@@ -565,18 +579,18 @@ $(document).ready(function() {
         $('#quantity').focus();
     });
 
-    $(document).on('click', '.delete-item', function() {
+    $(document).on('click', '.delete-item', async function() {
         const index = $(this).data('index');
-        sendRequest('sub_order_handler.php', {
+        const response = await sendRequest('sub_order_handler.php', {
             action: 'delete_sub_item',
             index: index
-        }).done(response => {
-            if (response.success) {
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
-            }
         });
+
+        if (response.success) {
+            renderItemsTable(response.data);
+        } else {
+            alert(response.message);
+        }
     });
 
     $(document).on('click', '.set-invoice-price', function() {
@@ -587,70 +601,72 @@ $(document).ready(function() {
         $('#invoicePriceModal').modal('show');
     });
 
-    $('#save_invoice_price').on('click', function() {
+    $('#save_invoice_price').on('click', async function() {
         const index = $('#invoice_price_index').val();
         const invoice_price = Number($('#invoice_price').val()) || 0;
         if (invoice_price < 0) {
             alert('قیمت فاکتور نمی‌تواند منفی باشد.');
             return;
         }
-        sendRequest('sub_order_handler.php', {
+        const response = await sendRequest('sub_order_handler.php', {
             action: 'set_sub_invoice_price',
             index: index,
             invoice_price: invoice_price
-        }).done(response => {
-            if (response.success) {
-                renderItemsTable(response.data);
-                $('#invoicePriceModal').modal('hide');
-            } else {
-                alert(response.message);
-            }
         });
+
+        if (response.success) {
+            renderItemsTable(response.data);
+            $('#invoicePriceModal').modal('hide');
+        } else {
+            alert(response.message);
+        }
     });
 
-    $('#postal_option').on('change', function() {
+    $('#postal_option').on('change', async function() {
         const enable_postal = $(this).is(':checked');
-        sendRequest('sub_order_handler.php', {
+        const response = await sendRequest('sub_order_handler.php', {
             action: 'set_sub_postal_option',
             enable_postal: enable_postal
-        }).done(response => {
-            if (response.success) {
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
-            }
         });
+
+        if (response.success) {
+            renderItemsTable(response.data);
+        } else {
+            alert(response.message);
+        }
     });
 
-    $('#discount').on('change', function() {
+    $('#discount').on('change', async function() {
         const discount = Number($(this).val()) || 0;
         if (discount < 0) {
             alert('تخفیف نمی‌تواند منفی باشد.');
             $(this).val(0);
             return;
         }
-        sendRequest('sub_order_handler.php', {
+        const response = await sendRequest('sub_order_handler.php', {
             action: 'update_sub_discount',
             discount: discount
-        }).done(response => {
-            if (response.success) {
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
-            }
         });
+
+        if (response.success) {
+            renderItemsTable(response.data);
+        } else {
+            alert(response.message);
+        }
     });
 
-    $('#save_sub_order_btn').on('click', function() {
-        console.log('Save button clicked');
-        const customer_name = $('#customer_name').val().trim();
+    $('#save_sub_order_btn').on('click', async function() {
+        console.log('Save order button clicked');
+        const customerName = $('#customer_name').val().trim();
         const work_details_id = $('#work_date').val();
         const partner_id = $('#partner_id').val() || '<?= $current_user_id ?>';
-        const discount = Number($('#discount').val()) || 0;
+        const discount = Number($('#discount').val() || 0);
         const convert_to_main = $('#convert_to_main').is(':checked') ? 1 : 0;
         const work_month_id = '<?= $work_month_id ?>';
 
-        if (!customer_name) {
+        console.log('Form data:', { customer_name, work_details_id, partner_id, discount, convert_to_main, work_month_id });
+
+        if (!customerName) {
             alert('لطفاً نام مشتری را وارد کنید.');
             return;
         }
@@ -662,7 +678,7 @@ $(document).ready(function() {
 
         const data = {
             action: 'finalize_sub_order',
-            customer_name: customer_name,
+            customer_name: customerName,
             work_details_id: work_details_id,
             partner_id: partner_id,
             discount: discount,
@@ -670,26 +686,25 @@ $(document).ready(function() {
             work_month_id: work_month_id
         };
         console.log('Sending finalize_sub_order request:', data);
-        sendRequest('sub_order_handler.php', data).done(response => {
-            console.log('Finalize response:', response);
-            if (response.success) {
-                window.location.href = response.data.redirect;
-            } else {
-                alert('خطا: ' + response.message);
-            }
-        });
+        const response = await sendRequest('sub_order_handler.php', data);
+
+        if (response.success) {
+            console.log('Redirecting to:', response.data.redirect');
+            window.location.href = response.data.redirect;
+        } else {
+            alert(response.message);
+        }
     });
 
-    sendRequest('sub_order_handler.php', { action: 'get_items' }).done(response => {
+    sendRequest('sub_order_handler.php', { action: 'get_items' }).then(response => {
         console.log('Get items response:', response);
         if (response.success) {
             renderItemsTable(response.data);
         } else {
+            console.error('Get items failed:', response);
             renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
-            console.error('Get items failed:', response.message);
         }
     });
-});
 </script>
 
 <?php require_once 'footer.php'; ?>

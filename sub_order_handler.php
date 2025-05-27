@@ -104,7 +104,7 @@ try {
                 $discount = floatval($_POST['discount'] ?? 0);
                 $work_details_id = $_POST['work_details_id'] ?? '';
                 $partner_id = $_POST['partner_id'] ?: $current_user_id;
-                $product_name = trim($_POST['product_name'] ?? '');
+                $product_name = htmlspecialchars(trim($_POST['product_name'] ?? ''));
             
                 if (!$customer_name || !$product_id || !$product_name || $quantity <= 0 || $unit_price <= 0) {
                     sendResponse(false, 'لطفاً تمام فیلدها را پر کنید.');
@@ -114,7 +114,7 @@ try {
                 $stmt->execute([$product_id]);
                 $product = $stmt->fetch(PDO::FETCH_ASSOC);
                 if (!$product) {
-                    sendResponse(false, 'محصول یافت نشد.');
+                    sendResponse(false, 'محصول پیدا نشد.');
                 }
             
                 $pdo->beginTransaction();
@@ -153,7 +153,7 @@ try {
             
                     sendResponse(true, 'محصول اضافه شد.', [
                         'items' => $_SESSION['sub_order_items'],
-                        'total_amount' => $amount,
+                        'total_amount' => $total_amount,
                         'discount' => $discount,
                         'final_amount' => $final_amount,
                         'invoice_prices' => $_SESSION['sub_invoice_prices'],
