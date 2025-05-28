@@ -57,6 +57,17 @@ if (!$month) {
     exit;
 }
 
+// Fetch work details for the current user
+$stmt = $pdo->prepare("
+    SELECT id, work_date
+    FROM Work_Details
+    WHERE work_month_id = ? AND partner_id IN (
+        SELECT partner_id FROM Partners WHERE user_id1 = ? OR user_id2 = ?
+    )
+");
+$stmt->execute([$work_month_id, $current_user_id, $current_user_id]);
+$work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // Initialize session variables
 $_SESSION['sub_order_items'] = $_SESSION['sub_order_items'] ?? [];
 $_SESSION['sub_discount'] = $_SESSION['sub_discount'] ?? 0;
@@ -74,7 +85,6 @@ $_SESSION['is_sub_order_in_progress'] = true;
     .order-items-table .total-row td { font-weight: bold; }
     .order-items-table .total-row input#discount { width: 150px; margin: 0 auto; }
     @media (max-width: 991px) { .col-6, .col-md-3, .col-md-6 { width: 50%; } }
-    .hidden { display: none; }
     .list-group { max-height: 200px; overflow-y: auto; }
 </style>
 
@@ -82,30 +92,21 @@ $_SESSION['is_sub_order_in_progress'] = true;
     <h5 class="card-title mb-4">ثبت پیش‌فاکتور</h5>
 
     <form id="add-sub-order-form">
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="mb-3">
-                    <label for="convert_to_main" class="form-label">تبدیل به فاکتور اصلی</label>
-                    <input type="checkbox" id="convert_to_main" name="convert_to_main">
-                </div>
-                <div class="mb-3 hidden" id="partner_container">
-                    <label for="partner_id" class="form-label">همکار</label>
-                    <select id="partner_id" name="partner_id" class="form-select">
-                        <option value="">انتخاب همکار</option>
-                    </select>
-                </div>
-                <div class="mb-3 hidden" id="work_date_container">
-                    <label for="work_date" class="form-label">تاریخ</label>
-                    <select id="work_date" name="work_date" class="form-select">
-                        <option value="">انتخاب تاریخ</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
         <div class="mb-3">
             <label for="customer_name" class="form-label">نام مشتری</label>
             <input type="text" class="form-control" id="customer_name" name="customer_name" required autocomplete="off">
+        </div>
+
+        <div class="mb-3">
+            <label for="work_date" class="form-label">تاریخ کاری</label>
+            <select id="work_date" name="work_date" class="form-select" required>
+                <option value="">انتخاب تاریخ</option>
+                <?php foreach ($work_details as $detail): ?>
+                    <option value="<?php echo $detail['id']; ?>">
+                        <?php echo htmlspecialchars(gregorian_to_jalali_format($detail['work_date'])); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <div class="mb-3 position-relative">
@@ -271,26 +272,6 @@ function renderItemsTable(data) {
             </tr>
         `;
     });
-    if (postalEnabled) {
-        tableHtml += `
-            <tr class="postal-row">
-                <td>ارسال پستی</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>
-                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
-                        تنظیم قیمت
-                    </button>
-                    <span class="invoice-price" data-index="postal">
-                        ${Number(invoicePrices['postal'] || postalPrice).toLocaleString('fa-IR')} تومان
-                    </span>
-                </td>
-                <td>-</td>
-            </tr>
-        `;
-    }
     tableHtml += `
             <tr class="total-row">
                 <td colspan="4"><strong>جمع کل</strong></td>
@@ -306,7 +287,8 @@ function renderItemsTable(data) {
             <tr class="total-row">
                 <td><label for="postal_option">پست سفارش</label></td>
                 <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
-                <td colspan="3"></td>
+                <td><input type="number" class="form-control" id="postal_price" name="postal_price" value="${postalPrice}" min="0" ${postalEnabled ? '' : 'disabled'}></td>
+                <td colspan="2"></td>
             </tr>
         </tbody>
         </table>
@@ -344,68 +326,10 @@ function updatePrices() {
 $(document).ready(function() {
     console.log('Document ready');
 
-    $('#convert_to_main').on('change', function() {
-        const isChecked = $(this).is(':checked');
-        $('#partner_container').toggleClass('hidden', !isChecked);
-        $('#work_date_container').toggleClass('hidden', !isChecked);
-        if (!isChecked) {
-            $('#partner_id').val('');
-            $('#work_date').val('');
-        } else {
-            sendRequest('sub_order_handler.php', {
-                action: 'get_partners',
-                work_month_id: '<?= $work_month_id ?>'
-            }).then(response => {
-                if (response.success) {
-                    let options = '<option value="">انتخاب همکار</option>';
-                    response.data.partners.forEach(partner => {
-                        options += `<option value="${partner.user_id}">${partner.full_name}</option>`;
-                    });
-                    $('#partner_id').html(options);
-                } else {
-                    alert(response.message);
-                    $('#convert_to_main').prop('checked', false);
-                    $('#partner_container').addClass('hidden');
-                    $('#work_date_container').addClass('hidden');
-                }
-            }).catch(error => {
-                console.error('Get partners error:', error);
-                alert('خطا در دریافت لیست همکاران.');
-            });
-        }
-    });
-
-    $('#partner_id').on('change', function() {
-        const partner_id = $(this).val();
-        if (partner_id) {
-            sendRequest('sub_order_handler.php', {
-                action: 'get_work_days',
-                partner_id: partner_id,
-                work_month_id: '<?= $work_month_id ?>'
-            }).then(response => {
-                if (response.success) {
-                    let options = '<option value="">انتخاب تاریخ</option>';
-                    response.data.work_days.forEach(day => {
-                        options += `<option value="${day.id}">${day.jalali_date}</option>`;
-                    });
-                    $('#work_date').html(options);
-                } else {
-                    alert(response.message);
-                    $('#work_date').html('<option value="">انتخاب تاریخ</option>');
-                }
-            }).catch(error => {
-                console.error('Get work days error:', error);
-                alert('خطا در دریافت روزهای کاری.');
-            });
-        } else {
-            $('#work_date').html('<option value="">انتخاب تاریخ</option>');
-        }
-    });
-
     $('#product_name').on('input', function() {
         const query = $(this).val().trim();
         const work_details_id = $('#work_date').val();
-        const partner_id = $('#partner_id').val() || '<?= $current_user_id ?>';
+        const partner_id = '<?= $current_user_id ?>';
         if (query.length >= 3) {
             $.post('get_sub_order_products.php', { query, work_details_id, partner_id }, function(response) {
                 console.log('Product suggestions response:', response);
@@ -478,10 +402,11 @@ $(document).ready(function() {
         const extra_sale = Number($('#extra_sale').val()) || 0;
         const discount = Number($('#discount').val()) || 0;
         const product_name = $('#product_name').val().trim();
+        const work_details_id = $('#work_date').val();
 
-        console.log('Add item data:', { customerName, product_id, quantity, unit_price, extra_sale, discount, product_name });
+        console.log('Add item data:', { customerName, product_id, quantity, unit_price, extra_sale, discount, product_name, work_details_id });
 
-        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
+        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0 || !work_details_id) {
             alert('لطفاً همه فیلدها را پر کنید.');
             return;
         }
@@ -496,8 +421,8 @@ $(document).ready(function() {
                 unit_price: unit_price,
                 extra_sale: extra_sale,
                 discount: discount,
-                work_details_id: $('#work_date').val(),
-                partner_id: $('#partner_id').val() || '<?= $current_user_id ?>'
+                work_details_id: work_details_id,
+                partner_id: '<?= $current_user_id ?>'
             });
 
             if (response.success) {
@@ -595,10 +520,13 @@ $(document).ready(function() {
 
     $('#postal_option').on('change', async function() {
         const enable_postal = $(this).is(':checked');
+        const postal_price = Number($('#postal_price').val()) || 50000;
+        $('#postal_price').prop('disabled', !enable_postal);
         try {
             const response = await sendRequest('sub_order_handler.php', {
                 action: 'set_sub_postal_option',
-                enable_postal: enable_postal
+                enable_postal: enable_postal,
+                postal_price: postal_price
             });
 
             if (response.success) {
@@ -609,6 +537,32 @@ $(document).ready(function() {
         } catch (error) {
             console.error('Set postal option error:', error);
             alert('خطا در تنظیم گزینه پستی.');
+        }
+    });
+
+    $('#postal_price').on('input', async function() {
+        const postal_price = Number($(this).val()) || 50000;
+        if (postal_price < 0) {
+            $(this).val(50000);
+            return;
+        }
+        if ($('#postal_option').is(':checked')) {
+            try {
+                const response = await sendRequest('sub_order_handler.php', {
+                    action: 'set_sub_postal_option',
+                    enable_postal: true,
+                    postal_price: postal_price
+                });
+
+                if (response.success) {
+                    renderItemsTable(response.data);
+                } else {
+                    alert(response.message);
+                }
+            } catch (error) {
+                console.error('Set postal price error:', error);
+                alert('خطا در تنظیم قیمت پستی.');
+            }
         }
     });
 
@@ -640,20 +594,13 @@ $(document).ready(function() {
         console.log('Save order button clicked');
         const customerName = $('#customer_name').val().trim();
         const work_details_id = $('#work_date').val();
-        const partner_id = $('#partner_id').val() || '<?= $current_user_id ?>';
         const discount = Number($('#discount').val()) || 0;
-        const convert_to_main = $('#convert_to_main').is(':checked') ? 1 : 0;
         const work_month_id = '<?= $work_month_id ?>';
 
-        console.log('Form data:', { customerName, work_details_id, partner_id, discount, convert_to_main, work_month_id });
+        console.log('Form data:', { customerName, work_details_id, discount, work_month_id });
 
-        if (!customerName) {
-            alert('لطفاً نام مشتری را وارد کنید.');
-            return;
-        }
-
-        if (convert_to_main && (!partner_id || !work_details_id)) {
-            alert('لطفاً همکار و تاریخ کاری را انتخاب کنید.');
+        if (!customerName || !work_details_id) {
+            alert('لطفاً نام مشتری و تاریخ کاری را وارد کنید.');
             return;
         }
 
@@ -662,9 +609,8 @@ $(document).ready(function() {
                 action: 'finalize_sub_order',
                 customer_name: customerName,
                 work_details_id: work_details_id,
-                partner_id: partner_id,
+                partner_id: '<?= $current_user_id ?>',
                 discount: discount,
-                convert_to_main: convert_to_main,
                 work_month_id: work_month_id
             });
 
