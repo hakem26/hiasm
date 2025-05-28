@@ -30,7 +30,7 @@ $stmt = $pdo->prepare("
     SELECT o.order_id, o.is_main_order, wd.partner_id, wd.work_month_id
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.id
+    JOIN Partners p ON wd.partner_id = p.partner_id
     WHERE o.order_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
 ");
 $stmt->execute([$order_id, $current_user_id, $current_user_id]);
