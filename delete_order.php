@@ -61,7 +61,11 @@ if ($order['is_main_order']) {
 $user_id_for_inventory = $current_user_id;
 
 // دریافت اقلام سفارش
-$items_stmt = $pdo->prepare("SELECT product_id, quantity FROM Order_Items WHERE order_id = ? AND product_name != 'ارسال پستی'");
+$items_stmt = $pdo->prepare("
+    SELECT oi.product_name, oi.quantity
+    FROM Order_Items oi
+    WHERE oi.order_id = ? AND oi.product_name != 'ارسال پستی'
+");
 $items_stmt->execute([$order_id]);
 $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -69,11 +73,17 @@ $pdo->beginTransaction();
 try {
     // برگرداندن موجودی محصولات
     foreach ($items as $item) {
-        if ($item['product_id']) {
+        // پیدا کردن product_id از جدول Products
+        $stmt_product = $pdo->prepare("SELECT product_id FROM Products WHERE product_name = ?");
+        $stmt_product->execute([$item['product_name']]);
+        $product = $stmt_product->fetch(PDO::FETCH_ASSOC);
+        $product_id = $product ? $product['product_id'] : null;
+
+        if ($product_id) {
             $stmt_inventory = $pdo->prepare("
                 SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE
             ");
-            $stmt_inventory->execute([$user_id_for_inventory, $item['product_id']]);
+            $stmt_inventory->execute([$user_id_for_inventory, $product_id]);
             $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
             $current_quantity = $inventory ? (int)$inventory['quantity'] : 0;
@@ -84,7 +94,7 @@ try {
                 VALUES (?, ?, ?)
                 ON DUPLICATE KEY UPDATE quantity = ?
             ");
-            $stmt_update->execute([$user_id_for_inventory, $item['product_id'], $new_quantity, $new_quantity]);
+            $stmt_update->execute([$user_id_for_inventory, $product_id, $new_quantity, $new_quantity]);
         }
     }
 
