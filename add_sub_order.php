@@ -57,16 +57,29 @@ if (!$month) {
     exit;
 }
 
-// Fetch work details for the current user
+// Fetch work details for the current user, prioritizing the latest date
 $stmt = $pdo->prepare("
     SELECT id, work_date
     FROM Work_Details
     WHERE work_month_id = ? AND partner_id IN (
         SELECT partner_id FROM Partners WHERE user_id1 = ? OR user_id2 = ?
     )
+    ORDER BY work_date DESC
 ");
 $stmt->execute([$work_month_id, $current_user_id, $current_user_id]);
 $work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Set default work_details_id to the latest work detail or the one matching end_date
+$default_work_details_id = '';
+foreach ($work_details as $detail) {
+    if ($detail['work_date'] === $month['end_date']) {
+        $default_work_details_id = $detail['id'];
+        break;
+    }
+}
+if (!$default_work_details_id && !empty($work_details)) {
+    $default_work_details_id = $work_details[0]['id'];
+}
 
 // Initialize session variables
 $_SESSION['sub_order_items'] = $_SESSION['sub_order_items'] ?? [];
@@ -102,7 +115,7 @@ $_SESSION['is_sub_order_in_progress'] = true;
             <select id="work_date" name="work_date" class="form-select" required>
                 <option value="">انتخاب تاریخ</option>
                 <?php foreach ($work_details as $detail): ?>
-                    <option value="<?php echo $detail['id']; ?>">
+                    <option value="<?php echo $detail['id']; ?>" <?php echo $detail['id'] === $default_work_details_id ? 'selected' : ''; ?>>
                         <?php echo htmlspecialchars(gregorian_to_jalali_format($detail['work_date'])); ?>
                     </option>
                 <?php endforeach; ?>
@@ -406,7 +419,7 @@ $(document).ready(function() {
 
         console.log('Add item data:', { customerName, product_id, quantity, unit_price, extra_sale, discount, product_name, work_details_id });
 
-        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0 || !work_details_id) {
+        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
             alert('لطفاً همه فیلدها را پر کنید.');
             return;
         }
@@ -421,7 +434,7 @@ $(document).ready(function() {
                 unit_price: unit_price,
                 extra_sale: extra_sale,
                 discount: discount,
-                work_details_id: work_details_id,
+                work_details_id: work_details_id || '<?= $default_work_details_id ?>',
                 partner_id: '<?= $current_user_id ?>'
             });
 
