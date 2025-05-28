@@ -446,12 +446,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                     <?php if ($order['is_main_order'] == 0): ?>
                                         <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>&work_month_id=<?= $selected_work_month_id ?>"
                                             class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="delete_order.php?order_id=<?= $order['order_id'] ?>&work_month_id=<?= $selected_work_month_id ?>"
+                                            class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i
+                                                class="fas fa-trash"></i></a>
                                     <?php else: ?>
                                         <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
                                             class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        <!-- حذف برای فاکتور اصلی غیرفعال است -->
+                                        <button class="btn btn-danger btn-sm" disabled><i class="fas fa-trash"></i></button>
                                     <?php endif; ?>
-                                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
-                                        onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
