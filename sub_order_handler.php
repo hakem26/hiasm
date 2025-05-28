@@ -26,7 +26,7 @@ function gregorian_to_jalali_format($gregorian_date) {
 function sendResponse($success, $message, $data = []) {
     ob_clean();
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED);
+    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
     exit;
 }
 

@@ -42,7 +42,9 @@ function gregorian_to_jalali_format($gregorian_date) {
     <script src="assets/js/persian-datepicker.min.js"></script>
 </head>
 <body>
-
+<?php
+phpinfo();
+?>
 <form method="post">
     <input type="text" id="date_input" name="date_input" required>
     <button type="submit">ذخیره</button>
