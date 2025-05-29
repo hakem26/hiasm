@@ -12,15 +12,16 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
         return 'نامشخص';
     }
     try {
         list($gy, $gm, $gd) = explode('-', $gregorian_date);
-        $gy = (int)$gy;
-        $gm = (int)$gm;
-        $gd = (int)$gd;
+        $gy = (int) $gy;
+        $gm = (int) $gm;
+        $gd = (int) $gd;
         if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
             return 'نامشخص';
         }
@@ -32,7 +33,8 @@ function gregorian_to_jalali_format($gregorian_date) {
     }
 }
 
-function sendResponse($success, $message, $data = []) {
+function sendResponse($success, $message, $data = [])
+{
     ob_clean();
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
@@ -93,7 +95,7 @@ try {
             ");
             $stmt->execute([$work_month_id, $partner_id, $partner_id]);
             $work_days = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $formatted_days = array_map(function($day) {
+            $formatted_days = array_map(function ($day) {
                 return [
                     'id' => $day['id'],
                     'jalali_date' => gregorian_to_jalali_format($day['work_date'])
@@ -110,9 +112,9 @@ try {
             $customer_name = filter_input(INPUT_POST, 'customer_name', FILTER_SANITIZE_STRING);
             $product_id = filter_input(INPUT_POST, 'product_id', FILTER_VALIDATE_INT);
             $product_name = filter_input(INPUT_POST, 'product_name', FILTER_SANITIZE_STRING);
-            $quantity = (int)($_POST['quantity'] ?? 0);
-            $unit_price = (float)($_POST['unit_price'] ?? 0);
-            $extra_sale = (float)($_POST['extra_sale'] ?? 0);
+            $quantity = (int) ($_POST['quantity'] ?? 0);
+            $unit_price = (float) ($_POST['unit_price'] ?? 0);
+            $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
             $work_details_id = filter_input(INPUT_POST, 'work_details_id', FILTER_SANITIZE_STRING);
             $partner_id = filter_input(INPUT_POST, 'partner_id', FILTER_VALIDATE_INT);
             $editing_index = filter_input(INPUT_POST, 'editing_index', FILTER_VALIDATE_INT, ['options' => ['default' => null]]);
@@ -155,7 +157,7 @@ try {
             break;
 
         case 'delete_sub_item':
-            $index = (int)($_POST['index'] ?? -1);
+            $index = (int) ($_POST['index'] ?? -1);
             if ($index < 0 || !isset($_SESSION['sub_order_items'][$index])) {
                 error_log("Invalid index in delete_sub_item: index=$index");
                 sendResponse(false, 'آیتم یافت نشد.');
@@ -179,7 +181,7 @@ try {
 
         case 'set_sub_invoice_price':
             $index = filter_input(INPUT_POST, 'index', FILTER_SANITIZE_STRING);
-            $invoice_price = (float)($_POST['invoice_price'] ?? 0);
+            $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
             if ($index === '' || $invoice_price < 0) {
                 error_log("Invalid input in set_sub_invoice_price: index=$index, invoice_price=$invoice_price");
                 sendResponse(false, 'اطلاعات نامعتبر.');
@@ -202,7 +204,7 @@ try {
 
         case 'set_sub_postal_option':
             $enable_postal = filter_var($_POST['enable_postal'], FILTER_VALIDATE_BOOLEAN);
-            $postal_price = (float)($_POST['postal_price'] ?? 50000);
+            $postal_price = (float) ($_POST['postal_price'] ?? 50000);
             if ($postal_price < 0) {
                 $postal_price = 50000;
             }
@@ -229,7 +231,7 @@ try {
             break;
 
         case 'update_sub_discount':
-            $discount = (float)($_POST['discount'] ?? 0);
+            $discount = (float) ($_POST['discount'] ?? 0);
             if ($discount < 0) {
                 error_log("Negative discount in update_sub_discount: discount=$discount");
                 sendResponse(false, 'تخفیف نمی‌تواند منفی باشد.');
@@ -254,7 +256,7 @@ try {
             $customer_name = filter_input(INPUT_POST, 'customer_name', FILTER_SANITIZE_STRING);
             $work_details_id = filter_input(INPUT_POST, 'work_details_id', FILTER_SANITIZE_STRING);
             $partner_id = filter_input(INPUT_POST, 'partner_id', FILTER_VALIDATE_INT);
-            $discount = (float)($_POST['discount'] ?? 0);
+            $discount = (float) ($_POST['discount'] ?? 0);
             $work_month_id = filter_input(INPUT_POST, 'work_month_id', FILTER_VALIDATE_INT);
 
             if (!$customer_name || !$work_details_id || !$partner_id || !$work_month_id || empty($_SESSION['sub_order_items'])) {
@@ -275,13 +277,12 @@ try {
             $sub_order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Sub_Order_Items (sub_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO Sub_Order_Items (sub_order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
             foreach ($_SESSION['sub_order_items'] as $item) {
                 $stmt->execute([
                     $sub_order_id,
-                    $item['product_id'],
                     $item['product_name'],
                     $item['quantity'],
                     $item['unit_price'],
