@@ -655,28 +655,36 @@ $_SESSION['is_sub_order_in_progress'] = true;
             const discount = Number($('#discount').val()) || 0;
             const work_month_id = '<?= $work_month_id ?>';
 
-            console.log('Sub order data:', { customerName, work_details_id, discount, work_month_id });
-
             if (!customerName || !work_details_id) {
-                alert('لطفا نام مشتری و تاریخ کاری را وارد کنید.');
+                alert('لطفاً نام مشتری و تاریخ کاری را وارد کنید.');
                 return;
             }
 
+            // گرفتن partner_id از Work_Details
             try {
-                const response = await sendRequest('sub_order_handler.php', {
+                const response = await sendRequest('get_partner_id.php', {
+                    work_details_id: work_details_id
+                });
+                if (!response.success || !response.data.partner_id) {
+                    alert('خطا در گرفتن اطلاعات شریک.');
+                    return;
+                }
+                const partner_id = response.data.partner_id;
+
+                const saveResponse = await sendRequest('sub_order_handler.php', {
                     action: 'finalize_sub_order',
                     customer_name: customerName,
                     work_details_id: work_details_id,
-                    partner_id: '<?= $current_user_id ?>',
+                    partner_id: partner_id,
                     discount: discount,
                     work_month_id: work_month_id
                 });
 
-                if (response.success) {
-                    console.log('Redirecting to:', response.data.redirect);
-                    window.location.href = response.data.redirect;
+                if (saveResponse.success) {
+                    console.log('Redirecting to:', saveResponse.data.redirect);
+                    window.location.href = saveResponse.data.redirect;
                 } else {
-                    alert(response.message);
+                    alert(saveResponse.message);
                 }
             } catch (error) {
                 console.error('Save order error:', error);
