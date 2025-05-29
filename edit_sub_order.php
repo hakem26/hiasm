@@ -41,10 +41,10 @@ if ($is_admin) {
 $current_user_id = $_SESSION['user_id'];
 
 // Validate sub_order_id and work_month_id
-$sub_order_id = filter_input(INPUT_GET, 'sub_order_id', FILTER_VALIDATE_INT);
+$sub_order_id = filter_input(INPUT_GET, 'sub_order_id', FILTER_SANITIZE_STRING);
 $work_month_id = filter_input(INPUT_GET, 'work_month_id', FILTER_VALIDATE_INT);
 $missing_params = [];
-if (!$sub_order_id) {
+if (!$sub_order_id || !ctype_digit($sub_order_id)) {
     $missing_params[] = 'sub_order_id';
 }
 if (!$work_month_id) {
@@ -60,12 +60,12 @@ if (!empty($missing_params)) {
 
 // Fetch sub-order details
 try {
-    $stmt = $pdo->prepare("SELECT * FROM Sub_Orders WHERE sub_order_id = ?");
-    $stmt->execute([$sub_order_id]);
+    $stmt = $pdo->prepare("SELECT * FROM Sub_Orders WHERE sub_order_id = ? AND partner_id IN (SELECT partner_id FROM Partners WHERE user_id1 = ? OR user_id2 = ?)");
+    $stmt->execute([$sub_order_id, $current_user_id, $current_user_id]);
     $sub_order = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$sub_order) {
-        error_log("Sub-order not found: sub_order_id=$sub_order_id");
-        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>پیش‌فاکتور یافت نشد.</div></div>";
+        error_log("Sub-order not found or access denied: sub_order_id=$sub_order_id, user_id=$current_user_id");
+        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>پیش‌فاکتور یافت نشد یا دسترسی ندارید.</div></div>";
         require_once 'footer.php';
         exit;
     }
@@ -116,7 +116,7 @@ try {
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($items as $item) {
         $_SESSION['sub_order_items'][] = [
-            'product_id' => $item['product_id'],
+            'product_id' => $item['product_id'] ?? 0, // Handle missing product_id
             'product_name' => $item['product_name'],
             'quantity' => $item['quantity'],
             'unit_price' => $item['unit_price'],
@@ -147,7 +147,7 @@ try {
     <h5 class="card-title mb-4">ویرایش پیش‌فاکتور</h5>
 
     <form id="edit-sub-order-form">
-        <input type="hidden" name="sub_order_id" value="<?= $sub_order_id ?>">
+        <input type="hidden" name="sub_order_id" value="<?= htmlspecialchars($sub_order_id) ?>">
         <div class="mb-3">
             <label for="customer_name" class="form-label">نام مشتری</label>
             <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($sub_order['customer_name']) ?>" required autocomplete="off">
@@ -158,7 +158,7 @@ try {
             <select id="work_date" name="work_date" class="form-select" required>
                 <option value="">انتخاب تاریخ</option>
                 <?php foreach ($work_details as $detail): ?>
-                    <option value="<?= $detail['id'] ?>" <?= $detail['id'] == $sub_order['work_details_id'] ? 'selected' : '' ?>>
+                    <option value="<?= htmlspecialchars($detail['id']) ?>" <?= $detail['id'] == $sub_order['work_details_id'] ? 'selected' : '' ?>>
                         <?= htmlspecialchars(gregorian_to_jalali_format($detail['work_date'])) ?>
                     </option>
                 <?php endforeach; ?>
@@ -185,19 +185,19 @@ try {
                 <label for="extra_sale" class="form-label">اضافه فروش (تومان)</label>
                 <input type="number" class="form-control" id="extra_sale" name="extra_sale" value="0" min="0">
             </div>
-                <div class="col-6 col-md-3">
-                    <label for="adjusted_price" class="form-label">قیمت نهایی واحد</label>
-                    <input type="text" class="form-control" id="adjusted_price" name="adjusted_price" readonly>
-                </div>
-                <div class="col-6 col-md-6">
-                    <label for="total_price" class="form-label">قیمت کل</label>
-                    <input type="text" class="form-control" id="total_price" name="total_price" readonly>
-                </div>
-                <div class="col-6 col-md-6">
-                    <label for="inventory_quantity" class="form-label">موجودی</label>
-                    <p class="form-control-static" id="inventory_quantity">0</p>
-                </div>
+            <div class="col-6 col-md-3">
+                <label for="adjusted_price" class="form-label">قیمت نهایی واحد</label>
+                <input type="text" class="form-control" id="adjusted_price" name="adjusted_price" readonly>
             </div>
+            <div class="col-6 col-md-6">
+                <label for="total_price" class="form-label">قیمت کل</label>
+                <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+            </div>
+            <div class="col-6 col-md-6">
+                <label for="inventory_quantity" class="form-label">موجودی</label>
+                <p class="form-control-static" id="inventory_quantity">0</p>
+            </div>
+        </div>
 
         <div class="mb-3">
             <button type="button" id="add_item_btn" class="btn btn-primary">افزودن محصول</button>
@@ -231,7 +231,7 @@ try {
         </div>
 
         <button type="button" id="save_sub_order_btn" class="btn btn-success mt-3">ذخیره پیش‌فاکتور</button>
-        <a href="orders.php?work_month_id=<?= $work_month_id ?>" class="btn btn-secondary mt-3">بازگشت</a>
+        <a href="orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>" class="btn btn-secondary mt-3">بازگشت</a>
     </form>
 </div>
 
@@ -252,7 +252,6 @@ try {
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" id="save_invoice_price">ذخیره</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
-
             </div>
         </div>
     </div>
@@ -282,12 +281,12 @@ async function sendRequest(url, data) {
         } catch (e) {
             console.error('JSON Parse Error:', e, 'Response:', text);
             alert('خطا در پردازش پاسخ سرور: ' + text.substring(0, 100));
-            return { success: false, message: 'Error parsing server response: ' + text };
+            return { success: false, message: 'خطا در پردازش پاسخ سرور: ' + text };
         }
     } catch (error) {
         console.error('SendRequest Error:', error);
         alert('خطا در ارسال درخواست: ' + error.message);
-        return { success: false, message: 'Error sending request: ' + error.message };
+        return { success: false, message: 'خطا در ارسال درخواست: ' + error.message };
     }
 }
 
@@ -719,8 +718,8 @@ $(document).ready(function() {
         const customerName = $('#customer_name').val().trim();
         const work_details_id = $('#work_date').val();
         const discount = Number($('#discount').val()) || 0;
-        const sub_order_id = '<?= $sub_order_id ?>';
-        const work_month_id = '<?= $work_month_id ?>';
+        const sub_order_id = '<?= htmlspecialchars($sub_order_id) ?>';
+        const work_month_id = '<?= htmlspecialchars($work_month_id) ?>';
         const convert_to_main = $('#convert_to_main').is(':checked');
         const partner_id = $('#partner_id').val();
         const work_date_main = $('#work_date_main_select').val();
