@@ -810,6 +810,44 @@ if (!$stmt->fetch()) {
             $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
         }
     });
+
+    if ($action === 'get_partner_work_days') {
+        $partner_id = $_POST['partner_id'] ?? '';
+        $work_month_id = $_POST['work_month_id'] ?? '';
+        if (!$partner_id || !$work_month_id) {
+            error_log("get_partner_work_days: Missing parameters - partner_id=$partner_id, work_month_id=$work_month_id");
+            sendResponse(false, 'همکار یا ماه کاری مشخص نیست.');
+        }
+        try {
+            error_log("get_partner_work_days: Querying for partner_id=$partner_id, work_month_id=$work_month_id");
+            $stmt = $pdo -> prepare("
+            SELECT wd.id, wd.work_date
+            FROM Work_Details wd
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            WHERE wd.work_month_id = ?
+                AND(p.user_id1 = ? OR p.user_id2 = ?)
+            ORDER BY wd.work_date DESC
+        ");
+        $stmt -> execute([$work_month_id, $partner_id, $partner_id]);
+            $work_days = $stmt -> fetchAll(PDO:: FETCH_ASSOC);
+            error_log("get_partner_work_days: Found ".count($work_days). " work days for partner_id=$partner_id");
+            $formatted_days = array_map(function ($day) {
+                return [
+                    'id' => $day['id'],
+                    'jalali_date' => gregorian_to_jalali_format($day['work_date'])
+                ];
+            }, $work_days);
+            if (empty($work_days)) {
+                error_log("get_partner_work_days: No work days found for partner_id=$partner_id, work_month_id=$work_month_id");
+                sendResponse(false, 'هیچ روز کاری برای این همکار یافت نشد.');
+            }
+            sendResponse(true, 'موفق', ['work_days' => $formatted_days]);
+        } catch (Exception $e) {
+            error_log("Error in get_partner_work_days: ".$e -> getMessage());
+            sendResponse(false, 'خطا در دریافت روزهای کاری.');
+        }
+        exit;
+    }
 </script>
 
 <?php require_once 'footer.php'; ?>
