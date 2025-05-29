@@ -115,6 +115,7 @@ try {
             $extra_sale = (float)($_POST['extra_sale'] ?? 0);
             $work_details_id = filter_input(INPUT_POST, 'work_details_id', FILTER_SANITIZE_STRING);
             $partner_id = filter_input(INPUT_POST, 'partner_id', FILTER_VALIDATE_INT);
+            $editing_index = filter_input(INPUT_POST, 'editing_index', FILTER_VALIDATE_INT, ['options' => ['default' => null]]);
 
             if (!$customer_name || !$product_id || !$product_name || $quantity <= 0 || $unit_price <= 0 || !$work_details_id || !$partner_id) {
                 error_log("Invalid input in add_sub_item: " . print_r($_POST, true));
@@ -131,11 +132,12 @@ try {
                 'total_price' => $total_price
             ];
 
-            if (isset($_SESSION['sub_order_items'][editingIndex])) {
-                $_SESSION['sub_order_items'][editingIndex] = $item;
-
+            if ($editing_index !== null && isset($_SESSION['sub_order_items'][$editing_index])) {
+                $_SESSION['sub_order_items'][$editing_index] = $item;
+                error_log("Edited sub-order item at index $editing_index: " . json_encode($item));
             } else {
                 $_SESSION['sub_order_items'][] = $item;
+                error_log("Added new sub-order item: " . json_encode($item));
             }
 
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
@@ -146,8 +148,8 @@ try {
                 'total_amount' => $total_amount,
                 'discount' => $_SESSION['sub_discount'],
                 'final_amount' => $final_amount,
-                'invoice_price' => $_SESSION['sub_invoice_prices'],
-                'sub_postal_enabled' => $_SESSION['sub_enabledal_enabled'],
+                'invoice_prices' => $_SESSION['sub_invoice_prices'],
+                'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_postal_price']
             ]);
             break;
@@ -226,7 +228,7 @@ try {
             ]);
             break;
 
-        case 'update_sub_bill':
+        case 'update_sub_discount':
             $discount = (float)($_POST['discount'] ?? 0);
             if ($discount < 0) {
                 error_log("Negative discount in update_sub_discount: discount=$discount");
@@ -266,10 +268,10 @@ try {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Sub_Orders (work_details_id, customer_name, partner_id, total_amount, discount, final_amount, created_at, sub_postal_enabled, sub_postal_price)
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)
+                INSERT INTO Sub_Orders (work_details_id, customer_name, partner_id, total_amount, discount, final_amount, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
             ");
-            $stmt->execute([$work_details_id, $customer_name, $partner_id, $total_amount, $discount, $final_amount, $_SESSION['sub_postal_enabled'] ? 1 : 0, $_SESSION['sub_postal_price']]);
+            $stmt->execute([$work_details_id, $customer_name, $partner_id, $total_amount, $discount, $final_amount]);
             $sub_order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
@@ -312,138 +314,6 @@ try {
             unset($_SESSION['is_sub_order_in_progress']);
 
             sendResponse(true, 'پیش‌فاکتور با موفقیت ثبت شد.', ['redirect' => "orders.php?work_month_id=$work_month_id"]);
-            break;
-
-        case 'update_sub_order':
-            $sub_order_id = filter_input(INPUT_POST, 'sub_order_id', FILTER_SANITIZE_STRING);
-            $customer_name = filter_input(INPUT_POST, 'customer_name', FILTER_SANITIZE_STRING);
-            $work_details_id = filter_input(INPUT_POST, 'work_details_id', FILTER_SANITIZE_STRING);
-            $discount = (float)($_POST['discount'] ?? 0);
-            $work_month_id = filter_input(INPUT_POST, 'work_month_id', FILTER_VALIDATE_INT);
-
-            if (!$sub_order_id || !ctype_digit($sub_order_id) || !$customer_name || !$work_details_id || !$work_month_id) {
-                error_log("Invalid input in update_sub_order: " . print_r($_POST, true));
-                sendResponse(false, 'اطلاعات ناقص یا نامعتبر است.');
-            }
-
-            $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-            $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
-
-            $pdo->beginTransaction();
-
-            $stmt = $pdo->prepare("
-                UPDATE Sub_Orders 
-                SET customer_name = ?, work_details_id = ?, total_amount = ?, discount = ?, final_amount = ?, 
-                    sub_postal_enabled = ?, sub_postal_price = ?
-                WHERE sub_order_id = ?
-            ");
-            $stmt->execute([
-                $customer_name, $work_details_id, $total_amount, $discount, $final_amount,
-                $_SESSION['sub_postal_enabled'] ? 1 : 0, $_SESSION['sub_postal_price'], $sub_order_id
-            ]);
-
-            $stmt = $pdo->prepare("DELETE FROM Sub_Order_Items WHERE sub_order_id = ?");
-            $stmt->execute([$sub_order_id]);
-
-            $stmt = $pdo->prepare("
-                INSERT INTO Sub_Order_Items (sub_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ");
-            foreach ($_SESSION['sub_order_items'] as $item) {
-                $stmt->execute([
-                    $sub_order_id, $item['product_id'], $item['product_name'], 
-                    $item['quantity'], $item['unit_price'], $item['extra_sale'], $item['total_price']
-                ]);
-            }
-
-            $stmt = $pdo->prepare("DELETE FROM Sub_Invoice_Prices WHERE sub_order_id = ?");
-            $stmt->execute([$sub_order_id]);
-
-            if (!empty($_SESSION['sub_invoice_prices'])) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO Sub_Invoice_Prices (sub_order_id, item_index, invoice_price, is_postal, postal_price)
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-                foreach ($_SESSION['sub_invoice_prices'] as $index => $price) {
-                    $is_postal = ($index === 'postal') ? 1 : 0;
-                    $postal_price = $is_postal ? $price : 0;
-                    $invoice_price = $is_postal ? 0 : $price;
-                    $stmt->execute([$sub_order_id, $index, $invoice_price, $is_postal, $postal_price]);
-                }
-            }
-
-            $pdo->commit();
-
-            sendResponse(true, 'پیش‌فاکتور با موفقیت به‌روزرسانی شد.', ['redirect' => "orders.php?work_month_id=$work_month_id"]);
-            break;
-
-        case 'convert_to_main_order':
-            $sub_order_id = filter_input(INPUT_POST, 'sub_order_id', FILTER_SANITIZE_STRING);
-            $customer_name = filter_input(INPUT_POST, 'customer_name', FILTER_SANITIZE_STRING);
-            $main_work_details_id = filter_input(INPUT_POST, 'main_work_details_id', FILTER_SANITIZE_INT);
-            $main_partner_id = filter_input(INPUT_POST, 'main_partner_id', FILTER_VALIDATE_INT);
-            $work_month_id = filter_input(INPUT_POST, 'work_month_id', FILTER_VALIDATE_INT);
-            $discount = (float)($_POST['discount'] ?? 0);
-
-            if (!$sub_order_id || !ctype_digit($sub_order_id) || !$customer_name || !$main_work_details_id || !$main_partner_id || !$work_month_id) {
-                error_log("Invalid input in convert_to_main_order: " . print_r($_POST, true));
-                sendResponse(false, 'اطلاعات ناقص یا نامعتبر است.');
-            }
-
-            $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-            $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
-
-            $pdo->beginTransaction();
-
-            $stmt = $pdo->prepare("
-                INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount, is_main_order, created_at)
-                VALUES (?, ?, ?, ?, ?, 1, NOW())
-            ");
-            $stmt->execute([$main_work_details_id, $customer_name, $total_amount, $discount, $final_amount]);
-            $order_id = $pdo->lastInsertId();
-
-            $stmt = $pdo->prepare("
-                INSERT INTO Order_Items (order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ");
-            foreach ($_SESSION['sub_order_items'] as $item) {
-                $stmt->execute([
-                    $order_id, $item['product_id'], $item['product_name'], 
-                    $item['quantity'], $item['unit_price'], $item['extra_sale'], $item['total_price']
-                ]);
-            }
-
-            if (!empty($_SESSION['sub_invoice_prices'])) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO Order_Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-                foreach ($_SESSION['sub_invoice_prices'] as $index => $price) {
-                    $is_postal = ($index === 'postal') ? 1 : 0;
-                    $postal_price = $is_postal ? $price : 0;
-                    $invoice_price = $is_postal ? 0 : $price;
-                    $stmt->execute([$order_id, $index, $invoice_price, $is_postal, $postal_price]);
-                }
-            }
-
-            $stmt = $pdo->prepare("DELETE FROM Sub_Orders WHERE sub_order_id = ?");
-            $stmt->execute([$sub_order_id]);
-            $stmt = $pdo->prepare("DELETE FROM Sub_Order_Items WHERE sub_order_id = ?");
-            $stmt->execute([$sub_order_id]);
-            $stmt = $pdo->prepare("DELETE FROM Sub_Invoice_Prices WHERE sub_order_id = ?");
-            $stmt->execute([$sub_order_id]);
-
-            $pdo->commit();
-
-            // Clear session data
-            unset($_SESSION['sub_order_items']);
-            unset($_SESSION['sub_discount']);
-            unset($_SESSION['sub_invoice_prices']);
-            unset($_SESSION['sub_postal_enabled']);
-            unset($_SESSION['sub_postal_price']);
-            unset($_SESSION['is_sub_order_in_progress']);
-
-            sendResponse(true, 'فاکتور با موفقیت ثبت شد.', ['redirect' => "orders.php?work_month_id=$work_month_id"]);
             break;
 
         case 'get_items':

@@ -12,15 +12,16 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // Convert Gregorian date to Jalali format
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
         return 'نامشخص';
     }
     try {
         list($gy, $gm, $gd) = explode('-', $gregorian_date);
-        $gy = (int)$gy;
-        $gm = (int)$gm;
-        $gd = (int)$gd;
+        $gy = (int) $gy;
+        $gm = (int) $gm;
+        $gd = (int) $gd;
         if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
             return 'نامشخص';
         }
@@ -91,14 +92,54 @@ $_SESSION['is_sub_order_in_progress'] = true;
 ?>
 
 <style>
-    body, .container-fluid { overflow-x: hidden !important; }
-    .table-wrapper { width: 100%; overflow-x: auto !important; overflow-y: visible; -webkit-overflow-scrolling: touch; }
-    .order-items-table { width: 100%; min-width: 800px; border-collapse: collapse; }
-    .order-items-table th, .order-items-table td { vertical-align: middle !important; white-space: nowrap !important; padding: 8px; min-width: 120px; }
-    .order-items-table .total-row td { font-weight: bold; }
-    .order-items-table .total-row input#discount { width: 150px; margin: 0 auto; }
-    @media (max-width: 991px) { .col-6, .col-md-3, .col-md-6 { width: 50%; } }
-    .list-group { max-height: 200px; overflow-y: auto; }
+    body,
+    .container-fluid {
+        overflow-x: hidden !important;
+    }
+
+    .table-wrapper {
+        width: 100%;
+        overflow-x: auto !important;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .order-items-table {
+        width: 100%;
+        min-width: 800px;
+        border-collapse: collapse;
+    }
+
+    .order-items-table th,
+    .order-items-table td {
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+        padding: 8px;
+        min-width: 120px;
+    }
+
+    .order-items-table .total-row td {
+        font-weight: bold;
+    }
+
+    .order-items-table .total-row input#discount {
+        width: 150px;
+        margin: 0 auto;
+    }
+
+    @media (max-width: 991px) {
+
+        .col-6,
+        .col-md-3,
+        .col-md-6 {
+            width: 50%;
+        }
+    }
+
+    .list-group {
+        max-height: 200px;
+        overflow-y: auto;
+    }
 </style>
 
 <div class="container-fluid mt-5">
@@ -124,8 +165,10 @@ $_SESSION['is_sub_order_in_progress'] = true;
 
         <div class="mb-3 position-relative">
             <label for="product_name" class="form-label">نام محصول</label>
-            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید..." autocomplete="off">
-            <div id="product_suggestions" class="list-group position-absolute w-100" style="z-index: 1000; display: none;"></div>
+            <input type="text" class="form-control" id="product_name" name="product_name"
+                placeholder="جستجو یا وارد کنید..." autocomplete="off">
+            <div id="product_suggestions" class="list-group position-absolute w-100"
+                style="z-index: 1000; display: none;"></div>
             <input type="hidden" id="product_id" name="product_id">
         </div>
 
@@ -173,7 +216,8 @@ $_SESSION['is_sub_order_in_progress'] = true;
     </form>
 </div>
 
-<div class="modal fade" id="invoicePriceModal" tabindex="-1" aria-labelledby="invoicePriceModalLabel" aria-hidden="true">
+<div class="modal fade" id="invoicePriceModal" tabindex="-1" aria-labelledby="invoicePriceModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -198,52 +242,52 @@ $_SESSION['is_sub_order_in_progress'] = true;
 <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let initialInventory = 0;
-let editingIndex = null;
+    let initialInventory = 0;
+    let editingIndex = null;
 
-async function sendRequest(url, data) {
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams(data)
-        });
-        const text = await response.text();
-        console.log('Raw response:', text);
+    async function sendRequest(url, data) {
         try {
-            const json = JSON.parse(text);
-            if (!json.success && !json.message) {
-                json.message = 'خطای ناشناخته در سرور.';
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(data)
+            });
+            const text = await response.text();
+            console.log('Raw response:', text);
+            try {
+                const json = JSON.parse(text);
+                if (!json.success && !json.message) {
+                    json.message = 'خطای ناشناخته در سرور.';
+                }
+                return json;
+            } catch (e) {
+                console.error('JSON Parse Error:', e, 'Response:', text);
+                alert('خطا در پردازش پاسخ سرور: ' + text.substring(0, 100));
+                return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
             }
-            return json;
-        } catch (e) {
-            console.error('JSON Parse Error:', e, 'Response:', text);
-            alert('خطا در پردازش پاسخ سرور: ' + text.substring(0, 100));
-            return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
+        } catch (error) {
+            console.error('SendRequest Error:', error);
+            alert('خطا در ارسال درخواست.');
+            return { success: false, message: 'خطا در ارسال درخواست.' };
         }
-    } catch (error) {
-        console.error('SendRequest Error:', error);
-        alert('خطا در ارسال درخواست.');
-        return { success: false, message: 'خطا در ارسال درخواست.' };
-    }
-}
-
-function renderItemsTable(data) {
-    const itemsTable = document.getElementById('items_table');
-    const totalAmountDisplay = document.getElementById('total_amount_display');
-    const finalAmountDisplay = document.getElementById('final_amount_display');
-    const invoicePrices = data.invoice_prices || {};
-    const postalEnabled = data.sub_postal_enabled || false;
-    const postalPrice = data.sub_postal_price || 50000;
-
-    itemsTable.innerHTML = '';
-    if (!data.items || data.items.length === 0) {
-        totalAmountDisplay.textContent = '0 تومان';
-        finalAmountDisplay.textContent = '0 تومان';
-        return;
     }
 
-    let tableHtml = `
+    function renderItemsTable(data) {
+        const itemsTable = document.getElementById('items_table');
+        const totalAmountDisplay = document.getElementById('total_amount_display');
+        const finalAmountDisplay = document.getElementById('final_amount_display');
+        const invoicePrices = data.invoice_prices || {};
+        const postalEnabled = data.sub_postal_enabled || false;
+        const postalPrice = data.sub_postal_price || 50000;
+
+        itemsTable.innerHTML = '';
+        if (!data.items || data.items.length === 0) {
+            totalAmountDisplay.textContent = '0 تومان';
+            finalAmountDisplay.textContent = '0 تومان';
+            return;
+        }
+
+        let tableHtml = `
         <table class="table table-light order-items-table">
             <thead>
                 <tr>
@@ -258,8 +302,8 @@ function renderItemsTable(data) {
             </thead>
             <tbody>
     `;
-    data.items.forEach((item, index) => {
-        tableHtml += `
+        data.items.forEach((item, index) => {
+            tableHtml += `
             <tr id="item_row_${index}">
                 <td>${item.product_name}</td>
                 <td>${item.quantity}</td>
@@ -284,8 +328,8 @@ function renderItemsTable(data) {
                 </td>
             </tr>
         `;
-    });
-    tableHtml += `
+        });
+        tableHtml += `
             <tr class="total-row">
                 <td colspan="4"><strong>جمع کل</strong></td>
                 <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa-IR')} تومان</strong></td>
@@ -306,264 +350,240 @@ function renderItemsTable(data) {
         </tbody>
         </table>
     `;
-    itemsTable.innerHTML = tableHtml;
-    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa-IR') + ' تومان';
-    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa-IR') + ' تومان';
-}
+        itemsTable.innerHTML = tableHtml;
+        totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa-IR') + ' تومان';
+        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa-IR') + ' تومان';
+    }
 
-function resetForm() {
-    $('#product_name').val('').prop('disabled', false);
-    $('#product_id').val('');
-    $('#quantity').val(1);
-    $('#unit_price').val('');
-    $('#extra_sale').val(0);
-    $('#adjusted_price').val('');
-    $('#total_price').val('');
-    $('#inventory_quantity').text('0');
-    $('#add_item_btn').show();
-    $('#edit_item_btn').hide();
-    editingIndex = null;
-    initialInventory = 0;
-}
-
-function updatePrices() {
-    const quantity = Number($('#quantity').val()) || 0;
-    const unit_price = Number($('#unit_price').val()) || 0;
-    const extra_sale = Number($('#extra_sale').val()) || 0;
-    const adjusted_price = unit_price + extra_sale;
-    const total_price = quantity * adjusted_price;
-    $('#adjusted_price').val(adjusted_price.toLocaleString('fa-IR') + ' تومان');
-    $('#total_price').val(total_price.toLocaleString('fa-IR') + ' تومان');
-}
-
-$(document).ready(function() {
-    console.log('Document ready');
-
-    $('#product_name').on('input', function() {
-        const query = $(this).val().trim();
-        const work_details_id = $('#work_date').val();
-        const partner_id = '<?= $current_user_id ?>';
-        if (query.length >= 3) {
-            $.post('get_sub_order_products.php', { query, work_details_id, partner_id }, function(response) {
-                console.log('Product suggestions response:', response);
-                if (response.trim() === '' || response.includes('محصولی یافت نشد')) {
-                    $('#product_suggestions').hide();
-                } else {
-                    $('#product_suggestions').html(response).show();
-                }
-            }).fail(function(jqXHR, textStatus, errorThrown) {
-                console.error('Product search error:', textStatus, errorThrown);
-                $('#product_suggestions').hide();
-                alert('خطا در جستجوی محصولات.');
-            });
-        } else {
-            $('#product_suggestions').hide();
-        }
-    });
-
-    $(document).on('click', '.product-suggestion', function(e) {
-        e.preventDefault();
-        let product = $(this).data('product');
-        if (typeof product === 'string') {
-            try {
-                product = JSON.parse(product);
-            } catch (e) {
-                console.error('Product parse error:', e);
-                alert('خطا در انتخاب محصول.');
-                return;
-            }
-        }
-        $('#product_name').val(product.product_name).prop('disabled', false);
-        $('#product_id').val(product.product_id);
-        $('#unit_price').val(product.unit_price);
+    function resetForm() {
+        $('#product_name').val('').prop('disabled', false);
+        $('#product_id').val('');
+        $('#quantity').val(1);
+        $('#unit_price').val('');
         $('#extra_sale').val(0);
-        $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa-IR') + ' تومان');
-        $('#total_price').val((1 * product.unit_price).toLocaleString('fa-IR') + ' تومان');
-        $('#product_suggestions').hide();
+        $('#adjusted_price').val('');
+        $('#total_price').val('');
+        $('#inventory_quantity').text('0');
+        $('#add_item_btn').show();
+        $('#edit_item_btn').hide();
+        editingIndex = null;
+        initialInventory = 0;
+    }
 
-        sendRequest('get_inventory.php', {
-            product_id: product.product_id,
-            user_id: '<?= $current_user_id ?>',
-            is_sub_order: 1
-        }).then(response => {
-            if (response.success) {
-                initialInventory = response.data.inventory || 0;
-                $('#inventory_quantity').text(initialInventory);
-                $('#quantity').val(1);
-            } else {
-                $('#inventory_quantity').text('0');
-                alert('خطا در دریافت موجودی: ' + response.message);
-            }
-        }).catch(error => {
-            console.error('Get inventory error:', error);
-            $('#inventory_quantity').text('0');
-            alert('خطا در دریافت موجودی.');
-        });
-
-        $('#quantity').focus();
-        updatePrices();
-    });
-
-    $('#quantity, #unit_price, #extra_sale').on('input', updatePrices);
-
-    $('#add_item_btn').on('click', async function() {
-        console.log('Add item button clicked');
-        const customerName = $('#customer_name').val().trim();
-        const product_id = $('#product_id').val();
+    function updatePrices() {
         const quantity = Number($('#quantity').val()) || 0;
         const unit_price = Number($('#unit_price').val()) || 0;
         const extra_sale = Number($('#extra_sale').val()) || 0;
-        const discount = Number($('#discount').val()) || 0;
-        const product_name = $('#product_name').val().trim();
-        const work_details_id = $('#work_date').val();
+        const adjusted_price = unit_price + extra_sale;
+        const total_price = quantity * adjusted_price;
+        $('#adjusted_price').val(adjusted_price.toLocaleString('fa-IR') + ' تومان');
+        $('#total_price').val(total_price.toLocaleString('fa-IR') + ' تومان');
+    }
 
-        console.log('Add item data:', { customerName, product_id, quantity, unit_price, extra_sale, discount, product_name, work_details_id });
+    $(document).ready(function () {
+        console.log('Document ready');
 
-        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
-            alert('لطفاً همه فیلدها را پر کنید.');
-            return;
-        }
+        $('#product_name').on('input', function () {
+            const query = $(this).val().trim();
+            const work_details_id = $('#work_date').val();
+            const partner_id = '<?= $current_user_id ?>';
+            if (query.length >= 3) {
+                $.post('get_sub_order_products.php', { query, work_details_id, partner_id }, function (response) {
+                    console.log('Product suggestions response:', response);
+                    if (response.trim() === '' || response.includes('محصولی یافت نشد')) {
+                        $('#product_suggestions').hide();
+                    } else {
+                        $('#product_suggestions').html(response).show();
+                    }
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    console.error('Product search error:', textStatus, errorThrown);
+                    $('#product_suggestions').hide();
+                    alert('خطا در جستجوی محصولات.');
+                });
+            } else {
+                $('#product_suggestions').hide();
+            }
+        });
 
-        try {
-            const response = await sendRequest('sub_order_handler.php', {
-                action: 'add_sub_item',
-                customer_name: customerName,
-                product_id: product_id,
-                product_name: product_name,
-                quantity: quantity,
-                unit_price: unit_price,
-                extra_sale: extra_sale,
-                discount: discount,
-                work_details_id: work_details_id || '<?= $default_work_details_id ?>',
-                partner_id: '<?= $current_user_id ?>'
+        $(document).on('click', '.product-suggestion', function (e) {
+            e.preventDefault();
+            let product = $(this).data('product');
+            if (typeof product === 'string') {
+                try {
+                    product = JSON.parse(product);
+                } catch (e) {
+                    console.error('Product parse error:', e);
+                    alert('خطا در انتخاب محصول.');
+                    return;
+                }
+            }
+            $('#product_name').val(product.product_name).prop('disabled', false);
+            $('#product_id').val(product.product_id);
+            $('#unit_price').val(product.unit_price);
+            $('#extra_sale').val(0);
+            $('#adjusted_price').val(Number(product.unit_price).toLocaleString('fa-IR') + ' تومان');
+            $('#total_price').val((1 * product.unit_price).toLocaleString('fa-IR') + ' تومان');
+            $('#product_suggestions').hide();
+
+            sendRequest('get_inventory.php', {
+                product_id: product.product_id,
+                user_id: '<?= $current_user_id ?>',
+                is_sub_order: 1
+            }).then(response => {
+                if (response.success) {
+                    initialInventory = response.data.inventory || 0;
+                    $('#inventory_quantity').text(initialInventory);
+                    $('#quantity').val(1);
+                } else {
+                    $('#inventory_quantity').text('0');
+                    alert('خطا در دریافت موجودی: ' + response.message);
+                }
+            }).catch(error => {
+                console.error('Get inventory error:', error);
+                $('#inventory_quantity').text('0');
+                alert('خطا در دریافت موجودی.');
             });
 
-            if (response.success) {
-                renderItemsTable(response.data);
-                resetForm();
-            } else {
-                alert(response.message);
+            $('#quantity').focus();
+            updatePrices();
+        });
+
+        $('#quantity, #unit_price, #extra_sale').on('input', updatePrices);
+
+        $('#add_item_btn').on('click', async function () {
+            console.log('Add item button clicked');
+            const customerName = $('#customer_name').val().trim();
+            const product_id = $('#product_id').val();
+            const quantity = Number($('#quantity').val()) || 0;
+            const unit_price = Number($('#unit_price').val()) || 0;
+            const extra_sale = Number($('#extra_sale').val()) || 0;
+            const discount = Number($('#discount').val()) || 0;
+            const product_name = $('#product_name').val().trim();
+            const work_details_id = $('#work_date').val();
+
+            console.log('Add item data:', { customerName, product_id, quantity, unit_price, extra_sale, discount, product_name, work_details_id, editingIndex });
+
+            if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
+                alert('لطفاً همه فیلدها را پر کنید.');
+                return;
             }
-        } catch (error) {
-            console.error('Add item error:', error);
-            alert('خطا در افزودن محصول.');
-        }
-    });
 
-    $('#edit_item_btn').on('click', async function() {
-        $('#add_item_btn').trigger('click');
-    });
+            try {
+                const response = await sendRequest('sub_order_handler.php', {
+                    action: 'add_sub_item',
+                    customer_name: customerName,
+                    product_id: product_id,
+                    product_name: product_name,
+                    quantity: quantity,
+                    unit_price: unit_price,
+                    extra_sale: extra_sale,
+                    discount: discount,
+                    work_details_id: work_details_id || '<?= $default_work_details_id ?>',
+                    partner_id: '<?= $current_user_id ?>',
+                    editing_index: editingIndex // Send editingIndex
+                });
 
-    $(document).on('click', '.edit-item', function() {
-        const index = $(this).data('index');
-        const items = <?= json_encode($_SESSION['sub_order_items'] ?? []) ?>;
-        const item = items[index];
-
-        if (!item) {
-            alert('آیتم یافت نشد.');
-            return;
-        }
-
-        $('#product_name').val(item.product_name).prop('disabled', true);
-        $('#product_id').val(item.product_id);
-        $('#quantity').val(item.quantity);
-        $('#unit_price').val(item.unit_price);
-        $('#extra_sale').val(item.extra_sale);
-        $('#inventory_quantity').text(initialInventory);
-        updatePrices();
-
-        editingIndex = index;
-        $('#add_item_btn').hide();
-        $('#edit_item_btn').show();
-        $('#quantity').focus();
-    });
-
-    $(document).on('click', '.delete-item', async function() {
-        const index = $(this).data('index');
-        try {
-            const response = await sendRequest('sub_order_handler.php', {
-                action: 'delete_sub_item',
-                index: index
-            });
-
-            if (response.success) {
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
+                if (response.success) {
+                    renderItemsTable(response.data);
+                    resetForm();
+                } else {
+                    alert(response.message);
+                }
+            } catch (error) {
+                console.error('Add item error:', error);
+                alert('خطا در افزودن محصول.');
             }
-        } catch (error) {
-            console.error('Delete item error:', error);
-            alert('خطا در حذف محصول.');
-        }
-    });
+        });
 
-    $(document).on('click', '.set-invoice-price', function() {
-        const index = $(this).data('index');
-        const currentPrice = $(`.invoice-price[data-index="${index}"]`).text().replace(/[^\d]/g, '');
-        $('#invoice_price').val(currentPrice);
-        $('#invoice_price_index').val(index);
-        $('#invoicePriceModal').modal('show');
-    });
+        $('#edit_item_btn').on('click', async function () {
+            $('#add_item_btn').trigger('click');
+        });
 
-    $('#save_invoice_price').on('click', async function() {
-        const index = $('#invoice_price_index').val();
-        const invoice_price = Number($('#invoice_price').val()) || 0;
-        if (invoice_price < 0) {
-            alert('قیمت فاکتور نمی‌تواند منفی باشد.');
-            return;
-        }
-        try {
-            const response = await sendRequest('sub_order_handler.php', {
-                action: 'set_sub_invoice_price',
-                index: index,
-                invoice_price: invoice_price
-            });
+        $(document).on('click', '.edit-item', function () {
+            const index = $(this).data('index');
+            const items = <?= json_encode($_SESSION['sub_order_items'] ?? []) ?>;
+            const item = items[index];
 
-            if (response.success) {
-                renderItemsTable(response.data);
-                $('#invoicePriceModal').modal('hide');
-            } else {
-                alert(response.message);
+            if (!item) {
+                alert('آیتم یافت نشد.');
+                return;
             }
-        } catch (error) {
-            console.error('Save invoice price error:', error);
-            alert('خطا در تنظیم قیمت فاکتور.');
-        }
-    });
 
-    $('#postal_option').on('change', async function() {
-        const enable_postal = $(this).is(':checked');
-        const postal_price = Number($('#postal_price').val()) || 50000;
-        $('#postal_price').prop('disabled', !enable_postal);
-        try {
-            const response = await sendRequest('sub_order_handler.php', {
-                action: 'set_sub_postal_option',
-                enable_postal: enable_postal,
-                postal_price: postal_price
-            });
+            $('#product_name').val(item.product_name).prop('disabled', true);
+            $('#product_id').val(item.product_id);
+            $('#quantity').val(item.quantity);
+            $('#unit_price').val(item.unit_price);
+            $('#extra_sale').val(item.extra_sale);
+            $('#inventory_quantity').text(initialInventory);
+            updatePrices();
 
-            if (response.success) {
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
+            editingIndex = index;
+            $('#add_item_btn').hide();
+            $('#edit_item_btn').show();
+            $('#quantity').focus();
+        });
+
+        $(document).on('click', '.delete-item', async function () {
+            const index = $(this).data('index');
+            try {
+                const response = await sendRequest('sub_order_handler.php', {
+                    action: 'delete_sub_item',
+                    index: index
+                });
+
+                if (response.success) {
+                    renderItemsTable(response.data);
+                } else {
+                    alert(response.message);
+                }
+            } catch (error) {
+                console.error('Delete item error:', error);
+                alert('خطا در حذف محصول.');
             }
-        } catch (error) {
-            console.error('Set postal option error:', error);
-            alert('خطا در تنظیم گزینه پستی.');
-        }
-    });
+        });
 
-    $('#postal_price').on('input', async function() {
-        const postal_price = Number($(this).val()) || 50000;
-        if (postal_price < 0) {
-            $(this).val(50000);
-            return;
-        }
-        if ($('#postal_option').is(':checked')) {
+        $(document).on('click', '.set-invoice-price', function () {
+            const index = $(this).data('index');
+            const currentPrice = $(`.invoice-price[data-index="${index}"]`).text().replace(/[^\d]/g, '');
+            $('#invoice_price').val(currentPrice);
+            $('#invoice_price_index').val(index);
+            $('#invoicePriceModal').modal('show');
+        });
+
+        $('#save_invoice_price').on('click', async function () {
+            const index = $('#invoice_price_index').val();
+            const invoice_price = Number($('#invoice_price').val()) || 0;
+            if (invoice_price < 0) {
+                alert('قیمت فاکتور نمی‌تواند منفی باشد.');
+                return;
+            }
+            try {
+                const response = await sendRequest('sub_order_handler.php', {
+                    action: 'set_sub_invoice_price',
+                    index: index,
+                    invoice_price: invoice_price
+                });
+
+                if (response.success) {
+                    renderItemsTable(response.data);
+                    $('#invoicePriceModal').modal('hide');
+                } else {
+                    alert(response.message);
+                }
+            } catch (error) {
+                console.error('Save invoice price error:', error);
+                alert('خطا در تنظیم قیمت فاکتور.');
+            }
+        });
+
+        $('#postal_option').on('change', async function () {
+            const enable_postal = $(this).is(':checked');
+            const postal_price = Number($('#postal_price').val()) || 50000;
+            $('#postal_price').prop('disabled', !enable_postal);
             try {
                 const response = await sendRequest('sub_order_handler.php', {
                     action: 'set_sub_postal_option',
-                    enable_postal: true,
+                    enable_postal: enable_postal,
                     postal_price: postal_price
                 });
 
@@ -573,86 +593,111 @@ $(document).ready(function() {
                     alert(response.message);
                 }
             } catch (error) {
-                console.error('Set postal price error:', error);
-                alert('خطا در تنظیم قیمت پستی.');
+                console.error('Set postal option error:', error);
+                alert('خطا در تنظیم گزینه پستی.');
             }
-        }
-    });
+        });
 
-    $('#discount').on('change', async function() {
-        const discount = Number($(this).val()) || 0;
-        if (discount < 0) {
-            alert('تخفیف نمی‌تواند منفی باشد.');
-            $(this).val(0);
-            return;
-        }
-        try {
-            const response = await sendRequest('sub_order_handler.php', {
-                action: 'update_sub_discount',
-                discount: discount
-            });
+        $('#postal_price').on('input', async function () {
+            const postal_price = Number($(this).val()) || 50000;
+            if (postal_price < 0) {
+                $(this).val(50000);
+                return;
+            }
+            if ($('#postal_option').is(':checked')) {
+                try {
+                    const response = await sendRequest('sub_order_handler.php', {
+                        action: 'set_sub_postal_option',
+                        enable_postal: true,
+                        postal_price: postal_price
+                    });
 
+                    if (response.success) {
+                        renderItemsTable(response.data);
+                    } else {
+                        alert(response.message);
+                    }
+                } catch (error) {
+                    console.error('Set postal price error:', error);
+                    alert('خطا در تنظیم قیمت پستی.');
+                }
+            }
+        });
+
+        $('#discount').on('change', async function () {
+            const discount = Number($(this).val()) || 0;
+            if (discount < 0) {
+                alert('تخفیف نمی‌تواند منفی باشد.');
+                $(this).val(0);
+                return;
+            }
+            try {
+                const response = await sendRequest('sub_order_handler.php', {
+                    action: 'update_sub_discount',
+                    discount: discount
+                });
+
+                if (response.success) {
+                    renderItemsTable(response.data);
+                } else {
+                    alert(response.message);
+                }
+            } catch (error) {
+                console.error('Update discount error:', error);
+                alert('خطا در به‌روزرسانی تخفیف.');
+            }
+        });
+
+        $('#save_sub_order_btn').on('click', async function () {
+            console.log('Save order button clicked');
+            const customerName = $('#customer_name').val().trim();
+            const work_details_id = $('#work_date').val();
+            const discount = Number($('#discount').val()) || 0;
+            const work_month_id = '<?= $work_month_id ?>';
+
+            console.log('Form data:', { customerName, work_details_id, discount, work_month_id });
+
+            if (!customerName || !work_details_id) {
+                alert('لطفاً نام مشتری و تاریخ کاری را وارد کنید.');
+                return;
+            }
+
+            try {
+                const response = await sendRequest('sub_order_handler.php', {
+                    action: 'finalize_sub_order',
+                    customer_name: customerName,
+                    work_details_id: work_details_id,
+                    partner_id: '<?= $current_user_id ?>',
+                    discount: discount,
+                    work_month_id: work_month_id
+                });
+
+                if (response.success) {
+                    console.log('Redirecting to:', response.data.redirect);
+                    window.location.href = response.data.redirect;
+                } else {
+                    alert(response.message);
+                }
+            } catch (error) {
+                console.error('Save order error:', error);
+                alert('خطا در ثبت پیش‌فاکتور.');
+            }
+        });
+
+        // Initialize items table
+        sendRequest('sub_order_handler.php', { action: 'get_items' }).then(response => {
+            console.log('Get items response:', response);
             if (response.success) {
                 renderItemsTable(response.data);
             } else {
-                alert(response.message);
+                console.error('Get items failed:', response);
+                renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
             }
-        } catch (error) {
-            console.error('Update discount error:', error);
-            alert('خطا در به‌روزرسانی تخفیف.');
-        }
-    });
-
-    $('#save_sub_order_btn').on('click', async function() {
-        console.log('Save order button clicked');
-        const customerName = $('#customer_name').val().trim();
-        const work_details_id = $('#work_date').val();
-        const discount = Number($('#discount').val()) || 0;
-        const work_month_id = '<?= $work_month_id ?>';
-
-        console.log('Form data:', { customerName, work_details_id, discount, work_month_id });
-
-        if (!customerName || !work_details_id) {
-            alert('لطفاً نام مشتری و تاریخ کاری را وارد کنید.');
-            return;
-        }
-
-        try {
-            const response = await sendRequest('sub_order_handler.php', {
-                action: 'finalize_sub_order',
-                customer_name: customerName,
-                work_details_id: work_details_id,
-                partner_id: '<?= $current_user_id ?>',
-                discount: discount,
-                work_month_id: work_month_id
-            });
-
-            if (response.success) {
-                console.log('Redirecting to:', response.data.redirect);
-                window.location.href = response.data.redirect;
-            } else {
-                alert(response.message);
-            }
-        } catch (error) {
-            console.error('Save order error:', error);
-            alert('خطا در ثبت پیش‌فاکتور.');
-        }
-    });
-
-    // Initialize items table
-    sendRequest('sub_order_handler.php', { action: 'get_items' }).then(response => {
-        console.log('Get items response:', response);
-        if (response.success) {
-            renderItemsTable(response.data);
-        } else {
-            console.error('Get items failed:', response);
+        }).catch(error => {
+            console.error('Get items error:', error);
             renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
-        }
-    }).catch(error => {
-        console.error('Get items error:', error);
-        renderItemsTable({ items: [], total_amount: 0, discount: 0, final_amount: 0, invoice_prices: {}, sub_postal_enabled: false, sub_postal_price: 50000 });
+        });
     });
-});
 </script>
 
 <?php require_once 'footer.php'; ?>
