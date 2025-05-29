@@ -85,7 +85,7 @@ if ($selected_year) {
 
     if ($selected_year == 1404) {
         $start_date = "2025-03-21";
-        $end_date = "2026-03-21";
+        $end_date = "2026-03-20";
     } elseif ($selected_year == 1403) {
         $start_date = "2024-03-20";
         $end_date = "2025-03-21";
@@ -119,41 +119,40 @@ if ($selected_work_month_id) {
         $sub_order_check = $pdo->prepare("
             SELECT 1 
             FROM Sub_Orders so
-            JOIN Work_Details wd ON so.work_details_id = wd.id
-            JOIN Partners p ON so.partner_id = p.partner_id
+            JOIN Work_Details wd ON so.work_details_id = wd.id_work_details
+            JOIN Partners p ON so.sub_partner_id = p.id_partner
             WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
             LIMIT 1
         ");
-        $sub_order_check->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
-        $has_sub_orders = $sub_order_check->fetchColumn();
+        $sub_order_check->execute([$selected_work_month_id, $current_user_id, $has_sub_orders = $sub_order_check->fetchColumn();
 
         if ($is_admin) {
             $partners_query = $pdo->prepare("
-                SELECT DISTINCT u.user_id, u.full_name 
+                SELECT DISTINCT u.user_id, u.user_name 
                 FROM Work_Details wd
-                JOIN Partners p ON wd.partner_id = p.partner_id
+                JOIN Partners p ON wd.work_partner_id = p.id_partner
                 JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
-                WHERE wd.work_month_id = ? AND u.role = 'seller'
-                ORDER BY u.full_name
+                WHERE wd.work_month_id = ? AND u.id2 = 'seller'
+                ORDER BY u.user_name
             ");
             $partners_query->execute([$selected_work_month_id]);
         } else {
             $partners_query = $pdo->prepare("
-                SELECT DISTINCT u.user_id, u.full_name 
+                SELECT DISTINCT u.user_id, u.user_name 
                 FROM Work_Details wd
-                JOIN Partners p ON wd.partner_id = p.partner_id
+                JOIN Partners p ON wd.work_partner_id = p.id_partner
                 JOIN Users u ON u.user_id IN (p.user_id1, p.user_id2)
                 WHERE wd.work_month_id = ? 
                 AND (p.user_id1 = ? OR p.user_id2 = ?) 
                 AND u.user_id != ? 
-                AND u.role = 'seller'
-                ORDER BY u.full_name
+                AND u.id2 = 'seller'
+                ORDER BY u.user_name
             ");
             $partners_query->execute([$selected_work_month_id, $current_user_id, $current_user_id, $current_user_id]);
             $partner1_check = $pdo->prepare("
                 SELECT 1 
                 FROM Work_Details wd
-                JOIN Partners p ON wd.partner_id = p.partner_id
+                JOIN Partners p ON wd.work_partner_id = p.id_partner
                 WHERE wd.work_month_id = ? AND p.user_id1 = ?
                 LIMIT 1
             ");
@@ -164,11 +163,11 @@ if ($selected_work_month_id) {
 
         $details_query_params = [$selected_work_month_id];
         $details_query = "
-            SELECT wd.id, wd.work_date, wd.partner_id, 
-                   u1.full_name AS user1, u2.full_name AS user2,
-                   u1.user_id AS user_id1, u2.user_id AS user_id2
+            SELECT wd.id_work_details, wd.work_date, wd.work_partner_id, 
+                   u1.user_name AS user1, u2.user_name AS user2,
+                   u1.user_id1, u2.user_id AS user_id2
             FROM Work_Details wd
-            JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Partners p ON wd.work_partner_id = p.id_partner
             JOIN Users u1 ON p.user_id1 = u1.user_id
             LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
             WHERE wd.work_month_id = ?
@@ -220,23 +219,23 @@ if ($show_sub_orders) {
 
     if ($is_admin) {
         $orders_query .= "
-            (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
+            (SELECT CONCAT(u1.user_name, ' - ', COALESCE(u2.user_name, u1.user_name))
              FROM Partners p
              LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
              LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-             WHERE p.partner_id = so.partner_id) AS partners_names";
+             WHERE p.id_partner = so.sub_partner_id) AS partners_names";
     } else {
         $orders_query .= "
             COALESCE(
                 (SELECT CASE 
-                    WHEN p.user_id1 = ? THEN u2.full_name 
-                    WHEN p.user_id2 = ? THEN u1.full_name 
+                    WHEN p.user_id1 = ? THEN u2.user_name 
+                    WHEN p.user_id2 = ? THEN u1.user_name 
                     ELSE 'نامشخص' 
                 END
                 FROM Partners p
                 LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE p.partner_id = so.partner_id),
+                WHERE p.id_partner = so.sub_partner_id),
                 'نامشخص'
             ) AS partner_name";
         $params[] = $current_user_id;
@@ -246,7 +245,7 @@ if ($show_sub_orders) {
 
     $orders_query .= "
         FROM Sub_Orders so
-        LEFT JOIN Work_Details wd ON so.work_details_id = wd.id
+        LEFT JOIN Work_Details wd ON so.work_details_id = wd.id_work_details
         WHERE 1=1";
 } else {
     // Query for Orders (main invoices)
@@ -259,23 +258,23 @@ if ($show_sub_orders) {
 
     if ($is_admin) {
         $orders_query .= "
-            (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
+            (SELECT CONCAT(u1.user_name, ' - ', COALESCE(u2.user_name, u1.user_name))
              FROM Partners p
              LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
              LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-             WHERE p.partner_id = wd.partner_id) AS partners_names";
+             WHERE p.id_partner = wd.work_partner_id) AS partners_names";
     } else {
         $orders_query .= "
             COALESCE(
                 (SELECT CASE 
-                    WHEN p.user_id1 = ? THEN u2.full_name 
-                    WHEN p.user_id2 = ? THEN u1.full_name 
+                    WHEN p.user_id1 = ? THEN u2.user_name 
+                    WHEN p.user_id2 = ? THEN u1.user_name 
                     ELSE 'نامشخص' 
                 END
                 FROM Partners p
                 LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
                 LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-                WHERE p.partner_id = wd.partner_id),
+                WHERE p.id_partner = wd.work_partner_id),
                 'نامشخص'
             ) AS partner_name";
         $params[] = $current_user_id;
@@ -286,7 +285,7 @@ if ($show_sub_orders) {
     $orders_query .= "
         FROM Orders o
         LEFT JOIN Order_Payments op ON o.order_id = op.order_id
-        LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
+        LEFT JOIN Work_Details wd ON o.work_details_id = wd.id_work_details
         WHERE o.is_main_order = 1";
 }
 
@@ -294,7 +293,7 @@ if (!$is_admin) {
     $orders_query .= " AND EXISTS (
         SELECT 1
         FROM Partners p 
-        WHERE p.partner_id = " . ($show_sub_orders ? "so" : "wd") . ".partner_id
+        WHERE p.id_partner = " . ($show_sub_orders ? "so.sub_partner_id" : "wd.work_partner_id") . "
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
     $params[] = $current_user_id;
@@ -309,7 +308,7 @@ if ($selected_year) {
     $end_date = "$gregorian_end_year-03-21";
     if ($selected_year == 1404) {
         $start_date = "2025-03-21";
-        $end_date = "2026-03-21";
+        $end_date = "2026-03-20";
     } elseif ($selected_year == 1403) {
         $start_date = "2024-03-20";
         $end_date = "2025-03-21";
@@ -330,7 +329,7 @@ if ($selected_partner_id) {
     $orders_query .= " AND EXISTS (
         SELECT 1
         FROM Partners p 
-        WHERE p.partner_id = " . ($show_sub_orders ? "so" : "wd") . ".partner_id
+        WHERE p.id_partner = " . ($show_sub_orders ? "so.sub_partner_id" : "wd.work_partner_id") . "
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
     $params[] = $selected_partner_id;
@@ -339,13 +338,13 @@ if ($selected_partner_id) {
 }
 
 if ($selected_work_day_id) {
-    $orders_query .= " AND wd.id = ?";
+    $orders_query .= " AND wd.id_work_details = ?";
     $params[] = $selected_work_day_id;
     $param_count += 1;
 }
 
 $orders_query .= "
-    GROUP BY " . ($show_sub_orders ? "so.sub_order_id" : "o.order_id") . ", customer_name, total_amount, discount, final_amount, " . ($show_sub_orders ? "0" : "o.is_main_order") . ", wd.work_date, wd.id";
+    GROUP BY " . ($show_sub_orders ? "so.sub_order_id" : "o.order_id") . ", customer_name, total_amount, discount, final_amount, " . ($show_sub_orders ? "0" : "o.is_main_order") . ", wd.work_date, wd.id_work_details";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
@@ -404,7 +403,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <?php foreach ($partners as $partner): ?>
                     <option value="<?= htmlspecialchars($partner['user_id']) ?>"
                         <?= $selected_partner_id == $partner['user_id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($partner['full_name']) ?>
+                        <?= htmlspecialchars($partner['user_name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
