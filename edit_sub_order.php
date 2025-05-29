@@ -215,7 +215,7 @@ if (!$stmt->fetch()) {
 
         <button type="button" id="update_order_btn" class="btn btn-success mt-3">به‌روزرسانی پیش‌فاکتور</button>
         <button type="button" id="convert_order_btn" class="btn btn-primary mt-3">تبدیل به فاکتور اصلی</button>
-        <a href="orders.php?work_month_id=<?= $work_month_id ?>" class="btn btn-secondary mt-3">بازگشت</a>
+        <a href="orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>" class="btn btn-secondary mt-3">بازگشت</a>
     </form>
 </div>
 
@@ -245,47 +245,47 @@ if (!$stmt->fetch()) {
 <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    async function sendRequest(url, data) {
+async function sendRequest(url, data) {
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(data)
+        });
+        const text = await response.text();
+        console.log('Raw Response:', text);
         try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams(data)
-            });
-            const text = await response.text();
-            console.log('Raw Response:', text);
-            try {
-                const json = JSON.parse(text);
-                if (!json.success && json.message === 'undefined') {
-                    json.message = 'خطای ناشناخته در سرور. لطفاً دوباره تلاش کنید.';
-                }
-                return json;
-            } catch (e) {
-                console.error('JSON Parse Error:', e, 'Response:', text);
-                return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
+            const json = JSON.parse(text);
+            if (!json.success && json.message === 'undefined') {
+                json.message = 'خطای ناشناخته در سرور. لطفاً دوباره تلاش کنید.';
             }
-        } catch (error) {
-            console.error('SendRequest Error:', error);
-            return { success: false, message: 'خطا در ارسال درخواست.' };
+            return json;
+        } catch (e) {
+            console.error('JSON Parse Error:', e, 'Response:', text);
+            return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
         }
+    } catch (error) {
+        console.error('SendRequest Error:', error);
+        return { success: false, message: 'خطا در ارسال درخواست.' };
+    }
+}
+
+function renderItemsTable(data) {
+    const itemsTable = document.getElementById('items_table');
+    const totalAmountDisplay = document.getElementById('total_amount_display');
+    const finalAmountDisplay = document.getElementById('final_amount_display');
+    const invoicePrices = data.invoice_prices || {};
+    const postalEnabled = data.sub_postal_enabled || false;
+    const postalPrice = data.sub_postal_price || 50000;
+
+    if (!data.items || data.items.length === 0) {
+        itemsTable.innerHTML = '';
+        totalAmountDisplay.textContent = '0 تومان';
+        finalAmountDisplay.textContent = '0 تومان';
+        return;
     }
 
-    function renderItemsTable(data) {
-        const itemsTable = document.getElementById('items_table');
-        const totalAmountDisplay = document.getElementById('total_amount_display');
-        const finalAmountDisplay = document.getElementById('final_amount_display');
-        const invoicePrices = data.invoice_prices || {};
-        const postalEnabled = data.sub_postal_enabled || false;
-        const postalPrice = data.sub_postal_price || 50000;
-
-        if (!data.items || data.items.length === 0) {
-            itemsTable.innerHTML = '';
-            totalAmountDisplay.textContent = '0 تومان';
-            finalAmountDisplay.textContent = '0 تومان';
-            return;
-        }
-
-        itemsTable.innerHTML = `
+    itemsTable.innerHTML = `
         <table class="table table-light order-items-table">
             <thead>
                 <tr>
@@ -359,143 +359,147 @@ if (!$stmt->fetch()) {
         </table>
     `;
 
-        totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa-IR') + ' تومان';
-        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa-IR') + ' تومان';
+    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa-IR') + ' تومان';
+    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa-IR') + ' تومان';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    let initialInventory = 0;
+    const $convertCheckbox = $('#convert_to_main');
+    const $partnerSelect = $('#partner_id');
+    const $workDateSelect = $('#work_date');
+    const $partnerContainer = $('#partner_container');
+    const $workDateContainer = $('#work_date_container');
+
+    $partnerContainer.addClass('hidden');
+    $workDateContainer.addClass('hidden');
+
+    // Load sub-order data
+    const loadResponse = await sendRequest('sub_order_handler.php', {
+        action: 'load_sub_order',
+        order_id: '<?= htmlspecialchars($order_id) ?>'
+    });
+    if (loadResponse.success) {
+        document.getElementById('customer_name').value = loadResponse.data.order.customer_name;
+        renderItemsTable(loadResponse.data);
+    } else {
+        alert(loadResponse.message);
+        window.location.assign('orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>');
+        return;
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-        let initialInventory = 0;
-        const $convertCheckbox = $('#convert_to_main');
-        const $partnerSelect = $('#partner_id');
-        const $workDateSelect = $('#work_date');
-        const $partnerContainer = $('#partner_container');
-        const $workDateContainer = $('#work_date_container');
-
-        $partnerContainer.addClass('hidden');
-        $workDateContainer.addClass('hidden');
-
-        // Load sub-order data
-        const loadResponse = await sendRequest('sub_order_handler.php', {
-            action: 'load_sub_order',
-            order_id: '<?= $order_id ?>'
-        });
-        if (loadResponse.success) {
-            document.getElementById('customer_name').value = loadResponse.data.order.customer_name;
-            renderItemsTable(loadResponse.data);
+    $convertCheckbox.on('change', function () {
+        if ($(this).is(':checked')) {
+            $partnerContainer.removeClass('hidden');
+            loadPartners();
         } else {
-            alert(loadResponse.message);
-            window.location.assign('orders.php?work_month_id=<?= $work_month_id ?>');
-            return;
+            $partnerContainer.addClass('hidden');
+            $workDateContainer.addClass('hidden');
+            $partnerSelect.empty().append('<option value="">انتخاب همکار</option>');
+            $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
         }
+    });
 
-        $convertCheckbox.on('change', function () {
-            if ($(this).is(':checked')) {
-                $partnerContainer.removeClass('hidden');
-                loadPartners();
-            } else {
-                $partnerContainer.addClass('hidden');
-                $workDateContainer.addClass('hidden');
-                $partnerSelect.empty().append('<option value="">انتخاب همکار</option>');
-                $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
+    function loadPartners() {
+        $.ajax({
+            url: 'sub_order_handler.php',
+            type: 'POST',
+            data: {
+                action: 'get_related_partners',
+                work_month_id: '<?= htmlspecialchars($work_month_id) ?>',
+                current_user_id: '<?= htmlspecialchars($current_user_id) ?>'
+            },
+            dataType: 'json',
+            success: function (response) {
+                console.log('Load Partners Response:', response);
+                if (response.success && response.data.partners && response.data.partners.length > 0) {
+                    $partnerSelect.empty().append('<option value="">انتخاب همکار</option>');
+                    response.data.partners.forEach(partner => {
+                        $partnerSelect.append(`<option value="${partner.user_id}">${partner.full_name}</option>`);
+                    });
+                } else {
+                    console.error('Load Partners Error:', response.message);
+                    alert('هیچ همکاری برای این ماه کاری یافت نشد: ' + (response.message || 'خطای ناشناس'));
+                    $partnerSelect.empty().append('<option value="">هیچ همکاری یافت نشد</option>');
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Load Partners AJAX Error:', status, error, xhr.responseText);
+                alert('خطا در دریافت همکارها.');
             }
         });
+    }
 
-        function loadPartners() {
+    $partnerSelect.on('change', function () {
+        const partnerId = $(this).val();
+        const workMonthId = '<?= htmlspecialchars($work_month_id) ?>';
+        console.log('Partner selected:', partnerId, 'Work Month ID:', workMonthId);
+        if (partnerId && workMonthId) {
+            $workDateContainer.removeClass('hidden');
             $.ajax({
                 url: 'sub_order_handler.php',
                 type: 'POST',
                 data: {
-                    action: 'get_related_partners',
-                    work_month_id: '<?= $work_month_id ?>',
-                    current_user_id: '<?= $current_user_id ?>'
+                    action: 'get_partner_work_days',
+                    partner_id: partnerId,
+                    work_month_id: workMonthId
                 },
+                dataType: 'json',
                 success: function (response) {
-                    console.log('Load Partners Response:', response);
-                    if (response.success && response.data.partners && response.data.partners.length > 0) {
-                        $partnerSelect.empty().append('<option value="">انتخاب همکار</option>');
-                        response.data.partners.forEach(partner => {
-                            $partnerSelect.append(`<option value="${partner.user_id}">${partner.full_name}</option>`);
+                    console.log('Work Days Response:', response);
+                    $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
+                    if (response.success && response.data.work_days && response.data.work_days.length > 0) {
+                        response.data.work_days.forEach(day => {
+                            $workDateSelect.append(`<option value="${day.id}">${day.jalali_date}</option>`);
                         });
                     } else {
-                        console.error('Load Partners Error:', response.message);
-                        alert('هیچ همکاری برای این ماه کاری یافت نشد.');
-                        $partnerSelect.empty().append('<option value="">هیچ همکاری یافت نشد</option>');
+                        console.error('Work Days Error:', response.message);
+                        $workDateSelect.append('<option value="">هیچ تاریخی یافت نشد</option>');
+                        alert('هیچ روز کاری برای این همکار یافت نشد: ' + (response.message || 'خطای ناشناس'));
                     }
                 },
                 error: function (xhr, status, error) {
-                    console.error('Load Partners AJAX Error:', status, error, xhr.responseText);
-                    alert('خطا در دریافت همکارها.');
+                    console.error('Work Days AJAX Error:', status, error, xhr.responseText);
+                    $workDateSelect.empty().append('<option value="">هیچ تاریخی یافت نشد</option>');
+                    alert('خطا در دریافت روزهای کاری.');
                 }
             });
+        } else {
+            $workDateContainer.addClass('hidden');
+            $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
         }
+    });
 
-        $partnerSelect.on('change', function () {
-            const partnerId = $(this).val();
-            const workMonthId = '<?= $work_month_id ?>';
-            if (partnerId && workMonthId) {
-                $workDateContainer.removeClass('hidden');
-                $.ajax({
-                    url: 'sub_order_handler.php',
-                    type: 'POST',
-                    data: {
-                        action: 'get_partner_work_days',
-                        partner_id: partnerId,
-                        work_month_id: workMonthId
-                    },
-                    success: function (response) {
-                        console.log('Work Days Response:', response);
-                        if (response.success && response.data.work_days && response.data.work_days.length > 0) {
-                            $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
-                            response.data.work_days.forEach(day => {
-                                $workDateSelect.append(`<option value="${day.id}">${day.jalali_date}</option>`);
-                            });
-                        } else {
-                            console.error('Work Days Error:', response.message);
-                            alert('هیچ روز کاری برای این همکار یافت نشد.');
-                            $workDateSelect.empty().append('<option value="">هیچ تاریخی یافت نشد</option>');
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Work Days AJAX Error:', status, error, xhr.responseText);
-                        alert('خطا در دریافت روزهای کاری.');
-                    }
-                });
-            } else {
-                $workDateContainer.addClass('hidden');
-                $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
-            }
-        });
-
-        $('#product_name').on('input', function () {
-            let query = $(this).val().trim();
-            const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() || '<?= $work_month_id ?>' : '<?= $work_month_id ?>';
-            const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>';
-            if (query.length >= 2) {
-                $.ajax({
-                    url: 'get_sub_order_products.php',
-                    type: 'POST',
-                    data: { query: query, work_details_id: work_details_id, partner_id: partner_id },
-                    success: function (response) {
-                        console.log('Product Suggestions Response:', response);
-                        if (response.trim() === '') {
-                            $('#product_suggestions').hide();
-                        } else {
-                            $('#product_suggestions').html(response).show();
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Product AJAX Error:', status, error, xhr.responseText);
+    $('#product_name').on('input', function () {
+        let query = $(this).val().trim();
+        const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() || '0' : '<?= htmlspecialchars($work_month_id) ?>';
+        const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= htmlspecialchars($current_user_id) ?>' : '<?= htmlspecialchars($current_user_id) ?>';
+        if (query.length >= 2) {
+            $.ajax({
+                url: 'get_sub_order_products.php',
+                type: 'POST',
+                data: { query: query, work_details_id: work_details_id, partner_id: partner_id },
+                success: function (response) {
+                    console.log('Product Suggestions Response:', response);
+                    if (response.trim() === '') {
                         $('#product_suggestions').hide();
-                        alert('خطا در جستجوی محصولات.');
+                    } else {
+                        $('#product_suggestions').html(response).show();
                     }
-                });
-            } else {
-                $('#product_suggestions').hide();
-            }
-        });
+                },
+                error: function (xhr, status, error) {
+                    console.error('Product AJAX Error:', status, error, xhr.responseText);
+                    $('#product_suggestions').hide();
+                    alert('Error searching products.');
+                }
+            });
+        } else {
+            $('#product_suggestions').hide();
+        }
+    });
 
-        $(document).on('click', '.product-suggestion', function (e) {
-            e.preventDefault();
+    $(document).on('click', '.product-suggestion', function (e) {
+        e.preventDefault();
             let product = $(this).data('product');
             if (typeof product === 'string') {
                 try {
@@ -521,20 +525,20 @@ if (!$stmt->fetch()) {
             $('#quantity').focus();
         });
 
-        $('#quantity, #extra_sale').on('input', function () {
+        $('#quantity, #unit_price, #extra_sale').on('input', function () {
             let quantity = Number($('#quantity').val()) || 0;
             let unit_price = Number($('#unit_price').val()) || 0;
             let extra_sale = Number($('#extra_sale').val()) || 0;
             let adjusted_price = unit_price + extra_sale;
             let total = quantity * adjusted_price;
-            $('#adjusted_price').val(adjusted_price.toLocaleString('fa-IR') + ' تومان');
-            $('#total_price').val(total.toLocaleString('fa-IR') + ' تومان');
+            $('#adjusted_price').val(adjusted_price.toLocaleString('fa-IR') + ' Iranian Rial');
+            $('#total_amount').val(total.toLocaleString('fa-IR') + 'f');
             updateInventory();
         });
 
         function updateInventory() {
             let quantity = Number($('#quantity').val()) || 0;
-            let items = <?= json_encode($_SESSION['sub_order_items'] ?? []) ?>;
+            let items = <?= json_encode($_SESSION['sub_order_items'] ? [] : []) ?>;
             let product_id = $('#product_id').val();
             let totalUsed = 0;
 
@@ -548,18 +552,18 @@ if (!$stmt->fetch()) {
             $('#inventory_quantity').text(remainingInventory);
         }
 
-        document.getElementById('add_item_btn').addEventListener('click', async () => {
+        document.getElementById('add_item_btn')).addEventListener('click', async () => {
             const customer_name = document.getElementById('customer_name').value.trim();
             const product_id = document.getElementById('product_id').value;
             const quantity = Number(document.getElementById('quantity').value) || 0;
-            const unit_price = Number(document.getElementById('unit_price').value) || 0;
-            const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
+            const unit_price = parseFloat(document.getElementById('unit_price').value);
+            const extra_sale = Number(document.getElementById('extra_sale').value);
             const discount = document.getElementById('discount') ? Number(document.getElementById('discount').value) || 0 : 0;
-            const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() : '<?= $work_month_id ?>';
-            const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>';
+            const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() : '<?= htmlspecialchars($work_month_id) ?>';
+            const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= htmlspecialchars($current_user_id) ?>' : '<?= htmlspecialchars($current_user_id) ?>';
 
             if (!customer_name || !product_id || quantity <= 0 || unit_price <= 0) {
-                alert('لطفاً تمام فیلدها را پر کنید و تعداد بیشتر از ۰ باشد.');
+                alert('Please fill all fields correctly.');
                 return;
             }
 
@@ -576,40 +580,40 @@ if (!$stmt->fetch()) {
                 product_name: document.getElementById('product_name').value
             };
 
-            const addResponse = await sendRequest('sub_order_handler.php', data);
-            console.log('Add Item Response:', addResponse);
-            if (addResponse.success) {
-                renderItemsTable(addResponse.data);
+            const response = await sendRequest('sub_order_handler.php');
+            console.log('Add Item Response:', response);
+            if (response.success) {
+                renderItemsTable(response.data');
                 resetForm();
             } else {
-                alert(addResponse.message);
+                alert(response.message');
             }
         });
 
         document.getElementById('items_table').addEventListener('click', async (e) => {
             if (e.target.closest('.delete-item')) {
-                const index = e.target.closest('.delete-item').getAttribute('data-index');
-                if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
+                const index = e.target.closest('.delete-item').getAttribute('data-id');
+                if (confirm('Are you sure you want to delete this product?')) {
                     const data = {
                         action: 'delete_sub_item',
                         index,
-                        partner_id: $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>'
+                        partner_id: $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= htmlspecialchars($current_user_id) ?>' : '<?= htmlspecialchars($current_user_id) ?>'
                     };
 
                     const response = await sendRequest('sub_order_handler.php', data);
-                    console.log('Delete Item Response:', response);
+                    console.log('Delete Item Response:', response');
                     if (response.success) {
-                        renderItemsTable(response.data);
+                        renderItemsTable(response.data');
                         resetForm();
                     } else {
-                        alert(response.message);
+                        alert(response.message');
                     }
                 }
             } else if (e.target.closest('.set-invoice-price')) {
                 const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
                 $('#invoice_price_index').val(index);
                 const currentPrice = loadResponse.data.invoice_prices[index] || '';
-                $('#invoice_price').val(currentPrice);
+                $('#invoice_price').val(currentPrice');
                 $('#invoicePriceModal').modal('show');
             }
         });
@@ -619,7 +623,7 @@ if (!$stmt->fetch()) {
             const invoicePrice = Number($('#invoice_price').val());
 
             if (isNaN(invoicePrice) || invoicePrice < 0) {
-                alert('لطفاً یک قیمت معتبر وارد کنید.');
+                alert('Please enter a valid invoice price.');
                 return;
             }
 
@@ -629,13 +633,13 @@ if (!$stmt->fetch()) {
                 invoice_price: invoicePrice
             };
 
-            const response = await sendRequest('sub_order_handler.php', data);
+            const response = await sendRequest('sub_order_handler.php', data');
             console.log('Set Invoice Price Response:', response);
             if (response.success) {
-                renderItemsTable(response.data);
+                renderItemsTable(response.data');
                 $('#invoicePriceModal').modal('hide');
             } else {
-                alert(response.message);
+                alert(response.message');
             }
         });
 
@@ -647,12 +651,12 @@ if (!$stmt->fetch()) {
                     enable_postal: enablePostal
                 };
 
-                const response = await sendRequest('sub_order_handler.php', data);
+                const response = await sendRequest('sub_order_handler.php', data');
                 console.log('Set Postal Option Response:', response);
                 if (response.success) {
-                    renderItemsTable(response.data);
+                    renderItemsTable(response.data');
                 } else {
-                    alert(response.message);
+                    alert(response.message');
                 }
             }
         });
@@ -661,7 +665,7 @@ if (!$stmt->fetch()) {
             if (e.target.id === 'discount') {
                 const discount = Number(e.target.value) || 0;
                 if (discount < 0) {
-                    alert('تخفیف نمی‌تواند منفی باشد.');
+                    alert('Discount cannot be negative.');
                     e.target.value = 0;
                     return;
                 }
@@ -670,12 +674,12 @@ if (!$stmt->fetch()) {
                     discount
                 };
 
-                const response = await sendRequest('sub_order_handler.php', data);
+                const response = await sendRequest('sub_order_handler.php', data');
                 console.log('Update Discount Response:', response);
                 if (response.success) {
-                    renderItemsTable(response.data);
+                    renderItemsTable(response.data');
                 } else {
-                    alert(response.message);
+                    alert(response.message');
                 }
             }
         });
@@ -685,23 +689,23 @@ if (!$stmt->fetch()) {
             const discount = document.getElementById('discount') ? Number(document.getElementById('discount').value) || 0 : 0;
 
             if (!customer_name) {
-                alert('لطفاً نام مشتری را وارد کنید.');
+                alert('Please enter the customer name.');
                 return;
             }
 
             const response = await sendRequest('sub_order_handler.php', { action: 'get_items' });
             console.log('Get Items Response:', response);
             if (!response.success || !response.data.items || response.data.items.length === 0) {
-                alert('لطفاً حداقل یک محصول به پیش‌فاکتور اضافه کنید.');
+                alert('Please add at least one product to the pre-invoice.');
                 return;
             }
 
             const data = {
                 action: 'update_sub_order',
-                order_id: '<?= $order_id ?>',
+                order_id: '<?= htmlspecialchars($order_id) ?>',
                 customer_name,
                 discount,
-                work_month_id: '<?= $work_month_id ?>'
+                work_month_id: '<?= htmlspecialchars($work_month_id) ?>'
             };
 
             const updateResponse = await sendRequest('sub_order_handler.php', data);
@@ -717,7 +721,7 @@ if (!$stmt->fetch()) {
         document.getElementById('convert_order_btn').addEventListener('click', async () => {
             const customer_name = document.getElementById('customer_name').value.trim();
             const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() : '';
-            const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>';
+            const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= htmlspecialchars($current_user_id) ?>' : '<?= htmlspecialchars($current_user_id) ?>';
             const discount = document.getElementById('discount') ? Number(document.getElementById('discount').value) || 0 : 0;
 
             if (!customer_name) {
@@ -742,10 +746,10 @@ if (!$stmt->fetch()) {
 
             const data = {
                 action: 'convert_to_main_order',
-                order_id: '<?= $order_id ?>',
+                order_id: '<?= htmlspecialchars($order_id) ?>',
                 work_details_id,
                 partner_id,
-                work_month_id: '<?= $work_month_id ?>'
+                work_month_id: '<?= htmlspecialchars($work_month_id) ?>'
             };
 
             const convertResponse = await sendRequest('sub_order_handler.php', data);
@@ -771,83 +775,12 @@ if (!$stmt->fetch()) {
             $('#add_item_btn').show();
             $('#edit_item_btn').hide();
         }
-    });
 
-    $partnerSelect.on('change', function () {
-        const partnerId = $(this).val();
-        const workMonthId = '<?= $work_month_id ?>';
-        console.log('Partner selected:', partnerId, 'Work Month ID:', workMonthId);
-        if (partnerId && workMonthId) {
-            $workDateContainer.removeClass('hidden');
-            $.ajax({
-                url: 'sub_order_handler.php',
-                type: 'POST',
-                data: {
-                    action: 'get_partner_work_days',
-                    partner_id: partnerId,
-                    work_month_id: workMonthId
-                },
-                success: function (response) {
-                    console.log('Work Days Response:', response);
-                    if (response.success && response.data.work_days && response.data.work_days.length > 0) {
-                        $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
-                        response.data.work_days.forEach(day => {
-                            $workDateSelect.append(`<option value="${day.id}">${day.jalali_date}</option>`);
-                        });
-                    } else {
-                        console.error('Work Days Error:', response.message);
-                        alert('هیچ روز کاری برای این همکار یافت نشد.');
-                        $workDateSelect.empty().append('<option value="">هیچ تاریخی یافت نشد</option>');
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error('Work Days AJAX Error:', status, error, xhr.responseText);
-                    alert('خطا در دریافت روزهای کاری.');
-                }
-            });
-        } else {
-            $workDateContainer.addClass('hidden');
-            $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
+        // Trigger partner select change if pre-selected
+        if ($partnerSelect.val()) {
+            $partnerSelect.trigger('change');
         }
     });
-
-    if ($action === 'get_partner_work_days') {
-        $partner_id = $_POST['partner_id'] ?? '';
-        $work_month_id = $_POST['work_month_id'] ?? '';
-        if (!$partner_id || !$work_month_id) {
-            error_log("get_partner_work_days: Missing parameters - partner_id=$partner_id, work_month_id=$work_month_id");
-            sendResponse(false, 'همکار یا ماه کاری مشخص نیست.');
-        }
-        try {
-            error_log("get_partner_work_days: Querying for partner_id=$partner_id, work_month_id=$work_month_id");
-            $stmt = $pdo -> prepare("
-            SELECT wd.id, wd.work_date
-            FROM Work_Details wd
-            JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE wd.work_month_id = ?
-                AND(p.user_id1 = ? OR p.user_id2 = ?)
-            ORDER BY wd.work_date DESC
-        ");
-        $stmt -> execute([$work_month_id, $partner_id, $partner_id]);
-            $work_days = $stmt -> fetchAll(PDO:: FETCH_ASSOC);
-            error_log("get_partner_work_days: Found ".count($work_days). " work days for partner_id=$partner_id");
-            $formatted_days = array_map(function ($day) {
-                return [
-                    'id' => $day['id'],
-                    'jalali_date' => gregorian_to_jalali_format($day['work_date'])
-                ];
-            }, $work_days);
-            if (empty($work_days)) {
-                error_log("get_partner_work_days: No work days found for partner_id=$partner_id, work_month_id=$work_month_id");
-                sendResponse(false, 'هیچ روز کاری برای این همکار یافت نشد.');
-            }
-            sendResponse(true, 'موفق', ['work_days' => $formatted_days]);
-        } catch (Exception $e) {
-            error_log("Error in get_partner_work_days: ".$e -> getMessage());
-            sendResponse(false, 'خطا در دریافت روزهای کاری.');
-        }
-        exit;
-    }
 </script>
 
 <?php require_once 'footer.php'; ?>
