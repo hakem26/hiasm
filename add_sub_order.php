@@ -655,10 +655,10 @@ $_SESSION['is_sub_order_in_progress'] = true;
             const discount = Number($('#discount').val()) || 0;
             const work_month_id = '<?= $work_month_id ?>';
 
-            console.log('Form data:', { customerName, work_details_id, discount, work_month_id });
+            console.log('Sub order data:', { customerName, work_details_id, discount, work_month_id });
 
             if (!customerName || !work_details_id) {
-                alert('لطفاً نام مشتری و تاریخ کاری را وارد کنید.');
+                alert('لطفا نام مشتری و تاریخ کاری را وارد کنید.');
                 return;
             }
 
