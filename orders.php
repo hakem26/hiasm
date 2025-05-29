@@ -118,10 +118,10 @@ if ($selected_work_month_id) {
     if ($month) {
         $sub_order_check = $pdo->prepare("
             SELECT 1 
-            FROM Orders o
-            JOIN Work_Details wd ON o.work_details_id = wd.id
-            JOIN Partners p ON wd.partner_id = p.partner_id
-            WHERE o.is_main_order = 0 AND wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
+            FROM Sub_Orders so
+            JOIN Work_Details wd ON so.work_details_id = wd.id
+            JOIN Partners p ON so.partner_id = p.partner_id
+            WHERE wd.work_month_id = ? AND (p.user_id1 = ? OR p.user_id2 = ?)
             LIMIT 1
         ");
         $sub_order_check->execute([$selected_work_month_id, $current_user_id, $current_user_id]);
@@ -207,53 +207,94 @@ if ($selected_work_month_id) {
     }
 }
 
-$orders_query = "
-    SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order,
-           wd.work_date,
-           SUM(op.amount) AS paid_amount,
-           (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
-           wd.id AS work_details_id,";
-
+$orders_query = "";
 $params = [];
 $param_count = 0;
 
-if ($is_admin) {
-    $orders_query .= "
-        (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
-         FROM Partners p
-         LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-         LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-         WHERE p.partner_id = wd.partner_id) AS partners_names";
-} else {
-    $orders_query .= "
-        COALESCE(
-            (SELECT CASE 
-                WHEN p.user_id1 = ? THEN u2.full_name 
-                WHEN p.user_id2 = ? THEN u1.full_name 
-                ELSE 'نامشخص' 
-            END
-            FROM Partners p
-            LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-            LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-            WHERE p.partner_id = wd.partner_id),
-            'نامشخص'
-        ) AS partner_name";
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
-    $param_count += 2;
-}
+if ($show_sub_orders) {
+    // Query for Sub_Orders (pre-invoices)
+    $orders_query = "
+        SELECT so.sub_order_id AS order_id, so.customer_name, so.total_amount, so.discount, so.final_amount, 0 AS is_main_order,
+               wd.work_date, NULL AS paid_amount, so.final_amount AS remaining_amount,
+               wd.id AS work_details_id,";
 
-$orders_query .= "
-    FROM Orders o
-    LEFT JOIN Order_Payments op ON o.order_id = op.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE 1=1";
+    if ($is_admin) {
+        $orders_query .= "
+            (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
+             FROM Partners p
+             LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+             LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+             WHERE p.partner_id = so.partner_id) AS partners_names";
+    } else {
+        $orders_query .= "
+            COALESCE(
+                (SELECT CASE 
+                    WHEN p.user_id1 = ? THEN u2.full_name 
+                    WHEN p.user_id2 = ? THEN u1.full_name 
+                    ELSE 'نامشخص' 
+                END
+                FROM Partners p
+                LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+                WHERE p.partner_id = so.partner_id),
+                'نامشخص'
+            ) AS partner_name";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+        $param_count += 2;
+    }
+
+    $orders_query .= "
+        FROM Sub_Orders so
+        LEFT JOIN Work_Details wd ON so.work_details_id = wd.id
+        WHERE 1=1";
+} else {
+    // Query for Orders (main invoices)
+    $orders_query = "
+        SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order,
+               wd.work_date,
+               SUM(op.amount) AS paid_amount,
+               (o.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
+               wd.id AS work_details_id,";
+
+    if ($is_admin) {
+        $orders_query .= "
+            (SELECT CONCAT(u1.full_name, ' - ', COALESCE(u2.full_name, u1.full_name))
+             FROM Partners p
+             LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+             LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+             WHERE p.partner_id = wd.partner_id) AS partners_names";
+    } else {
+        $orders_query .= "
+            COALESCE(
+                (SELECT CASE 
+                    WHEN p.user_id1 = ? THEN u2.full_name 
+                    WHEN p.user_id2 = ? THEN u1.full_name 
+                    ELSE 'نامشخص' 
+                END
+                FROM Partners p
+                LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+                LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+                WHERE p.partner_id = wd.partner_id),
+                'نامشخص'
+            ) AS partner_name";
+        $params[] = $current_user_id;
+        $params[] = $current_user_id;
+        $param_count += 2;
+    }
+
+    $orders_query .= "
+        FROM Orders o
+        LEFT JOIN Order_Payments op ON o.order_id = op.order_id
+        LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
+        WHERE o.is_main_order = 1";
+}
 
 if (!$is_admin) {
     $orders_query .= " AND EXISTS (
         SELECT 1
         FROM Partners p 
-        WHERE p.partner_id = wd.partner_id
+        WHERE p.partner_id = " . ($show_sub_orders ? "so" : "wd") . ".partner_id
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
     $params[] = $current_user_id;
@@ -289,7 +330,7 @@ if ($selected_partner_id) {
     $orders_query .= " AND EXISTS (
         SELECT 1
         FROM Partners p 
-        WHERE p.partner_id = wd.partner_id
+        WHERE p.partner_id = " . ($show_sub_orders ? "so" : "wd") . ".partner_id
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )";
     $params[] = $selected_partner_id;
@@ -303,14 +344,8 @@ if ($selected_work_day_id) {
     $param_count += 1;
 }
 
-if ($show_sub_orders) {
-    $orders_query .= " AND o.is_main_order = 0";
-} else {
-    $orders_query .= " AND o.is_main_order = 1";
-}
-
 $orders_query .= "
-    GROUP BY o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, o.is_main_order, wd.work_date, wd.id";
+    GROUP BY " . ($show_sub_orders ? "so.sub_order_id" : "o.order_id") . ", customer_name, total_amount, discount, final_amount, " . ($show_sub_orders ? "0" : "o.is_main_order") . ", wd.work_date, wd.id";
 if ($is_admin) {
     $orders_query .= ", partners_names";
 } else {
@@ -444,15 +479,14 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <?php if (!$is_admin): ?>
                                 <td>
                                     <?php if ($order['is_main_order'] == 0): ?>
-                                        <a href="edit_sub_order.php?order_id=<?= $order['order_id'] ?>&work_month_id=<?= $selected_work_month_id ?>"
+                                        <a href="edit_sub_order.php?sub_order_id=<?= $order['order_id'] ?>&work_month_id=<?= $selected_work_month_id ?>"
                                             class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                        <a href="delete_order.php?order_id=<?= $order['order_id'] ?>&work_month_id=<?= $selected_work_month_id ?>"
+                                        <a href="delete_sub_order.php?sub_order_id=<?= $order['order_id'] ?>&work_month_id=<?= $selected_work_month_id ?>"
                                             class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i
                                                 class="fas fa-trash"></i></a>
                                     <?php else: ?>
                                         <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
                                             class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                        <!-- حذف برای فاکتور اصلی غیرفعال است -->
                                         <button class="btn btn-danger btn-sm" disabled><i class="fas fa-trash"></i></button>
                                     <?php endif; ?>
                                 </td>
