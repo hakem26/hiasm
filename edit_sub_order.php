@@ -1,7 +1,7 @@
 <?php
 // Start session and check authentication
 session_start();
-if (!isset($_SESSION['userId'])) {
+if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit;
 }
@@ -38,7 +38,7 @@ if ($is_admin) {
     header("Location: orders.php");
     exit;
 }
-$current_user_id = $_SESSION['userId'];
+$current_user_id = $_SESSION['user_id'];
 
 // Validate sub_order_id and work_month_id
 $sub_order_id = $_GET['sub_order_id'] ?? '';
@@ -74,7 +74,7 @@ $work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Initialize session variables
 $_SESSION['sub_order_items'] = [];
 $_SESSION['sub_discount'] = $sub_order['discount'] ?? 0;
-$_SESSION['sub_invoice_prices'] = ['postal' => 50000];
+$_SESSION['sub_invoice_prices'] = $_SESSION['sub_invoice_prices'] ?? ['postal' => 50000];
 $_SESSION['sub_postal_enabled'] = $sub_order['sub_postal_enabled'] ?? false;
 $_SESSION['sub_postal_price'] = $sub_order['sub_postal_price'] ?? 50000;
 $_SESSION['is_sub_order_in_progress'] = true;
@@ -221,7 +221,7 @@ foreach ($items as $item) {
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 let initialInventory = 0;
 let editingIndex = null;
@@ -257,12 +257,12 @@ function renderItemsTable(data) {
     const itemsTable = document.getElementById('items_table');
     const totalAmountDisplay = document.getElementById('total_amount_display');
     const finalAmountDisplay = document.getElementById('final_amount_display');
-    const invoicePrices = data.invoice_prices || {};
-    const postalEnabled = data.sub_postal_enabled || false;
-    const postalPrice = data.sub_postal_price || 50000;
+    const invoicePrices = data?.invoice_prices || {};
+    const postalEnabled = data?.sub_postal_enabled || false;
+    const postalPrice = data?.sub_postal_price || 50000;
 
     itemsTable.innerHTML = '';
-    if (!data.items || data.items.length === 0) {
+    if (!data.items || !data.items.length === 0) {
         totalAmountDisplay.textContent = '0 تومان';
         finalAmountDisplay.textContent = '0 تومان';
         return;

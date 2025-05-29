@@ -2,8 +2,10 @@
 ob_start();
 session_start();
 
-if (!isset($_SESSION['userId'])) {
+if (!isset($_SESSION['user_id'])) {
     header('HTTP/1.1 401 Unauthorized');
+    ob_clean();
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
@@ -38,7 +40,7 @@ function sendResponse($success, $message, $data = []) {
 }
 
 $action = $_POST['action'] ?? '';
-$current_user_id = $_SESSION['userId'];
+$current_user_id = $_SESSION['user_id'];
 $is_admin = ($_SESSION['role'] === 'admin');
 
 if ($is_admin) {
@@ -144,7 +146,7 @@ try {
             break;
 
         case 'delete_sub_item':
-            $index = (int)$_POST['index'] ?? -1;
+            $index = (int)($_POST['index'] ?? -1);
             if ($index < 0 || !isset($_SESSION['sub_order_items'][$index])) {
                 sendResponse(false, 'آیتم یافت نشد.');
             }
@@ -152,12 +154,11 @@ try {
             unset($_SESSION['sub_invoice_prices'][$index]);
 
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-            $final_amount = $_total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
+            $final_amount = $total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
             sendResponse(true, 'آیتم حذف شد.', [
                 'items' => $_SESSION['sub_order_items'],
                 'total_amount' => $total_amount,
-                'discount' => $_SESSION['sub_discount'],
                 'final_amount' => $final_amount,
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
@@ -174,7 +175,7 @@ try {
             $_SESSION['sub_invoice_prices'][$index] = $invoice_price;
 
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-            $final_amount = $total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
+            $final_amount = $total_amount - $_SESSION['sub_discount'] + ($_SESSION['sub_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
             sendResponse(true, 'قیمت فاکتور تنظیم شد.', [
                 'items' => $_SESSION['sub_order_items'],
@@ -201,7 +202,7 @@ try {
                 $_SESSION['sub_invoice_prices']['postal'] = $postal_price;
             }
 
-            $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
+            $total_amount = array_sum(array_column($_SESSION['sub_items'], 'total_price'));
             $final_amount = $total_amount - $_SESSION['sub_discount'] + ($enable_postal ? $postal_price : 0);
 
             sendResponse(true, 'گزینه پستی به‌روزرسانی شد.', [
@@ -211,7 +212,7 @@ try {
                 'final_amount' => $final_amount,
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
                 'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
-                'sub_postal_price' => $_SESSION['sub_price']
+                'sub_postal_price' => $_SESSION['sub_postal_price']
             ]);
             break;
 
@@ -231,7 +232,7 @@ try {
                 'discount' => $discount,
                 'final_amount' => $final_amount,
                 'invoice_prices' => $_SESSION['sub_invoice_prices'],
-                'sub_postal_enabled' => $_SESSION['sub_enabled'],
+                'sub_postal_enabled' => $_SESSION['sub_postal_enabled'],
                 'sub_postal_price' => $_SESSION['sub_price']
             ]);
             break;
@@ -248,23 +249,23 @@ try {
             }
 
             $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
-            $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
+            $final_amount = $total_amount - $discount + ($_SESSION['sub_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Sub_Orders (work_details_id, customer_name, partner_id, total_amount, discount, final_amount, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
+                INSERT INTO Sub_Orders (work_details_id, customer_name, partner_id, total_amount, discount, final_amount)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([$work_details_id, $customer_name, $partner_id, $total_amount, $discount, $final_amount]);
             $sub_order_id = $pdo->lastInsertId();
 
-            $stmt = $pdo->prepare("
+            $item_stmt = $pdo->prepare("
                 INSERT INTO Sub_Order_Items (sub_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             foreach ($_SESSION['sub_order_items'] as $item) {
-                $stmt->execute([
+                $item_stmt->execute([
                     $sub_order_id,
                     $item['product_id'],
                     $item['product_name'],
@@ -276,7 +277,7 @@ try {
             }
 
             if (!empty($_SESSION['sub_invoice_prices'])) {
-                $stmt = $pdo->prepare("
+                $invoice_stmt = $pdo->prepare("
                     INSERT INTO Sub_Invoice_Prices (sub_order_id, item_index, invoice_price, is_postal, postal_price)
                     VALUES (?, ?, ?, ?, ?)
                 ");
@@ -284,7 +285,7 @@ try {
                     $is_postal = ($index === 'postal') ? 1 : 0;
                     $postal_price = $is_postal ? $price : 0;
                     $invoice_price = $is_postal ? 0 : $price;
-                    $stmt->execute([$sub_order_id, $index, $invoice_price, $is_postal, $postal_price]);
+                    $invoice_stmt->execute([$sub_order_id, $index, $invoice_price, $is_postal, $postal_price]);
                 }
             }
 
@@ -294,8 +295,8 @@ try {
             unset($_SESSION['sub_order_items']);
             unset($_SESSION['sub_discount']);
             unset($_SESSION['sub_invoice_prices']);
-            unset($_SESSION['sub_postal_enabled']);
-            unset($_SESSION['sub_postal_price']);
+            unset($_SESSION['sub_enabled']);
+            unset($_SESSION['sub_price']);
             unset($_SESSION['is_sub_order_in_progress']);
 
             sendResponse(true, 'پیش‌فاکتور با موفقیت ثبت شد.', ['redirect' => "orders.php?work_month_id=$work_month_id"]);
@@ -450,7 +451,9 @@ try {
             sendResponse(false, 'عملیات نامعتبر.');
     }
 } catch (Exception $e) {
-    $pdo->rollBack();
+    if (isset($pdo)) {
+        $pdo->rollBack();
+    }
     error_log("Error in sub_order_handler.php: " . $e->getMessage());
     sendResponse(false, 'خطای سرور: ' . $e->getMessage());
 }
