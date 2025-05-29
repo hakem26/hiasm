@@ -385,17 +385,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                 <?php endforeach; ?>
             </select>
         </div>
-        <?php if ($has_sub_orders): ?>
-            <div class="col-auto align-self-end">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="show_sub_orders" id="show_sub_orders" value="1"
-                        <?= $show_sub_orders ? 'checked' : '' ?> onchange="this.form.submit()">
-                    <label class="form-check-label" for="show_sub_orders">
-                        نمایش فقط پیش‌فاکتورها
-                    </label>
-                </div>
+        <div class="col-auto align-self-end">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="show_sub_orders" id="show_sub_orders" value="1"
+                    <?= $show_sub_orders ? 'checked' : '' ?> onchange="this.form.submit()">
+                <label class="form-check-label" for="show_sub_orders">
+                    نمایش فقط پیش‌فاکتورها
+                </label>
             </div>
-        <?php endif; ?>
+        </div>
         <?php if (!$is_admin && $is_partner1): ?>
             <div class="col-auto align-self-end">
                 <a href="add_sub_order.php?work_month_id=<?= $selected_work_month_id ?>" class="btn btn-info">ایجاد
