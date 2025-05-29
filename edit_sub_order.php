@@ -404,10 +404,14 @@ if (!$stmt->fetch()) {
             $.ajax({
                 url: 'sub_order_handler.php',
                 type: 'POST',
-                data: { action: 'get_partners', work_month_id: '<?= $work_month_id ?>' },
+                data: { 
+                    action: 'get_related_partners', 
+                    work_month_id: '<?= $work_month_id ?>',
+                    current_user_id: '<?= $current_user_id ?>'
+                },
                 success: function (response) {
                     console.log('Load Partners Response:', response);
-                    if (response.success && response.data.partners.length > 0) {
+                    if (response.success && response.data.partners && response.data.partners.length > 0) {
                         $partnerSelect.empty().append('<option value="">انتخاب همکار</option>');
                         response.data.partners.forEach(partner => {
                             $partnerSelect.append(`<option value="${partner.user_id}">${partner.full_name}</option>`);
@@ -433,10 +437,14 @@ if (!$stmt->fetch()) {
                 $.ajax({
                     url: 'sub_order_handler.php',
                     type: 'POST',
-                    data: { action: 'get_work_days', partner_id: partnerId, work_month_id: workMonthId },
+                    data: { 
+                        action: 'get_partner_work_days', 
+                        partner_id: partnerId, 
+                        work_month_id: workMonthId 
+                    },
                     success: function (response) {
                         console.log('Work Days Response:', response);
-                        if (response.success && response.data.work_days.length > 0) {
+                        if (response.success && response.data.work_days && response.data.work_days.length > 0) {
                             $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
                             response.data.work_days.forEach(day => {
                                 $workDateSelect.append(`<option value="${day.id}">${day.jalali_date}</option>`);
@@ -460,7 +468,7 @@ if (!$stmt->fetch()) {
 
         $('#product_name').on('input', function () {
             let query = $(this).val().trim();
-            const work_details_id = $workDateSelect.val() || '<?= $work_month_id ?>';
+            const work_details_id = $convertCheckbox.is(':checked') ? $workDateSelect.val() || '<?= $work_month_id ?>' : '<?= $work_month_id ?>';
             const partner_id = $convertCheckbox.is(':checked') ? $partnerSelect.val() || '<?= $current_user_id ?>' : '<?= $current_user_id ?>';
             if (query.length >= 2) {
                 $.ajax({
