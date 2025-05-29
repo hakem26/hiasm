@@ -41,57 +41,94 @@ if ($is_admin) {
 $current_user_id = $_SESSION['user_id'];
 
 // Validate sub_order_id and work_month_id
-$sub_order_id = $_GET['sub_order_id'] ?? '';
-$work_month_id = $_GET['work_month_id'] ?? '';
-if (!$sub_order_id || !$work_month_id) {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>پارامترهای نامعتبر.</div></div>";
+$sub_order_id = filter_input(INPUT_GET, 'sub_order_id', FILTER_VALIDATE_INT);
+$work_month_id = filter_input(INPUT_GET, 'work_month_id', FILTER_VALIDATE_INT);
+$missing_params = [];
+if (!$sub_order_id) {
+    $missing_params[] = 'sub_order_id';
+}
+if (!$work_month_id) {
+    $missing_params[] = 'work_month_id';
+}
+if (!empty($missing_params)) {
+    $error_message = 'پارامترهای نامعتبر: ' . implode(', ', $missing_params) . ' یافت نشد یا نامعتبر است.';
+    error_log("Invalid parameters in edit_sub_order.php: " . $error_message . " | URL: " . $_SERVER['REQUEST_URI']);
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>$error_message</div></div>";
     require_once 'footer.php';
     exit;
 }
 
 // Fetch sub-order details
-$stmt = $pdo->prepare("SELECT * FROM Sub_Orders WHERE sub_order_id = ?");
-$stmt->execute([$sub_order_id]);
-$sub_order = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$sub_order) {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>پیش‌فاکتور یافت نشد.</div></div>";
+try {
+    $stmt = $pdo->prepare("SELECT * FROM Sub_Orders WHERE sub_order_id = ?");
+    $stmt->execute([$sub_order_id]);
+    $sub_order = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$sub_order) {
+        error_log("Sub-order not found: sub_order_id=$sub_order_id");
+        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>پیش‌فاکتور یافت نشد.</div></div>";
+        require_once 'footer.php';
+        exit;
+    }
+} catch (PDOException $e) {
+    error_log("Database error in edit_sub_order.php: " . $e->getMessage());
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>خطای دیتابیس: " . htmlspecialchars($e->getMessage()) . "</div></div>";
     require_once 'footer.php';
     exit;
 }
 
 // Fetch work details for the current user
-$stmt = $pdo->prepare("
-    SELECT id, work_date
-    FROM Work_Details
-    WHERE work_month_id = ? AND partner_id IN (
-        SELECT partner_id FROM Partners WHERE user_id1 = ? OR user_id2 = ?
-    )
-    ORDER BY work_date DESC
-");
-$stmt->execute([$work_month_id, $current_user_id, $current_user_id]);
-$work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("
+        SELECT id, work_date
+        FROM Work_Details
+        WHERE work_month_id = ? AND partner_id IN (
+            SELECT partner_id FROM Partners WHERE user_id1 = ? OR user_id2 = ?
+        )
+        ORDER BY work_date DESC
+    ");
+    $stmt->execute([$work_month_id, $current_user_id, $current_user_id]);
+    $work_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (empty($work_details)) {
+        error_log("No work details found for work_month_id=$work_month_id, user_id=$current_user_id");
+        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>هیچ تاریخ کاری برای این ماه یافت نشد.</div></div>";
+        require_once 'footer.php';
+        exit;
+    }
+} catch (PDOException $e) {
+    error_log("Database error fetching work details: " . $e->getMessage());
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>خطای دیتابیس: " . htmlspecialchars($e->getMessage()) . "</div></div>";
+    require_once 'footer.php';
+    exit;
+}
 
 // Initialize session variables
 $_SESSION['sub_order_items'] = [];
 $_SESSION['sub_discount'] = $sub_order['discount'] ?? 0;
-$_SESSION['sub_invoice_prices'] = $_SESSION['sub_invoice_prices'] ?? ['postal' => 50000];
+$_SESSION['sub_invoice_prices'] = ['postal' => 50000]; // Reset to avoid conflicts
 $_SESSION['sub_postal_enabled'] = $sub_order['sub_postal_enabled'] ?? false;
 $_SESSION['sub_postal_price'] = $sub_order['sub_postal_price'] ?? 50000;
 $_SESSION['is_sub_order_in_progress'] = true;
 
 // Load existing items
-$stmt = $pdo->prepare("SELECT * FROM Sub_Order_Items WHERE sub_order_id = ?");
-$stmt->execute([$sub_order_id]);
-$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-foreach ($items as $item) {
-    $_SESSION['sub_order_items'][] = [
-        'product_id' => $item['product_id'],
-        'product_name' => $item['product_name'],
-        'quantity' => $item['quantity'],
-        'unit_price' => $item['unit_price'],
-        'extra_sale' => $item['extra_sale'],
-        'total_price' => $item['total_price']
-    ];
+try {
+    $stmt = $pdo->prepare("SELECT * FROM Sub_Order_Items WHERE sub_order_id = ?");
+    $stmt->execute([$sub_order_id]);
+    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($items as $item) {
+        $_SESSION['sub_order_items'][] = [
+            'product_id' => $item['product_id'],
+            'product_name' => $item['product_name'],
+            'quantity' => $item['quantity'],
+            'unit_price' => $item['unit_price'],
+            'extra_sale' => $item['extra_sale'],
+            'total_price' => $item['total_price']
+        ];
+    }
+} catch (PDOException $e) {
+    error_log("Database error loading sub-order items: " . $e->getMessage());
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>خطای دیتابیس در لود آیتم‌ها: " . htmlspecialchars($e->getMessage()) . "</div></div>";
+    require_once 'footer.php';
+    exit;
 }
 ?>
 
@@ -148,19 +185,19 @@ foreach ($items as $item) {
                 <label for="extra_sale" class="form-label">اضافه فروش (تومان)</label>
                 <input type="number" class="form-control" id="extra_sale" name="extra_sale" value="0" min="0">
             </div>
-            <div class="col-6 col-md-3">
-                <label for="adjusted_price" class="form-label">قیمت نهایی واحد</label>
-                <input type="text" class="form-control" id="adjusted_price" name="adjusted_price" readonly>
+                <div class="col-6 col-md-3">
+                    <label for="adjusted_price" class="form-label">قیمت نهایی واحد</label>
+                    <input type="text" class="form-control" id="adjusted_price" name="adjusted_price" readonly>
+                </div>
+                <div class="col-6 col-md-6">
+                    <label for="total_price" class="form-label">قیمت کل</label>
+                    <input type="text" class="form-control" id="total_price" name="total_price" readonly>
+                </div>
+                <div class="col-6 col-md-6">
+                    <label for="inventory_quantity" class="form-label">موجودی</label>
+                    <p class="form-control-static" id="inventory_quantity">0</p>
+                </div>
             </div>
-            <div class="col-6 col-md-6">
-                <label for="total_price" class="form-label">قیمت کل</label>
-                <input type="text" class="form-control" id="total_price" name="total_price" readonly>
-            </div>
-            <div class="col-6 col-md-6">
-                <label for="inventory_quantity" class="form-label">موجودی</label>
-                <p class="form-control-static" id="inventory_quantity">0</p>
-            </div>
-        </div>
 
         <div class="mb-3">
             <button type="button" id="add_item_btn" class="btn btn-primary">افزودن محصول</button>
@@ -215,6 +252,7 @@ foreach ($items as $item) {
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" id="save_invoice_price">ذخیره</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+
             </div>
         </div>
     </div>
@@ -244,12 +282,12 @@ async function sendRequest(url, data) {
         } catch (e) {
             console.error('JSON Parse Error:', e, 'Response:', text);
             alert('خطا در پردازش پاسخ سرور: ' + text.substring(0, 100));
-            return { success: false, message: 'خطا در پردازش پاسخ سرور.' };
+            return { success: false, message: 'Error parsing server response: ' + text };
         }
     } catch (error) {
         console.error('SendRequest Error:', error);
-        alert('خطا در ارسال درخواست.');
-        return { success: false, message: 'خطا در ارسال درخواست.' };
+        alert('خطا در ارسال درخواست: ' + error.message);
+        return { success: false, message: 'Error sending request: ' + error.message };
     }
 }
 
@@ -262,7 +300,7 @@ function renderItemsTable(data) {
     const postalPrice = data?.sub_postal_price || 50000;
 
     itemsTable.innerHTML = '';
-    if (!data.items || !data.items.length === 0) {
+    if (!data?.items || data.items.length === 0) {
         totalAmountDisplay.textContent = '0 تومان';
         finalAmountDisplay.textContent = '0 تومان';
         return;
@@ -378,6 +416,9 @@ $(document).ready(function() {
                 } else {
                     alert(response.message);
                 }
+            }).catch(error => {
+                console.error('Error fetching partners:', error);
+                alert('خطا در لود همکارها: ' + error.message);
             });
         } else {
             $('#partner_container, #work_date_main').hide();
@@ -402,6 +443,9 @@ $(document).ready(function() {
                 } else {
                     alert(response.message);
                 }
+            }).catch(error => {
+                console.error('Error fetching work days:', error);
+                alert('خطا در لود تاریخ‌های کاری: ' + error.message);
             });
         } else {
             $('#work_date_main').hide();
@@ -424,7 +468,7 @@ $(document).ready(function() {
             }).fail(function(jqXHR, textStatus, errorThrown) {
                 console.error('Product search error:', textStatus, errorThrown);
                 $('#product_suggestions').hide();
-                alert('خطا در جستجوی محصولات.');
+                alert('خطا در جستجوی محصولات: ' + textStatus);
             });
         } else {
             $('#product_suggestions').hide();
@@ -439,7 +483,7 @@ $(document).ready(function() {
                 product = JSON.parse(product);
             } catch (e) {
                 console.error('Product parse error:', e);
-                alert('خطا در انتخاب محصول.');
+                alert('خطا در انتخاب محصول: ' + e.message);
                 return;
             }
         }
@@ -467,7 +511,7 @@ $(document).ready(function() {
         }).catch(error => {
             console.error('Get inventory error:', error);
             $('#inventory_quantity').text('0');
-            alert('خطا در دریافت موجودی.');
+            alert('خطا در دریافت موجودی: ' + error.message);
         });
 
         $('#quantity').focus();
@@ -486,7 +530,7 @@ $(document).ready(function() {
         const product_name = $('#product_name').val().trim();
         const work_details_id = $('#work_date').val();
 
-        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0) {
+        if (!customerName || !product_id || !product_name || quantity <= 0 || unit_price <= 0 || !work_details_id) {
             alert('لطفاً همه فیلدها را پر کنید.');
             return;
         }
@@ -513,7 +557,7 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('Add item error:', error);
-            alert('خطا در افزودن محصول.');
+            alert('خطا در افزودن محصول: ' + error.message);
         }
     });
 
@@ -560,7 +604,7 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('Delete item error:', error);
-            alert('خطا در حذف محصول.');
+            alert('خطا در حذف محصول: ' + error.message);
         }
     });
 
@@ -594,7 +638,7 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('Save invoice price error:', error);
-            alert('خطا در تنظیم قیمت فاکتور.');
+            alert('خطا در تنظیم قیمت فاکتور: ' + error.message);
         }
     });
 
@@ -616,7 +660,7 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('Set postal option error:', error);
-            alert('خطا در تنظیم گزینه پستی.');
+            alert('خطا در تنظیم گزینه پستی: ' + error.message);
         }
     });
 
@@ -641,7 +685,7 @@ $(document).ready(function() {
                 }
             } catch (error) {
                 console.error('Set postal price error:', error);
-                alert('خطا در تنظیم قیمت پستی.');
+                alert('خطا در تنظیم قیمت پستی: ' + error.message);
             }
         }
     });
@@ -666,7 +710,7 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('Update discount error:', error);
-            alert('خطا در به‌روزرسانی تخفیف.');
+            alert('خطا در به‌روزرسانی تخفیف: ' + error.message);
         }
     });
 
@@ -719,7 +763,7 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('Save order error:', error);
-            alert('خطا در ذخیره پیش‌فاکتور.');
+            alert('خطا در ذخیره پیش‌فاکتور: ' + error.message);
         }
     });
 
