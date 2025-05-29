@@ -1,19 +1,15 @@
 <?php
-// Starting output buffer to prevent unwanted output
 ob_start();
 session_start();
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header('HTTP/1.1 401 Unauthorized');
     exit;
 }
 
-// Include dependencies
 require_once 'db.php';
 require_once 'jdf.php';
 
-// Convert Gregorian date to Jalali format
 function gregorian_to_jalali_format($gregorian_date)
 {
     if (!$gregorian_date || !preg_match('/^\d{4}-\d{2}-\d{2}/', $gregorian_date)) {
@@ -35,7 +31,6 @@ function gregorian_to_jalali_format($gregorian_date)
     }
 }
 
-// Send JSON response and clean buffer
 function sendResponse($success, $message, $data = [])
 {
     ob_clean();
@@ -51,13 +46,11 @@ $action = $_POST['action'] ?? '';
 $current_user_id = $_SESSION['user_id'];
 $is_admin = ($_SESSION['role'] === 'admin');
 
-// Restrict admin access
 if ($is_admin) {
     error_log("Admin access attempt by user_id=$current_user_id");
     sendResponse(false, 'دسترسی غیرمجاز.');
 }
 
-// Initialize session variables
 $_SESSION['sub_order_items'] = $_SESSION['sub_order_items'] ?? [];
 $_SESSION['sub_discount'] = $_SESSION['sub_discount'] ?? 0;
 $_SESSION['sub_invoice_prices'] = $_SESSION['sub_invoice_prices'] ?? ['postal' => 50000];
@@ -68,9 +61,10 @@ try {
     switch ($action) {
         case 'get_related_partners':
             $work_month_id = $_POST['work_month_id'] ?? '';
-            if (!$work_month_id) {
-                error_log("get_related_partners: Missing work_month_id");
-                sendResponse(false, 'ماه کاری مشخص نیست.');
+            $current_user_id = $_POST['current_user_id'] ?? $_SESSION['user_id'];
+            if (!$work_month_id || !$current_user_id) {
+                error_log("get_related_partners: Missing parameters - work_month_id=$work_month_id, current_user_id=$current_user_id");
+                sendResponse(false, 'ماه کاری یا کاربر مشخص نیست.');
             }
 
             $stmt = $pdo->prepare("
@@ -84,7 +78,7 @@ try {
             $stmt->execute([$work_month_id, $current_user_id]);
             $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            error_log("get_related_partners: Found " . count($partners) . " partners for work_month_id=$work_month_id");
+            error_log("get_related_partners: Found " . count($partners) . " partners for work_month_id=$work_month_id, current_user_id=$current_user_id");
             if (empty($partners)) {
                 sendResponse(false, 'هیچ همکاری برای این ماه کاری یافت نشد.');
             }
@@ -156,7 +150,6 @@ try {
                 $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
                 $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
-                // Allow negative inventory as per original logic
                 $new_quantity = $current_quantity - $quantity;
 
                 $stmt_update = $pdo->prepare("
@@ -423,7 +416,6 @@ try {
 
                 $pdo->commit();
 
-                // Clear session only after successful commit
                 unset($_SESSION['sub_order_items']);
                 unset($_SESSION['sub_discount']);
                 unset($_SESSION['sub_invoice_prices']);
@@ -494,18 +486,20 @@ try {
             }
 
             $_SESSION['sub_order_items'] = $sub_order_items;
-            $_SESSION['sub_discount'] = $order['discount'];
+            $_SESSION['sub_discount'] = $order['discount'] ?? 0;
             $_SESSION['sub_invoice_prices'] = $sub_invoice_prices;
             $_SESSION['sub_postal_enabled'] = $sub_postal_enabled;
             $_SESSION['sub_postal_price'] = $sub_postal_price;
             $_SESSION['is_sub_order_in_progress'] = true;
 
+            error_log("load_sub_order: Loaded order_id=$order_id with " . count($sub_order_items) . " items");
+
             sendResponse(true, 'موفق', [
                 'order' => $order,
                 'items' => $sub_order_items,
-                'total_amount' => $order['total_amount'],
-                'discount' => $order['discount'],
-                'final_amount' => $order['final_amount'],
+                'total_amount' => $order['total_amount'] ?? 0,
+                'discount' => $order['discount'] ?? 0,
+                'final_amount' => $order['final_amount'] ?? 0,
                 'invoice_prices' => $sub_invoice_prices,
                 'sub_postal_enabled' => $sub_postal_enabled,
                 'sub_postal_price' => $sub_postal_price
@@ -537,7 +531,6 @@ try {
 
             $pdo->beginTransaction();
             try {
-                // Restore inventory for old items
                 $stmt_items = $pdo->prepare("SELECT product_name, quantity FROM Order_Items WHERE order_id = ? AND product_name != 'ارسال پستی'");
                 $stmt_items->execute([$order_id]);
                 $old_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
@@ -564,7 +557,6 @@ try {
                     }
                 }
 
-                // Update inventory for new items
                 foreach ($_SESSION['sub_order_items'] as $item) {
                     $product_id = $item['product_id'];
                     $quantity = $item['quantity'];
@@ -586,7 +578,6 @@ try {
                 $total_amount = array_sum(array_column($_SESSION['sub_order_items'], 'total_price'));
                 $final_amount = $total_amount - $discount + ($_SESSION['sub_postal_enabled'] ? $_SESSION['sub_postal_price'] : 0);
 
-                // Update order
                 $stmt = $pdo->prepare("
                     UPDATE Orders
                     SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
@@ -594,14 +585,12 @@ try {
                 ");
                 $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $order_id]);
 
-                // Clear old items and invoice prices
                 $stmt = $pdo->prepare("DELETE FROM Order_Items WHERE order_id = ?");
                 $stmt->execute([$order_id]);
 
                 $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ?");
                 $stmt->execute([$order_id]);
 
-                // Insert new items
                 foreach ($_SESSION['sub_order_items'] as $index => $item) {
                     $invoice_price = $_SESSION['sub_invoice_prices'][$index] ?? $item['total_price'];
                     $stmt = $pdo->prepare("
@@ -611,7 +600,6 @@ try {
                     $stmt->execute([$order_id, $item['product_name'], $item['unit_price'], $item['extra_sale'], $item['quantity'], $invoice_price]);
                 }
 
-                // Insert postal item if enabled
                 if ($_SESSION['sub_postal_enabled']) {
                     $postal_price = $_SESSION['sub_invoice_prices']['postal'] ?? $_SESSION['sub_postal_price'];
                     $stmt = $pdo->prepare("
@@ -621,7 +609,6 @@ try {
                     $stmt->execute([$order_id, 'ارسال پستی', $postal_price, 1, $postal_price]);
                 }
 
-                // Insert invoice prices
                 foreach ($_SESSION['sub_invoice_prices'] as $index => $price) {
                     $stmt = $pdo->prepare("
                         INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
@@ -636,7 +623,6 @@ try {
 
                 $pdo->commit();
 
-                // Clear session only after successful commit
                 unset($_SESSION['sub_order_items']);
                 unset($_SESSION['sub_discount']);
                 unset($_SESSION['sub_invoice_prices']);
@@ -695,7 +681,6 @@ try {
 
                 $pdo->commit();
 
-                // Clear session only after successful commit
                 unset($_SESSION['sub_order_items']);
                 unset($_SESSION['sub_discount']);
                 unset($_SESSION['sub_invoice_prices']);
@@ -724,6 +709,5 @@ try {
     sendResponse(false, 'خطای سرور: ' . $e->getMessage());
 }
 
-// Clean up output buffer
 ob_end_clean();
 ?>
