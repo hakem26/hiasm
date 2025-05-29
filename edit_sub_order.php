@@ -404,8 +404,8 @@ if (!$stmt->fetch()) {
             $.ajax({
                 url: 'sub_order_handler.php',
                 type: 'POST',
-                data: { 
-                    action: 'get_related_partners', 
+                data: {
+                    action: 'get_related_partners',
                     work_month_id: '<?= $work_month_id ?>',
                     current_user_id: '<?= $current_user_id ?>'
                 },
@@ -437,10 +437,10 @@ if (!$stmt->fetch()) {
                 $.ajax({
                     url: 'sub_order_handler.php',
                     type: 'POST',
-                    data: { 
-                        action: 'get_partner_work_days', 
-                        partner_id: partnerId, 
-                        work_month_id: workMonthId 
+                    data: {
+                        action: 'get_partner_work_days',
+                        partner_id: partnerId,
+                        work_month_id: workMonthId
                     },
                     success: function (response) {
                         console.log('Work Days Response:', response);
@@ -770,6 +770,44 @@ if (!$stmt->fetch()) {
             initialInventory = 0;
             $('#add_item_btn').show();
             $('#edit_item_btn').hide();
+        }
+    });
+
+    $partnerSelect.on('change', function () {
+        const partnerId = $(this).val();
+        const workMonthId = '<?= $work_month_id ?>';
+        console.log('Partner selected:', partnerId, 'Work Month ID:', workMonthId);
+        if (partnerId && workMonthId) {
+            $workDateContainer.removeClass('hidden');
+            $.ajax({
+                url: 'sub_order_handler.php',
+                type: 'POST',
+                data: {
+                    action: 'get_partner_work_days',
+                    partner_id: partnerId,
+                    work_month_id: workMonthId
+                },
+                success: function (response) {
+                    console.log('Work Days Response:', response);
+                    if (response.success && response.data.work_days && response.data.work_days.length > 0) {
+                        $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
+                        response.data.work_days.forEach(day => {
+                            $workDateSelect.append(`<option value="${day.id}">${day.jalali_date}</option>`);
+                        });
+                    } else {
+                        console.error('Work Days Error:', response.message);
+                        alert('هیچ روز کاری برای این همکار یافت نشد.');
+                        $workDateSelect.empty().append('<option value="">هیچ تاریخی یافت نشد</option>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Work Days AJAX Error:', status, error, xhr.responseText);
+                    alert('خطا در دریافت روزهای کاری.');
+                }
+            });
+        } else {
+            $workDateContainer.addClass('hidden');
+            $workDateSelect.empty().append('<option value="">انتخاب تاریخ</option>');
         }
     });
 </script>
