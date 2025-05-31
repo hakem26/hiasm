@@ -221,10 +221,37 @@ async function sendRequest(url, data) {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams(data)
         });
-        return await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('Invalid JSON response:', text);
+            throw new Error('پاسخ سرور نامعتبر است: ' + text.substring(0, 100));
+        }
     } catch (error) {
-        console.error('Error:', error);
-        return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+        console.error('Fetch error:', error);
+        return { success: false, message: 'خطایی در ارسال درخواست رخ داد: ' + error.message };
+    }
+}
+
+async function fetchCurrentItems() {
+    try {
+        const response = await sendRequest('ajax_handler.php', {
+            action: 'get_temp_order_items',
+            temp_order_id: '<?= $temp_order_id ?>'
+        });
+        if (response.success) {
+            return response.data.items || [];
+        } else {
+            console.error('Failed to fetch items:', response.message);
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching items:', error);
+        return [];
     }
 }
 
@@ -234,7 +261,7 @@ function renderItemsTable(data) {
     const finalAmountDisplay = document.getElementById('final_amount_display');
     const postalPriceDisplay = document.getElementById('postal_price_display');
     const invoicePrices = <?= json_encode($invoice_prices, JSON_UNESCAPED_UNICODE) ?> || {};
-    const items = data.items && data.items.length > 0 ? data.items : <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>;
+    const items = data.items || [];
     const postalEnabled = data.postal_enabled || <?= $postal_enabled ? 'true' : 'false' ?>;
     const postalPrice = data.postal_price || <?= $postal_price ?>;
 
@@ -290,14 +317,14 @@ function renderItemsTable(data) {
                 ` : ''}
                 <tr class="total-row">
                     <td colspan="4">جمع کل</td>
-                    <td>${Number(data.total_amount).toLocaleString('fa')} تومان</td>
+                    <td>${Number(data.total_amount || 0).toLocaleString('fa')} تومان</td>
                     <td colspan="2"></td>
                 </tr>
             </tbody>
         </table>
     `;
-    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
+    totalAmountDisplay.textContent = Number(data.total_amount || 0).toLocaleString('fa') + ' تومان';
+    finalAmountDisplay.textContent = Number(data.final_amount || 0).toLocaleString('fa') + ' تومان';
     postalPriceDisplay.textContent = (postalEnabled ? Number(postalPrice) : 0).toLocaleString('fa') + ' تومان';
 }
 
@@ -325,6 +352,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         $('#product_suggestions').html(response).show();
                     }
+                },
+                error: function () {
+                    $('#product_suggestions').hide();
                 }
             });
         } else {
@@ -418,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (e.target.closest('.edit-item')) {
             const index = e.target.closest('.edit-item').getAttribute('data-index');
-            const items = <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>;
+            const items = await fetchCurrentItems();
             const item = items[index];
             if (item) {
                 document.getElementById('product_name').value = item.product_name;
@@ -430,6 +460,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('edit_index').value = index;
                 document.getElementById('add_item_btn').style.display = 'none';
                 document.getElementById('edit_item_btn').style.display = 'inline-block';
+            } else {
+                alert('محصول یافت نشد. لطفاً صفحه را رفرش کنید.');
             }
         } else if (e.target.closest('.set-invoice-price')) {
             const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
@@ -444,8 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
                     alert(response.message);
+                    const items = await fetchCurrentItems();
                     renderItemsTable({
-                        items: <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>,
+                        items: items,
                         total_amount: <?= $temp_order['total_amount'] ?>,
                         discount: <?= $temp_order['discount'] ?>,
                         final_amount: <?= $temp_order['final_amount'] ?>,
@@ -469,6 +502,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const response = await sendRequest('ajax_handler.php', data);
         if (response.success) {
+            const items = await fetchCurrentItems();
+            response.data.items = items;
             renderItemsTable(response.data);
         } else {
             alert(response.message);
@@ -485,6 +520,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const response = await sendRequest('ajax_handler.php', data);
         if (response.success) {
             document.getElementById('postal_price_display').textContent = Number(document.getElementById('postal_price').value).toLocaleString('fa') + ' تومان';
+            const items = await fetchCurrentItems();
+            renderItemsTable({
+                items: items,
+                total_amount: <?= $temp_order['total_amount'] ?>,
+                discount: <?= $temp_order['discount'] ?>,
+                final_amount: Number(<?= $temp_order['total_amount'] ?>) - Number(<?= $temp_order['discount'] ?>) + Number(document.getElementById('postal_price').value),
+                postal_enabled: true,
+                postal_price: document.getElementById('postal_price').value
+            });
         } else {
             alert(response.message);
         }
@@ -498,6 +542,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const response = await sendRequest('ajax_handler.php', data);
         if (response.success) {
+            const items = await fetchCurrentItems();
+            response.data.items = items;
             renderItemsTable(response.data);
         } else {
             alert(response.message);
@@ -505,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('save_temp_order_btn').addEventListener('click', async () => {
-        const items = <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>;
+        const items = await fetchCurrentItems();
         if (!items || items.length === 0) {
             if (!confirm('هیچ محصولی در سفارش وجود ندارد. آیا می‌خواهید سفارش بدون محصول ذخیره شود؟')) {
                 return;
