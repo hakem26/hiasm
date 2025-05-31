@@ -360,19 +360,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         // بررسی اینکه کاربر فعلی همکار1 است یا نه
         $is_partner1 = false;
         $partner_query = $pdo->prepare("
-        SELECT p.user_id1
+        SELECT 1
         FROM Work_Details wd
         JOIN Partners p ON wd.partner_id = p.partner_id
         WHERE wd.work_month_id = ? AND p.user_id1 = ?
         LIMIT 1
     ");
         $partner_query->execute([$selected_work_month_id, $current_user_id]);
-        $result = $partner_query->fetch(PDO::FETCH_ASSOC);
-        if ($result && $result['user_id1'] == $current_user_id) {
+        if ($partner_query->fetch()) {
             $is_partner1 = true;
-            error_log("User $current_user_id is partner1 for work_month_id $selected_work_month_id");
-        } else {
-            error_log("User $current_user_id is NOT partner1 for work_month_id $selected_work_month_id");
         }
         ?>
         <?php if ($is_partner1): ?>

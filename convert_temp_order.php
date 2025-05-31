@@ -11,14 +11,14 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    $temp = gregorian_to_jalali($gy, $gm, $gd); // سال، ماه، روز
-    return "$temp[0]/$temp[1]/$temp[2]";
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd";
 }
 
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 
-$work_month_id = $_GET['work_month_id'] ?? null;
+$work_month_id = $_GET['work_month_id'] ?? '';
 if (!$work_month_id) {
     echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>ماه کاری مشخص نشده است.</div></div>";
     require_once 'footer.php';
@@ -91,6 +91,7 @@ $work_details = $work_details_query->fetchAll(PDO::FETCH_ASSOC);
     <a href="orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>" class="btn btn-secondary mt-3">بازگشت</a>
 </div>
 
+<!-- مودال انتخاب تاریخ -->
 <div class="modal fade" id="convertOrderModal" tabindex="-1" aria-labelledby="convertOrderModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -123,37 +124,52 @@ $work_details = $work_details_query->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-$(document).ready(function () {
-    $('.convert-order').on('click', function () {
-        const tempOrderId = $(this).data('temp-order-id');
-        $('#temp_order_id').val(tempOrderId);
-        $('#convertOrderModal').modal('show');
-    });
+    $(document).ready(function () {
+        $('.convert-order').on('click', function () {
+            const tempOrderId = $(this).data('temp-order-id');
+            $('#temp_order_id').val(tempOrderId);
+            $('#convertOrderModal').modal('show');
+        });
 
-    $('#save_conversion').on('click', function () {
-        const temp_order_id = $('#temp_order_id').val();
-        const work_details_id = $('#work_details_id').val();
+        $('#save_conversion').on('click', async function () {
+            const temp_order_id = $('#temp_order_id').val();
+            const work_details_id = $('#work_details_id').val();
 
-        if (!work_details_id) {
-            alert('لطفاً یک روز کاری انتخاب کنید.');
-            return;
-        }
+            if (!work_details_id) {
+                alert('لطفاً یک روز کاری انتخاب کنید.');
+                return;
+            }
 
-        $.post('ajax_handler.php', {
-            action: 'convert_temp_order',
-            temp_order_id: temp_order_id,
-            work_details_id: work_details_id,
-            partner1_id: '<?= $current_user_id ?>'
-        }, function (response) {
+            const data = {
+                action: 'convert_temp_order',
+                temp_order_id: temp_order_id,
+                work_details_id: work_details_id,
+                partner1_id: '<?= $current_user_id ?>'
+            };
+
+            const response = await sendRequest('ajax_handler.php', data);
             if (response.success) {
                 alert(response.message);
-                window.location.href = response.data.redirect;
+                window.location.href = 'orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>';
             } else {
                 alert(response.message);
             }
-        }, functionjson');
+        });
+
+        async function sendRequest(url, data) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(data)
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Error:', error);
+                return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+            }
+        }
     });
-});
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once 'footer.php'; ?> 
