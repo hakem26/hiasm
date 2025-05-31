@@ -185,8 +185,9 @@ $_SESSION['postal_price'] = $postal_price;
 <script>
 $(document).ready(function () {
     // لود اولیه جدول
+    let initialItems = <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>;
     renderItemsTable({
-        items: <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>,
+        items: initialItems,
         total_amount: <?= $temp_order['total_amount'] ?>,
         discount: <?= $temp_order['discount'] ?>,
         final_amount: <?= $temp_order['final_amount'] ?>,
@@ -338,7 +339,14 @@ $(document).ready(function () {
             }, function (response) {
                 if (response.success) {
                     alert(response.message);
-                    renderItemsTable(<?= json_encode(['items' => $items, 'total_amount' => $temp_order['total_amount'], 'discount' => $temp_order['discount'], 'final_amount' => $temp_order['final_amount'], 'postal_enabled' => $postal_enabled, 'postal_price' => $postal_price], JSON_UNESCAPED_UNICODE) ?>);
+                    renderItemsTable({
+                        items: <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>,
+                        total_amount: <?= $temp_order['total_amount'] ?>,
+                        discount: <?= $temp_order['discount'] ?>,
+                        final_amount: <?= $temp_order['final_amount'] ?>,
+                        postal_enabled: <?= json_encode($postal_enabled) ?>,
+                        postal_price: <?= $postal_price ?>
+                    });
                 } else {
                     alert(response.message);
                 }
@@ -396,6 +404,13 @@ $(document).ready(function () {
 
     // ذخیره تغییرات
     $('#save_temp_order_btn').on('click', function () {
+        let items = <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>;
+        if (!items || items.length === 0) {
+            if (!confirm('هیچ محصولی در سفارش وجود ندارد. آیا می‌خواهید سفارش بدون محصول ذخیره شود؟')) {
+                return;
+            }
+        }
+
         let data = {
             action: 'save_edit_temp_order',
             temp_order_id: '<?= $temp_order_id ?>',

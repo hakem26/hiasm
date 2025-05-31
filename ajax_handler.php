@@ -685,566 +685,578 @@ switch ($action) {
         break;
 
     case 'add_edit_temp_item':
-    $customer_name = $_POST['customer_name'] ?? '';
-    $product_id = $_POST['product_id'] ?? '';
-    $quantity = (int) ($_POST['quantity'] ?? 0);
-    $unit_price = (float) ($_POST['unit_price'] ?? 0);
-    $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-    $discount = (float) ($_POST['discount'] ?? 0);
-    $temp_order_id = $_POST['temp_order_id'] ?? '';
-    $partner1_id = $_POST['partner1_id'] ?? '';
+        $customer_name = $_POST['customer_name'] ?? '';
+        $product_id = $_POST['product_id'] ?? '';
+        $quantity = (int) ($_POST['quantity'] ?? 0);
+        $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $temp_order_id = $_POST['temp_order_id'] ?? '';
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-    if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$temp_order_id || !$partner1_id) {
-        respond(false, 'لطفاً تمام فیلدها را پر کنید.');
-    }
+        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$temp_order_id || !$partner1_id) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        }
 
-    $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
-    $stmt->execute([$product_id]);
-    $product_name = $stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+        $stmt->execute([$product_id]);
+        $product_name = $stmt->fetchColumn();
 
-    if (!$product_name) {
-        respond(false, 'محصول یافت نشد.');
-    }
+        if (!$product_name) {
+            respond(false, 'محصول یافت نشد.');
+        }
 
-    $total_price = $quantity * ($unit_price + $extra_sale);
+        $total_price = $quantity * ($unit_price + $extra_sale);
 
-    $new_item = [
-        'product_id' => $product_id,
-        'product_name' => $product_name,
-        'quantity' => $quantity,
-        'unit_price' => $unit_price,
-        'extra_sale' => $extra_sale,
-        'total_price' => $total_price
-    ];
+        $new_item = [
+            'product_id' => $product_id,
+            'product_name' => $product_name,
+            'quantity' => $quantity,
+            'unit_price' => $unit_price,
+            'extra_sale' => $extra_sale,
+            'total_price' => $total_price
+        ];
 
-    if (!isset($_SESSION['edit_temp_order_items'])) {
-        $_SESSION['edit_temp_order_items'] = [];
-    }
-    $_SESSION['edit_temp_order_items'][] = $new_item;
+        if (!isset($_SESSION['edit_temp_order_items'])) {
+            $_SESSION['edit_temp_order_items'] = [];
+        }
+        $_SESSION['edit_temp_order_items'][] = $new_item;
 
-    $total_amount = array_sum(array_column($_SESSION['edit_temp_order_items'], 'total_price'));
-    $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-    $stmt_postal->execute([$temp_order_id]);
-    $postal_price = $stmt_postal->fetchColumn() ?: 0;
-    $final_amount = $total_amount - $discount + $postal_price;
+        $total_amount = array_sum(array_column($_SESSION['edit_temp_order_items'], 'total_price'));
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$temp_order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-    respond(true, 'محصول با موفقیت اضافه شد.', [
-        'items' => $_SESSION['edit_temp_order_items'],
-        'total_amount' => $total_amount,
-        'discount' => $discount,
-        'final_amount' => $final_amount,
-        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-        'postal_price' => $postal_price
-    ]);
-    break;
+        respond(true, 'محصول با موفقیت اضافه شد.', [
+            'items' => $_SESSION['edit_temp_order_items'],
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+            'postal_price' => $postal_price
+        ]);
+        break;
 
-case 'edit_edit_temp_item':
-    $customer_name = $_POST['customer_name'] ?? '';
-    $product_id = $_POST['product_id'] ?? '';
-    $quantity = (int) ($_POST['quantity'] ?? 0);
-    $unit_price = (float) ($_POST['unit_price'] ?? 0);
-    $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-    $discount = (float) ($_POST['discount'] ?? 0);
-    $index = (int) ($_POST['index'] ?? -1);
-    $temp_order_id = $_POST['temp_order_id'] ?? '';
-    $partner1_id = $_POST['partner1_id'] ?? '';
+    case 'edit_edit_temp_item':
+        $customer_name = $_POST['customer_name'] ?? '';
+        $product_id = $_POST['product_id'] ?? '';
+        $quantity = (int) ($_POST['quantity'] ?? 0);
+        $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $index = (int) ($_POST['index'] ?? -1);
+        $temp_order_id = $_POST['temp_order_id'] ?? '';
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-    if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || $index < 0 || !$temp_order_id || !$partner1_id) {
-        respond(false, 'لطفاً تمام فیلدها را پر کنید.');
-    }
+        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || $index < 0 || !$temp_order_id || !$partner1_id) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        }
 
-    $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
-    $stmt->execute([$product_id]);
-    $product_name = $stmt->fetchColumn();
+        $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+        $stmt->execute([$product_id]);
+        $product_name = $stmt->fetchColumn();
 
-    if (!$product_name) {
-        respond(false, 'محصول یافت نشد.');
-    }
+        if (!$product_name) {
+            respond(false, 'محصول یافت نشد.');
+        }
 
-    $total_price = $quantity * ($unit_price + $extra_sale);
+        $total_price = $quantity * ($unit_price + $extra_sale);
 
-    if (!isset($_SESSION['edit_temp_order_items'][$index])) {
-        respond(false, 'آیتم مورد نظر یافت نشد.');
-    }
+        if (!isset($_SESSION['edit_temp_order_items'][$index])) {
+            respond(false, 'آیتم مورد نظر یافت نشد.');
+        }
 
-    $_SESSION['edit_temp_order_items'][$index] = [
-        'product_id' => $product_id,
-        'product_name' => $product_name,
-        'quantity' => $quantity,
-        'unit_price' => $unit_price,
-        'extra_sale' => $extra_sale,
-        'total_price' => $total_price
-    ];
+        $_SESSION['edit_temp_order_items'][$index] = [
+            'product_id' => $product_id,
+            'product_name' => $product_name,
+            'quantity' => $quantity,
+            'unit_price' => $unit_price,
+            'extra_sale' => $extra_sale,
+            'total_price' => $total_price
+        ];
 
-    $total_amount = array_sum(array_column($_SESSION['edit_temp_order_items'], 'total_price'));
-    $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-    $stmt_postal->execute([$temp_order_id]);
-    $postal_price = $stmt_postal->fetchColumn() ?: 0;
-    $final_amount = $total_amount - $discount + $postal_price;
+        $total_amount = array_sum(array_column($_SESSION['edit_temp_order_items'], 'total_price'));
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$temp_order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-    respond(true, 'محصول با موفقیت ویرایش شد.', [
-        'items' => $_SESSION['edit_temp_order_items'],
-        'total_amount' => $total_amount,
-        'discount' => $discount,
-        'final_amount' => $final_amount,
-        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-        'postal_price' => $postal_price
-    ]);
-    break;
+        respond(true, 'محصول با موفقیت ویرایش شد.', [
+            'items' => $_SESSION['edit_temp_order_items'],
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+            'postal_price' => $postal_price
+        ]);
+        break;
 
-case 'delete_edit_temp_item':
-    $index = (int) ($_POST['index'] ?? -1);
-    $temp_order_id = $_POST['temp_order_id'] ?? '';
-    $partner1_id = $_POST['partner1_id'] ?? '';
+    case 'delete_edit_temp_item':
+        $index = (int) ($_POST['index'] ?? -1);
+        $temp_order_id = $_POST['temp_order_id'] ?? '';
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-    if ($index < 0 || !$temp_order_id || !$partner1_id) {
-        respond(false, 'ایندکس یا شناسه سفارش نامعتبر است.');
-    }
+        if ($index < 0 || !$temp_order_id || !$partner1_id) {
+            respond(false, 'ایندکس یا شناسه سفارش نامعتبر است.');
+        }
 
-    if (!isset($_SESSION['edit_temp_order_items'][$index])) {
-        respond(false, 'آیتم مورد نظر یافت نشد.');
-    }
+        if (!isset($_SESSION['edit_temp_order_items'][$index])) {
+            respond(false, 'آیتم مورد نظر یافت نشد.');
+        }
 
-    unset($_SESSION['edit_temp_order_items'][$index]);
-    $_SESSION['edit_temp_order_items'] = array_values($_SESSION['edit_temp_order_items']);
+        unset($_SESSION['edit_temp_order_items'][$index]);
+        $_SESSION['edit_temp_order_items'] = array_values($_SESSION['edit_temp_order_items']);
 
-    $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND item_index = ? AND is_postal = FALSE");
-    $stmt->execute([$temp_order_id, $index]);
+        $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND item_index = ? AND is_postal = FALSE");
+        $stmt->execute([$temp_order_id, $index]);
 
-    $total_amount = array_sum(array_column($_SESSION['edit_temp_order_items'], 'total_price'));
-    $discount = $_SESSION['edit_temp_order_discount'] ?? 0;
-    $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-    $stmt_postal->execute([$temp_order_id]);
-    $postal_price = $stmt_postal->fetchColumn() ?: 0;
-    $final_amount = $total_amount - $discount + $postal_price;
+        $total_amount = array_sum(array_column($_SESSION['edit_temp_order_items'], 'total_price'));
+        $discount = $_SESSION['edit_temp_order_discount'] ?? 0;
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$temp_order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-    respond(true, 'محصول با موفقیت حذف شد.', [
-        'items' => $_SESSION['edit_temp_order_items'],
-        'total_amount' => $total_amount,
-        'discount' => $discount,
-        'final_amount' => $final_amount,
-        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-        'postal_price' => $postal_price
-    ]);
-    break;
+        respond(true, 'محصول با موفقیت حذف شد.', [
+            'items' => $_SESSION['edit_temp_order_items'],
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+            'postal_price' => $postal_price
+        ]);
+        break;
 
-case 'update_edit_temp_discount':
-    $discount = (float) ($_POST['discount'] ?? 0);
-    $temp_order_id = $_POST['temp_order_id'] ?? '';
+    case 'update_edit_temp_discount':
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $temp_order_id = $_POST['temp_order_id'] ?? '';
 
-    if ($discount < 0 || !$temp_order_id) {
-        respond(false, 'مقدار تخفیف یا شناسه سفارش نامعتبر است.');
-    }
+        if ($discount < 0 || !$temp_order_id) {
+            respond(false, 'مقدار تخفیف یا شناسه سفارش نامعتبر است.');
+        }
 
-    $_SESSION['edit_temp_order_discount'] = $discount;
-    $items = $_SESSION['edit_temp_order_items'] ?? [];
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-    $stmt_postal->execute([$temp_order_id]);
-    $postal_price = $stmt_postal->fetchColumn() ?: 0;
-    $final_amount = $total_amount - $discount + $postal_price;
+        $_SESSION['edit_temp_order_discount'] = $discount;
+        $items = $_SESSION['edit_temp_order_items'] ?? [];
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal->execute([$temp_order_id]);
+        $postal_price = $stmt_postal->fetchColumn() ?: 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-    respond(true, 'تخفیف با موفقیت به‌روزرسانی شد.', [
-        'items' => $items,
-        'total_amount' => $total_amount,
-        'discount' => $discount,
-        'final_amount' => $final_amount,
-        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-        'postal_price' => $postal_price
-    ]);
-    break;
+        respond(true, 'تخفیف با موفقیت به‌روزرسانی شد.', [
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+            'postal_price' => $postal_price
+        ]);
+        break;
 
-case 'save_edit_temp_order':
-    $temp_order_id = $_POST['temp_order_id'] ?? '';
-    $customer_name = $_POST['customer_name'] ?? '';
-    $discount = (float) ($_POST['discount'] ?? 0);
-    $partner1_id = $_POST['partner1_id'] ?? '';
+    case 'save_edit_temp_order':
+        $temp_order_id = $_POST['temp_order_id'] ?? '';
+        $customer_name = $_POST['customer_name'] ?? '';
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-    if (!$temp_order_id || !$customer_name || !$partner1_id) {
-        respond(false, 'لطفاً تمام فیلدها را پر کنید.');
-    }
+        if (!$temp_order_id || !$customer_name || !$partner1_id) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        }
 
-    $new_items = $_SESSION['edit_temp_order_items'] ?? [];
-    if (empty($new_items)) {
-        respond(false, 'هیچ محصولی برای ویرایش سفارش وجود ندارد.');
-    }
+        $new_items = $_SESSION['edit_temp_order_items'] ?? [];
+        $total_amount = array_sum(array_column($new_items, 'total_price'));
+        $postal_price = $_SESSION['postal_enabled'] && isset($_SESSION['invoice_prices']['postal']) ? (float) $_SESSION['invoice_prices']['postal'] : 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-    $total_amount = array_sum(array_column($new_items, 'total_price'));
-    $postal_price = $_SESSION['postal_enabled'] && isset($_SESSION['invoice_prices']['postal']) ? (float) $_SESSION['invoice_prices']['postal'] : 0;
-    $final_amount = $total_amount - $discount + $postal_price;
-
-    $pdo->beginTransaction();
-    try {
-        $stmt = $pdo->prepare("
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("
             UPDATE Temp_Orders 
             SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?
             WHERE temp_order_id = ? AND user_id = ?
         ");
-        $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $temp_order_id, $partner1_id]);
+            $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $temp_order_id, $partner1_id]);
 
-        $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
-        $stmt->execute([$temp_order_id]);
+            $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
+            $stmt->execute([$temp_order_id]);
 
-        $stmt_insert = $pdo->prepare("
-            INSERT INTO Temp_Order_Items (temp_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ");
-        foreach ($new_items as $item) {
-            $stmt_insert->execute([
-                $temp_order_id,
-                $item['product_id'],
-                $item['product_name'],
-                $item['quantity'],
-                $item['unit_price'],
-                $item['extra_sale'],
-                $item['total_price']
-            ]);
-        }
-
-        $stmt_delete = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ?");
-        $stmt_delete->execute([$temp_order_id]);
-
-        $stmt_invoice = $pdo->prepare("
-            INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-            VALUES (?, ?, ?, ?, ?)
-        ");
-        foreach ($_SESSION['invoice_prices'] ?? [] as $index => $price) {
-            if ($index === 'postal') {
-                $stmt_invoice->execute([$temp_order_id, -1, 0, TRUE, $price]);
-            } else {
-                $stmt_invoice->execute([$temp_order_id, $index, $price, FALSE, 0]);
+            if (!empty($new_items)) {
+                $stmt_insert = $pdo->prepare("
+                INSERT INTO Temp_Order_Items (temp_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
+                foreach ($new_items as $item) {
+                    $stmt_insert->execute([
+                        $temp_order_id,
+                        $item['product_id'],
+                        $item['product_name'],
+                        $item['quantity'],
+                        $item['unit_price'],
+                        $item['extra_sale'],
+                        $item['total_price']
+                    ]);
+                }
             }
+
+            $stmt_delete = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ?");
+            $stmt_delete->execute([$temp_order_id]);
+
+            if (!empty($_SESSION['invoice_prices'])) {
+                $stmt_invoice = $pdo->prepare("
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+                foreach ($_SESSION['invoice_prices'] as $index => $price) {
+                    if ($index === 'postal') {
+                        $stmt_invoice->execute([$temp_order_id, -1, 0, TRUE, $price]);
+                    } else {
+                        $stmt_invoice->execute([$temp_order_id, $index, $price, FALSE, 0]);
+                    }
+                }
+            }
+
+            $pdo->commit();
+
+            unset($_SESSION['edit_temp_order_items']);
+            unset($_SESSION['edit_temp_order_id']);
+            unset($_SESSION['edit_temp_order_discount']);
+            unset($_SESSION['invoice_prices']);
+            unset($_SESSION['postal_enabled']);
+            unset($_SESSION['postal_price']);
+
+            // گرفتن work_month_id از Temp_Orders برای ریدایرکت
+            $stmt = $pdo->prepare("
+            SELECT wd.work_month_id 
+            FROM Temp_Orders to
+            JOIN Work_Details wd ON wd.work_details_id = to.work_details_id
+            WHERE to.temp_order_id = ?
+        ");
+            $stmt->execute([$temp_order_id]);
+            $work_month_id = $stmt->fetchColumn() ?: '';
+
+            respond(true, 'سفارش با موفقیت ویرایش شد.', [
+                'redirect' => "orders.php?work_month_id=" . ($work_month_id ?: '')
+            ]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            respond(false, 'خطا در ویرایش سفارش: ' . $e->getMessage());
         }
+        break;
 
-        $pdo->commit();
-
-        unset($_SESSION['edit_temp_order_items']);
-        unset($_SESSION['edit_temp_order_id']);
-        unset($_SESSION['edit_temp_order_discount']);
-        unset($_SESSION['invoice_prices']);
-
-        respond(true, 'سفارش با موفقیت ویرایش شد.', [
-            'redirect' => "orders.php?work_month_id=$work_month_id"
-        ]);
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        respond(false, 'خطا در ویرایش سفارش: ' . $e->getMessage());
-    }
-    break;
-    
     case 'clear_invoice_prices':
         unset($_SESSION['invoice_prices']);
         respond(true, 'قیمت‌های فاکتور با موفقیت پاک شدند.');
         break;
-    
+
     case 'add_temp_item':
-    $customer_name = $_POST['customer_name'] ?? '';
-    $product_id = $_POST['product_id'] ?? '';
-    $quantity = (int) ($_POST['quantity'] ?? 0);
-    $unit_price = (float) ($_POST['unit_price'] ?? 0);
-    $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-    $discount = (float) ($_POST['discount'] ?? 0);
-    $partner1_id = $_POST['partner1_id'] ?? '';
+        $customer_name = $_POST['customer_name'] ?? '';
+        $product_id = $_POST['product_id'] ?? '';
+        $quantity = (int) ($_POST['quantity'] ?? 0);
+        $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-    if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$partner1_id || $extra_sale < 0) {
-        respond(false, 'لطفاً تمام فیلدها را پر کنید و اضافه فروش منفی نباشد.');
-    }
+        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$partner1_id || $extra_sale < 0) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید و اضافه فروش منفی نباشد.');
+        }
 
-    $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
-    $stmt->execute([$product_id]);
-    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+        $stmt->execute([$product_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$product) {
-        respond(false, 'محصول یافت نشد.');
-    }
+        if (!$product) {
+            respond(false, 'محصول یافت نشد.');
+        }
 
-    $items = $_SESSION['temp_order_items'] ?? [];
-    if ($items && array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
-        respond(false, 'این محصول قبلاً در فاکتور ثبت شده است.');
-    }
+        $items = $_SESSION['temp_order_items'] ?? [];
+        if ($items && array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
+            respond(false, 'این محصول قبلاً در فاکتور ثبت شده است.');
+        }
 
-    // بدون چک موجودی (مشابه add_item)
-    $adjusted_price = $unit_price + $extra_sale;
-    $items[] = [
-        'product_id' => $product_id,
-        'product_name' => $product['product_name'],
-        'quantity' => $quantity,
-        'unit_price' => $unit_price,
-        'extra_sale' => $extra_sale,
-        'total_price' => $quantity * $adjusted_price
-    ];
+        // بدون چک موجودی (مشابه add_item)
+        $adjusted_price = $unit_price + $extra_sale;
+        $items[] = [
+            'product_id' => $product_id,
+            'product_name' => $product['product_name'],
+            'quantity' => $quantity,
+            'unit_price' => $unit_price,
+            'extra_sale' => $extra_sale,
+            'total_price' => $quantity * $adjusted_price
+        ];
 
-    $_SESSION['temp_order_items'] = $items;
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
+        $_SESSION['temp_order_items'] = $items;
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
 
-    respond(true, 'محصول با موفقیت اضافه شد.', [
-        'items' => $items,
-        'total_amount' => $total_amount,
-        'discount' => $discount,
-        'final_amount' => $final_amount,
-        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-        'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
-    ]);
-    break;
+        respond(true, 'محصول با موفقیت اضافه شد.', [
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+            'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
+        ]);
+        break;
 
-case 'delete_temp_item':
-    $index = (int) ($_POST['index'] ?? -1);
-    $partner1_id = $_POST['partner1_id'] ?? '';
+    case 'delete_temp_item':
+        $index = (int) ($_POST['index'] ?? -1);
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-    if ($index < 0 || !isset($_SESSION['temp_order_items'][$index]) || !$partner1_id) {
-        respond(false, 'آیتم یافت نشد.');
-    }
+        if ($index < 0 || !isset($_SESSION['temp_order_items'][$index]) || !$partner1_id) {
+            respond(false, 'آیتم یافت نشد.');
+        }
 
-    $items = $_SESSION['temp_order_items'];
-    unset($items[$index]);
-    $items = array_values($items);
-    $_SESSION['temp_order_items'] = $items;
+        $items = $_SESSION['temp_order_items'];
+        unset($items[$index]);
+        $items = array_values($items);
+        $_SESSION['temp_order_items'] = $items;
 
-    if (isset($_SESSION['invoice_prices'][$index])) {
-        unset($_SESSION['invoice_prices'][$index]);
-        $_SESSION['invoice_prices'] = array_values($_SESSION['invoice_prices']);
-    }
+        if (isset($_SESSION['invoice_prices'][$index])) {
+            unset($_SESSION['invoice_prices'][$index]);
+            $_SESSION['invoice_prices'] = array_values($_SESSION['invoice_prices']);
+        }
 
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $discount = $_SESSION['discount'] ?? 0;
-    $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $discount = $_SESSION['discount'] ?? 0;
+        $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
 
-    respond(true, 'آیتم با موفقیت حذف شد.', [
-        'items' => $items,
-        'total_amount' => $total_amount,
-        'discount' => $discount,
-        'final_amount' => $final_amount,
-        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-        'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
-    ]);
-    break;
+        respond(true, 'آیتم با موفقیت حذف شد.', [
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+            'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
+        ]);
+        break;
 
-case 'edit_temp_item':
-    $customer_name = $_POST['customer_name'] ?? '';
-    $product_id = $_POST['product_id'] ?? '';
-    $quantity = (int) ($_POST['quantity'] ?? 0);
-    $unit_price = (float) ($_POST['unit_price'] ?? 0);
-    $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-    $discount = (float) ($_POST['discount'] ?? 0);
-    $index = (int) ($_POST['index'] ?? -1);
-    $partner1_id = $_POST['partner1_id'] ?? '';
+    case 'edit_temp_item':
+        $customer_name = $_POST['customer_name'] ?? '';
+        $product_id = $_POST['product_id'] ?? '';
+        $quantity = (int) ($_POST['quantity'] ?? 0);
+        $unit_price = (float) ($_POST['unit_price'] ?? 0);
+        $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $index = (int) ($_POST['index'] ?? -1);
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-    if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || $index < 0 || !$partner1_id) {
-        respond(false, 'لطفاً تمام فیلدها را پر کنید.');
-    }
+        if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || $index < 0 || !$partner1_id) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        }
 
-    $items = $_SESSION['temp_order_items'] ?? [];
-    if (!isset($items[$index])) {
-        respond(false, 'آیتم مورد نظر یافت نشد.');
-    }
+        $items = $_SESSION['temp_order_items'] ?? [];
+        if (!isset($items[$index])) {
+            respond(false, 'آیتم مورد نظر یافت نشد.');
+        }
 
-    $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
-    $stmt->execute([$product_id]);
-    $product = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$product) {
-        respond(false, 'محصول یافت نشد.');
-    }
+        $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+        $stmt->execute([$product_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$product) {
+            respond(false, 'محصول یافت نشد.');
+        }
 
-    $items[$index] = [
-        'product_id' => $product_id,
-        'product_name' => $product['product_name'],
-        'quantity' => $quantity,
-        'unit_price' => $unit_price,
-        'extra_sale' => $extra_sale,
-        'total_price' => $quantity * ($unit_price + $extra_sale)
-    ];
+        $items[$index] = [
+            'product_id' => $product_id,
+            'product_name' => $product['product_name'],
+            'quantity' => $quantity,
+            'unit_price' => $unit_price,
+            'extra_sale' => $extra_sale,
+            'total_price' => $quantity * ($unit_price + $extra_sale)
+        ];
 
-    $_SESSION['temp_order_items'] = $items;
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
+        $_SESSION['temp_order_items'] = $items;
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
 
-    respond(true, 'آیتم با موفقیت ویرایش شد.', [
-        'items' => $items,
-        'total_amount' => $total_amount,
-        'discount' => $discount,
-        'final_amount' => $final_amount,
-        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-        'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
-    ]);
-    break;
+        respond(true, 'آیتم با موفقیت ویرایش شد.', [
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+            'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
+        ]);
+        break;
 
-case 'finalize_temp_order':
-    $customer_name = $_POST['customer_name'] ?? '';
-    $discount = (float) ($_POST['discount'] ?? 0);
-    $partner1_id = $_POST['partner1_id'] ?? '';
-    $work_month_id = $_POST['work_month_id'] ?? '';
+    case 'finalize_temp_order':
+        $customer_name = $_POST['customer_name'] ?? '';
+        $discount = (float) ($_POST['discount'] ?? 0);
+        $partner1_id = $_POST['partner1_id'] ?? '';
+        $work_month_id = $_POST['work_month_id'] ?? '';
 
-    if (!$customer_name || !$partner1_id || !$work_month_id) {
-        respond(false, 'لطفاً تمام فیلدها را پر کنید.');
-    }
+        if (!$customer_name || !$partner1_id || !$work_month_id) {
+            respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+        }
 
-    $items = $_SESSION['temp_order_items'] ?? [];
-    if (empty($items)) {
-        respond(false, 'هیچ محصولی برای ثبت سفارش وجود ندارد.');
-    }
+        $items = $_SESSION['temp_order_items'] ?? [];
+        if (empty($items)) {
+            respond(false, 'هیچ محصولی برای ثبت سفارش وجود ندارد.');
+        }
 
-    $total_amount = array_sum(array_column($items, 'total_price'));
-    $postal_price = $_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0;
-    $final_amount = $total_amount - $discount + $postal_price;
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $postal_price = $_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0;
+        $final_amount = $total_amount - $discount + $postal_price;
 
-    $pdo->beginTransaction();
-    try {
-        $stmt = $pdo->prepare("
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("
             INSERT INTO Temp_Orders (customer_name, total_amount, discount, final_amount, user_id)
             VALUES (?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $partner1_id]);
-        $temp_order_id = $pdo->lastInsertId();
+            $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $partner1_id]);
+            $temp_order_id = $pdo->lastInsertId();
 
-        foreach ($items as $item) {
-            $stmt = $pdo->prepare("
+            foreach ($items as $item) {
+                $stmt = $pdo->prepare("
                 INSERT INTO Temp_Order_Items (temp_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([
-                $temp_order_id,
-                $item['product_id'],
-                $item['product_name'],
-                $item['quantity'],
-                $item['unit_price'],
-                $item['extra_sale'],
-                $item['total_price']
-            ]);
-        }
+                $stmt->execute([
+                    $temp_order_id,
+                    $item['product_id'],
+                    $item['product_name'],
+                    $item['quantity'],
+                    $item['unit_price'],
+                    $item['extra_sale'],
+                    $item['total_price']
+                ]);
+            }
 
-        $invoice_prices = $_SESSION['invoice_prices'] ?? [];
-        if (!empty($invoice_prices)) {
-            $stmt_invoice = $pdo->prepare("
+            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
+            if (!empty($invoice_prices)) {
+                $stmt_invoice = $pdo->prepare("
                 INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
                 VALUES (?, ?, ?, ?, ?)
             ");
-            foreach ($invoice_prices as $index => $price) {
-                if ($index === 'postal' && $_SESSION['postal_enabled']) {
-                    $stmt_invoice->execute([$temp_order_id, -1, 0, TRUE, $price]);
-                } elseif ($index !== 'postal') {
-                    $stmt_invoice->execute([$temp_order_id, $index, $price, FALSE, 0]);
+                foreach ($invoice_prices as $index => $price) {
+                    if ($index === 'postal' && $_SESSION['postal_enabled']) {
+                        $stmt_invoice->execute([$temp_order_id, -1, 0, TRUE, $price]);
+                    } elseif ($index !== 'postal') {
+                        $stmt_invoice->execute([$temp_order_id, $index, $price, FALSE, 0]);
+                    }
                 }
             }
-        }
 
-        $pdo->commit();
+            $pdo->commit();
 
-        unset($_SESSION['temp_order_items']);
-        unset($_SESSION['discount']);
-        unset($_SESSION['invoice_prices']);
-        unset($_SESSION['postal_enabled']);
-        unset($_SESSION['postal_price']);
-        $_SESSION['is_temp_order_in_progress'] = false;
+            unset($_SESSION['temp_order_items']);
+            unset($_SESSION['discount']);
+            unset($_SESSION['invoice_prices']);
+            unset($_SESSION['postal_enabled']);
+            unset($_SESSION['postal_price']);
+            $_SESSION['is_temp_order_in_progress'] = false;
 
-        respond(true, 'سفارش موقت با موفقیت ثبت شد.', [
-            'redirect' => "orders.php?work_month_id=$work_month_id"
-        ]);
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        respond(false, 'خطا در ثبت سفارش: ' . $e->getMessage());
-    }
-    break;
-
-case 'convert_temp_order':
-    $temp_order_id = $_POST['temp_order_id'] ?? '';
-    $work_details_id = $_POST['work_details_id'] ?? '';
-    $partner1_id = $_POST['partner1_id'] ?? '';
-
-    if (!$temp_order_id || !$work_details_id || !$partner1_id) {
-        respond(false, 'اطلاعات ناقص است.');
-    }
-
-    $pdo->beginTransaction();
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM Temp_Orders WHERE temp_order_id = ? AND user_id = ?");
-        $stmt->execute([$temp_order_id, $partner1_id]);
-        $temp_order = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$temp_order) {
+            respond(true, 'سفارش موقت با موفقیت ثبت شد.', [
+                'redirect' => "orders.php?work_month_id=$work_month_id"
+            ]);
+        } catch (Exception $e) {
             $pdo->rollBack();
-            respond(false, 'سفارش موقت یافت نشد یا دسترسی ندارید.');
+            respond(false, 'خطا در ثبت سفارش: ' . $e->getMessage());
+        }
+        break;
+
+    case 'convert_temp_order':
+        $temp_order_id = $_POST['temp_order_id'] ?? '';
+        $work_details_id = $_POST['work_details_id'] ?? '';
+        $partner1_id = $_POST['partner1_id'] ?? '';
+
+        if (!$temp_order_id || !$work_details_id || !$partner1_id) {
+            respond(false, 'اطلاعات ناقص است.');
         }
 
-        $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
-        $stmt->execute([$temp_order_id]);
-        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM Temp_Orders WHERE temp_order_id = ? AND user_id = ?");
+            $stmt->execute([$temp_order_id, $partner1_id]);
+            $temp_order = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // بدون چک موجودی (مشابه finalize_order)
-        $stmt = $pdo->prepare("
+            if (!$temp_order) {
+                $pdo->rollBack();
+                respond(false, 'سفارش موقت یافت نشد یا دسترسی ندارید.');
+            }
+
+            $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
+            $stmt->execute([$temp_order_id]);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // بدون چک موجودی (مشابه finalize_order)
+            $stmt = $pdo->prepare("
             INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
             VALUES (?, ?, ?, ?, ?)
         ");
-        $stmt->execute([
-            $work_details_id,
-            $temp_order['customer_name'],
-            $temp_order['total_amount'],
-            $temp_order['discount'],
-            $temp_order['final_amount']
-        ]);
-        $order_id = $pdo->lastInsertId();
+            $stmt->execute([
+                $work_details_id,
+                $temp_order['customer_name'],
+                $temp_order['total_amount'],
+                $temp_order['discount'],
+                $temp_order['final_amount']
+            ]);
+            $order_id = $pdo->lastInsertId();
 
-        foreach ($items as $item) {
-            $stmt = $pdo->prepare("
+            foreach ($items as $item) {
+                $stmt = $pdo->prepare("
                 INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
                 VALUES (?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([
-                $order_id,
-                $item['product_name'],
-                $item['quantity'],
-                $item['unit_price'],
-                $item['extra_sale'],
-                $item['total_price']
-            ]);
+                $stmt->execute([
+                    $order_id,
+                    $item['product_name'],
+                    $item['quantity'],
+                    $item['unit_price'],
+                    $item['extra_sale'],
+                    $item['total_price']
+                ]);
 
-            $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
-            $stmt_inventory->execute([$partner1_id, $item['product_id']]);
-            $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+                $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+                $stmt_inventory->execute([$partner1_id, $item['product_id']]);
+                $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
-            $current_quantity = $inventory ? $inventory['quantity'] : 0;
-            $new_quantity = $current_quantity - $item['quantity'];
+                $current_quantity = $inventory ? $inventory['quantity'] : 0;
+                $new_quantity = $current_quantity - $item['quantity'];
 
-            $stmt_update = $pdo->prepare("
+                $stmt_update = $pdo->prepare("
                 INSERT INTO Inventory (user_id, product_id, quantity)
                 VALUES (?, ?, ?)
                 ON DUPLICATE KEY UPDATE quantity = ?
             ");
-            $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity, $new_quantity]);
-        }
+                $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity, $new_quantity]);
+            }
 
-        $stmt = $pdo->prepare("SELECT * FROM Invoice_Prices WHERE order_id = ?");
-        $stmt->execute([$temp_order_id]);
-        $invoice_prices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($invoice_prices as $price) {
-            $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare("SELECT * FROM Invoice_Prices WHERE order_id = ?");
+            $stmt->execute([$temp_order_id]);
+            $invoice_prices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($invoice_prices as $price) {
+                $stmt = $pdo->prepare("
                 INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
                 VALUES (?, ?, ?, ?, ?)
             ");
-            $stmt->execute([
-                $order_id,
-                $price['item_index'],
-                $price['invoice_price'],
-                $price['is_postal'],
-                $price['postal_price']
+                $stmt->execute([
+                    $order_id,
+                    $price['item_index'],
+                    $price['invoice_price'],
+                    $price['is_postal'],
+                    $price['postal_price']
+                ]);
+            }
+
+            $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
+            $stmt->execute([$temp_order_id]);
+            $stmt = $pdo->prepare("DELETE FROM Temp_Orders WHERE temp_order_id = ?");
+            $stmt->execute([$temp_order_id]);
+
+            $pdo->commit();
+
+            respond(true, 'سفارش با موفقیت به سفارش دائمی تبدیل شد.', [
+                'redirect' => "print_invoice.php?order_id=$order_id"
             ]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            respond(false, 'خطا در تبدیل سفارش: ' . $e->getMessage());
         }
-
-        $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
-        $stmt->execute([$temp_order_id]);
-        $stmt = $pdo->prepare("DELETE FROM Temp_Orders WHERE temp_order_id = ?");
-        $stmt->execute([$temp_order_id]);
-
-        $pdo->commit();
-
-        respond(true, 'سفارش با موفقیت به سفارش دائمی تبدیل شد.', [
-            'redirect' => "print_invoice.php?order_id=$order_id"
-        ]);
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        respond(false, 'خطا در تبدیل سفارش: ' . $e->getMessage());
-    }
-    break;
+        break;
 
     default:
         respond(false, 'Action not recognized.');
