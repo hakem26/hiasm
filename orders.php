@@ -430,6 +430,77 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             </td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php if (!$is_admin && $selected_work_month_id): ?>
+                        <?php
+                        // بررسی اینکه کاربر همکار1 است
+                        $is_partner1 = false;
+                        $partner_query = $pdo->prepare("
+        SELECT p.user_id1
+        FROM Work_Details wd
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+        LIMIT 1
+    ");
+                        $partner_query->execute([$selected_work_month_id, $current_user_id]);
+                        $result = $partner_query->fetch(PDO::FETCH_ASSOC);
+                        if ($result && $result['user_id1'] == $current_user_id) {
+                            $is_partner1 = true;
+                        }
+
+                        if ($is_partner1):
+                            // دریافت سفارشات موقت
+                            $temp_orders_query = $pdo->prepare("
+            SELECT to.*, u.full_name
+            FROM Temp_Orders to
+            JOIN Users u ON to.user_id = u.user_id
+            WHERE to.user_id = ? AND EXISTS (
+                SELECT 1 FROM Work_Details wd
+                JOIN Partners p ON wd.partner_id = p.partner_id
+                WHERE wd.work_month_id = ? AND p.user_id1 = to.user_id
+            )
+        ");
+                            $temp_orders_query->execute([$current_user_id, $selected_work_month_id]);
+                            $temp_orders = $temp_orders_query->fetchAll(PDO::FETCH_ASSOC);
+                            ?>
+                            <h5 class="card-title mt-5 mb-4">سفارشات موقت</h5>
+                            <?php if (empty($temp_orders)): ?>
+                                <div class="alert alert-warning text-center">هیچ سفارش موقتی یافت نشد.</div>
+                            <?php else: ?>
+                                <table class="table table-light table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>شناسه سفارش</th>
+                                            <th>نام مشتری</th>
+                                            <th>مبلغ کل</th>
+                                            <th>تخفیف</th>
+                                            <th>مبلغ نهایی</th>
+                                            <th>تاریخ ثبت</th>
+                                            <th>عملیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($temp_orders as $order): ?>
+                                            <tr>
+                                                <td><?= $order['temp_order_id'] ?></td>
+                                                <td><?= htmlspecialchars($order['customer_name']) ?></td>
+                                                <td><?= number_format($order['total_amount'], 0) ?> تومان</td>
+                                                <td><?= number_format($order['discount'], 0) ?> تومان</td>
+                                                <td><?= number_format($order['final_amount'], 0) ?> تومان</td>
+                                                <td><?= gregorian_to_jalali_format($order['created_at']) ?></td>
+                                                <td>
+                                                    <a href="edit_temp_order.php?temp_order_id=<?= $order['temp_order_id'] ?>&work_month_id=<?= htmlspecialchars($selected_work_month_id) ?>"
+                                                        class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
+                                                    <button type="button" class="btn btn-primary btn-sm convert-temp-order"
+                                                        data-temp-order-id="<?= $order['temp_order_id'] ?>"><i
+                                                            class="fas fa-exchange-alt"></i></button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>

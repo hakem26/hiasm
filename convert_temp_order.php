@@ -10,9 +10,9 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date) {
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    $temp = gregorian_to_jalali($gy, $gm, $gd); // سال، ماه، روز
-    return "$temp[0]/$temp[1]/$temp[2]";
+    list($gy, $gm, $gd) = explode('-', explode(' ', $gregorian_date)[0]);
+    $jalali = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%04d/%02d/%02d", $jalali[0], $jalali[1], $jalali[2]);
 }
 
 $is_admin = ($_SESSION['role'] === 'admin');
@@ -25,21 +25,7 @@ if (!$work_month_id) {
     exit;
 }
 
-// دریافت سفارشات موقت برای همکار1
-$temp_orders_query = $pdo->prepare("
-    SELECT to.*, u.full_name
-    FROM Temp_Orders to
-    JOIN Users u ON to.user_id = u.user_id
-    WHERE to.user_id = ? AND EXISTS (
-        SELECT 1 FROM Work_Details wd
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = to.user_id
-    )
-");
-$temp_orders_query->execute([$current_user_id, $work_month_id]);
-$temp_orders = $temp_orders_query->fetchAll(PDO::FETCH_ASSOC);
-
-// دریافت روزهای کاری برای ماه انتخاب‌شده
+// دریافت روزهای کاری
 $work_details_query = $pdo->prepare("
     SELECT wd.id, wd.work_date, u1.full_name AS user1, u2.full_name AS user2
     FROM Work_Details wd
@@ -51,45 +37,6 @@ $work_details_query = $pdo->prepare("
 $work_details_query->execute([$work_month_id, $current_user_id]);
 $work_details = $work_details_query->fetchAll(PDO::FETCH_ASSOC);
 ?>
-
-<div class="container-fluid mt-5">
-    <h5 class="card-title mb-4">تبدیل سفارشات موقت</h5>
-
-    <?php if (empty($temp_orders)): ?>
-        <div class="alert alert-warning text-center">هیچ سفارش موقتی یافت نشد.</div>
-    <?php else: ?>
-        <table class="table table-light table-hover">
-            <thead>
-                <tr>
-                    <th>شناسه سفارش</th>
-                    <th>نام مشتری</th>
-                    <th>مبلغ کل</th>
-                    <th>تخفیف</th>
-                    <th>مبلغ نهایی</th>
-                    <th>تاریخ ثبت</th>
-                    <th>عملیات</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($temp_orders as $order): ?>
-                    <tr>
-                        <td><?= $order['temp_order_id'] ?></td>
-                        <td><?= htmlspecialchars($order['customer_name']) ?></td>
-                        <td><?= number_format($order['total_amount'], 0) ?> تومان</td>
-                        <td><?= number_format($order['discount'], 0) ?> تومان</td>
-                        <td><?= number_format($order['final_amount'], 0) ?> تومان</td>
-                        <td><?= gregorian_to_jalali_format($order['created_at']) ?></td>
-                        <td>
-                            <button type="button" class="btn btn-primary btn-sm convert-order" data-temp-order-id="<?= $order['temp_order_id'] ?>">تبدیل به سفارش دائمی</button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    <?php endif; ?>
-
-    <a href="orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>" class="btn btn-secondary mt-3">بازگشت</a>
-</div>
 
 <div class="modal fade" id="convertOrderModal" tabindex="-1" aria-labelledby="convertOrderModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -124,7 +71,7 @@ $work_details = $work_details_query->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 $(document).ready(function () {
-    $('.convert-order').on('click', function () {
+    $('.convert-temp-order').on('click', function () {
         const tempOrderId = $(this).data('temp-order-id');
         $('#temp_order_id').val(tempOrderId);
         $('#convertOrderModal').modal('show');
@@ -151,7 +98,7 @@ $(document).ready(function () {
             } else {
                 alert(response.message);
             }
-        }, functionjson');
+        }, 'json');
     });
 });
 </script>
