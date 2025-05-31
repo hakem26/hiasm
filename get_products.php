@@ -31,7 +31,8 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
         ");
         $params = [$work_month_id];
-        if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+        if ($selected_user_id !== 'all')
+            $params[] = $selected_user_id;
         $stmt->execute($params);
         $summary = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sales = $summary['total_sales'] ?? 0;
@@ -46,7 +47,8 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
         ");
         $params = [$work_month_id];
-        if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+        if ($selected_user_id !== 'all')
+            $params[] = $selected_user_id;
         $stmt->execute($params);
         $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sessions = $sessions['total_sessions'] ?? 0;
@@ -65,7 +67,8 @@ if ($action === 'get_sales_report' && $work_month_id && $current_user_id) {
             ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
         ");
         $params = [$work_month_id];
-        if ($selected_user_id !== 'all') $params[] = $selected_user_id;
+        if ($selected_user_id !== 'all')
+            $params[] = $selected_user_id;
         $stmt->execute($params);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         error_log("Products fetched: " . count($products));
@@ -113,7 +116,9 @@ if (empty($query)) {
 }
 
 $products = [];
-if ($work_details_id) {
+$is_temp_order = isset($_POST['is_temp_order']) && $_POST['is_temp_order'] === 'true';
+
+if ($work_details_id && !$is_temp_order) {
     $stmt_work = $pdo->prepare("SELECT work_date FROM Work_Details WHERE id = ?");
     $stmt_work->execute([$work_details_id]);
     $work_date = $stmt_work->fetchColumn();
@@ -141,7 +146,6 @@ if ($work_details_id) {
         error_log("Debug: Products fetched with work_date = $work_date, count = " . count($products));
     } else {
         error_log("Debug: No work_date found for work_details_id = $work_details_id");
-        // اگه تاریخ کار پیدا نشد، آخرین قیمت رو بگیریم
         $stmt = $pdo->prepare("
             SELECT p.product_id, p.product_name, 
                    COALESCE(
@@ -160,7 +164,7 @@ if ($work_details_id) {
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 } else {
-    // اگه work_details_id نباشه، آخرین قیمت از تاریخچه
+    // برای سفارشات موقت یا بدون work_details_id
     $stmt = $pdo->prepare("
         SELECT p.product_id, p.product_name, 
                COALESCE(
@@ -177,10 +181,10 @@ if ($work_details_id) {
     ");
     $stmt->execute(['%' . $query . '%']);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    error_log("Debug: No work_details_id, using latest prices, count = " . count($products));
+    error_log("Debug: No work_details_id or temp order, using latest prices, count = " . count($products));
 }
 
 foreach ($products as $product) {
-    echo "<a href='#' class='list-group-item list-group-item-action product-suggestion' data-product='" . json_encode($product) . "'>" . htmlspecialchars($product['product_name']) . " - " . number_format($product['unit_price'], 0) . " </a>";
+    echo "<a href='#' class='list-group-item list-group-item-action product-suggestion' data-product='" . json_encode($product, JSON_UNESCAPED_UNICODE) . "'>" . htmlspecialchars($product['product_name']) . " - " . number_format($product['unit_price'], 0) . " </a>";
 }
 ?>

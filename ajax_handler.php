@@ -688,7 +688,267 @@ switch ($action) {
         unset($_SESSION['invoice_prices']);
         respond(true, 'قیمت‌های فاکتور با موفقیت پاک شدند.');
         break;
+    
+    case 'add_temp_item':
+    $customer_name = $_POST['customer_name'] ?? '';
+    $product_id = $_POST['product_id'] ?? '';
+    $quantity = (int) ($_POST['quantity'] ?? 0);
+    $unit_price = (float) ($_POST['unit_price'] ?? 0);
+    $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
+    $discount = (float) ($_POST['discount'] ?? 0);
+    $partner1_id = $_POST['partner1_id'] ?? '';
 
+    if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$partner1_id || $extra_sale < 0) {
+        respond(false, 'لطفاً تمام فیلدها را پر کنید و اضافه فروش منفی نباشد.');
+    }
+
+    $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+    $stmt->execute([$product_id]);
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$product) {
+        respond(false, 'محصول یافت نشد.');
+    }
+
+    $items = $_SESSION['temp_order_items'] ?? [];
+    if ($items && array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
+        respond(false, 'این محصول قبلاً در فاکتور ثبت شده است.');
+    }
+
+    // بدون چک موجودی (مشابه add_item)
+    $adjusted_price = $unit_price + $extra_sale;
+    $items[] = [
+        'product_id' => $product_id,
+        'product_name' => $product['product_name'],
+        'quantity' => $quantity,
+        'unit_price' => $unit_price,
+        'extra_sale' => $extra_sale,
+        'total_price' => $quantity * $adjusted_price
+    ];
+
+    $_SESSION['temp_order_items'] = $items;
+    $total_amount = array_sum(array_column($items, 'total_price'));
+    $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
+
+    respond(true, 'محصول با موفقیت اضافه شد.', [
+        'items' => $items,
+        'total_amount' => $total_amount,
+        'discount' => $discount,
+        'final_amount' => $final_amount,
+        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+        'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
+    ]);
+    break;
+
+case 'delete_temp_item':
+    $index = (int) ($_POST['index'] ?? -1);
+    $partner1_id = $_POST['partner1_id'] ?? '';
+
+    if ($index < 0 || !isset($_SESSION['temp_order_items'][$index]) || !$partner1_id) {
+        respond(false, 'آیتم یافت نشد.');
+    }
+
+    $items = $_SESSION['temp_order_items'];
+    unset($items[$index]);
+    $items = array_values($items);
+    $_SESSION['temp_order_items'] = $items;
+
+    if (isset($_SESSION['invoice_prices'][$index])) {
+        unset($_SESSION['invoice_prices'][$index]);
+        $_SESSION['invoice_prices'] = array_values($_SESSION['invoice_prices']);
+    }
+
+    $total_amount = array_sum(array_column($items, 'total_price'));
+    $discount = $_SESSION['discount'] ?? 0;
+    $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
+
+    respond(true, 'آیتم با موفقیت حذف شد.', [
+        'items' => $items,
+        'total_amount' => $total_amount,
+        'discount' => $discount,
+        'final_amount' => $final_amount,
+        'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+        'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
+    ]);
+    break;
+
+case 'finalize_temp_order':
+    $customer_name = $_POST['customer_name'] ?? '';
+    $discount = (float) ($_POST['discount'] ?? 0);
+    $partner1_id = $_POST['partner1_id'] ?? '';
+    $work_month_id = $_POST['work_month_id'] ?? '';
+
+    if (!$customer_name || !$partner1_id || !$work_month_id) {
+        respond(false, 'لطفاً تمام فیلدها را پر کنید.');
+    }
+
+    $items = $_SESSION['temp_order_items'] ?? [];
+    if (empty($items)) {
+        respond(false, 'هیچ محصولی برای ثبت سفارش وجود ندارد.');
+    }
+
+    $total_amount = array_sum(array_column($items, 'total_price'));
+    $postal_price = $_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0;
+    $final_amount = $total_amount - $discount + $postal_price;
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO Temp_Orders (customer_name, total_amount, discount, final_amount, user_id)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $partner1_id]);
+        $temp_order_id = $pdo->lastInsertId();
+
+        foreach ($items as $item) {
+            $stmt = $pdo->prepare("
+                INSERT INTO Temp_Order_Items (temp_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $temp_order_id,
+                $item['product_id'],
+                $item['product_name'],
+                $item['quantity'],
+                $item['unit_price'],
+                $item['extra_sale'],
+                $item['total_price']
+            ]);
+        }
+
+        $invoice_prices = $_SESSION['invoice_prices'] ?? [];
+        if (!empty($invoice_prices)) {
+            $stmt_invoice = $pdo->prepare("
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            foreach ($invoice_prices as $index => $price) {
+                if ($index === 'postal' && $_SESSION['postal_enabled']) {
+                    $stmt_invoice->execute([$temp_order_id, -1, 0, TRUE, $price]);
+                } elseif ($index !== 'postal') {
+                    $stmt_invoice->execute([$temp_order_id, $index, $price, FALSE, 0]);
+                }
+            }
+        }
+
+        $pdo->commit();
+
+        unset($_SESSION['temp_order_items']);
+        unset($_SESSION['discount']);
+        unset($_SESSION['invoice_prices']);
+        unset($_SESSION['postal_enabled']);
+        unset($_SESSION['postal_price']);
+        $_SESSION['is_temp_order_in_progress'] = false;
+
+        respond(true, 'سفارش موقت با موفقیت ثبت شد.', [
+            'redirect' => "orders.php?work_month_id=$work_month_id"
+        ]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        respond(false, 'خطا در ثبت سفارش: ' . $e->getMessage());
+    }
+    break;
+
+case 'convert_temp_order':
+    $temp_order_id = $_POST['temp_order_id'] ?? '';
+    $work_details_id = $_POST['work_details_id'] ?? '';
+    $partner1_id = $_POST['partner1_id'] ?? '';
+
+    if (!$temp_order_id || !$work_details_id || !$partner1_id) {
+        respond(false, 'اطلاعات ناقص است.');
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM Temp_Orders WHERE temp_order_id = ? AND user_id = ?");
+        $stmt->execute([$temp_order_id, $partner1_id]);
+        $temp_order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$temp_order) {
+            $pdo->rollBack();
+            respond(false, 'سفارش موقت یافت نشد یا دسترسی ندارید.');
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
+        $stmt->execute([$temp_order_id]);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // بدون چک موجودی (مشابه finalize_order)
+        $stmt = $pdo->prepare("
+            INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $work_details_id,
+            $temp_order['customer_name'],
+            $temp_order['total_amount'],
+            $temp_order['discount'],
+            $temp_order['final_amount']
+        ]);
+        $order_id = $pdo->lastInsertId();
+
+        foreach ($items as $item) {
+            $stmt = $pdo->prepare("
+                INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $order_id,
+                $item['product_name'],
+                $item['quantity'],
+                $item['unit_price'],
+                $item['extra_sale'],
+                $item['total_price']
+            ]);
+
+            $stmt_inventory = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE");
+            $stmt_inventory->execute([$partner1_id, $item['product_id']]);
+            $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+
+            $current_quantity = $inventory ? $inventory['quantity'] : 0;
+            $new_quantity = $current_quantity - $item['quantity'];
+
+            $stmt_update = $pdo->prepare("
+                INSERT INTO Inventory (user_id, product_id, quantity)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE quantity = ?
+            ");
+            $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity, $new_quantity]);
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM Invoice_Prices WHERE order_id = ?");
+        $stmt->execute([$temp_order_id]);
+        $invoice_prices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($invoice_prices as $price) {
+            $stmt = $pdo->prepare("
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $order_id,
+                $price['item_index'],
+                $price['invoice_price'],
+                $price['is_postal'],
+                $price['postal_price']
+            ]);
+        }
+
+        $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
+        $stmt->execute([$temp_order_id]);
+        $stmt = $pdo->prepare("DELETE FROM Temp_Orders WHERE temp_order_id = ?");
+        $stmt->execute([$temp_order_id]);
+
+        $pdo->commit();
+
+        respond(true, 'سفارش با موفقیت به سفارش دائمی تبدیل شد.', [
+            'redirect' => "print_invoice.php?order_id=$order_id"
+        ]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        respond(false, 'خطا در تبدیل سفارش: ' . $e->getMessage());
+    }
+    break;
+    
     default:
         respond(false, 'Action not recognized.');
 }
