@@ -473,24 +473,30 @@ switch ($action) {
         $enable_postal = filter_var($_POST['enable_postal'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $postal_price = $_SESSION['postal_price'] ?? 50000;
 
-        if ($order_id) { // برای edit_order.php
+        $items = [];
+        if ($order_id) { // برای edit_order.php یا edit_temp_order.php
             if ($enable_postal) {
                 $stmt = $pdo->prepare("
-                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                        VALUES (?, -1, 0, TRUE, ?)
-                        ON DUPLICATE KEY UPDATE postal_price = ?
-                    ");
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, -1, 0, TRUE, ?)
+                ON DUPLICATE KEY UPDATE postal_price = ?
+            ");
                 $stmt->execute([$order_id, $postal_price, $postal_price]);
                 $_SESSION['invoice_prices']['postal'] = $postal_price;
+                $_SESSION['postal_enabled'] = true;
+                $_SESSION['postal_price'] = $postal_price;
             } else {
                 $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
                 $stmt->execute([$order_id]);
                 unset($_SESSION['invoice_prices']['postal']);
                 $_SESSION['postal_price'] = 0;
+                $_SESSION['postal_enabled'] = false;
             }
-            $items = $_SESSION['edit_order_items'] ?? [];
-            $total_amount = array_sum(array_column($items, 'total_price'));
-            $discount = $_SESSION['edit_order_discount'] ?? 0;
+            // تعیین نوع سفارش (موقت یا دائمی)
+            $stmt = $pdo->prepare("SELECT 1 FROM Temp_Orders WHERE temp_order_id = ? LIMIT 1");
+            $stmt->execute([$order_id]);
+            $is_temp = $stmt->fetchColumn();
+            $items = $is_temp ? ($_SESSION['edit_temp_order_items'] ?? []) : ($_SESSION['edit_order_items'] ?? []);
         } else { // برای add_order.php
             $_SESSION['postal_enabled'] = $enable_postal;
             if ($enable_postal) {
@@ -501,10 +507,10 @@ switch ($action) {
                 unset($_SESSION['invoice_prices']['postal']);
             }
             $items = $_SESSION['order_items'] ?? [];
-            $total_amount = array_sum(array_column($items, 'total_price'));
-            $discount = $_SESSION['discount'] ?? 0;
         }
 
+        $total_amount = array_sum(array_column($items, 'total_price'));
+        $discount = $is_temp ? ($_SESSION['edit_temp_order_discount'] ?? 0) : ($_SESSION['edit_order_discount'] ?? 0);
         $final_amount = $total_amount - $discount + ($enable_postal ? $postal_price : 0);
 
         respond(true, 'گزینه ارسال پستی با موفقیت به‌روزرسانی شد.', [
