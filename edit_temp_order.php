@@ -7,6 +7,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once 'header.php';
 require_once 'db.php';
+require_once 'jdf.php'; // برای تاریخ شمسی احتمالی
 
 $is_admin = ($_SESSION['role'] === 'admin');
 if ($is_admin) {
@@ -17,26 +18,54 @@ $current_user_id = $_SESSION['user_id'];
 
 $temp_order_id = $_GET['temp_order_id'] ?? '';
 $work_month_id = $_GET['work_month_id'] ?? '';
-if (!$temp_order_id || !$work_month_id) {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>شناسه سفارش یا ماه کاری مشخص نشده است.</div></div>";
+if (!$temp_order_id || !is_numeric($temp_order_id) || !$work_month_id || !is_numeric($work_month_id)) {
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>شناسه سفارش یا ماه کاری نامعتبر است.</div></div>";
     require_once 'footer.php';
     exit;
 }
 
-// بررسی دسترسی همکار1
-$stmt = $pdo->prepare("
-    SELECT to.*, p.user_id1
-    FROM Temp_Orders to
-    JOIN Work_Details wd ON wd.work_month_id = ?
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE to.temp_order_id = ? AND to.user_id = ? AND p.user_id1 = ?
-    LIMIT 1
-");
-$stmt->execute([$work_month_id, $temp_order_id, $current_user_id, $current_user_id]);
-$temp_order = $stmt->fetch(PDO::FETCH_ASSOC);
+// تابع تبدیل تاریخ (برای استفاده احتمالی)
+function gregorian_to_jalali_format($gregorian_date) {
+    if (empty($gregorian_date) || !strtotime($gregorian_date)) {
+        return 'نامشخص';
+    }
+    $date_parts = explode(' ', $gregorian_date)[0]; // فقط تاریخ
+    list($gy, $gm, $gd) = explode('-', $date_parts);
+    $gy = (int)$gy;
+    $gm = (int)$gm;
+    $gd = (int)$gd;
+    if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
+        return 'نامشخص';
+    }
+    $jalali = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%04d/%02d/%02d", $jalali[0], $jalali[1], $jalali[2]);
+}
 
-if (!$temp_order) {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>سفارش یافت نشد یا دسترسی ندارید.</div></div>";
+// بررسی دسترسی همکار1
+try {
+    $stmt = $pdo->prepare("
+        SELECT tmp.*, p.user_id1
+        FROM `Temp_Orders` tmp
+        JOIN `Work_Details` wd ON wd.work_month_id = :work_month_id
+        JOIN `Partners` p ON wd.partner_id = p.partner_id
+        WHERE tmp.temp_order_id = :temp_order_id AND tmp.user_id = :user_id AND p.user_id1 = :user_id
+        LIMIT 1
+    ");
+    $stmt->execute([
+        ':work_month_id' => $work_month_id,
+        ':temp_order_id' => $temp_order_id,
+        ':user_id' => $current_user_id
+    ]);
+    $temp_order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$temp_order) {
+        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>سفارش یافت نشد یا دسترسی ندارید.</div></div>";
+        require_once 'footer.php';
+        exit;
+    }
+} catch (PDOException $e) {
+    error_log("Error fetching temp order: " . $e->getMessage());
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>خطا در دریافت اطلاعات سفارش.</div></div>";
     require_once 'footer.php';
     exit;
 }
@@ -44,24 +73,36 @@ if (!$temp_order) {
 $partner1_id = $temp_order['user_id1'];
 
 // لود آیتم‌های سفارش
-$stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
-$stmt->execute([$temp_order_id]);
-$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("SELECT * FROM `Temp_Order_Items` WHERE temp_order_id = ?");
+    $stmt->execute([$temp_order_id]);
+    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching temp order items: " . $e->getMessage());
+    $items = [];
+}
 
 // لود قیمت‌های فاکتور
-$stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ?");
-$stmt->execute([$temp_order_id]);
-$invoice_prices = [];
-$postal_enabled = false;
-$postal_price = 50000;
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    if ($row['is_postal']) {
-        $postal_enabled = true;
-        $postal_price = $row['postal_price'];
-        $invoice_prices['postal'] = $row['postal_price'];
-    } else {
-        $invoice_prices[$row['item_index']] = $row['invoice_price'];
+try {
+    $stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM `Invoice_Prices` WHERE order_id = ?");
+    $stmt->execute([$temp_order_id]);
+    $invoice_prices = [];
+    $postal_enabled = false;
+    $postal_price = 50000;
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        if ($row['is_postal']) {
+            $postal_enabled = true;
+            $postal_price = $row['postal_price'];
+            $invoice_prices['postal'] = $row['postal_price'];
+        } else {
+            $invoice_prices[$row['item_index']] = $row['invoice_price'];
+        }
     }
+} catch (PDOException $e) {
+    error_log("Error fetching invoice prices: " . $e->getMessage());
+    $invoice_prices = [];
+    $postal_enabled = false;
+    $postal_price = 50000;
 }
 
 // تنظیم سشن
@@ -387,11 +428,11 @@ $(document).ready(function () {
                     <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                     <td>
                         <span class="invoice-price">${Number(invoice_price).toLocaleString('fa')} تومان</span>
-                        <button class="btn btn-info btn-sm set-invoice-price" data-index="${index}"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-info btn-sm set-invoice-price" data-index="${index}">تنظیم قیمت</button>
                     </td>
                     <td>
-                        <button class="btn btn-warning btn-sm edit-item" data-index="${index}"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-danger btn-sm delete-item" data-index="${index}"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-warning btn-sm edit-item" data-index="${index}">ویرایش</button>
+                        <button class="btn btn-danger btn-sm delete-item" data-index="${index}">حذف</button>
                     </td>
                 </tr>`;
             });
