@@ -3,7 +3,8 @@ ob_start();
 session_start();
 require_once 'db.php';
 
-function respond($success, $message = '', $data = []) {
+function respond($success, $message = '', $data = [])
+{
     header('Content-Type: application/json; charset=UTF-8');
     echo json_encode([
         'success' => $success,
@@ -1142,18 +1143,19 @@ try {
 
             $pdo->beginTransaction();
             try {
+                // اصلاح کوئری: حذف work_details_id و استفاده از work_month_id
                 $stmt = $pdo->prepare("
-                    INSERT INTO Temp_Orders (customer_name, total_amount, discount, final_amount, user_id, work_details_id)
-                    SELECT ?, ?, ?, ?, ?, id FROM Work_Details WHERE work_month_id = ?
-                ");
+            INSERT INTO Temp_Orders (customer_name, total_amount, discount, final_amount, user_id, work_month_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
                 $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $partner1_id, $work_month_id]);
                 $temp_order_id = $pdo->lastInsertId();
 
                 foreach ($items as $item) {
                     $stmt = $pdo->prepare("
-                        INSERT INTO Temp_Order_Items (temp_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ");
+                INSERT INTO Temp_Order_Items (temp_order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
                     $stmt->execute([
                         $temp_order_id,
                         $item['product_id'],
@@ -1168,9 +1170,9 @@ try {
                 $invoice_prices = $_SESSION['invoice_prices'] ?? [];
                 if (!empty($invoice_prices)) {
                     $stmt_invoice = $pdo->prepare("
-                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                        VALUES (?, ?, ?, ?, ?)
-                    ");
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, ?, ?, ?, ?)
+            ");
                     foreach ($invoice_prices as $index => $price) {
                         if ($index === 'postal' && $_SESSION['postal_enabled']) {
                             $stmt_invoice->execute([$temp_order_id, -1, 0, TRUE, $price]);
@@ -1179,6 +1181,7 @@ try {
                         }
                     }
                 }
+
                 $pdo->commit();
 
                 unset($_SESSION['temp_order_items']);
@@ -1221,82 +1224,82 @@ try {
                 $stmt->execute([$temp_order_id]);
                 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                    $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                         INSERT INTO Orders (work_details_id, customer_name, total_amount, discount, final_amount)
                         VALUES (?, ?, ?, ?, ?)
                     ");
-                    $stmt->execute([
-                        $work_details_id,
-                        $temp_order['customer_name'], 
-                        $temp_order['total_amount'],
-                        $temp_order['discount'], 
-                        $temp_order['final_amount']
-                    ]);
-                    $order_id = $pdo->lastInsertId();
-    
-                    foreach ($items as $item) {
-                        $stmt = $pdo->prepare("
+                $stmt->execute([
+                    $work_details_id,
+                    $temp_order['customer_name'],
+                    $temp_order['total_amount'],
+                    $temp_order['discount'],
+                    $temp_order['final_amount']
+                ]);
+                $order_id = $pdo->lastInsertId();
+
+                foreach ($items as $item) {
+                    $stmt = $pdo->prepare("
                             INSERT INTO Order_Items (order_id, product_name, quantity, unit_price, extra_sale, total_price)
                             VALUES (?, ?, ?, ?, ?, ?)
                         ");
-                        $stmt->execute([
-                            $order_id,
-                            $item['product_name'], 
-                            $item['quantity'],
-                            $item['unit_price'], 
-                            $item['extra_sale'], 
-                            $item['total_price']
-                        ]);
-    
-                        $stmt_inventory = $pdo->prepare("
+                    $stmt->execute([
+                        $order_id,
+                        $item['product_name'],
+                        $item['quantity'],
+                        $item['unit_price'],
+                        $item['extra_sale'],
+                        $item['total_price']
+                    ]);
+
+                    $stmt_inventory = $pdo->prepare("
                             SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ? FOR UPDATE
                         ");
-                        $stmt_inventory->execute([$partner1_id, $item['product_id']]);
-                        $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
-    
-                        $current_quantity = $inventory ? $inventory['quantity'] : 0;
-                        $new_quantity = $current_quantity - $item['quantity'];
-    
-                        $stmt_update = $pdo->prepare("
+                    $stmt_inventory->execute([$partner1_id, $item['product_id']]);
+                    $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
+
+                    $current_quantity = $inventory ? $inventory['quantity'] : 0;
+                    $new_quantity = $current_quantity - $item['quantity'];
+
+                    $stmt_update = $pdo->prepare("
                             INSERT INTO Inventory (user_id, product_id, quantity)
                             VALUES (?, ?, ?)
                             ON DUPLICATE KEY UPDATE quantity = ?
                         ");
-                        $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity, $new_quantity]);
-                    }
-    
-                    $stmt = $pdo->prepare("SELECT * FROM Invoice_Prices WHERE order_id = ?");
-                    $stmt->execute([$temp_order_id]);
-                    $invoice_prices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    foreach ($invoice_prices as $price) {
-                        $stmt = $pdo->prepare("
+                    $stmt_update->execute([$partner1_id, $item['product_id'], $new_quantity, $new_quantity]);
+                }
+
+                $stmt = $pdo->prepare("SELECT * FROM Invoice_Prices WHERE order_id = ?");
+                $stmt->execute([$temp_order_id]);
+                $invoice_prices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($invoice_prices as $price) {
+                    $stmt = $pdo->prepare("
                             INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
                             VALUES (?, ?, ?, ?, ?)
                         ");
-                        $stmt->execute([
-                            $order_id,
-                            $price['item_index'],
-                            $price['invoice_price'],
-                            $price['is_postal'],
-                            $price['postal_price']
-                        ]);
-                    }
-    
-                    $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
-                    $stmt->execute([$temp_order_id]);
-                    $stmt = $pdo->prepare("DELETE FROM Temp_Orders WHERE temp_order_id = ?");
-                    $stmt->execute([$temp_order_id]);
-    
-                    $pdo->commit();
-    
-                    respond(true, 'سفارش با موفقیت به سفارش دائمی تبدیل شد.', [
-                        'redirect' => "print_invoice.php?order_id=$order_id"
+                    $stmt->execute([
+                        $order_id,
+                        $price['item_index'],
+                        $price['invoice_price'],
+                        $price['is_postal'],
+                        $price['postal_price']
                     ]);
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    throw new Exception('خطا در تبدیل سفارش: ' . $e->getMessage());
                 }
-                break;
+
+                $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
+                $stmt->execute([$temp_order_id]);
+                $stmt = $pdo->prepare("DELETE FROM Temp_Orders WHERE temp_order_id = ?");
+                $stmt->execute([$temp_order_id]);
+
+                $pdo->commit();
+
+                respond(true, 'سفارش با موفقیت به سفارش دائمی تبدیل شد.', [
+                    'redirect' => "print_invoice.php?order_id=$order_id"
+                ]);
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw new Exception('خطا در تبدیل سفارش: ' . $e->getMessage());
+            }
+            break;
 
         case 'get_temp_order_items':
             $temp_order_id = $_POST['temp_order_id'] ?? '';
