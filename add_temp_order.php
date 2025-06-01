@@ -1,13 +1,12 @@
 <?php
 session_start();
-require_once 'db.php';
-require_once 'header.php';
-
-// بررسی لاگین
 if (!isset($_SESSION['user_id'])) {
     header('Location: index.php');
     exit;
 }
+
+require_once 'db.php';
+require_once 'header.php';
 
 // بررسی نقش ادمین
 $is_admin = ($_SESSION['role'] === 'admin');
@@ -18,7 +17,7 @@ if ($is_admin) {
 
 // بررسی work_month_id
 $work_month_id = $_GET['work_month_id'] ?? '';
-if (!$work_month_id) {
+if (!$work_month_id || !is_numeric($work_month_id)) {
     echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>ماه کاری مشخص نشده است.</div></div>";
     require_once 'footer.php';
     exit;
@@ -27,30 +26,33 @@ if (!$work_month_id) {
 // تنظیم partner1_id
 $partner1_id = $_SESSION['user_id'];
 
-// ذخیره work_month_id در سشن برای ثبت سفارش
-$_SESSION['work_month_id'] = $work_month_id;
+// پاک‌سازی کامل سشن‌های مربوط به سفارش موقت
+unset($_SESSION['temp_order_items']);
+unset($_SESSION['invoice_prices']);
+unset($_SESSION['discount']);
+unset($_SESSION['postal_enabled']);
+unset($_SESSION['postal_price']);
+unset($_SESSION['is_temp_order_in_progress']);
 
-// مقداردهی اولیه سشن‌ها (فقط اگه وجود نداشته باشن)
-if (!isset($_SESSION['temp_order_items'])) {
-    $_SESSION['temp_order_items'] = [];
-}
-if (!isset($_SESSION['discount'])) {
-    $_SESSION['discount'] = 0;
-}
-if (!isset($_SESSION['invoice_prices'])) {
-    $_SESSION['invoice_prices'] = ['postal' => 50000];
-}
-if (!isset($_SESSION['postal_enabled'])) {
-    $_SESSION['postal_enabled'] = false;
-}
-if (!isset($_SESSION['postal_price'])) {
-    $_SESSION['postal_price'] = 50000;
-}
+// تنظیم سشن‌های جدید
+$_SESSION['work_month_id'] = $work_month_id;
+$_SESSION['temp_order_items'] = [];
+$_SESSION['invoice_prices'] = [];
+$_SESSION['discount'] = 0;
+$_SESSION['postal_enabled'] = false;
+$_SESSION['postal_price'] = 50000;
 $_SESSION['is_temp_order_in_progress'] = true;
 
 // گرفتن محصولات برای فرم (بدون فیلتر user_id)
-$stmt = $pdo->query("SELECT product_id, product_name, unit_price FROM Products");
-$products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->query("SELECT product_id, product_name, unit_price FROM Products");
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching products: " . $e->getMessage());
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>خطا در دریافت محصولات.</div></div>";
+    require_once 'footer.php';
+    exit;
+}
 ?>
 
 <div class="container-fluid mt-5">
@@ -256,15 +258,12 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         });
 
         // انتخاب محصول برای ویرایش
-        $('#items_table').on('click', '.edit-item', async function (e) {
+        $('#items_table').on('click', '.edit-item', function (e) {
             e.preventDefault();
             const index = $(this).data('index');
-            const response = await $.post('ajax_handler.php', {
-                action: 'get_temp_order_items',
-                work_month_id: '<?= $work_month_id ?>'
-            }, 'json');
-            if (response.success && response.data.items[index]) {
-                const item = response.data.items[index];
+            const items = <?= json_encode($_SESSION['temp_order_items'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
+            const item = items[index];
+            if (item) {
                 $('#product_name').val(item.product_name);
                 $('#product_id').val(item.product_id);
                 $('#quantity').val(item.quantity);
@@ -276,7 +275,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 $('#edit_item_btn').show();
                 $('#product_name').focus();
             } else {
-                alert('محصول یافت نشد. لطفاً صفحه را رفرش کنید.');
+                alert('هیچ محصولی در لیست وجود ندارد یا محصول حذف شده است.');
             }
         });
 
@@ -284,36 +283,33 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $('#items_table').on('click', '.set-invoice-price', async function (e) {
             e.preventDefault();
             const index = $(this).data('index');
-            const response = await $.post('ajax_handler.php', {
-                action: 'get_temp_order_items',
-                work_month_id: '<?= $work_month_id ?>'
-            }, 'json');
-            if (!response.success || !response.data.items[index]) {
-                alert('آیتم مورد نظر یافت نشد. لطفاً صفحه را رفرش کنید.');
+            const items = <?= json_encode($_SESSION['temp_order_items'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
+            if (!items[index]) {
+                alert('هیچ محصولی در لیست وجود ندارد یا محصول حذف شده است.');
                 return;
             }
-            const item = response.data.items[index];
+            const item = items[index];
             const defaultPrice = Number(item.unit_price) + Number(item.extra_sale);
             const invoicePrice = prompt('قیمت فاکتور واحد را وارد کنید (تومان):', defaultPrice);
             if (invoicePrice !== null && !isNaN(invoicePrice) && invoicePrice >= 0) {
-                const priceResponse = await $.post('ajax_handler.php', {
+                const response = await $.post('ajax_handler.php', {
                     action: 'set_invoice_price',
                     index: index,
                     invoice_price: invoicePrice,
                     work_month_id: '<?= $work_month_id ?>'
                 }, 'json');
-                if (priceResponse.success) {
+                if (response.success) {
                     await $.post('ajax_handler.php', {
                         action: 'sync_temp_items',
-                        items: JSON.stringify(response.data.items),
+                        items: JSON.stringify(items),
                         work_month_id: '<?= $work_month_id ?>'
                     }, 'json');
-                    alert(priceResponse.message);
-                    priceResponse.data.invoice_prices = priceResponse.data.invoice_prices || {};
-                    priceResponse.data.invoice_prices[index] = Number(invoicePrice);
-                    renderItemsTable(priceResponse.data);
+                    alert(response.message);
+                    response.data.invoice_prices = response.data.invoice_prices || {};
+                    response.data.invoice_prices[index] = Number(invoicePrice);
+                    renderItemsTable(response.data);
                 } else {
-                    alert(priceResponse.message);
+                    alert(response.message);
                 }
             }
         });
