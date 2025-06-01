@@ -1,56 +1,46 @@
 <?php
 session_start();
+require_once 'db.php';
+require_once 'header.php';
+
+// بررسی لاگین
 if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+    header('Location: index.php');
     exit;
 }
 
-require_once 'header.php';
-require_once 'db.php';
-
+// بررسی نقش ادمین
 $is_admin = ($_SESSION['role'] === 'admin');
 if ($is_admin) {
-    header("Location: orders.php");
-    exit;
-}
-$current_user_id = $_SESSION['user_id'];
-
-$work_month_id = $_GET['work_month_id'] ?? '';
-if (!$work_month_id) {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>ماه کاری مشخص نشده است.</div></div>";
-    require_once 'footer.php';
+    header('Location: orders.php');
     exit;
 }
 
-// بررسی اینکه کاربر همکار1 است
-$stmt = $pdo->prepare("
-    SELECT p.user_id1
-    FROM Work_Details wd
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND p.user_id1 = ?
-    LIMIT 1
-");
-$stmt->execute([$work_month_id, $current_user_id]);
-$partner = $stmt->fetch(PDO::FETCH_ASSOC);
+// تنظیم partner1_id
+$partner1_id = $_SESSION['user_id'];
 
-if (!$partner) {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>شما به‌عنوان همکار 1 دسترسی ندارید.</div></div>";
-    require_once 'footer.php';
-    exit;
+// مقداردهی اولیه سشن‌ها (فقط اگه وجود نداشته باشن)
+if (!isset($_SESSION['temp_order_items'])) {
+    $_SESSION['temp_order_items'] = [];
 }
-
-$partner1_id = $partner['user_id1'];
-
-// پاکسازی سشن‌های قبلی
-unset($_SESSION['temp_order_items']);
-unset($_SESSION['discount']);
-unset($_SESSION['invoice_prices']);
-$_SESSION['temp_order_items'] = [];
-$_SESSION['discount'] = 0;
-$_SESSION['invoice_prices'] = ['postal' => 50000];
+if (!isset($_SESSION['discount'])) {
+    $_SESSION['discount'] = 0;
+}
+if (!isset($_SESSION['invoice_prices'])) {
+    $_SESSION['invoice_prices'] = ['postal' => 50000];
+}
+if (!isset($_SESSION['postal_enabled'])) {
+    $_SESSION['postal_enabled'] = false;
+}
+if (!isset($_SESSION['postal_price'])) {
+    $_SESSION['postal_price'] = 50000;
+}
 $_SESSION['is_temp_order_in_progress'] = true;
-$_SESSION['postal_enabled'] = false;
-$_SESSION['postal_price'] = 50000;
+
+// گرفتن محصولات برای فرم
+$stmt = $pdo->prepare("SELECT product_id, product_name, unit_price FROM Products WHERE user_id = ?");
+$stmt->execute([$partner1_id]);
+$products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <div class="container-fluid mt-5">
