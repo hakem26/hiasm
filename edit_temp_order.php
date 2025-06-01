@@ -77,12 +77,19 @@ try {
     $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ? ORDER BY item_index ASC");
     $stmt->execute([$temp_order_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($items as &$item) {
-        $item['item_index'] = (int) ($item['item_index'] ?? array_search($item, $items));
+    // دیباگ: لاگ تعداد آیتم‌ها
+    file_put_contents('debug_items.log', "Loaded items for temp_order_id $temp_order_id: " . print_r($items, true) . "\n", FILE_APPEND);
+    if (empty($items)) {
+        error_log("No items found for temp_order_id: $temp_order_id");
     }
+    foreach ($items as $index => &$item) {
+        $item['item_index'] = (int) ($item['item_index'] ?? $index);
+    }
+    unset($item); // شکستن رفرنس
 } catch (PDOException $e) {
     error_log("Error fetching temp order items: " . $e->getMessage());
     $items = [];
+    file_put_contents('debug_items.log', "Error fetching items for temp_order_id $temp_order_id: " . $e->getMessage() . "\n", FILE_APPEND);
 }
 
 // لود قیمت‌های فاکتور
@@ -295,6 +302,7 @@ $_SESSION['is_temp_order_in_progress'] = true;
     }
 
     function renderItemsTable(data) {
+        console.log('renderItemsTable data:', data); // دیباگ
         const itemsTable = document.getElementById('items_table');
         const totalAmountDisplay = document.getElementById('total_amount_display');
         const finalAmountDisplay = document.getElementById('final_amount_display');
@@ -304,6 +312,7 @@ $_SESSION['is_temp_order_in_progress'] = true;
         const postalEnabled = data.postal_enabled || false;
         const postalPrice = data.postal_price || 50000;
 
+        // بقیه تابع بدون تغییر
         if (!items || items.length === 0) {
             itemsTable.innerHTML = '<p>هیچ محصولی در سفارش وجود ندارد.</p>';
             totalAmountDisplay.textContent = '0 تومان';
