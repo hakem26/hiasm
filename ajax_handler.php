@@ -1014,6 +1014,56 @@ try {
             ]);
             break;
 
+        case 'add_temp_item':
+            $customer_name = trim($_POST['customer_name'] ?? '');
+            $product_id = $_POST['product_id'] ?? '';
+            $quantity = (int) ($_POST['quantity'] ?? 0);
+            $unit_price = (float) ($_POST['unit_price'] ?? 0);
+            $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
+            $discount = (float) ($_POST['discount'] ?? 0);
+            $partner1_id = $_POST['partner1_id'] ?? '';
+
+            if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || !$partner1_id || $extra_sale < 0) {
+                respond(false, 'لطفاً تمام فیلدها را پر کنید و اضافه فروش منفی نباشد.');
+            }
+
+            $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
+            $stmt->execute([$product_id]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$product) {
+                respond(false, 'محصول یافت نشد.');
+            }
+
+            $items = $_SESSION['temp_order_items'] ?? [];
+            if ($items && array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
+                respond(false, 'این محصول قبلاً در فاکتور ثبت شده است. برای ویرایش از دکمه ویرایش استفاده کنید.');
+            }
+
+            $adjusted_price = $unit_price + $extra_sale;
+            $items[] = [
+                'product_id' => $product_id,
+                'product_name' => $product['product_name'],
+                'quantity' => $quantity,
+                'unit_price' => $unit_price,
+                'extra_sale' => $extra_sale,
+                'total_price' => $quantity * $adjusted_price
+            ];
+
+            $_SESSION['temp_order_items'] = $items;
+            $total_amount = array_sum(array_column($items, 'total_price'));
+            $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['postal_price'] ?? 50000) : 0);
+
+            respond(true, 'محصول با موفقیت اضافه شد.', [
+                'items' => $items,
+                'total_amount' => $total_amount,
+                'discount' => $discount,
+                'final_amount' => $final_amount,
+                'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+                'postal_price' => $_SESSION['postal_price'] ?? 50000
+            ]);
+            break;
+
         case 'delete_temp_item':
             $index = (int) ($_POST['index'] ?? -1);
             $partner1_id = $_POST['partner1_id'] ?? '';
