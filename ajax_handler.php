@@ -162,10 +162,14 @@ try {
 
         case 'update_discount':
             $discount = (float) ($_POST['discount'] ?? 0);
+            if ($discount < 0) {
+                respond(false, 'تخفیف نمی‌تواند منفی باشد.');
+            }
 
-            $items = $_SESSION['order_items'] ?? [];
+            $items = $_SESSION['temp_order_items'] ?? [];
             $total_amount = array_sum(array_column($items, 'total_price'));
-            $final_amount = $total_amount - $discount;
+            $postal_price = $_SESSION['postal_enabled'] ? ($_SESSION['postal_price'] ?? 50000) : 0;
+            $final_amount = $total_amount - $discount + $postal_price;
 
             $_SESSION['discount'] = $discount;
 
@@ -173,7 +177,9 @@ try {
                 'items' => $items,
                 'total_amount' => $total_amount,
                 'discount' => $discount,
-                'final_amount' => $final_amount
+                'final_amount' => $final_amount,
+                'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+                'postal_price' => $postal_price
             ]);
             break;
 
@@ -435,39 +441,58 @@ try {
             $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
             $order_id = $_POST['order_id'] ?? '';
 
-            if ($index === '' || $invoice_price < 0) {
-                respond(false, 'مقدار نامعتبر برای ایندکس یا قیمت فاکتور.');
+            if ($index === '') {
+                respond(false, 'ایندکس نامعتبر است.');
+            }
+
+            $items = $_SESSION['temp_order_items'] ?? [];
+            if ($index !== 'postal' && !isset($items[$index])) {
+                respond(false, 'آیتم مورد نظر یافت نشد.');
+            }
+
+            // تنظیم قیمت پیش‌فرض برای آیتم‌ها
+            if ($index !== 'postal' && $invoice_price === 0 && isset($items[$index])) {
+                $invoice_price = $items[$index]['unit_price'] + $items[$index]['extra_sale'];
             }
 
             $_SESSION['invoice_prices'][$index] = $invoice_price;
 
-            if ($order_id) { // برای edit_order.php
+            if ($order_id) {
                 if ($index === 'postal') {
                     $stmt = $pdo->prepare("
-                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                        VALUES (?, -1, 0, TRUE, ?)
-                        ON DUPLICATE KEY UPDATE postal_price = ?
-                    ");
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, -1, 0, TRUE, ?)
+                ON DUPLICATE KEY UPDATE postal_price = ?
+            ");
                     $stmt->execute([$order_id, $invoice_price, $invoice_price]);
                     $_SESSION['postal_price'] = $invoice_price;
+                    $_SESSION['postal_enabled'] = true;
                 } else {
-                    $items = $_SESSION['edit_order_items'] ?? [];
-                    if (!isset($items[$index])) {
-                        respond(false, 'آیتم مورد نظر یافت نشد.');
-                    }
                     $stmt = $pdo->prepare("
-                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
-                        VALUES (?, ?, ?, FALSE)
-                        ON DUPLICATE KEY UPDATE invoice_price = ?
-                    ");
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
+                VALUES (?, ?, ?, FALSE)
+                ON DUPLICATE KEY UPDATE invoice_price = ?
+            ");
                     $stmt->execute([$order_id, $index, $invoice_price, $invoice_price]);
                 }
-            } elseif ($index === 'postal') { // برای add_order.php
+            } elseif ($index === 'postal') {
                 $_SESSION['postal_price'] = $invoice_price;
-                $_SESSION['postal_enabled'] = true; // فعال کردن ارسال پستی
+                $_SESSION['postal_enabled'] = true;
             }
 
-            respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.');
+            $total_amount = array_sum(array_column($items, 'total_price'));
+            $discount = $_SESSION['discount'] ?? 0;
+            $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
+
+            respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.', [
+                'items' => $items,
+                'total_amount' => $total_amount,
+                'discount' => $discount,
+                'final_amount' => $final_amount,
+                'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
+                'postal_price' => $_SESSION['postal_price'] ?? 50000,
+                'invoice_price' => $invoice_price
+            ]);
             break;
 
         case 'set_postal_option':
