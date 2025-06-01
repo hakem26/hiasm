@@ -74,22 +74,28 @@ $partner1_id = $temp_order['user_id1'];
 
 // لود آیتم‌های سفارش
 try {
-    $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ? ORDER BY item_index ASC");
-    $stmt->execute([$temp_order_id]);
+    $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
+    $stmt->bindValue(1, (int)$temp_order_id, PDO::PARAM_INT);
+    $stmt->execute();
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    // دیباگ: لاگ تعداد آیتم‌ها
-    file_put_contents('debug_items.log', "Loaded items for temp_order_id $temp_order_id: " . print_r($items, true) . "\n", FILE_APPEND);
+    // دیباگ قوی‌تر
+    $debug_data = [
+        'temp_order_id' => $temp_order_id,
+        'items_count' => count($items),
+        'items' => $items
+    ];
+    file_put_contents('debug_items.log', print_r($debug_data, true) . "\n\n", FILE_APPEND);
     if (empty($items)) {
         error_log("No items found for temp_order_id: $temp_order_id");
     }
     foreach ($items as $index => &$item) {
-        $item['item_index'] = (int) ($item['item_index'] ?? $index);
+        $item['item_index'] = (int)($item['item_index'] ?? $index);
     }
     unset($item); // شکستن رفرنس
 } catch (PDOException $e) {
     error_log("Error fetching temp order items: " . $e->getMessage());
-    $items = [];
     file_put_contents('debug_items.log', "Error fetching items for temp_order_id $temp_order_id: " . $e->getMessage() . "\n", FILE_APPEND);
+    $items = [];
 }
 
 // لود قیمت‌های فاکتور
@@ -102,10 +108,10 @@ try {
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         if ($row['is_postal']) {
             $postal_enabled = true;
-            $postal_price = (float) ($row['postal_price'] ?? 50000);
+            $postal_price = (float)($row['postal_price'] ?? 50000);
             $invoice_prices['postal'] = $postal_price;
         } else {
-            $invoice_prices[(int) $row['item_index']] = (float) $row['invoice_price'];
+            $invoice_prices[(int)$row['item_index']] = (float)$row['invoice_price'];
         }
     }
 } catch (PDOException $e) {
@@ -118,7 +124,7 @@ try {
 // تنظیم سشن
 $_SESSION['edit_temp_order_items'] = $items;
 $_SESSION['edit_temp_order_id'] = $temp_order_id;
-$_SESSION['edit_temp_order_discount'] = (float) ($temp_order['discount'] ?? 0);
+$_SESSION['edit_temp_order_discount'] = (float)($temp_order['discount'] ?? 0);
 $_SESSION['invoice_prices'] = $invoice_prices;
 $_SESSION['postal_enabled'] = $postal_enabled;
 $_SESSION['postal_price'] = $postal_price;
@@ -385,16 +391,19 @@ $_SESSION['is_temp_order_in_progress'] = true;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        let initialItems = <?= json_encode($items, JSON_UNESCAPED_UNICODE) ?>;
-        renderItemsTable({
-            items: initialItems,
-            total_amount: <?= $temp_order['total_amount'] ?>,
-            discount: <?= $temp_order['discount'] ?>,
-            final_amount: <?= $temp_order['final_amount'] ?>,
-            postal_enabled: <?= json_encode($postal_enabled) ?>,
-            postal_price: <?= $postal_price ?>
-        });
+    let initialItems = <?= json_encode($items ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    console.log('Initial items:', initialItems); // دیباگ
+    renderItemsTable({
+        items: initialItems,
+        total_amount: <?= json_encode($temp_order['total_amount'] ?? 0) ?>,
+        discount: <?= json_encode($temp_order['discount'] ?? 0) ?>,
+        final_amount: <?= json_encode($temp_order['final_amount'] ?? 0) ?>,
+        postal_enabled: <?= json_encode($postal_enabled) ?>,
+        postal_price: <?= json_encode($postal_price) ?>,
+        invoice_prices: <?= json_encode($invoice_prices ?? []) ?>
+    });
 
+    // بقیه کد DOMContentLoaded بدون تغییر
         $('#product_name').on('input', function () {
             let query = $(this).val();
             if (query.length >= 3) {
