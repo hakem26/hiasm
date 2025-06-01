@@ -436,10 +436,11 @@ try {
             ]);
             break;
 
-        case 'set_invoice_price':
+        case 'set_invoice_price': // temp
             $index = $_POST['index'] ?? '';
             $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
             $order_id = $_POST['order_id'] ?? '';
+            $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
 
             if ($index === '') {
                 respond(false, 'ایندکس نامعتبر است.');
@@ -491,7 +492,8 @@ try {
                 'final_amount' => $final_amount,
                 'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
                 'postal_price' => $_SESSION['postal_price'] ?? 50000,
-                'invoice_price' => $invoice_price
+                'invoice_price' => $invoice_price,
+                'index' => $index
             ]);
             break;
 
@@ -988,7 +990,7 @@ try {
             respond(true, 'قیمت‌های فاکتور با موفقیت پاک شدند.');
             break;
 
-        case 'edit_temp_item':
+        case 'edit_temp_item': // temp
             $customer_name = trim($_POST['customer_name'] ?? '');
             $product_id = $_POST['product_id'] ?? '';
             $quantity = (int) ($_POST['quantity'] ?? 0);
@@ -997,6 +999,7 @@ try {
             $discount = (float) ($_POST['discount'] ?? 0);
             $index = (int) ($_POST['index'] ?? -1);
             $partner1_id = $_POST['partner1_id'] ?? '';
+            $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
 
             if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || $index < 0 || !$partner1_id) {
                 respond(false, 'لطفاً تمام فیلدها را پر کنید.');
@@ -1112,55 +1115,6 @@ try {
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
 
             respond(true, 'آیتم با موفقیت حذف شد.', [
-                'items' => $items,
-                'total_amount' => $total_amount,
-                'discount' => $discount,
-                'final_amount' => $final_amount,
-                'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
-                'postal_price' => $_SESSION['invoice_prices']['postal'] ?? 50000
-            ]);
-            break;
-
-        case 'edit_temp_item':
-            $customer_name = $_POST['customer_name'] ?? '';
-            $product_id = $_POST['product_id'] ?? '';
-            $quantity = (int) ($_POST['quantity'] ?? 0);
-            $unit_price = (float) ($_POST['unit_price'] ?? 0);
-            $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-            $discount = (float) ($_POST['discount'] ?? 0);
-            $index = (int) ($_POST['index'] ?? -1);
-            $partner1_id = $_POST['partner1_id'] ?? '';
-
-            if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0 || $index < 0 || !$partner1_id) {
-                respond(false, 'لطفاً تمام فیلدها را پر کنید.');
-            }
-
-            $items = $_SESSION['temp_order_items'] ?? [];
-            if (!isset($items[$index])) {
-                respond(false, 'آیتم مورد نظر یافت نشد.');
-            }
-
-            $stmt = $pdo->prepare("SELECT product_name FROM Products WHERE product_id = ?");
-            $stmt->execute([$product_id]);
-            $product = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$product) {
-                respond(false, 'محصول یافت نشد.');
-            }
-
-            $items[$index] = [
-                'product_id' => $product_id,
-                'product_name' => $product['product_name'],
-                'quantity' => $quantity,
-                'unit_price' => $unit_price,
-                'extra_sale' => $extra_sale,
-                'total_price' => $quantity * ($unit_price + $extra_sale)
-            ];
-
-            $_SESSION['temp_order_items'] = $items;
-            $total_amount = array_sum(array_column($items, 'total_price'));
-            $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? ($_SESSION['invoice_prices']['postal'] ?? 50000) : 0);
-
-            respond(true, 'آیتم با موفقیت ویرایش شد.', [
                 'items' => $items,
                 'total_amount' => $total_amount,
                 'discount' => $discount,

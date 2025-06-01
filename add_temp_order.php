@@ -144,6 +144,9 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         } else {
                             $('#product_suggestions').html(response).show();
                         }
+                    },
+                    error: function () {
+                        $('#product_suggestions').hide();
                     }
                 });
             } else {
@@ -184,7 +187,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 unit_price: $('#unit_price').val(),
                 extra_sale: $('#extra_sale').val() || 0,
                 discount: $('#discount').val() || 0,
-                partner1_id: '<?= $partner1_id ?>'
+                partner1_id: '<?= $partner1_id ?>',
+                work_month_id: '<?= $work_month_id ?>'
             };
 
             $.post('ajax_handler.php', data, function (response) {
@@ -194,8 +198,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 } else {
                     alert(response.message);
                 }
-            }, 'json').fail(function () {
-                alert('خطای سرور رخ داد.');
+            }, 'json').fail(function (xhr, status, error) {
+                alert('خطای سرور: ' + error);
             });
         });
 
@@ -211,7 +215,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 extra_sale: $('#extra_sale').val() || 0,
                 discount: $('#discount').val() || 0,
                 index: $('#edit_index').val(),
-                partner1_id: '<?= $partner1_id ?>'
+                partner1_id: '<?= $partner1_id ?>',
+                work_month_id: '<?= $work_month_id ?>'
             };
 
             $.post('ajax_handler.php', data, function (response) {
@@ -223,33 +228,36 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 } else {
                     alert(response.message);
                 }
-            }, 'json').fail(function () {
-                alert('خطای سرور رخ داد.');
+            }, 'json').fail(function (xhr, status, error) {
+                alert('خطای سرور: ' + error);
             });
         });
 
         // حذف محصول
-        $('#items_table').on('click', '.delete-item', function () {
+        $('#items_table').on('click', '.delete-item', function (e) {
+            e.preventDefault();
             let index = $(this).data('index');
             if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
                 $.post('ajax_handler.php', {
                     action: 'delete_temp_item',
                     index: index,
-                    partner1_id: '<?= $partner1_id ?>'
+                    partner1_id: '<?= $partner1_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
                 }, function (response) {
                     if (response.success) {
                         renderItemsTable(response.data);
                     } else {
                         alert(response.message);
                     }
-                }, 'json').fail(function () {
-                    alert('خطای سرور رخ داد.');
+                }, 'json').fail(function (xhr, status, error) {
+                    alert('خطای سرور: ' + error);
                 });
             }
         });
 
         // انتخاب محصول برای ویرایش
-        $('#items_table').on('click', '.edit-item', function () {
+        $('#items_table').on('click', '.edit-item', function (e) {
+            e.preventDefault();
             let index = $(this).data('index');
             let items = <?= json_encode($_SESSION['temp_order_items'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
             let item = items[index];
@@ -267,7 +275,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         });
 
         // تنظیم قیمت فاکتور
-        $('#items_table').on('click', '.set-invoice-price', function () {
+        $('#items_table').on('click', '.set-invoice-price', function (e) {
+            e.preventDefault();
             let index = $(this).data('index');
             let items = <?= json_encode($_SESSION['temp_order_items'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
             let default_price = items[index] ? (items[index].unit_price + items[index].extra_sale) : 0;
@@ -276,7 +285,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 $.post('ajax_handler.php', {
                     action: 'set_invoice_price',
                     index: index,
-                    invoice_price: invoice_price
+                    invoice_price: invoice_price,
+                    work_month_id: '<?= $work_month_id ?>'
                 }, function (response) {
                     if (response.success) {
                         alert(response.message);
@@ -284,8 +294,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     } else {
                         alert(response.message);
                     }
-                }, 'json').fail(function () {
-                    alert('خطای سرور رخ داد.');
+                }, 'json').fail(function (xhr, status, error) {
+                    alert('خطای سرور: ' + error);
                 });
             }
         });
@@ -294,15 +304,16 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $('#discount').on('input', function () {
             $.post('ajax_handler.php', {
                 action: 'update_discount',
-                discount: $(this).val() || 0
+                discount: $(this).val() || 0,
+                work_month_id: '<?= $work_month_id ?>'
             }, function (response) {
                 if (response.success) {
                     renderItemsTable(response.data);
                 } else {
                     alert(response.message);
                 }
-            }, 'json').fail(function () {
-                alert('خطای سرور رخ داد.');
+            }, 'json').fail(function (xhr, status, error) {
+                alert('خطای سرور: ' + error);
             });
         });
 
@@ -313,7 +324,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $.post('ajax_handler.php', {
                 action: 'set_postal_option',
                 enable_postal: enable_postal,
-                postal_price: $('#postal_price').val() || 50000
+                postal_price: $('#postal_price').val() || 50000,
+                work_month_id: '<?= $work_month_id ?>'
             }, function (response) {
                 if (response.success) {
                     renderItemsTable(response.data);
@@ -321,8 +333,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 } else {
                     alert(response.message);
                 }
-            }, 'json').fail(function () {
-                alert('خطای سرور رخ داد.');
+            }, 'json').fail(function (xhr, status, error) {
+                alert('خطای سرور: ' + error);
             });
         });
 
@@ -330,15 +342,16 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $.post('ajax_handler.php', {
                 action: 'set_invoice_price',
                 index: 'postal',
-                invoice_price: $(this).val() || 50000
+                invoice_price: $(this).val() || 50000,
+                work_month_id: '<?= $work_month_id ?>'
             }, function (response) {
                 if (response.success) {
                     $('#postal_price_display').text(Number($(this).val()).toLocaleString('fa') + ' تومان');
                 } else {
                     alert(response.message);
                 }
-            }, 'json').fail(function () {
-                alert('خطای سرور رخ داد.');
+            }, 'json').fail(function (xhr, status, error) {
+                alert('خطای سرور: ' + error);
             });
         });
 
@@ -349,7 +362,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 action: 'finalize_temp_order',
                 customer_name: $('#customer_name').val(),
                 discount: $('#discount').val() || 0,
-                partner1_id: '<?= $partner1_id ?>'
+                partner1_id: '<?= $partner1_id ?>',
+                work_month_id: '<?= $work_month_id ?>'
             };
 
             $.post('ajax_handler.php', data, function (response) {
@@ -359,8 +373,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 } else {
                     alert(response.message);
                 }
-            }, 'json').fail(function () {
-                alert('خطای سرور رخ داد.');
+            }, 'json').fail(function (xhr, status, error) {
+                alert('خطای سرور: ' + error);
             });
         });
 
