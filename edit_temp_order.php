@@ -296,10 +296,10 @@ $_SESSION['is_temp_order_in_progress'] = true;
         const totalAmountDisplay = document.getElementById('total_amount_display');
         const finalAmountDisplay = document.getElementById('final_amount_display');
         const postalPriceDisplay = document.getElementById('postal_price_display');
-        const invoicePrices = <?= json_encode($invoice_prices, JSON_UNESCAPED_UNICODE) ?> || {};
+        const invoicePrices = data.invoice_prices || {};
         const items = data.items || [];
-        const postalEnabled = data.postal_enabled || <?= $postal_enabled ? 'true' : 'false' ?>;
-        const postalPrice = data.postal_price || <?= $postal_price ?>;
+        const postalEnabled = data.postal_enabled || false;
+        const postalPrice = data.postal_price || 50000;
 
         if (!items || items.length === 0) {
             itemsTable.innerHTML = '<p>هیچ محصولی در سفارش وجود ندارد.</p>';
@@ -526,7 +526,16 @@ $_SESSION['is_temp_order_in_progress'] = true;
                     };
                     const response = await sendRequest('ajax_handler.php', data);
                     if (response.success) {
+                        // آپدیت سشن با قیمت‌های جدید
+                        await sendRequest('ajax_handler.php', {
+                            action: 'sync_edit_temp_items',
+                            items: JSON.stringify(items),
+                            temp_order_id: '<?= $temp_order_id ?>',
+                            work_month_id: '<?= $work_month_id ?>'
+                        });
                         alert(response.message);
+                        response.data.invoice_prices = response.data.invoice_prices || {};
+                        response.data.invoice_prices[index] = invoicePrice;
                         renderItemsTable(response.data);
                     } else {
                         alert(response.message);
@@ -609,7 +618,7 @@ $_SESSION['is_temp_order_in_progress'] = true;
             const response = await sendRequest('ajax_handler.php', data);
             if (response.success) {
                 alert(response.message);
-                window.location.href = response.data.redirect + '?work_month_id=<?= $work_month_id ?>';
+                window.location.href = response.data.redirect;
             } else {
                 alert(response.message);
             }

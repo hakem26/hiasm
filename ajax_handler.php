@@ -469,6 +469,8 @@ try {
                 $invoice_price = $items[$index]['unit_price'] + $items[$index]['extra_sale'];
             }
 
+            // ذخیره قیمت فاکتور
+            $_SESSION['invoice_prices'] = $_SESSION['invoice_prices'] ?? [];
             $_SESSION['invoice_prices'][$index] = $invoice_price;
 
             if ($order_id) {
@@ -503,6 +505,24 @@ try {
             $discount = $_SESSION['edit_temp_order_discount'] ?? ($_SESSION['discount'] ?? 0);
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
 
+            // لود تمام قیمت‌های فاکتور برای پاسخ
+            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
+            if ($order_id) {
+                try {
+                    $stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ?");
+                    $stmt->execute([$order_id]);
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        if ($row['is_postal']) {
+                            $invoice_prices['postal'] = $row['postal_price'];
+                        } else {
+                            $invoice_prices[$row['item_index']] = $row['invoice_price'];
+                        }
+                    }
+                } catch (PDOException $e) {
+                    error_log("Error fetching invoice prices: " . $e->getMessage());
+                }
+            }
+
             respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.', [
                 'items' => $items,
                 'total_amount' => $total_amount,
@@ -510,7 +530,7 @@ try {
                 'final_amount' => $final_amount,
                 'postal_enabled' => $_SESSION['postal_enabled'] ?? false,
                 'postal_price' => $_SESSION['postal_price'] ?? 50000,
-                'invoice_price' => $invoice_price,
+                'invoice_prices' => $invoice_prices,
                 'index' => $index
             ]);
             break;
