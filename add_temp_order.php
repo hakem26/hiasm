@@ -16,8 +16,19 @@ if ($is_admin) {
     exit;
 }
 
+// بررسی work_month_id
+$work_month_id = $_GET['work_month_id'] ?? '';
+if (!$work_month_id) {
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>ماه کاری مشخص نشده است.</div></div>";
+    require_once 'footer.php';
+    exit;
+}
+
 // تنظیم partner1_id
 $partner1_id = $_SESSION['user_id'];
+
+// ذخیره work_month_id در سشن برای ثبت سفارش
+$_SESSION['work_month_id'] = $work_month_id;
 
 // مقداردهی اولیه سشن‌ها (فقط اگه وجود نداشته باشن)
 if (!isset($_SESSION['temp_order_items'])) {
@@ -37,9 +48,8 @@ if (!isset($_SESSION['postal_price'])) {
 }
 $_SESSION['is_temp_order_in_progress'] = true;
 
-// گرفتن محصولات برای فرم
-$stmt = $pdo->prepare("SELECT product_id, product_name, unit_price FROM Products WHERE user_id = ?");
-$stmt->execute([$partner1_id]);
+// گرفتن محصولات برای فرم (بدون فیلتر user_id)
+$stmt = $pdo->query("SELECT product_id, product_name, unit_price FROM Products");
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 

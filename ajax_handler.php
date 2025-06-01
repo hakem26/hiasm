@@ -1174,8 +1174,9 @@ try {
             $customer_name = trim($_POST['customer_name'] ?? '');
             $discount = (float) ($_POST['discount'] ?? 0);
             $partner1_id = $_POST['partner1_id'] ?? '';
+            $work_month_id = $_SESSION['work_month_id'] ?? '';
 
-            if (!$customer_name || !$partner1_id) {
+            if (!$customer_name || !$partner1_id || !$work_month_id) {
                 respond(false, 'لطفاً تمام فیلدها را پر کنید.');
             }
 
@@ -1191,10 +1192,10 @@ try {
             $pdo->beginTransaction();
             try {
                 $stmt = $pdo->prepare("
-            INSERT INTO Temp_Orders (customer_name, total_amount, discount, final_amount, user_id)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO Temp_Orders (customer_name, total_amount, discount, final_amount, user_id, work_month_id)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
-                $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $partner1_id]);
+                $stmt->execute([$customer_name, $total_amount, $discount, $final_amount, $partner1_id, $work_month_id]);
                 $temp_order_id = $pdo->lastInsertId();
 
                 foreach ($items as $item) {
@@ -1235,6 +1236,7 @@ try {
                 unset($_SESSION['invoice_prices']);
                 unset($_SESSION['postal_enabled']);
                 unset($_SESSION['postal_price']);
+                unset($_SESSION['work_month_id']);
                 $_SESSION['is_temp_order_in_progress'] = false;
 
                 respond(true, 'سفارش موقت با موفقیت ثبت شد.', [
