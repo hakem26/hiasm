@@ -256,12 +256,15 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         });
 
         // انتخاب محصول برای ویرایش
-        $('#items_table').on('click', '.edit-item', function (e) {
+        $('#items_table').on('click', '.edit-item', async function (e) {
             e.preventDefault();
-            let index = $(this).data('index');
-            let items = <?= json_encode($_SESSION['temp_order_items'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
-            let item = items[index];
-            if (item) {
+            const index = $(this).data('index');
+            const response = await $.post('ajax_handler.php', {
+                action: 'get_temp_order_items',
+                work_month_id: '<?= $work_month_id ?>'
+            }, 'json');
+            if (response.success && response.data.items[index]) {
+                const item = response.data.items[index];
                 $('#product_name').val(item.product_name);
                 $('#product_id').val(item.product_id);
                 $('#quantity').val(item.quantity);
@@ -271,32 +274,47 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 $('#edit_index').val(index);
                 $('#add_item_btn').hide();
                 $('#edit_item_btn').show();
+                $('#product_name').focus();
+            } else {
+                alert('محصول یافت نشد. لطفاً صفحه را رفرش کنید.');
             }
         });
 
         // تنظیم قیمت فاکتور
-        $('#items_table').on('click', '.set-invoice-price', function (e) {
+        $('#items_table').on('click', '.set-invoice-price', async function (e) {
             e.preventDefault();
-            let index = $(this).data('index');
-            let items = <?= json_encode($_SESSION['temp_order_items'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
-            let default_price = items[index] ? (items[index].unit_price + items[index].extra_sale) : 0;
-            let invoice_price = prompt('قیمت فاکتور را وارد کنید (تومان):', default_price);
-            if (invoice_price !== null && !isNaN(invoice_price) && invoice_price >= 0) {
-                $.post('ajax_handler.php', {
+            const index = $(this).data('index');
+            const response = await $.post('ajax_handler.php', {
+                action: 'get_temp_order_items',
+                work_month_id: '<?= $work_month_id ?>'
+            }, 'json');
+            if (!response.success || !response.data.items[index]) {
+                alert('آیتم مورد نظر یافت نشد. لطفاً صفحه را رفرش کنید.');
+                return;
+            }
+            const item = response.data.items[index];
+            const defaultPrice = Number(item.unit_price) + Number(item.extra_sale);
+            const invoicePrice = prompt('قیمت فاکتور واحد را وارد کنید (تومان):', defaultPrice);
+            if (invoicePrice !== null && !isNaN(invoicePrice) && invoicePrice >= 0) {
+                const priceResponse = await $.post('ajax_handler.php', {
                     action: 'set_invoice_price',
                     index: index,
-                    invoice_price: invoice_price,
+                    invoice_price: invoicePrice,
                     work_month_id: '<?= $work_month_id ?>'
-                }, function (response) {
-                    if (response.success) {
-                        alert(response.message);
-                        renderItemsTable(response.data);
-                    } else {
-                        alert(response.message);
-                    }
-                }, 'json').fail(function (xhr, status, error) {
-                    alert('خطای سرور: ' + error);
-                });
+                }, 'json');
+                if (priceResponse.success) {
+                    await $.post('ajax_handler.php', {
+                        action: 'sync_temp_items',
+                        items: JSON.stringify(response.data.items),
+                        work_month_id: '<?= $work_month_id ?>'
+                    }, 'json');
+                    alert(priceResponse.message);
+                    priceResponse.data.invoice_prices = priceResponse.data.invoice_prices || {};
+                    priceResponse.data.invoice_prices[index] = Number(invoicePrice);
+                    renderItemsTable(priceResponse.data);
+                } else {
+                    alert(priceResponse.message);
+                }
             }
         });
 

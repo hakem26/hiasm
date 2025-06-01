@@ -441,19 +441,21 @@ try {
             $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
             $order_id = $_POST['order_id'] ?? '';
             $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
+            $is_edit = isset($_SESSION['edit_temp_order_id']) && $_SESSION['edit_temp_order_id'] == $order_id;
 
             if ($index === '' || !$work_month_id) {
                 respond(false, 'پارامترهای نامعتبر.');
             }
 
             // لود آیتم‌ها از سشن یا دیتابیس
-            $items = $_SESSION['edit_temp_order_items'] ?? ($_SESSION['temp_order_items'] ?? []);
+            $session_key = $is_edit ? 'edit_temp_order_items' : 'temp_order_items';
+            $items = $_SESSION[$session_key] ?? [];
             if ($index !== 'postal' && empty($items) && $order_id) {
                 try {
                     $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
                     $stmt->execute([$order_id]);
                     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    $_SESSION['edit_temp_order_items'] = $items;
+                    $_SESSION[$session_key] = $items;
                 } catch (PDOException $e) {
                     error_log("Error fetching items: " . $e->getMessage());
                     respond(false, 'خطا در دریافت آیتم‌ها.');
@@ -502,25 +504,27 @@ try {
             }
 
             $total_amount = array_sum(array_column($items, 'total_price'));
-            $discount = $_SESSION['edit_temp_order_discount'] ?? ($_SESSION['discount'] ?? 0);
+            $discount = $_SESSION[$is_edit ? 'edit_temp_order_discount' : 'discount'] ?? 0;
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
 
             // لود تمام قیمت‌های فاکتور برای پاسخ
-            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
+            $invoice_prices = [];
             if ($order_id) {
                 try {
                     $stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ?");
                     $stmt->execute([$order_id]);
                     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                         if ($row['is_postal']) {
-                            $invoice_prices['postal'] = $row['postal_price'];
+                            $invoice_prices['postal'] = (float) ($row['postal_price'] ?? 50000);
                         } else {
-                            $invoice_prices[$row['item_index']] = $row['invoice_price'];
+                            $invoice_prices[$row['item_index']] = (float) ($row['invoice_price'] ?? 0);
                         }
                     }
                 } catch (PDOException $e) {
                     error_log("Error fetching invoice prices: " . $e->getMessage());
                 }
+            } else {
+                $invoice_prices = $_SESSION['invoice_prices'] ?? [];
             }
 
             respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.', [
@@ -1600,6 +1604,18 @@ try {
                 $pdo->rollBack();
                 respond(false, 'خطا در ذخیره تغییرات: ' . $e->getMessage());
             }
+            break;
+
+        case 'sync_temp_items': // temp
+            $items = json_decode($_POST['items'] ?? '[]', true);
+            $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
+
+            if (!$work_month_id) {
+                respond(false, 'ماه کاری نامعتبر.');
+            }
+
+            $_SESSION['temp_order_items'] = $items;
+            respond(true, 'آیتم‌ها با موفقیت سینک شدند.');
             break;
 
         case 'sync_edit_temp_items': // temp

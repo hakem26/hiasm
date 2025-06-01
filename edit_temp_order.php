@@ -92,10 +92,10 @@ try {
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         if ($row['is_postal']) {
             $postal_enabled = true;
-            $postal_price = $row['postal_price'];
-            $invoice_prices['postal'] = $row['postal_price'];
+            $postal_price = (float) ($row['postal_price'] ?? 50000);
+            $invoice_prices['postal'] = $postal_price;
         } else {
-            $invoice_prices[$row['item_index']] = $row['invoice_price'];
+            $invoice_prices[$row['item_index']] = (float) ($row['invoice_price'] ?? 0);
         }
     }
 } catch (PDOException $e) {
@@ -108,7 +108,7 @@ try {
 // تنظیم سشن
 $_SESSION['edit_temp_order_items'] = $items;
 $_SESSION['edit_temp_order_id'] = $temp_order_id;
-$_SESSION['edit_temp_order_discount'] = $temp_order['discount'];
+$_SESSION['edit_temp_order_discount'] = (float) ($temp_order['discount'] ?? 0);
 $_SESSION['invoice_prices'] = $invoice_prices;
 $_SESSION['postal_enabled'] = $postal_enabled;
 $_SESSION['postal_price'] = $postal_price;
@@ -324,24 +324,29 @@ $_SESSION['is_temp_order_in_progress'] = true;
                 </tr>
             </thead>
             <tbody>
-                ${items.map((item, index) => `
-                    <tr id="item_row_${index}">
-                        <td>${index + 1}</td>
-                        <td>${item.product_name}</td>
-                        <td>${item.quantity}</td>
-                        <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                        <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
-                        <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
-                        <td>
-                            <button class="btn btn-info btn-sm set-invoice-price" data-index="${index}">تنظیم قیمت</button>
-                            <span class="invoice-price">${Number(invoicePrices[index] ?? (item.unit_price + item.extra_sale)).toLocaleString('fa')} تومان</span>
-                        </td>
-                        <td>
-                            <button class="btn btn-warning btn-sm edit-item" data-index="${index}"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-danger btn-sm delete-item" data-index="${index}"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `).join('')}
+                ${items.map((item, index) => {
+            const unitPrice = Number(item.unit_price) || 0;
+            const extraSale = Number(item.extra_sale) || 0;
+            const invoicePrice = Number(invoicePrices[index] ?? (unitPrice + extraSale)) || 0;
+            return `
+                        <tr id="item_row_${index}">
+                            <td>${index + 1}</td>
+                            <td>${item.product_name}</td>
+                            <td>${item.quantity}</td>
+                            <td>${unitPrice.toLocaleString('fa')} تومان</td>
+                            <td>${extraSale.toLocaleString('fa')} تومان</td>
+                            <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                            <td>
+                                <button class="btn btn-info btn-sm set-invoice-price" data-index="${index}">تنظیم قیمت</button>
+                                <span class="invoice-price">${invoicePrice.toLocaleString('fa')} تومان</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-warning btn-sm edit-item" data-index="${index}"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-danger btn-sm delete-item" data-index="${index}"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+        }).join('')}
                 ${postalEnabled ? `
                     <tr class="postal-row">
                         <td>-</td>
