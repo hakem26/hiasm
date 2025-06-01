@@ -1244,18 +1244,63 @@ try {
             break;
 
 
-        case 'get_edit_temp_order_items': // temp
+        case 'get_edit_temp_order_items':
             $temp_order_id = $_POST['temp_order_id'] ?? '';
-            $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
+            $work_month_id = $_POST['work_month_id'] ?? '';
 
             if (!$temp_order_id || !$work_month_id) {
                 respond(false, 'شناسه سفارش یا ماه کاری نامعتبر است.');
             }
 
-            $items = $_SESSION['edit_temp_order_items'] ?? [];
-            respond(true, 'آیتم‌ها با موفقیت دریافت شدند.', [
-                'items' => $items
-            ]);
+            try {
+                // لود آیتم‌ها از دیتابیس
+                $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ? ORDER BY item_index ASC");
+                $stmt->execute([(int) $temp_order_id]);
+                $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                // لود قیمت‌های فاکتور
+                $stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ?");
+                $stmt->execute([(int) $temp_order_id]);
+                $invoice_prices = [];
+                $postal_enabled = false;
+                $postal_price = 50000;
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    if ($row['is_postal']) {
+                        $postal_enabled = true;
+                        $postal_price = (float) ($row['postal_price'] ?? 50000);
+                        $invoice_prices['postal'] = $postal_price;
+                    } else {
+                        $invoice_prices[(int) $row['item_index']] = (float) $row['invoice_price'];
+                    }
+                }
+
+                // آپدیت سشن
+                $_SESSION['edit_temp_order_items'] = $items;
+                $_SESSION['postal_enabled'] = $postal_enabled;
+                $_SESSION['postal_price'] = $postal_price;
+                $_SESSION['invoice_prices'] = $invoice_prices;
+
+                // محاسباط
+                $total_amount = array_sum(array_column($items, 'total_price'));
+                $discount = $_SESSION['edit_temp_order_discount'] ?? 0;
+                $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
+
+                // دیباگ
+                file_put_contents('debug_get_items.log', "get_edit_temp_order_items: temp_order_id=$temp_order_id, items_count=" . count($items) . ", items=" . json_encode($items, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND);
+
+                respond(true, 'آیتم‌ها با موفقیت دریافت شدند.', [
+                    'items' => $items,
+                    'total_amount' => $total_amount,
+                    'discount' => $discount,
+                    'final_amount' => $final_amount,
+                    'postal_enabled' => $postal_enabled,
+                    'postal_price' => $postal_price,
+                    'invoice_prices' => $invoice_prices
+                ]);
+            } catch (PDOException $e) {
+                error_log("Error fetching temp order items: " . $e->getMessage());
+                respond(false, 'خطا در دریافت آیتم‌ها: ' . $e->getMessage());
+            }
             break;
 
         case 'add_edit_temp_item': // temp
