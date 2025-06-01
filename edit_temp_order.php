@@ -313,18 +313,20 @@ $_SESSION['is_temp_order_in_progress'] = true;
         <table class="table table-light order-items-table">
             <thead>
                 <tr>
+                    <th>ردیف</th>
                     <th>نام محصول</th>
                     <th>تعداد</th>
                     <th>قیمت واحد</th>
                     <th>اضافه فروش</th>
                     <th>قیمت کل</th>
-                    <th>قیمت فاکتور</th>
+                    <th>قیمت فاکتور (واحد)</th>
                     <th>عملیات</th>
                 </tr>
             </thead>
             <tbody>
                 ${items.map((item, index) => `
                     <tr id="item_row_${index}">
+                        <td>${index + 1}</td>
                         <td>${item.product_name}</td>
                         <td>${item.quantity}</td>
                         <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
@@ -332,7 +334,7 @@ $_SESSION['is_temp_order_in_progress'] = true;
                         <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
                             <button class="btn btn-info btn-sm set-invoice-price" data-index="${index}">تنظیم قیمت</button>
-                            <span class="invoice-price">${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان</span>
+                            <span class="invoice-price">${Number(invoicePrices[index] ?? (item.unit_price + item.extra_sale)).toLocaleString('fa')} تومان</span>
                         </td>
                         <td>
                             <button class="btn btn-warning btn-sm edit-item" data-index="${index}"><i class="fas fa-edit"></i></button>
@@ -342,6 +344,7 @@ $_SESSION['is_temp_order_in_progress'] = true;
                 `).join('')}
                 ${postalEnabled ? `
                     <tr class="postal-row">
+                        <td>-</td>
                         <td>ارسال پستی</td>
                         <td>-</td>
                         <td>-</td>
@@ -352,7 +355,7 @@ $_SESSION['is_temp_order_in_progress'] = true;
                     </tr>
                 ` : ''}
                 <tr class="total-row">
-                    <td colspan="4">جمع کل</td>
+                    <td colspan="5">جمع کل</td>
                     <td>${Number(data.total_amount || 0).toLocaleString('fa')} تومان</td>
                     <td colspan="2"></td>
                 </tr>
@@ -515,7 +518,7 @@ $_SESSION['is_temp_order_in_progress'] = true;
                     return;
                 }
                 const defaultPrice = Number(items[index].unit_price) + Number(items[index].extra_sale);
-                const invoicePrice = prompt('قیمت فاکتور را وارد کنید (تومان):', defaultPrice);
+                const invoicePrice = prompt('قیمت فاکتور واحد را وارد کنید (تومان):', defaultPrice);
                 if (invoicePrice !== null && !isNaN(invoicePrice) && invoicePrice >= 0) {
                     const data = {
                         action: 'set_invoice_price',

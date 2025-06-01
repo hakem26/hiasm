@@ -464,9 +464,9 @@ try {
                 respond(false, 'آیتم مورد نظر یافت نشد.');
             }
 
-            // تنظیم قیمت پیش‌فرض برای آیتم‌ها
+            // تنظیم قیمت پیش‌فرض برای آیتم‌ها (بر حسب واحد)
             if ($index !== 'postal' && $invoice_price === 0 && isset($items[$index])) {
-                $invoice_price = $items[$index]['unit_price'] + $items[$index]['extra_sale'];
+                $invoice_price = (float) ($items[$index]['unit_price'] + $items[$index]['extra_sale']);
             }
 
             // ذخیره قیمت فاکتور
