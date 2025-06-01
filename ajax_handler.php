@@ -1631,6 +1631,31 @@ try {
             respond(true, 'آیتم‌ها با موفقیت سینک شدند.');
             break;
 
+        case 'get_temp_order_items': // temp
+            $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
+            if (!$work_month_id) {
+                respond(false, 'ماه کاری نامعتبر.');
+            }
+
+            $items = $_SESSION['temp_order_items'] ?? [];
+            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
+            $total_amount = array_sum(array_column($items, 'total_price'));
+            $discount = $_SESSION['discount'] ?? 0;
+            $postal_enabled = $_SESSION['postal_enabled'] ?? false;
+            $postal_price = $_SESSION['postal_price'] ?? 50000;
+            $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
+
+            respond(true, 'آیتم‌ها با موفقیت دریافت شدند.', [
+                'items' => $items,
+                'invoice_prices' => $invoice_prices,
+                'total_amount' => $total_amount,
+                'discount' => $discount,
+                'final_amount' => $final_amount,
+                'postal_enabled' => $postal_enabled,
+                'postal_price' => $postal_price
+            ]);
+            break;
+
         default:
             throw new Exception('اکشن ناشناخته است.');
     }
