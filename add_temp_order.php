@@ -300,7 +300,8 @@ try {
                     return;
                 }
                 const item = itemsResponse.data.items[index];
-                const defaultPrice = Number(item.unit_price) + Number(item.extra_sale);
+                const invoicePrices = itemsResponse.data.invoice_prices || {};
+                const defaultPrice = Number(invoicePrices[index] ?? (Number(item.unit_price) + Number(item.extra_sale)));
                 const invoicePrice = prompt('قیمت فاکتور واحد را وارد کنید (تومان):', defaultPrice);
                 if (invoicePrice !== null && !isNaN(invoicePrice) && invoicePrice >= 0) {
                     const priceResponse = await $.post('ajax_handler.php', {
@@ -411,22 +412,23 @@ try {
             let html = '<table class="table table-light"><thead><tr><th>نام محصول</th><th>تعداد</th><th>قیمت واحد</th><th>اضافه فروش</th><th>قیمت کل</th><th>قیمت فاکتور</th><th>عملیات</th></tr></thead><tbody>';
             if (data.items && data.items.length > 0) {
                 data.items.forEach((item, index) => {
-                    let invoice_price = data.invoice_price && index == data.index ? data.invoice_price : (<?= json_encode($_SESSION['invoice_prices'] ?? [], JSON_UNESCAPED_UNICODE) ?>[index] || item.unit_price + item.extra_sale);
+                    const invoicePrices = data.invoice_prices || {};
+                    const invoicePrice = Number(invoicePrices[index] ?? (Number(item.unit_price) + Number(item.extra_sale)));
                     html += `<tr>
-                    <td>${item.product_name}</td>
-                    <td>${item.quantity}</td>
-                    <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                    <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
-                    <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
-                    <td>
-                        <span class="invoice-price">${Number(invoice_price).toLocaleString('fa')} تومان</span>
-                        <button class="btn btn-info btn-sm set-invoice-price" data-index="${index}"><i class="fas fa-edit"></i></button>
-                    </td>
-                    <td>
-                        <button class="btn btn-warning btn-sm edit-item" data-index="${index}"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-danger btn-sm delete-item" data-index="${index}"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>`;
+                <td>${item.product_name}</td>
+                <td>${item.quantity}</td>
+                <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
+                <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
+                <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                <td>
+                    <span class="invoice-price">${invoicePrice.toLocaleString('fa')} تومان</span>
+                    <button class="btn btn-info btn-sm set-invoice-price" data-index="${index}"><i class="fas fa-edit"></i></button>
+                </td>
+                <td>
+                    <button class="btn btn-warning btn-sm edit-item" data-index="${index}"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-danger btn-sm delete-item" data-index="${index}"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
                 });
             }
             html += `<tr><td colspan="4">جمع کل</td><td>${Number(data.total_amount).toLocaleString('fa')} تومان</td><td colspan="2"></td></tr>`;
