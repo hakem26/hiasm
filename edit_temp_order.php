@@ -24,16 +24,20 @@ if (!$temp_order_id || !is_numeric($temp_order_id) || !$work_month_id || !is_num
     exit;
 }
 
+// ذخیره work_month_id در سشن
+$_SESSION['work_month_id'] = $work_month_id;
+
 // تابع تبدیل تاریخ
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     if (empty($gregorian_date) || !strtotime($gregorian_date)) {
         return 'نامشخص';
     }
     $date_parts = explode(' ', $gregorian_date)[0];
     list($gy, $gm, $gd) = explode('-', $date_parts);
-    $gy = (int)$gy;
-    $gm = (int)$gm;
-    $gd = (int)$gd;
+    $gy = (int) $gy;
+    $gm = (int) $gm;
+    $gd = (int) $gd;
     if ($gy < 1000 || $gm < 1 || $gm > 12 || $gd < 1 || $gd > 31) {
         return 'نامشخص';
     }
@@ -45,17 +49,13 @@ function gregorian_to_jalali_format($gregorian_date) {
 try {
     $stmt = $pdo->prepare("
         SELECT tmp.*, p.user_id1
-        FROM `Temp_Orders` tmp
-        JOIN `Work_Details` wd ON wd.work_month_id = :work_month_id
-        JOIN `Partners` p ON wd.partner_id = p.partner_id
-        WHERE tmp.temp_order_id = :temp_order_id AND tmp.user_id = :user_id AND p.user_id1 = :user_id
+        FROM Temp_Orders tmp
+        JOIN Work_Details wd ON wd.work_month_id = ?
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE tmp.temp_order_id = ? AND tmp.user_id = ? AND p.user_id1 = ?
         LIMIT 1
     ");
-    $stmt->execute([
-        ':work_month_id' => $work_month_id,
-        ':temp_order_id' => $temp_order_id,
-        ':user_id' => $current_user_id
-    ]);
+    $stmt->execute([$work_month_id, $temp_order_id, $current_user_id, $current_user_id]);
     $temp_order = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$temp_order) {
@@ -74,7 +74,7 @@ $partner1_id = $temp_order['user_id1'];
 
 // لود آیتم‌های سفارش
 try {
-    $stmt = $pdo->prepare("SELECT * FROM `Temp_Order_Items` WHERE temp_order_id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
     $stmt->execute([$temp_order_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
@@ -84,7 +84,7 @@ try {
 
 // لود قیمت‌های فاکتور
 try {
-    $stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM `Invoice_Prices` WHERE order_id = ?");
+    $stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ?");
     $stmt->execute([$temp_order_id]);
     $invoice_prices = [];
     $postal_enabled = false;
@@ -112,35 +112,49 @@ $_SESSION['edit_temp_order_discount'] = $temp_order['discount'];
 $_SESSION['invoice_prices'] = $invoice_prices;
 $_SESSION['postal_enabled'] = $postal_enabled;
 $_SESSION['postal_price'] = $postal_price;
+$_SESSION['is_temp_order_in_progress'] = true;
 ?>
 
 <style>
-    body, .container-fluid {
+    body,
+    .container-fluid {
         overflow-x: hidden !important;
     }
+
     .table-wrapper {
         width: 100%;
         overflow-x: auto !important;
         overflow-y: visible;
         -webkit-overflow-scrolling: touch;
     }
+
     .order-items-table {
         width: 100%;
         min-width: 800px;
         border-collapse: collapse;
     }
-    .order-items-table th, .order-items-table td {
+
+    .order-items-table th,
+    .order-items-table td {
         vertical-align: middle !important;
         white-space: nowrap !important;
         padding: 8px;
         min-width: 120px;
     }
+
     .order-items-table .total-row td {
         font-weight: bold;
     }
+
     @media (max-width: 991px) {
-        .col-6 { width: 50%; }
-        .col-md-3, .col-md-6 { width: 50%; }
+        .col-6 {
+            width: 50%;
+        }
+
+        .col-md-3,
+        .col-md-6 {
+            width: 50%;
+        }
     }
 </style>
 
@@ -150,13 +164,16 @@ $_SESSION['postal_price'] = $postal_price;
     <form id="edit-temp-order-form">
         <div class="mb-3">
             <label for="customer_name" class="form-label">نام مشتری</label>
-            <input type="text" class="form-control" id="customer_name" name="customer_name" value="<?= htmlspecialchars($temp_order['customer_name']) ?>" required autocomplete="off">
+            <input type="text" class="form-control" id="customer_name" name="customer_name"
+                value="<?= htmlspecialchars($temp_order['customer_name']) ?>" required autocomplete="off">
         </div>
 
         <div class="mb-3">
             <label for="product_name" class="form-label">نام محصول</label>
-            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید...">
-            <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+            <input type="text" class="form-control" id="product_name" name="product_name"
+                placeholder="جستجو یا وارد کنید...">
+            <div id="product_suggestions" class="list-group position-absolute"
+                style="width: 100%; z-index: 1000; display: none;"></div>
             <input type="hidden" id="product_id" name="product_id">
         </div>
 
@@ -191,26 +208,36 @@ $_SESSION['postal_price'] = $postal_price;
 
         <div class="mb-3">
             <label class="form-check-label">
-                <input type="checkbox" id="postal_option" name="postal_option" <?= $postal_enabled ? 'checked' : '' ?>> فعال کردن ارسال پستی
+                <input type="checkbox" id="postal_option" name="postal_option" <?= $postal_enabled ? 'checked' : '' ?>>
+                فعال کردن ارسال پستی
             </label>
             <div id="postal_price_container" style="display: <?= $postal_enabled ? 'block' : 'none' ?>;">
                 <label for="postal_price" class="form-label">هزینه ارسال پستی (تومان)</label>
-                <input type="number" class="form-control" id="postal_price" name="postal_price" value="<?= $postal_price ?>" min="0">
+                <input type="number" class="form-control" id="postal_price" name="postal_price"
+                    value="<?= $postal_price ?>" min="0">
             </div>
         </div>
 
         <div class="mb-3">
-            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($temp_order['total_amount'], 0) ?> تومان</span></p>
-            <p><strong>تخفیف:</strong> <input type="number" id="discount" name="discount" value="<?= $temp_order['discount'] ?>" min="0"></p>
-            <p><strong>هزینه ارسال پستی:</strong> <span id="postal_price_display"><?= $postal_enabled ? number_format($postal_price, 0) . ' تومان' : '0 تومان' ?></span></p>
-            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($temp_order['final_amount'], 0) ?> تومان</span></p>
+            <p><strong>جمع کل:</strong> <span
+                    id="total_amount_display"><?= number_format($temp_order['total_amount'], 0) ?> تومان</span></p>
+            <p><strong>تخفیف:</strong> <input type="number" id="discount" name="discount"
+                    value="<?= $temp_order['discount'] ?>" min="0"></p>
+            <p><strong>هزینه ارسال پستی:</strong> <span
+                    id="postal_price_display"><?= $postal_enabled ? number_format($postal_price, 0) . ' تومان' : '0 تومان' ?></span>
+            </p>
+            <p><strong>مبلغ نهایی:</strong> <span
+                    id="final_amount_display"><?= number_format($temp_order['final_amount'], 0) ?> تومان</span></p>
         </div>
 
         <button type="button" id="save_temp_order_btn" class="btn btn-success mt-3">ذخیره تغییرات</button>
-        <a href="orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>" class="btn btn-secondary mt-3">بازگشت</a>
+        <a href="orders.php?work_month_id=<?= htmlspecialchars($work_month_id) ?>"
+            class="btn btn-secondary mt-3">بازگشت</a>
     </form>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -240,8 +267,9 @@ async function sendRequest(url, data) {
 async function fetchCurrentItems() {
     try {
         const response = await sendRequest('ajax_handler.php', {
-            action: 'get_temp_order_items',
-            temp_order_id: '<?= $temp_order_id ?>'
+            action: 'get_edit_temp_order_items',
+            temp_order_id: '<?= $temp_order_id ?>',
+            work_month_id: '<?= $work_month_id ?>'
         });
         if (response.success) {
             return response.data.items || [];
@@ -383,17 +411,19 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#total_price').val(total.toLocaleString('fa') + ' تومان');
     });
 
-    document.getElementById('add_item_btn').addEventListener('click', async () => {
+    document.getElementById('add_item_btn').addEventListener('click', async (e) => {
+        e.preventDefault();
         const data = {
             action: 'add_edit_temp_item',
             customer_name: document.getElementById('customer_name').value,
             product_id: document.getElementById('product_id').value,
             quantity: document.getElementById('quantity').value,
             unit_price: document.getElementById('unit_price').value,
-            extra_sale: document.getElementById('extra_sale').value,
-            discount: document.getElementById('discount').value,
+            extra_sale: document.getElementById('extra_sale').value || 0,
+            discount: document.getElementById('discount').value || 0,
             temp_order_id: '<?= $temp_order_id ?>',
-            partner1_id: '<?= $partner1_id ?>'
+            partner1_id: '<?= $partner1_id ?>',
+            work_month_id: '<?= $work_month_id ?>'
         };
 
         const response = await sendRequest('ajax_handler.php', data);
@@ -405,18 +435,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('edit_item_btn').addEventListener('click', async () => {
+    document.getElementById('edit_item_btn').addEventListener('click', async (e) => {
+        e.preventDefault();
         const data = {
             action: 'edit_edit_temp_item',
             customer_name: document.getElementById('customer_name').value,
             product_id: document.getElementById('product_id').value,
             quantity: document.getElementById('quantity').value,
             unit_price: document.getElementById('unit_price').value,
-            extra_sale: document.getElementById('extra_sale').value,
-            discount: document.getElementById('discount').value,
+            extra_sale: document.getElementById('extra_sale').value || 0,
+            discount: document.getElementById('discount').value || 0,
             index: document.getElementById('edit_index').value,
             temp_order_id: '<?= $temp_order_id ?>',
-            partner1_id: '<?= $partner1_id ?>'
+            partner1_id: '<?= $partner1_id ?>',
+            work_month_id: '<?= $work_month_id ?>'
         };
 
         const response = await sendRequest('ajax_handler.php', data);
@@ -430,13 +462,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('items_table').addEventListener('click', async (e) => {
         if (e.target.closest('.delete-item')) {
+            e.preventDefault();
             const index = e.target.closest('.delete-item').getAttribute('data-index');
             if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
                 const data = {
                     action: 'delete_edit_temp_item',
                     index: index,
                     temp_order_id: '<?= $temp_order_id ?>',
-                    partner1_id: '<?= $partner1_id ?>'
+                    partner1_id: '<?= $partner1_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
@@ -447,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else if (e.target.closest('.edit-item')) {
+            e.preventDefault();
             const index = e.target.closest('.edit-item').getAttribute('data-index');
             const items = await fetchCurrentItems();
             const item = items[index];
@@ -464,27 +499,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('محصول یافت نشد. لطفاً صفحه را رفرش کنید.');
             }
         } else if (e.target.closest('.set-invoice-price')) {
+            e.preventDefault();
             const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
-            const invoicePrice = prompt('قیمت فاکتور را وارد کنید (تومان):', invoicePrices[index] || 0);
+            const items = await fetchCurrentItems();
+            const defaultPrice = items[index] ? (Number(items[index].unit_price) + Number(items[index].extra_sale)) : 0;
+            const invoicePrice = prompt('قیمت فاکتور را وارد کنید (تومان):', defaultPrice);
             if (invoicePrice !== null && !isNaN(invoicePrice) && invoicePrice >= 0) {
                 const data = {
                     action: 'set_invoice_price',
                     index: index,
                     invoice_price: invoicePrice,
-                    order_id: '<?= $temp_order_id ?>'
+                    order_id: '<?= $temp_order_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
                 };
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
                     alert(response.message);
-                    const items = await fetchCurrentItems();
-                    renderItemsTable({
-                        items: items,
-                        total_amount: <?= $temp_order['total_amount'] ?>,
-                        discount: <?= $temp_order['discount'] ?>,
-                        final_amount: <?= $temp_order['final_amount'] ?>,
-                        postal_enabled: <?= json_encode($postal_enabled) ?>,
-                        postal_price: <?= $postal_price ?>
-                    });
+                    renderItemsTable(response.data);
                 } else {
                     alert(response.message);
                 }
@@ -492,65 +523,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('postal_option').addEventListener('change', async () => {
+    document.getElementById('postal_option').addEventListener('change', async (e) => {
+        e.preventDefault();
         const enablePostal = document.getElementById('postal_option').checked;
         document.getElementById('postal_price_container').style.display = enablePostal ? 'block' : 'none';
         const data = {
             action: 'set_postal_option',
             enable_postal: enablePostal,
-            order_id: '<?= $temp_order_id ?>'
+            postal_price: document.getElementById('postal_price').value || 50000,
+            order_id: '<?= $temp_order_id ?>',
+            work_month_id: '<?= $work_month_id ?>'
         };
         const response = await sendRequest('ajax_handler.php', data);
         if (response.success) {
-            const items = await fetchCurrentItems();
-            response.data.items = items;
             renderItemsTable(response.data);
         } else {
             alert(response.message);
         }
     });
 
-    document.getElementById('postal_price').addEventListener('input', async () => {
+    document.getElementById('postal_price').addEventListener('input', async (e) => {
+        e.preventDefault();
         const data = {
             action: 'set_invoice_price',
             index: 'postal',
-            invoice_price: document.getElementById('postal_price').value,
-            order_id: '<?= $temp_order_id ?>'
+            invoice_price: document.getElementById('postal_price').value || 50000,
+            order_id: '<?= $temp_order_id ?>',
+            work_month_id: '<?= $work_month_id ?>'
         };
         const response = await sendRequest('ajax_handler.php', data);
         if (response.success) {
             document.getElementById('postal_price_display').textContent = Number(document.getElementById('postal_price').value).toLocaleString('fa') + ' تومان';
-            const items = await fetchCurrentItems();
-            renderItemsTable({
-                items: items,
-                total_amount: <?= $temp_order['total_amount'] ?>,
-                discount: <?= $temp_order['discount'] ?>,
-                final_amount: Number(<?= $temp_order['total_amount'] ?>) - Number(<?= $temp_order['discount'] ?>) + Number(document.getElementById('postal_price').value),
-                postal_enabled: true,
-                postal_price: document.getElementById('postal_price').value
-            });
-        } else {
-            alert(response.message);
-        }
-    });
-
-    document.getElementById('discount').addEventListener('input', async () => {
-        const data = {
-            action: 'update_edit_temp_discount',
-            discount: document.getElementById('discount').value,
-            temp_order_id: '<?= $temp_order_id ?>'
-        };
-        const response = await sendRequest('ajax_handler.php', data);
-        if (response.success) {
-            const items = await fetchCurrentItems();
-            response.data.items = items;
             renderItemsTable(response.data);
         } else {
             alert(response.message);
         }
     });
 
-    document.getElementById('save_temp_order_btn').addEventListener('click', async () => {
+    document.getElementById('discount').addEventListener('input', async (e) => {
+        e.preventDefault();
+        const data = {
+            action: 'update_edit_temp_discount',
+            discount: document.getElementById('discount').value || 0,
+            temp_order_id: '<?= $temp_order_id ?>',
+            work_month_id: '<?= $work_month_id ?>'
+        };
+        const response = await sendRequest('ajax_handler.php', data);
+        if (response.success) {
+            renderItemsTable(response.data);
+        } else {
+            alert(response.message);
+        }
+    });
+
+    document.getElementById('save_temp_order_btn').addEventListener('click', async (e) => {
+        e.preventDefault();
         const items = await fetchCurrentItems();
         if (!items || items.length === 0) {
             if (!confirm('هیچ محصولی در سفارش وجود ندارد. آیا می‌خواهید سفارش بدون محصول ذخیره شود؟')) {
@@ -562,14 +589,15 @@ document.addEventListener('DOMContentLoaded', () => {
             action: 'save_edit_temp_order',
             temp_order_id: '<?= $temp_order_id ?>',
             customer_name: document.getElementById('customer_name').value,
-            discount: document.getElementById('discount').value,
-            partner1_id: '<?= $partner1_id ?>'
+            discount: document.getElementById('discount').value || 0,
+            partner1_id: '<?= $partner1_id ?>',
+            work_month_id: '<?= $work_month_id ?>'
         };
 
         const response = await sendRequest('ajax_handler.php', data);
         if (response.success) {
             alert(response.message);
-            window.location.href = response.data.redirect + '&work_month_id=<?= $work_month_id ?>';
+            window.location.href = response.data.redirect + '?work_month_id=<?= $work_month_id ?>';
         } else {
             alert(response.message);
         }
