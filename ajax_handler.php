@@ -442,11 +442,24 @@ try {
             $order_id = $_POST['order_id'] ?? '';
             $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
 
-            if ($index === '') {
-                respond(false, 'ایندکس نامعتبر است.');
+            if ($index === '' || !$work_month_id) {
+                respond(false, 'پارامترهای نامعتبر.');
             }
 
-            $items = $_SESSION['temp_order_items'] ?? [];
+            // لود آیتم‌ها از سشن یا دیتابیس
+            $items = $_SESSION['edit_temp_order_items'] ?? ($_SESSION['temp_order_items'] ?? []);
+            if ($index !== 'postal' && empty($items) && $order_id) {
+                try {
+                    $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
+                    $stmt->execute([$order_id]);
+                    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    $_SESSION['edit_temp_order_items'] = $items;
+                } catch (PDOException $e) {
+                    error_log("Error fetching items: " . $e->getMessage());
+                    respond(false, 'خطا در دریافت آیتم‌ها.');
+                }
+            }
+
             if ($index !== 'postal' && !isset($items[$index])) {
                 respond(false, 'آیتم مورد نظر یافت نشد.');
             }
@@ -459,22 +472,27 @@ try {
             $_SESSION['invoice_prices'][$index] = $invoice_price;
 
             if ($order_id) {
-                if ($index === 'postal') {
-                    $stmt = $pdo->prepare("
-                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                VALUES (?, -1, 0, TRUE, ?)
-                ON DUPLICATE KEY UPDATE postal_price = ?
-            ");
-                    $stmt->execute([$order_id, $invoice_price, $invoice_price]);
-                    $_SESSION['postal_price'] = $invoice_price;
-                    $_SESSION['postal_enabled'] = true;
-                } else {
-                    $stmt = $pdo->prepare("
-                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
-                VALUES (?, ?, ?, FALSE)
-                ON DUPLICATE KEY UPDATE invoice_price = ?
-            ");
-                    $stmt->execute([$order_id, $index, $invoice_price, $invoice_price]);
+                try {
+                    if ($index === 'postal') {
+                        $stmt = $pdo->prepare("
+                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                    VALUES (?, -1, 0, TRUE, ?)
+                    ON DUPLICATE KEY UPDATE postal_price = ?
+                ");
+                        $stmt->execute([$order_id, $invoice_price, $invoice_price]);
+                        $_SESSION['postal_price'] = $invoice_price;
+                        $_SESSION['postal_enabled'] = true;
+                    } else {
+                        $stmt = $pdo->prepare("
+                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
+                    VALUES (?, ?, ?, FALSE)
+                    ON DUPLICATE KEY UPDATE invoice_price = ?
+                ");
+                        $stmt->execute([$order_id, $index, $invoice_price, $invoice_price]);
+                    }
+                } catch (PDOException $e) {
+                    error_log("Error updating invoice prices: " . $e->getMessage());
+                    respond(false, 'خطا در ذخیره قیمت فاکتور.');
                 }
             } elseif ($index === 'postal') {
                 $_SESSION['postal_price'] = $invoice_price;
@@ -482,7 +500,7 @@ try {
             }
 
             $total_amount = array_sum(array_column($items, 'total_price'));
-            $discount = $_SESSION['discount'] ?? 0;
+            $discount = $_SESSION['edit_temp_order_discount'] ?? ($_SESSION['discount'] ?? 0);
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
 
             respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.', [
@@ -1562,6 +1580,19 @@ try {
                 $pdo->rollBack();
                 respond(false, 'خطا در ذخیره تغییرات: ' . $e->getMessage());
             }
+            break;
+
+        case 'sync_edit_temp_items': // temp
+            $items = json_decode($_POST['items'] ?? '[]', true);
+            $temp_order_id = $_POST['temp_order_id'] ?? '';
+            $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
+
+            if (!$temp_order_id || !$work_month_id) {
+                respond(false, 'شناسه سفارش یا ماه کاری نامعتبر.');
+            }
+
+            $_SESSION['edit_temp_order_items'] = $items;
+            respond(true, 'آیتم‌ها با موفقیت سینک شدند.');
             break;
 
         default:
