@@ -74,9 +74,12 @@ $partner1_id = $temp_order['user_id1'];
 
 // لود آیتم‌های سفارش
 try {
-    $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM Temp_Order_Items WHERE temp_order_id = ? ORDER BY item_index ASC");
     $stmt->execute([$temp_order_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($items as &$item) {
+        $item['item_index'] = (int) ($item['item_index'] ?? array_search($item, $items));
+    }
 } catch (PDOException $e) {
     error_log("Error fetching temp order items: " . $e->getMessage());
     $items = [];
@@ -95,7 +98,7 @@ try {
             $postal_price = (float) ($row['postal_price'] ?? 50000);
             $invoice_prices['postal'] = $postal_price;
         } else {
-            $invoice_prices[$row['item_index']] = (float) ($row['invoice_price'] ?? 0);
+            $invoice_prices[(int) $row['item_index']] = (float) $row['invoice_price'];
         }
     }
 } catch (PDOException $e) {
@@ -519,10 +522,16 @@ $_SESSION['is_temp_order_in_progress'] = true;
                 const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
                 const items = await fetchCurrentItems();
                 if (!items[index]) {
-                    alert('آیتم مورد نظر یافت نشد. لطفاً صفحه را رفرش کنید.');
+                    alert('آیتم مورد نظر یافت نشد.');
                     return;
                 }
-                const defaultPrice = Number(items[index].unit_price) + Number(items[index].extra_sale);
+                const response = await sendRequest('ajax_handler.php', {
+                    action: 'get_edit_temp_order_items',
+                    temp_order_id: '<?= $temp_order_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
+                });
+                const invoicePrices = response.data?.invoice_prices || {};
+                const defaultPrice = Number(invoicePrices[index] ?? (Number(items[index].unit_price) + Number(items[index].extra_sale)));
                 const invoicePrice = prompt('قیمت فاکتور واحد را وارد کنید (تومان):', defaultPrice);
                 if (invoicePrice !== null && !isNaN(invoicePrice) && invoicePrice >= 0) {
                     const data = {
@@ -532,118 +541,126 @@ $_SESSION['is_temp_order_in_progress'] = true;
                         order_id: '<?= $temp_order_id ?>',
                         work_month_id: '<?= $work_month_id ?>'
                     };
-                    const response = await sendRequest('ajax_handler.php', data);
-                    if (response.success) {
-                        // آپدیت سشن با قیمت‌های جدید
+                    const priceResponse = await sendRequest('ajax_handler.php', data);
+                    if (priceResponse.success) {
                         await sendRequest('ajax_handler.php', {
                             action: 'sync_edit_temp_items',
                             items: JSON.stringify(items),
                             temp_order_id: '<?= $temp_order_id ?>',
                             work_month_id: '<?= $work_month_id ?>'
                         });
-                        alert(response.message);
-                        response.data.invoice_prices = response.data.invoice_prices || {};
-                        response.data.invoice_prices[index] = invoicePrice;
-                        renderItemsTable(response.data);
+                        alert(priceResponse.message);
+                        priceResponse.data.invoice_prices = priceResponse.data.invoice_prices || {};
+                        priceResponse.data.invoice_prices[index] = Number(invoicePrice);
+                        renderItemsTable(priceResponse.data);
                     } else {
-                        alert(response.message);
+                        alert(priceResponse.message);
                     }
                 }
             }
-        });
 
-        document.getElementById('postal_option').addEventListener('change', async (e) => {
-            e.preventDefault();
-            const enablePostal = document.getElementById('postal_option').checked;
-            document.getElementById('postal_price_container').style.display = enablePostal ? 'block' : 'none';
-            const data = {
-                action: 'set_postal_option',
-                enable_postal: enablePostal,
-                postal_price: document.getElementById('postal_price').value || 50000,
-                order_id: '<?= $temp_order_id ?>',
-                work_month_id: '<?= $work_month_id ?>'
-            };
-            const response = await sendRequest('ajax_handler.php', data);
-            if (response.success) {
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
-            }
-        });
-
-        document.getElementById('postal_price').addEventListener('input', async (e) => {
-            e.preventDefault();
-            const data = {
-                action: 'set_invoice_price',
-                index: 'postal',
-                invoice_price: document.getElementById('postal_price').value || 50000,
-                order_id: '<?= $temp_order_id ?>',
-                work_month_id: '<?= $work_month_id ?>'
-            };
-            const response = await sendRequest('ajax_handler.php', data);
-            if (response.success) {
-                document.getElementById('postal_price_display').textContent = Number(document.getElementById('postal_price').value).toLocaleString('fa') + ' تومان';
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
-            }
-        });
-
-        document.getElementById('discount').addEventListener('input', async (e) => {
-            e.preventDefault();
-            const data = {
-                action: 'update_edit_temp_discount',
-                discount: document.getElementById('discount').value || 0,
-                temp_order_id: '<?= $temp_order_id ?>',
-                work_month_id: '<?= $work_month_id ?>'
-            };
-            const response = await sendRequest('ajax_handler.php', data);
-            if (response.success) {
-                renderItemsTable(response.data);
-            } else {
-                alert(response.message);
-            }
-        });
-
-        document.getElementById('save_temp_order_btn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const items = await fetchCurrentItems();
-            if (!items || items.length === 0) {
-                if (!confirm('هیچ محصولی در سفارش وجود ندارد. آیا می‌خواهید سفارش بدون محصول ذخیره شود؟')) {
-                    return;
+            document.getElementById('postal_option').addEventListener('change', async (e) => {
+                e.preventDefault();
+                const enablePostal = document.getElementById('postal_option').checked;
+                document.getElementById('postal_price_container').style.display = enablePostal ? 'block' : 'none';
+                const postalPrice = Number(document.getElementById('postal_price').value) || 50000;
+                const data = {
+                    action: 'set_postal_option',
+                    enable_postal: enablePostal,
+                    postal_price: postalPrice,
+                    order_id: '<?= $temp_order_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
+                };
+                const response = await sendRequest('ajax_handler.php', data);
+                if (response.success) {
+                    response.data.postal_enabled = enablePostal;
+                    response.data.postal_price = postalPrice;
+                    response.data.invoice_prices = response.data.invoice_prices || {};
+                    if (enablePostal) {
+                        response.data.invoice_prices['postal'] = postalPrice;
+                    } else {
+                        delete response.data.invoice_prices['postal'];
+                    }
+                    document.getElementById('postal_price_display').textContent = (enablePostal ? postalPrice : 0).toLocaleString('fa') + ' تومان';
+                    renderItemsTable(response.data);
+                } else {
+                    alert(response.message);
                 }
-            }
+            });
 
-            const data = {
-                action: 'save_edit_temp_order',
-                temp_order_id: '<?= $temp_order_id ?>',
-                customer_name: document.getElementById('customer_name').value,
-                discount: document.getElementById('discount').value || 0,
-                partner1_id: '<?= $partner1_id ?>',
-                work_month_id: '<?= $work_month_id ?>'
-            };
+            document.getElementById('postal_price').addEventListener('input', async (e) => {
+                e.preventDefault();
+                const data = {
+                    action: 'set_invoice_price',
+                    index: 'postal',
+                    invoice_price: document.getElementById('postal_price').value || 50000,
+                    order_id: '<?= $temp_order_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
+                };
+                const response = await sendRequest('ajax_handler.php', data);
+                if (response.success) {
+                    document.getElementById('postal_price_display').textContent = Number(document.getElementById('postal_price').value).toLocaleString('fa') + ' تومان';
+                    renderItemsTable(response.data);
+                } else {
+                    alert(response.message);
+                }
+            });
 
-            const response = await sendRequest('ajax_handler.php', data);
-            if (response.success) {
-                alert(response.message);
-                window.location.href = response.data.redirect;
-            } else {
-                alert(response.message);
+            document.getElementById('discount').addEventListener('input', async (e) => {
+                e.preventDefault();
+                const data = {
+                    action: 'update_edit_temp_discount',
+                    discount: document.getElementById('discount').value || 0,
+                    temp_order_id: '<?= $temp_order_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
+                };
+                const response = await sendRequest('ajax_handler.php', data);
+                if (response.success) {
+                    renderItemsTable(response.data);
+                } else {
+                    alert(response.message);
+                }
+            });
+
+            document.getElementById('save_temp_order_btn').addEventListener('click', async (e) => {
+                e.preventDefault();
+                const items = await fetchCurrentItems();
+                if (!items || items.length === 0) {
+                    if (!confirm('هیچ محصولی در سفارش وجود ندارد. آیا می‌خواهید سفارش بدون محصول ذخیره شود؟')) {
+                        return;
+                    }
+                }
+
+                const data = {
+                    action: 'save_edit_temp_order',
+                    temp_order_id: '<?= $temp_order_id ?>',
+                    customer_name: document.getElementById('customer_name').value,
+                    discount: document.getElementById('discount').value || 0,
+                    partner1_id: '<?= $partner1_id ?>',
+                    work_month_id: '<?= $work_month_id ?>'
+                };
+
+                const response = await sendRequest('ajax_handler.php', data);
+                if (response.success) {
+                    alert(response.message);
+                    window.location.href = response.data.redirect;
+                } else {
+                    alert(response.message);
+                }
+            });
+
+            function resetForm() {
+                document.getElementById('product_name').value = '';
+                document.getElementById('product_id').value = '';
+                document.getElementById('quantity').value = '1';
+                document.getElementById('unit_price').value = '';
+                document.getElementById('extra_sale').value = '0';
+                document.getElementById('total_price').value = '';
+                document.getElementById('edit_index').value = '';
+                document.getElementById('add_item_btn').style.display = 'inline-block';
+                document.getElementById('edit_item_btn').style.display = 'none';
             }
         });
-
-        function resetForm() {
-            document.getElementById('product_name').value = '';
-            document.getElementById('product_id').value = '';
-            document.getElementById('quantity').value = '1';
-            document.getElementById('unit_price').value = '';
-            document.getElementById('extra_sale').value = '0';
-            document.getElementById('total_price').value = '';
-            document.getElementById('edit_index').value = '';
-            document.getElementById('add_item_btn').style.display = 'inline-block';
-            document.getElementById('edit_item_btn').style.display = 'none';
-        }
-    });
 </script>
 
 <?php require_once 'footer.php'; ?>
