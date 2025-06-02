@@ -92,7 +92,7 @@ try {
         case 'delete_temp_item':
             $index = $_POST['index'] ?? '';
             if (!isset($_SESSION['temp_order_items'][$index])) {
-                sendResponse(false, 'آیتم یافت نشد.');
+                sendResponse(false, 'آیتم انتخاب شده یافت نشد.');
             }
 
             array_splice($_SESSION['temp_order_items'], $index, 1);
@@ -172,8 +172,8 @@ try {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, order_date)
-                VALUES (?, ?, ?, ?, ?, NOW())
+                INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_enabled, postal_price, order_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
@@ -182,11 +182,13 @@ try {
                 $customer_name,
                 $total_amount,
                 $discount,
-                $final_amount
+                $final_amount,
+                $_SESSION['postal_enabled'] ? 1 : 0,
+                $_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0
             ]);
             $order_id = $pdo->lastInsertId();
 
-            $stmt = $pdo->prepare("
+            $stmt->prepare("
                 INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
