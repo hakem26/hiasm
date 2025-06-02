@@ -3,6 +3,13 @@ session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 
+// تابع برای لاگ کردن در فایل debug.log
+function write_log($message) {
+    $log_file = __DIR__ . '/debug.log';
+    $timestamp = date('Y-m-d H:i:s');
+    file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND);
+}
+
 function gregorian_to_jalali_format($gregorian_date)
 {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
@@ -12,65 +19,75 @@ function gregorian_to_jalali_format($gregorian_date)
 
 $order_id = isset($_GET['order_id']) ? (int) $_GET['order_id'] : 0;
 if ($order_id <= 0) {
-    error_log("Invalid order_id attempted: $order_id");
+    write_log("Invalid order_id attempted: $order_id");
     header('HTTP/1.1 400 Bad Request');
     echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>فاکتور نامعتبر است. لطفاً شماره فاکتور معتبر وارد کنید.</div>";
     exit;
 }
 
-$stmt = $pdo->prepare("
-    SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date,
-           u1.full_name AS partner1_name, u1.phone_number AS partner1_phone,
-           u2.full_name AS partner2_name, u2.phone_number AS partner2_phone
-    FROM Orders o
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    LEFT JOIN Partners p ON wd.partner_id = p.partner_id
-    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
-    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
-    WHERE o.order_id = ?
-");
-$stmt->execute([$order_id]);
-$order = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("
+        SELECT o.order_id, o.customer_name, o.total_amount, o.discount, o.final_amount, wd.work_date,
+               u1.full_name AS partner1_name, u1.phone_number AS partner1_phone,
+               u2.full_name AS partner2_name, u2.phone_number AS partner2_phone
+        FROM Orders o
+        LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
+        LEFT JOIN Partners p ON wd.partner_id = p.partner_id
+        LEFT JOIN Users u1 ON p.user_id1 = u1.user_id
+        LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
+        WHERE o.order_id = ?
+    ");
+    $stmt->execute([$order_id]);
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$order) {
-    error_log("Order not found for order_id: $order_id");
-    header('HTTP/1.1 404 Not Found');
-    echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>فاکتور یافت نشد. لطفاً با پشتیبانی تماس بگیرید.</div>";
+    if (!$order) {
+        write_log("Order not found for order_id: $order_id");
+        header('HTTP/1.1 404 Not Found');
+        echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>فاکتور یافت نشد. لطفاً با پشتیبانی تماس بگیرید.</div>";
+        exit;
+    }
+
+    $stmt_items = $pdo->prepare("
+        SELECT item_id, order_id, product_name, quantity, unit_price, extra_sale, total_price
+        FROM Order_Items 
+        WHERE order_id = ? 
+        ORDER BY item_id ASC
+    ");
+    $stmt_items->execute([$order_id]);
+    $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+
+    write_log("Loaded " . count($items) . " items for order_id: $order_id");
+
+    $invoice_prices = [];
+    $postal_enabled = false;
+    $postal_price = 0;
+    $stmt_invoice = $pdo->prepare("
+        SELECT item_index, invoice_price, is_postal, postal_price 
+        FROM Invoice_Prices 
+        WHERE order_id = ?
+    ");
+    $stmt_invoice->execute([$order_id]);
+    $invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($invoice_data as $row) {
+        if ($row['is_postal'] && $row['postal_price'] > 0) {
+            $postal_enabled = true;
+            $postal_price = (float) $row['postal_price'];
+        } else {
+            $invoice_prices[(int) $row['item_index']] = (float) $row['invoice_price'];
+        }
+    }
+    write_log("Loaded " . count($invoice_prices) . " invoice prices for order_id: $order_id");
+
+    $items_per_page = 14;
+    $total_items = count($items) + ($postal_enabled ? 1 : 0);
+    $total_pages = ceil($total_items / $items_per_page);
+    $pages = array_chunk($items, $items_per_page);
+} catch (PDOException $e) {
+    write_log("Database error: " . $e->getMessage());
+    header('HTTP/1.1 500 Internal Server Error');
+    echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>خطای سرور: " . htmlspecialchars($e->getMessage()) . "</div>";
     exit;
 }
-
-$stmt_items = $pdo->prepare("
-    SELECT item_id, order_id, product_id, product_name, quantity, unit_price, extra_sale, total_price
-    FROM Order_Items 
-    WHERE order_id = ? 
-    ORDER BY item_id ASC
-");
-$stmt_items->execute([$order_id]);
-$items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
-
-$invoice_prices = [];
-$postal_enabled = false;
-$postal_price = 0;
-$stmt_invoice = $pdo->prepare("
-    SELECT item_index, invoice_price, is_postal, postal_price 
-    FROM Invoice_Prices 
-    WHERE order_id = ?
-");
-$stmt_invoice->execute([$order_id]);
-$invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
-foreach ($invoice_data as $row) {
-    if ($row['is_postal'] && $row['postal_price'] > 0) {
-        $postal_enabled = true;
-        $postal_price = (float) $row['postal_price'];
-    } else {
-        $invoice_prices[(int) $row['item_index']] = (float) $row['invoice_price'];
-    }
-}
-
-$items_per_page = 14;
-$total_items = count($items) + ($postal_enabled ? 1 : 0);
-$total_pages = ceil($total_items / $items_per_page);
-$pages = array_chunk($items, $items_per_page);
 ?>
 
 <!DOCTYPE html>
@@ -169,7 +186,7 @@ $pages = array_chunk($items, $items_per_page);
             page-break-after: always;
         }
         .invoice-container:last-child {
-            page-break-after: text/php;
+            page-break-after: auto;
         }
         .invoice-header {
             text-align: center;
@@ -197,7 +214,7 @@ $pages = array_chunk($items, $items_per_page);
         .invoice-table td {
             border: 1px solid #000;
             padding: 5px;
-            text-align: left;
+            text-align: center;
             font-size: 10pt;
         }
         .invoice-table th {
@@ -217,7 +234,7 @@ $pages = array_chunk($items, $items_per_page);
         .save-png-btn {
             position: fixed;
             top: 10px;
-            left: 10px;
+            right: 10px;
             padding: 10px 20px;
             background-color: #28a745;
             color: white;
@@ -242,90 +259,97 @@ $pages = array_chunk($items, $items_per_page);
                 size: A5 portrait;
                 margin: 0;
             }
+            body {
+                margin: 0;
+                padding: 0;
+            }
         }
     </style>
 </head>
 <body>
-    <button class="save-png-btn" onclick="saveInvoiceAsPNG()">ذخیره به‌صورت PNG با موفقیت</button>
+    <button class="save-png-btn" onclick="saveInvoiceAsPNG()">ذخیره به‌صورت PNG</button>
 
     <?php for ($page = 0; $page < $total_pages; $page++): ?>
-    <div class="invoice-container" id="invoice-page-<?= $page + 1 ?>">
-        <div class="invoice-header">
-            <h3>فاکتور فروش</h3>
-            <div class="page-number">صفحه <?= ($page + 1) ?> از <?= $total_pages ?></div>
-        </div>
-
-        <div class="invoice-details">
-            <div>صورتحساب: <?= htmlspecialchars($order['customer_name']) ?></div>
-            <div>تاریخ: <?= gregorian_to_jalali_format($order['work_date']) ?></div>
-            <div>شماره فاکتور: <?= $order['order_id'] ?></div>
-        </div>
-
-        <table class="invoice-table">
-            <thead>
-                <tr>
-                    <th>ردیف</th>
-                    <th>نام محصول</th>
-                    <th>قیمت واحد</th>
-                    <th>تعداد</th>
-                    <th>قیمت کل</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $invoice_total = 0;
-                $page_items = $pages[$page];
-                foreach ($page_items as $index => $item):
-                    $global_index = $index + ($page * $items_per_page);
-                    $item_id = $item['item_id'];
-                    $item_unit_price = isset($invoice_prices[$item_id]) ? (float) $invoice_prices[$item_id] : (float) ($item['unit_price'] + $item['extra_sale']);
-                    $item_total_price = $item['quantity'] * $item_unit_price;
-                    $invoice_total += $item_total_price;
-                    ?>
-                    <tr>
-                        <td><?= $global_index + 1 ?></td>
-                        <td><?= htmlspecialchars($item['product_name']) ?></td>
-                        <td><?= number_format($item_unit_price, 0) ?> تومان</td>
-                        <td><?= $item['quantity'] ?></td>
-                        <td><?= number_format($item_total_price, 0) ?> تومان</td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if ($postal_enabled && $page == $total_pages - 1): ?>
-                    <tr>
-                        <td><?= count($items) + 1 ?></td>
-                        <td>ارسال پستی</td>
-                        <td><?= number_format($postal_price, 0) ?> تومان</td>
-                        <td>-</td>
-                        <td><?= number_format($postal_price, 0) ?> تومان</td>
-                    </tr>
-                    <?php $invoice_total += $postal_price; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
-
-        <?php if ($page == $total_pages - 1): ?>
-            <div class="invoice-summary">
-                <p>مبلغ کل فاکتور: <?= number_format($invoice_total, 0) ?> تومان</p>
-                <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
-                <p>مبلغ قابل پرداخت: <?= number_format($invoice_total - $order['discount'], 0) ?> تومان</p>
+        <div class="invoice-container" id="invoice-page-<?= $page + 1 ?>">
+            <div class="invoice-header">
+                <h3>فاکتور فروش</h3>
+                <div class="page-number">صفحه <?= ($page + 1) ?> از <?= $total_pages ?></div>
             </div>
-        <?php endif; ?>
 
-        <div class="invoice-footer">
-            <hr>
-            <p>فروشندگان: </p>
-            <p>
-                <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس:
-                <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> |
-                <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس:
-                <?= htmlspecialchars($order['partner2_phone'] ?? '') ?>
-            </p>
+            <div class="invoice-details">
+                <div>صورتحساب: <?= htmlspecialchars($order['customer_name']) ?></div>
+                <div>تاریخ: <?= gregorian_to_jalali_format($order['work_date']) ?></div>
+                <div>شماره فاکتور: <?= $order['order_id'] ?></div>
+            </div>
+
+            <table class="invoice-table">
+                <thead>
+                    <tr>
+                        <th>ردیف</th>
+                        <th>نام محصول</th>
+                        <th>قیمت واحد</th>
+                        <th>تعداد</th>
+                        <th>قیمت کل</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $invoice_total = 0;
+                    $page_items = $pages[$page];
+                    foreach ($page_items as $index => $item):
+                        $global_index = $index + ($page * $items_per_page);
+                        $item_id = $item['item_id'];
+                        $item_unit_price = isset($invoice_prices[$item_id]) ? (float) $invoice_prices[$item_id] : (float) ($item['unit_price'] + $item['extra_sale']);
+                        $item_total_price = $item['quantity'] * $item_unit_price;
+                        $invoice_total += $item_total_price;
+                        write_log("Order ID: $order_id, Item ID: $item_id, Unit Price: $item_unit_price, Total Price: $item_total_price");
+                        ?>
+                        <tr>
+                            <td><?= $global_index + 1 ?></td>
+                            <td><?= htmlspecialchars($item['product_name']) ?></td>
+                            <td><?= number_format($item_unit_price, 0) ?> تومان</td>
+                            <td><?= $item['quantity'] ?></td>
+                            <td><?= number_format($item_total_price, 0) ?> تومان</td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($postal_enabled && $page == $total_pages - 1): ?>
+                        <tr>
+                            <td><?= count($items) + 1 ?></td>
+                            <td>ارسال پستی</td>
+                            <td><?= number_format($postal_price, 0) ?> تومان</td>
+                            <td>-</td>
+                            <td><?= number_format($postal_price, 0) ?> تومان</td>
+                        </tr>
+                        <?php $invoice_total += $postal_price; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <?php if ($page == $total_pages - 1): ?>
+                <div class="invoice-summary">
+                    <p>مبلغ کل فاکتور: <?= number_format($invoice_total, 0) ?> تومان</p>
+                    <p>تخفیف: <?= number_format($order['discount'], 0) ?> تومان</p>
+                    <p>مبلغ قابل پرداخت: <?= number_format($invoice_total - $order['discount'], 0) ?> تومان</p>
+                </div>
+            <?php endif; ?>
+
+            <div class="invoice-footer">
+                <hr>
+                <p>فروشندگان: </p>
+                <p>
+                    <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس:
+                    <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> |
+                    <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس:
+                    <?= htmlspecialchars($order['partner2_phone'] ?? 'نامشخص') ?>
+                </p>
+            </div>
         </div>
-    </div>
     <?php endfor; ?>
 
     <script>
+        console.log('Script loaded');
         function saveInvoiceAsPNG() {
+            console.log('saveInvoiceAsPNG called');
             if (typeof html2canvas === 'undefined') {
                 console.error('html2canvas is not loaded');
                 alert('خطا: کتابخانه html2canvas لود نشده است. لطفاً اتصال اینترنت را بررسی کنید.');
@@ -342,6 +366,7 @@ $pages = array_chunk($items, $items_per_page);
                     continue;
                 }
 
+                console.log(`Generating PNG for page ${page}`);
                 html2canvas(invoiceContainer, {
                     scale: 2,
                     useCORS: true,
@@ -351,6 +376,7 @@ $pages = array_chunk($items, $items_per_page);
                     link.href = canvas.toDataURL('image/png');
                     link.download = `فاکتور_شماره_${orderId}_صفحه_${page}.png`;
                     link.click();
+                    console.log(`PNG generated for page ${page}`);
                 }).catch(error => {
                     console.error('Error saving PNG:', error);
                     alert('خطا در ذخیره تصویر فاکتور. لطفاً دوباره تلاش کنید.');
