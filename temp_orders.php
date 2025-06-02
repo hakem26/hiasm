@@ -8,17 +8,14 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_format($gregorian_date)
-{
-    if (!$gregorian_date || $gregorian_date == '0000-00-00')
-        return 'نامشخص';
+function gregorian_to_jalali_format($gregorian_date) {
+    if (!$gregorian_date || $gregorian_date == '0000-00-00') return 'نامشخص';
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
-function gregorian_year_to_jalali($gregorian_year)
-{
+function gregorian_year_to_jalali($gregorian_year) {
     list($jy, $jm, $jd) = gregorian_to_jalali($gregorian_year, 1, 1);
     return $jy;
 }
@@ -30,8 +27,7 @@ $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $years = [];
 foreach ($months as $month) {
     $start_date = $month['start_date'];
-    if ($start_date == '0000-00-00')
-        continue; // نادیده گرفتن ماه پیش‌فرض
+    if ($start_date == '0000-00-00') continue;
     list($gy, $gm, $gd) = explode('-', $start_date);
     $jalali_date = gregorian_to_jalali($gy, $gm, $gd);
     $jalali_year = $jalali_date[0];
@@ -68,7 +64,7 @@ if ($selected_year) {
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
 $selected_work_month_id = $_GET['work_month_id'] ?? null;
-$page = (int) ($_GET['page'] ?? 1);
+$page = (int)($_GET['page'] ?? 1);
 $per_page = 10;
 
 $is_partner1 = false;
@@ -83,13 +79,13 @@ if ($selected_work_month_id && !$is_admin) {
 }
 
 $orders_query = "
-    SELECT to.temp_order_id, to.customer_name, to.total_amount, to.discount, to.final_amount,
+    SELECT tord.temp_order_id, tord.customer_name, tord.total_amount, tord.discount, tord.final_amount,
            SUM(op.amount) AS paid_amount,
-           (to.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
-           to.created_at
-    FROM Temp_Orders to
-    LEFT JOIN Order_Payments op ON to.temp_order_id = op.order_id
-    WHERE to.user_id = ?";
+           (tord.final_amount - COALESCE(SUM(op.amount), 0)) AS remaining_amount,
+           tord.created_at
+    FROM Temp_Orders tord
+    LEFT JOIN Order_Payments op ON tord.temp_order_id = op.order_id
+    WHERE tord.user_id = ?";
 
 $params = [$current_user_id];
 $conditions = [];
@@ -99,7 +95,7 @@ if ($selected_work_month_id) {
     $month_query->execute([$selected_work_month_id]);
     $month = $month_query->fetch(PDO::FETCH_ASSOC);
     if ($month) {
-        $conditions[] = "to.created_at >= ? AND to.created_at < ?";
+        $conditions[] = "tord.created_at >= ? AND tord.created_at < ?";
         $params[] = $month['start_date'] . ' 00:00:00';
         $params[] = $month['end_date'] . ' 23:59:59';
     }
@@ -109,7 +105,7 @@ if (!empty($conditions)) {
     $orders_query .= " AND " . implode(" AND ", $conditions);
 }
 
-$orders_query .= " GROUP BY to.temp_order_id, to.customer_name, to.total_amount, to.discount, to.final_amount, to.created_at";
+$orders_query .= " GROUP BY tord.temp_order_id, tord.customer_name, tord.total_amount, tord.discount, tord.final_amount, tord.created_at";
 
 $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
 $stmt_count->execute($params);
@@ -117,7 +113,7 @@ $total_orders = $stmt_count->fetchColumn();
 $total_pages = ceil($total_orders / $per_page);
 $offset = ($page - 1) * $per_page;
 
-$orders_query .= " LIMIT " . (int) $per_page . " OFFSET " . (int) $offset;
+$orders_query .= " LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
 $stmt_orders = $pdo->prepare($orders_query);
 $stmt_orders->execute($params);
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
@@ -185,20 +181,15 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                             <td><?= number_format($order['paid_amount'] ?? 0, 0) ?></td>
                             <td><?= number_format($order['remaining_amount'], 0) ?></td>
                             <td>
-                                <a href="edit_temp_order.php?temp_order_id=<?= $order['temp_order_id'] ?>"
-                                    class="btn btn-primary btn-sm me-2">ویرایش</a>
-                                <a href="delete_temp_order.php?temp_order_id=<?= $order['temp_order_id'] ?>"
-                                    class="btn btn-danger btn-sm me-2" onclick="return confirm('حذف؟');">حذف</a>
-                                <button class="btn btn-warning btn-sm convert-order"
-                                    data-temp-order-id="<?= $order['temp_order_id'] ?>">تبدیل</button>
+                                <a href="edit_temp_order.php?temp_order_id=<?= $order['temp_order_id'] ?>" class="btn btn-primary btn-sm me-2">ویرایش</a>
+                                <a href="delete_temp_order.php?temp_order_id=<?= $order['temp_order_id'] ?>" class="btn btn-danger btn-sm me-2" onclick="return confirm('حذف؟');">حذف</a>
+                                <button class="btn btn-warning btn-sm convert-order" data-temp-order-id="<?= $order['temp_order_id'] ?>">تبدیل</button>
                             </td>
                             <td>
-                                <a href="edit_payment.php?order_id=<?= $order['temp_order_id'] ?>"
-                                    class="btn btn-primary btn-sm">ویرایش</a>
+                                <a href="edit_payment.php?order_id=<?= $order['temp_order_id'] ?>" class="btn btn-primary btn-sm">ویرایش</a>
                             </td>
                             <td>
-                                <a href="print_invoice.php?order_id=<?= $order['temp_order_id'] ?>"
-                                    class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
+                                <a href="print_invoice.php?order_id=<?= $order['temp_order_id'] ?>" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -209,21 +200,18 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
         <nav aria-label="Page navigation">
             <ul class="pagination justify-content-center mt-3">
                 <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                    <a class="page-link"
-                        href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&year=<?= $selected_year ?>">قبلی</a>
+                    <a class="page-link" href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&year=<?= $selected_year ?>">قبلی</a>
                 </li>
                 <?php
                 $start_page = max(1, $page - 2);
                 $end_page = min($total_pages, $page + 2);
                 for ($i = $start_page; $i <= $end_page; $i++): ?>
                     <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                        <a class="page-link"
-                            href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
+                        <a class="page-link" href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
                     </li>
                 <?php endfor; ?>
                 <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                    <a class="page-link"
-                        href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&year=<?= $selected_year ?>">بعدی</a>
+                    <a class="page-link" href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&year=<?= $selected_year ?>">بعدی</a>
                 </li>
             </ul>
         </nav>
@@ -233,8 +221,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 </div>
 
 <!-- مودال تبدیل سفارش -->
-<div class="modal fade" id="convertOrderModal" tabindex="-1" aria-labelledby="convertOrderModalLabel"
-    aria-hidden="true">
+<div class="modal fade" id="convertOrderModal" tabindex="-1" aria-labelledby="convertOrderModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -258,8 +245,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                         $work_days = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         foreach ($work_days as $day): ?>
                             <option value="<?= $day['id'] ?>">
-                                <?= gregorian_to_jalali_format($day['work_date']) ?> -
-                                <?= htmlspecialchars($day['full_name'] ?: 'نامشخص') ?>
+                                <?= gregorian_to_jalali_format($day['work_date']) ?> - <?= htmlspecialchars($day['full_name'] ?: 'نامشخص') ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -277,74 +263,74 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
-    $(document).ready(function () {
-        $('#tempOrdersTable').DataTable({
-            responsive: false,
-            scrollX: true,
-            autoWidth: false,
-            paging: false,
-            ordering: true,
-            info: true,
-            searching: false,
-            "language": {
-                "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                "infoEmpty": "هیچ فاکتوری یافت نشد",
-                "zeroRecords": "هیچ فاکتوری یافت نشد",
-                "lengthMenu": "نمایش _MENU_ ردیف",
-                "paginate": {
-                    "previous": "قبلی",
-                    "next": "بعدی"
-                }
+$(document).ready(function () {
+    $('#tempOrdersTable').DataTable({
+        responsive: false,
+        scrollX: true,
+        autoWidth: false,
+        paging: false,
+        ordering: true,
+        info: true,
+        searching: false,
+        "language": {
+            "info": "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
+            "infoEmpty": "هیچ فاکتوری یافت نشد",
+            "zeroRecords": "هیچ فاکتوری یافت نشد",
+            "lengthMenu": "نمایش _MENU_ ردیف",
+            "paginate": {
+                "previous": "قبلی",
+                "next": "بعدی"
             }
-        });
-
-        $('.convert-order').on('click', function () {
-            const tempOrderId = $(this).data('temp-order-id');
-            $('#temp_order_id').val(tempOrderId);
-            $('#convertOrderModal').modal('show');
-        });
-
-        $('#convert_order_btn').on('click', async function () {
-            const temp_order_id = $('#temp_order_id').val();
-            const work_details_id = $('#work_details_id').val();
-            if (!work_details_id) {
-                alert('لطفاً یک تاریخ کاری انتخاب کنید.');
-                return;
-            }
-
-            const data = {
-                action: 'convert_temp_order',
-                temp_order_id: temp_order_id,
-                work_details_id: work_details_id
-            };
-
-            try {
-                const response = await fetch('ajax_handler.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams(data)
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert(result.message);
-                    window.location.reload();
-                } else {
-                    alert(result.message);
-                }
-            } catch (error) {
-                alert('خطایی رخ داد: ' + error.message);
-            }
-            $('#convertOrderModal').modal('hide');
-        });
-
-        $('select[name="year"]').change(function () {
-            this.form.submit();
-        });
-
-        $('select[name="work_month_id"]').change(function () {
-            this.form.submit();
-        });
+        }
     });
+
+    $('.convert-order').on('click', function () {
+        const tempOrderId = $(this).data('temp-order-id');
+        $('#temp_order_id').val(tempOrderId);
+        $('#convertOrderModal').modal('show');
+    });
+
+    $('#convert_order_btn').on('click', async function () {
+        const temp_order_id = $('#temp_order_id').val();
+        const work_details_id = $('#work_details_id').val();
+        if (!work_details_id) {
+            alert('لطفاً یک تاریخ کاری انتخاب کنید.');
+            return;
+        }
+
+        const data = {
+            action: 'convert_temp_order',
+            temp_order_id: temp_order_id,
+            work_details_id: work_details_id
+        };
+
+        try {
+            const response = await fetch('ajax_temp_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(data)
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert(result.message);
+                window.location.reload();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('خطایی رخ داد: ' + error.message);
+        }
+        $('#convertOrderModal').modal('hide');
+    });
+
+    $('select[name="year"]').change(function () {
+        this.form.submit();
+    });
+
+    $('select[name="work_month_id"]').change(function () {
+        this.form.submit();
+    });
+});
 </script>
 
 <?php require_once 'footer.php'; ?>
