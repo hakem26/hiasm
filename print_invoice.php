@@ -3,25 +3,25 @@ session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع برای لاگ کردن در فایل debug.log
+// تابع برای ذخیره لاگ در فایل debug.log
 function write_log($message) {
     $log_file = __DIR__ . '/debug.log';
     $timestamp = date('Y-m-d H:i:s');
     file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND);
 }
 
-function gregorian_to_jalali_format($gregorian_date)
+function gregorian_to_jalali($gregorian_date) 
 {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
 }
 
-$order_id = isset($_GET['order_id']) ? (int) $_GET['order_id'] : 0;
+$order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
 if ($order_id <= 0) {
     write_log("Invalid order_id attempted: $order_id");
     header('HTTP/1.1 400 Bad Request');
-    echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>فاکتور نامعتبر است. لطفاً شماره فاکتور معتبر وارد کنید.</div>";
+    echo "<div style='text-align: center; font-family: Vazirmatn RD FD NL; direction: rtl;'>فاکتور غیرمعتبر است. لطفاً شماره فاکتور معتبر وارد کنید.</div>";
     exit;
 }
 
@@ -80,7 +80,7 @@ try {
     }
     write_log("Loaded " . count($invoice_prices) . " invoice prices for order_id: $order_id");
 
-    // تلاش برای تطبیق با اندیس‌های ترتیبی اگر item_id کار نکرد
+    // تلاش برای تطبیق با اندیس‌های ترتیبی
     $sequential_prices = [];
     foreach ($items as $index => $item) {
         if (isset($invoice_prices[$index])) {
@@ -310,17 +310,31 @@ try {
                     foreach ($page_items as $index => $item):
                         $global_index = $index + ($page * $items_per_page);
                         $item_id = $item['item_id'];
-                        // ابتدا تلاش برای استفاده از item_id
+                        $has_invoice_price = false;
+                        $has_extra_sale = (float) $item['extra_sale'] > 0;
+
+                        // چک کردن invoice_price
                         if (isset($invoice_prices[$item_id])) {
                             $item_unit_price = (float) $invoice_prices[$item_id];
-                            write_log("Used invoice price for item_id $item_id: $item_unit_price");
+                            $has_invoice_price = true;
+                            write_log("Item ID $item_id: Used invoice_price ($item_unit_price)");
                         } elseif (isset($sequential_prices[$item_id])) {
                             $item_unit_price = (float) $sequential_prices[$item_id];
-                            write_log("Used sequential price for item_id $item_id: $item_unit_price");
-                        } else {
+                            $has_invoice_price = true;
+                            write_log("Item ID $item_id: Used sequential invoice_price ($item_unit_price)");
+                        } elseif ($has_extra_sale) {
                             $item_unit_price = (float) ($item['unit_price'] + $item['extra_sale']);
-                            write_log("Used unit_price + extra_sale for item_id $item_id: $item_unit_price (unit_price: {$item['unit_price']}, extra_sale: {$item['extra_sale']})");
+                            write_log("Item ID $item_id: Used unit_price + extra_sale ($item_unit_price) [unit_price: {$item['unit_price']}, extra_sale: {$item['extra_sale']}]");
+                        } else {
+                            $item_unit_price = (float) $item['unit_price'];
+                            write_log("Item ID $item_id: Used unit_price only ($item_unit_price)");
                         }
+
+                        // لاگ استثنا
+                        if ($has_invoice_price && $has_extra_sale) {
+                            write_log("Item ID $item_id: Both invoice_price and extra_sale exist, prioritized invoice_price ($item_unit_price)");
+                        }
+
                         $item_total_price = $item['quantity'] * $item_unit_price;
                         $invoice_total += $item_total_price;
                         ?>
