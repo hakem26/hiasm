@@ -263,7 +263,9 @@ $_SESSION['postal_price'] = 50000;
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(data)
             });
-            return await response.json();
+            const rawResponse = await response.text(); // پاسخ خام
+            console.log('Raw response from ' + url + ':', rawResponse); // لاگ پاسخ خام
+            return JSON.parse(rawResponse); // تلاش برای parse
         } catch (error) {
             console.error('Request Error:', error);
             return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
@@ -642,5 +644,4 @@ $_SESSION['postal_price'] = 50000;
         }
     });
 </script>
-
 <?php require_once 'footer.php'; ?> 
