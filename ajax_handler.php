@@ -1281,45 +1281,27 @@ try {
 
         case 'get_edit_temp_order_items':
             $temp_order_id = $_POST['temp_order_id'] ?? '';
-            $work_month_id = $_POST['work_month_id'] ?? $_SESSION['work_month_id'] ?? '';
+            $work_month_id = $_POST['work_month_id'] ?? '';
 
             if (!$temp_order_id || !$work_month_id) {
-                file_put_contents('debug_get_items.log', "Invalid temp_order_id=$temp_order_id or work_month_id=$work_month_id\n", FILE_APPEND);
                 respond(false, 'شناسه سفارش یا ماه کاری نامعتبر است.');
             }
 
             try {
-                // لود آیتم‌ها از دیتابیس
                 $stmt = $pdo->prepare("
-            SELECT item_index, product_id, product_name, quantity, unit_price, extra_sale, total_price
-            FROM Temp_Order_Items 
-            WHERE temp_order_id = ? 
-            ORDER BY item_index ASC
+            SELECT toi.*, p.product_name 
+            FROM Temp_Order_Items toi 
+            JOIN Products p ON toi.product_id = p.product_id 
+            WHERE toi.temp_order_id = ? 
+            ORDER BY toi.item_index ASC
         ");
-                $stmt->execute([(int) $temp_order_id]);
+                $stmt->execute([$temp_order_id]);
                 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                // بازسازی آرایه با item_index به‌عنوان کلید
-                $indexed_items = [];
-                foreach ($items as $item) {
-                    $indexed_items[(int) $item['item_index']] = [
-                        'product_id' => $item['product_id'],
-                        'product_name' => $item['product_name'],
-                        'quantity' => (int) $item['quantity'],
-                        'unit_price' => (float) $item['unit_price'],
-                        'extra_sale' => (float) $item['extra_sale'],
-                        'total_price' => (float) $item['total_price'],
-                        'item_index' => (int) $item['item_index']
-                    ];
-                }
-
-                // لود قیمت‌های فاکتور
-                $stmt = $pdo->prepare("
-            SELECT item_index, invoice_price, is_postal, postal_price 
-            FROM Invoice_Prices 
-            WHERE order_id = ?
-        ");
-                $stmt->execute([(int) $temp_order_id]);
+                $stmt = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price 
+                              FROM Invoice_Prices 
+                              WHERE order_id = ?");
+                $stmt->execute([$temp_order_id]);
                 $invoice_prices = [];
                 $postal_enabled = false;
                 $postal_price = 50000;
@@ -1333,41 +1315,28 @@ try {
                     }
                 }
 
-                // آپدیت سشن
-                $_SESSION['edit_temp_order_items'] = array_values($indexed_items); // تبدیل به آرایه معمولی
+                $stmt = $pdo->prepare("SELECT total_amount, discount, final_amount 
+                              FROM Temp_Orders 
+                              WHERE temp_order_id = ?");
+                $stmt->execute([$temp_order_id]);
+                $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                $_SESSION['edit_temp_order_items'] = $items;
+                $_SESSION['invoice_prices'] = $invoice_prices;
                 $_SESSION['postal_enabled'] = $postal_enabled;
                 $_SESSION['postal_price'] = $postal_price;
-                $_SESSION['invoice_prices'] = $invoice_prices;
-                $_SESSION['edit_temp_order_id'] = $temp_order_id;
-                $_SESSION['work_month_id'] = $work_month_id;
-
-                // محاسبات
-                $total_amount = array_sum(array_column($indexed_items, 'total_price'));
-                $discount = (float) ($_SESSION['edit_temp_order_discount'] ?? 0);
-                $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
-
-                // دیباگ
-                file_put_contents('debug_get_items.log', sprintf(
-                    "get_edit_temp_order_items: temp_order_id=%s, work_month_id=%s, items_count=%d, items=%s, invoice_prices=%s\n",
-                    $temp_order_id,
-                    $work_month_id,
-                    count($indexed_items),
-                    json_encode($indexed_items, JSON_UNESCAPED_UNICODE),
-                    json_encode($invoice_prices, JSON_UNESCAPED_UNICODE)
-                ), FILE_APPEND);
 
                 respond(true, 'آیتم‌ها با موفقیت دریافت شدند.', [
-                    'items' => array_values($indexed_items),
-                    'total_amount' => $total_amount,
-                    'discount' => $discount,
-                    'final_amount' => $final_amount,
+                    'items' => $items,
+                    'total_amount' => (float) ($order['total_amount'] ?? 0),
+                    'discount' => (float) ($order['discount'] ?? 0),
+                    'final_amount' => (float) ($order['final_amount'] ?? 0),
                     'postal_enabled' => $postal_enabled,
                     'postal_price' => $postal_price,
                     'invoice_prices' => $invoice_prices
                 ]);
             } catch (PDOException $e) {
                 error_log("Error fetching temp order items: " . $e->getMessage());
-                file_put_contents('debug_get_items.log', "Error: " . $e->getMessage() . "\n", FILE_APPEND);
                 respond(false, 'خطا در دریافت آیتم‌ها: ' . $e->getMessage());
             }
             break;
