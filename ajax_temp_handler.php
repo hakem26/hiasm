@@ -1,18 +1,15 @@
 <?php
 session_start();
-ob_start(); // بافر خروجی برای جلوگیری از خروجی ناخواسته
 require_once 'db.php';
 
 header('Content-Type: application/json; charset=utf-8');
-ini_set('display_errors', 0); // غیرفعال کردن نمایش خطاها
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php_errors.log'); // لاگ خطاها به فایل
+ini_set('error_log', __DIR__ . '/php_errors.log');
 
 function sendResponse($success, $message = '', $data = []) {
-    ob_clean(); // پاک کردن بافر خروجی
-    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED);
-    ob_end_flush();
+    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -22,6 +19,10 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $action = $_POST['action'] ?? '';
+
+if (!$action) {
+    sendResponse(false, 'اکشن مشخص نشده است.');
+}
 
 if (!isset($_SESSION['temp_order_items'])) {
     $_SESSION['temp_order_items'] = [];
@@ -61,13 +62,10 @@ try {
                 sendResponse(false, 'محصول یافت نشد.');
             }
 
-            $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE product_id = ? AND user_id = ?");
-            $stmt->execute([$product_id, $user_id]);
-            $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
-            $available_quantity = $inventory ? (int)$inventory['quantity'] : 0;
-
-            if ($available_quantity < $quantity) {
-                sendResponse(false, 'موجودی کافی نیست.');
+            // چک موجودی حذف شده (مشابه ajax_handler.php)
+            $items = $_SESSION['temp_order_items'];
+            if (array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
+                sendResponse(false, 'این محصول قبلاً در فاکتور ثبت شده است.');
             }
 
             $total_price = $quantity * ($unit_price + $extra_sale);
@@ -97,12 +95,13 @@ try {
             ]);
 
         case 'delete_temp_item':
-            $index = $_POST['index'] ?? '';
-            if (!isset($_SESSION['temp_order_items'][$index])) {
+            $index = (int)($_POST['index'] ?? -1);
+            if ($index < 0 || !isset($_SESSION['temp_order_items'][$index])) {
                 sendResponse(false, 'آیتم یافت نشد.');
             }
 
-            array_splice($_SESSION['temp_order_items'], $index, 1);
+            unset($_SESSION['temp_order_items'][$index]);
+            $_SESSION['temp_order_items'] = array_values($_SESSION['temp_order_items']);
             unset($_SESSION['invoice_prices'][$index]);
 
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
@@ -122,7 +121,7 @@ try {
             $index = $_POST['index'] ?? '';
             $invoice_price = (float)($_POST['invoice_price'] ?? 0);
 
-            if ($invoice_price < 0) {
+            if ($index === '' || $invoice_price < 0) {
                 sendResponse(false, 'قیمت فاکتور معتبر نیست.');
             }
 
@@ -211,12 +210,13 @@ try {
                     $invoice_price
                 ]);
 
+                // آپدیت موجودی (اجازه به موجودی منفی)
                 $stmt_inventory = $pdo->prepare("
-                    UPDATE Inventory 
-                    SET quantity = quantity - ? 
-                    WHERE product_id = ? AND user_id = ?
+                    INSERT INTO Inventory (user_id, product_id, quantity)
+                    VALUES (?, ?, -?)
+                    ON DUPLICATE KEY UPDATE quantity = quantity - ?
                 ");
-                $stmt_inventory->execute([$item['quantity'], $item['product_id'], $user_id]);
+                $stmt_inventory->execute([$user_id, $item['product_id'], $item['quantity'], $item['quantity']]);
             }
 
             if ($_SESSION['postal_enabled']) {
@@ -240,13 +240,13 @@ try {
             sendResponse(true, 'سفارش با موفقیت ثبت شد.', ['redirect' => 'temp_orders.php']);
 
         default:
-            sendResponse(false, 'اقدام نامعتبر است.');
+            sendResponse(false, 'اکشن نامعتبر است.');
     }
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    error_log('Error in ajax_temp_handler.php: ' . $e->getMessage()); // لاگ خطا
+    error_log('Error in ajax_temp_handler.php: ' . $e->getMessage());
     sendResponse(false, 'خطا در پردازش درخواست: ' . $e->getMessage());
 }
 ?>
