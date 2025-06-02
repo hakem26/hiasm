@@ -263,9 +263,16 @@ $_SESSION['postal_price'] = 50000;
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(data)
             });
-            const rawResponse = await response.text(); // پاسخ خام
+            const rawResponse = await response.text();
             console.log('Raw response from ' + url + ':', rawResponse); // لاگ پاسخ خام
-            return JSON.parse(rawResponse); // تلاش برای parse
+            console.log('Response status:', response.status); // لاگ وضعیت HTTP
+            console.log('Response headers:', response.headers.get('content-type')); // لاگ نوع محتوا
+            try {
+                return JSON.parse(rawResponse);
+            } catch (e) {
+                console.error('JSON Parse Error:', e, 'Raw Response:', rawResponse);
+                throw e;
+            }
         } catch (error) {
             console.error('Request Error:', error);
             return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
@@ -618,6 +625,7 @@ $_SESSION['postal_price'] = 50000;
                 discount,
                 user_id: '<?= $current_user_id ?>'
             };
+            console.log('Data sent to finalize:', data); // لاگ داده‌های ارسالی
 
             const response = await sendRequest('ajax_temp_handler.php', data);
             if (response.success) {

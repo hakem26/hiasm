@@ -1,11 +1,18 @@
 <?php
 session_start();
+ob_start(); // بافر خروجی برای جلوگیری از خروجی ناخواسته
 require_once 'db.php';
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+ini_set('display_errors', 0); // غیرفعال کردن نمایش خطاها
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/php_errors.log'); // لاگ خطاها به فایل
 
 function sendResponse($success, $message = '', $data = []) {
+    ob_clean(); // پاک کردن بافر خروجی
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
+    ob_end_flush();
     exit;
 }
 
@@ -92,7 +99,7 @@ try {
         case 'delete_temp_item':
             $index = $_POST['index'] ?? '';
             if (!isset($_SESSION['temp_order_items'][$index])) {
-                sendResponse(false, 'آیتم انتخاب شده یافت نشد.');
+                sendResponse(false, 'آیتم یافت نشد.');
             }
 
             array_splice($_SESSION['temp_order_items'], $index, 1);
@@ -188,7 +195,7 @@ try {
             ]);
             $order_id = $pdo->lastInsertId();
 
-            $stmt->prepare("
+            $stmt = $pdo->prepare("
                 INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
@@ -239,6 +246,7 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    error_log('Error in ajax_temp_handler.php: ' . $e->getMessage()); // لاگ خطا
     sendResponse(false, 'خطا در پردازش درخواست: ' . $e->getMessage());
 }
 ?>
