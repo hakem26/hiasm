@@ -285,7 +285,7 @@ $_SESSION['postal_price'] = 50000;
             });
             return await response.json();
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Request Error:', error);
             return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
         }
     }
@@ -389,6 +389,7 @@ $_SESSION['postal_price'] = 50000;
 
         $('#product_name').on('input', function () {
             let query = $(this).val().trim();
+            console.log('Search query:', query); // دیباگ کوئری
             if (query.length >= 3) {
                 $.ajax({
                     url: 'get_products.php',
@@ -400,6 +401,7 @@ $_SESSION['postal_price'] = 50000;
                             $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
                         } else {
                             $('#product_suggestions').html(response).show();
+                            console.log('Suggestions displayed:', $('#product_suggestions').html()); // دیباگ HTML
                         }
                     },
                     error: function (xhr, status, error) {
@@ -415,7 +417,7 @@ $_SESSION['postal_price'] = 50000;
         $(document).on('click', '.product-suggestion', function (e) {
             e.preventDefault();
             let product = $(this).data('product');
-            console.log('Selected product:', product); // دیباگ محصول انتخاب‌شده
+            console.log('Selected product:', product); // دیباگ محصول
             if (typeof product === 'string') {
                 try {
                     product = JSON.parse(product);
