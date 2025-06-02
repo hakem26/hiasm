@@ -72,11 +72,22 @@ try {
         if ($row['is_postal'] && $row['postal_price'] > 0) {
             $postal_enabled = true;
             $postal_price = (float) $row['postal_price'];
+            write_log("Postal enabled with price: $postal_price for order_id: $order_id");
         } else {
             $invoice_prices[(int) $row['item_index']] = (float) $row['invoice_price'];
+            write_log("Invoice price for item_index {$row['item_index']}: {$row['invoice_price']} for order_id: $order_id");
         }
     }
     write_log("Loaded " . count($invoice_prices) . " invoice prices for order_id: $order_id");
+
+    // تلاش برای تطبیق با اندیس‌های ترتیبی اگر item_id کار نکرد
+    $sequential_prices = [];
+    foreach ($items as $index => $item) {
+        if (isset($invoice_prices[$index])) {
+            $sequential_prices[$item['item_id']] = $invoice_prices[$index];
+            write_log("Matched sequential item_index $index to item_id {$item['item_id']} with price: {$invoice_prices[$index]}");
+        }
+    }
 
     $items_per_page = 14;
     $total_items = count($items) + ($postal_enabled ? 1 : 0);
@@ -299,10 +310,19 @@ try {
                     foreach ($page_items as $index => $item):
                         $global_index = $index + ($page * $items_per_page);
                         $item_id = $item['item_id'];
-                        $item_unit_price = isset($invoice_prices[$item_id]) ? (float) $invoice_prices[$item_id] : (float) ($item['unit_price'] + $item['extra_sale']);
+                        // ابتدا تلاش برای استفاده از item_id
+                        if (isset($invoice_prices[$item_id])) {
+                            $item_unit_price = (float) $invoice_prices[$item_id];
+                            write_log("Used invoice price for item_id $item_id: $item_unit_price");
+                        } elseif (isset($sequential_prices[$item_id])) {
+                            $item_unit_price = (float) $sequential_prices[$item_id];
+                            write_log("Used sequential price for item_id $item_id: $item_unit_price");
+                        } else {
+                            $item_unit_price = (float) ($item['unit_price'] + $item['extra_sale']);
+                            write_log("Used unit_price + extra_sale for item_id $item_id: $item_unit_price (unit_price: {$item['unit_price']}, extra_sale: {$item['extra_sale']})");
+                        }
                         $item_total_price = $item['quantity'] * $item_unit_price;
                         $invoice_total += $item_total_price;
-                        write_log("Order ID: $order_id, Item ID: $item_id, Unit Price: $item_unit_price, Total Price: $item_total_price");
                         ?>
                         <tr>
                             <td><?= $global_index + 1 ?></td>
