@@ -11,7 +11,7 @@ ini_set('error_log', __DIR__ . '/php_errors.log'); // لاگ خطاها به ف�
 
 function sendResponse($success, $message = '', $data = []) {
     ob_clean(); // پاک کردن بافر خروجی
-    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED);
     ob_end_flush();
     exit;
 }
@@ -196,7 +196,7 @@ try {
             $order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+                INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
@@ -221,7 +221,7 @@ try {
 
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+                    INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
                     VALUES (?, 0, 1, ?, 0, ?, ?)
                 ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
