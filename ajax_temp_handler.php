@@ -62,7 +62,6 @@ try {
                 sendResponse(false, 'محصول یافت نشد.');
             }
 
-            // چک موجودی حذف شده (مشابه ajax_handler.php)
             $items = $_SESSION['temp_order_items'];
             if (array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
                 sendResponse(false, 'این محصول قبلاً در فاکتور ثبت شده است.');
@@ -195,14 +194,14 @@ try {
             $order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+                INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price, invoice_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
                 $invoice_price = $_SESSION['invoice_prices'][$index] ?? $item['total_price'];
                 $stmt->execute([
                     $order_id,
-                    $item['product_id'],
+                    $item['product_name'], // استفاده از product_name به جای product_id
                     $item['quantity'],
                     $item['unit_price'],
                     $item['extra_sale'],
@@ -221,11 +220,11 @@ try {
 
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
-                    VALUES (?, 0, 1, ?, 0, ?, ?)
+                    INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price, invoice_price)
+                    VALUES (?, ?, 1, ?, 0, ?, ?)
                 ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
-                $stmt->execute([$order_id, $postal_price, $postal_price, $postal_price]);
+                $stmt->execute([$order_id, 'ارسال پستی', $postal_price, 0, $postal_price]);
             }
 
             $pdo->commit();
