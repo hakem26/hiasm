@@ -747,7 +747,7 @@ try {
             $partner1_id = $_POST['partner1_id'] ?? '';
             $work_month_id = $_POST['work_month_id'] ?? '';
 
-            if (!$customer_name || !$product_id || $quantity <= !temp_order_id || !$partner1_id || !$work_month_id) {
+            if (!$customer_name || !$product_id || $quantity <= 0 || !$temp_order_id || !$partner1_id || !$work_month_id) {
                 respond(false, 'لطفاً تمام فیلدها را پر کنید.');
             }
 
