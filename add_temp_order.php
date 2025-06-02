@@ -416,7 +416,7 @@ $_SESSION['postal_price'] = 50000;
             $('#product_suggestions').hide();
 
             $.ajax({
-                url: 'get_inventory.php',
+                url: 'get_temp_inventory.php',
                 type: 'POST',
                 data: {
                     product_id: product.product_id,
