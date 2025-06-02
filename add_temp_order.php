@@ -265,7 +265,7 @@ $_SESSION['postal_price'] = 50000;
             });
             return await response.json();
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Request Error:', error);
             return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
         }
     }
@@ -275,8 +275,8 @@ $_SESSION['postal_price'] = 50000;
         const totalAmountDisplay = document.getElementById('total_amount_display');
         const finalAmountDisplay = document.getElementById('final_amount_display');
         const invoicePrices = data.invoice_prices || {};
-        const postalEnabled = data.postal_enabled || <?= $_SESSION['postal_enabled'] ? 'true' : 'false' ?>;
-        const postalPrice = data.postal_price || <?= $_SESSION['postal_price'] ?>;
+        const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
+        const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
 
         if (!data.items || data.items.length === 0) {
             itemsTable.innerHTML = '';
@@ -368,22 +368,25 @@ $_SESSION['postal_price'] = 50000;
         let editingIndex = null;
 
         $('#product_name').on('input', function () {
-            let query = $(this).val();
+            let query = $(this).val().trim();
+            console.log('Search query:', query);
             if (query.length >= 3) {
                 $.ajax({
                     url: 'get_products.php',
                     type: 'POST',
                     data: { query: query },
                     success: function (response) {
-                        if (response.trim() === '') {
-                            $('#product_suggestions').hide();
+                        console.log('get_products response:', response);
+                        if (!response || response.trim() === '') {
+                            $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
                         } else {
                             $('#product_suggestions').html(response).show();
+                            console.log('Suggestions displayed:', $('#product_suggestions').html());
                         }
                     },
                     error: function (xhr, status, error) {
-                        console.error('AJAX Error:', status, error);
-                        $('#product_suggestions').hide();
+                        console.error('AJAX Error:', status, error, xhr.responseText);
+                        $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
                     }
                 });
             } else {
@@ -394,8 +397,15 @@ $_SESSION['postal_price'] = 50000;
         $(document).on('click', '.product-suggestion', function (e) {
             e.preventDefault();
             let product = $(this).data('product');
+            console.log('Selected product:', product);
             if (typeof product === 'string') {
-                product = JSON.parse(product);
+                try {
+                    product = JSON.parse(product);
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                    alert('خطا در پردازش محصول.');
+                    return;
+                }
             }
             $('#product_name').val(product.product_name).prop('disabled', false);
             $('#product_id').val(product.product_id);
@@ -413,6 +423,7 @@ $_SESSION['postal_price'] = 50000;
                     user_id: '<?= $current_user_id ?>'
                 },
                 success: function (response) {
+                    console.log('get_inventory response:', response);
                     if (response.success) {
                         initialInventory = response.data.inventory || 0;
                         $('#inventory_quantity').text(initialInventory);
@@ -423,7 +434,8 @@ $_SESSION['postal_price'] = 50000;
                         alert('خطا در دریافت موجودی: ' + response.message);
                     }
                 },
-                error: function () {
+                error: function (xhr, status, error) {
+                    console.error('Inventory AJAX Error:', status, error, xhr.responseText);
                     $('#inventory_quantity').text('0');
                     alert('خطا در دریافت موجودی.');
                 }
@@ -621,7 +633,7 @@ $_SESSION['postal_price'] = 50000;
             $('#unit_price').val('');
             $('#extra_sale').val('0');
             $('#adjusted_price').val('');
-            '#total_price').val('');
+            $('#total_price').val('');
             $('#inventory_quantity').text('0');
             initialInventory = 0;
             editingIndex = null;
