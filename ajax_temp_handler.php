@@ -172,8 +172,8 @@ try {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_enabled, postal_price, order_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_price, order_date)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
             ");
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
@@ -183,8 +183,7 @@ try {
                 $total_amount,
                 $discount,
                 $final_amount,
-                $_SESSION['postal_enabled'] ? 1 : 0,
-                $_SESSION['postal_price']
+                $_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0
             ]);
             $order_id = $pdo->lastInsertId();
 
