@@ -1,7 +1,7 @@
 <?php
 // [BLOCK-DB-001]
 $host = 'localhost';
-$dbname = 'yshcvdau_hiasm_temp';
+$dbname = 'yshcvdau_temp';
 $username = 'yshcvdau_hiasmadmin';
 $password = 'H72j51300!';
 
