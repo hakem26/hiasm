@@ -4,8 +4,7 @@ require_once 'db.php';
 
 header('Content-Type: application/json');
 
-function sendResponse($success, $message = '', $data = [])
-{
+function sendResponse($success, $message = '', $data = []) {
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -38,10 +37,10 @@ try {
         case 'add_temp_item':
             $customer_name = $_POST['customer_name'] ?? '';
             $product_id = $_POST['product_id'] ?? '';
-            $quantity = (int) ($_POST['quantity'] ?? 0);
-            $unit_price = (float) ($_POST['unit_price'] ?? 0);
-            $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-            $discount = (float) ($_POST['discount'] ?? 0);
+            $quantity = (int)($_POST['quantity'] ?? 0);
+            $unit_price = (float)($_POST['unit_price'] ?? 0);
+            $extra_sale = (float)($_POST['extra_sale'] ?? 0);
+            $discount = (float)($_POST['discount'] ?? 0);
 
             if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0) {
                 sendResponse(false, 'لطفاً همه فیلدها را به درستی پر کنید.');
@@ -58,7 +57,7 @@ try {
             $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE product_id = ? AND user_id = ?");
             $stmt->execute([$product_id, $user_id]);
             $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
-            $available_quantity = $inventory ? (int) $inventory['quantity'] : 0;
+            $available_quantity = $inventory ? (int)$inventory['quantity'] : 0;
 
             if ($available_quantity < $quantity) {
                 sendResponse(false, 'موجودی کافی نیست.');
@@ -114,7 +113,7 @@ try {
 
         case 'set_temp_invoice_price':
             $index = $_POST['index'] ?? '';
-            $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
+            $invoice_price = (float)($_POST['invoice_price'] ?? 0);
 
             if ($invoice_price < 0) {
                 sendResponse(false, 'قیمت فاکتور معتبر نیست.');
@@ -143,7 +142,7 @@ try {
             ]);
 
         case 'update_temp_discount':
-            $discount = (float) ($_POST['discount'] ?? 0);
+            $discount = (float)($_POST['discount'] ?? 0);
             if ($discount < 0) {
                 sendResponse(false, 'تخفیف معتبر نیست.');
             }
@@ -164,7 +163,7 @@ try {
 
         case 'finalize_temp_order':
             $customer_name = $_POST['customer_name'] ?? '';
-            $discount = (float) ($_POST['discount'] ?? 0);
+            $discount = (float)($_POST['discount'] ?? 0);
 
             if (!$customer_name || empty($_SESSION['temp_order_items'])) {
                 sendResponse(false, 'نام مشتری یا اقلام سفارش معتبر نیست.');
