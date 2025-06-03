@@ -215,14 +215,13 @@ try {
             $order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-        INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+        VALUES (?, ?, ?, ?, ?, ?)
     ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
                 $invoice_price = $_SESSION['invoice_prices'][$index] ?? $item['unit_price'];
                 $stmt->execute([
                     $order_id,
-                    $item['product_id'],
                     $item['quantity'],
                     $item['unit_price'],
                     $item['extra_sale'],
@@ -231,22 +230,21 @@ try {
                 ]);
 
                 $stmt_inventory = $pdo->prepare("
-            UPDATE Inventory 
-            SET quantity = quantity - ? 
-            WHERE product_id = ? AND user_id = ?
+            INSERT INTO Inventory (user_id, product_id, quantity)
+            VALUES (?, ?, -?)
+            ON DUPLICATE KEY UPDATE quantity = quantity - ?
         ");
-                $stmt_inventory->execute([$item['quantity'], $item['product_id'], $user_id]);
+                $stmt_inventory->execute([$user_id, $item['product_id'], $item['quantity'], $item['quantity']]);
             }
 
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
-            INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
                 $stmt->execute([
                     $order_id,
-                    0, // product_id برای پستی
                     1,
                     $postal_price,
                     0,
