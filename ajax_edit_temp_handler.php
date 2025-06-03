@@ -59,13 +59,18 @@ try {
             }
 
             $stmt = $pdo->prepare("
-                SELECT toi.quantity, toi.unit_price, toi.extra_sale, toi.total_price, p.product_name, p.product_id
-                FROM Temp_Order_Items toi
-                JOIN Products p ON toi.product_id = p.product_id
-                WHERE toi.temp_order_id = ?
+                SELECT item_id, temp_order_id, product_name, quantity, unit_price, extra_sale, total_price
+                FROM Temp_Order_Items
+                WHERE temp_order_id = ?
             ");
             $stmt->execute([$temp_order_id]);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // مدیریت product_name خالی و شبیه‌سازی product_id برای سشن
+            foreach ($items as &$item) {
+                $item['product_name'] = $item['product_name'] ?: 'محصول ناشناس #' . $item['item_id'];
+                $item['product_id'] = 'unknown_' . $item['item_id']; // برای سازگاری با سشن
+            }
 
             $_SESSION['temp_order_items'] = $items;
             $_SESSION['discount'] = (float)$order['discount'];
@@ -283,15 +288,6 @@ try {
 
             $pdo->beginTransaction();
 
-            // بازیابی مقادیر قبلی برای اصلاح موجودی
-            $stmt = $pdo->prepare("
-                SELECT product_id, quantity
-                FROM Temp_Order_Items
-                WHERE temp_order_id = ?
-            ");
-            $stmt->execute([$temp_order_id]);
-            $old_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
             // حذف اقلام قبلی
             $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
             $stmt->execute([$temp_order_id]);
@@ -317,52 +313,45 @@ try {
 
             // ثبت اقلام جدید
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price)
+                INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price)
                 VALUES (?, ?, ?, ?, ?, ?)
             ");
             foreach ($_SESSION['temp_order_items'] as $item) {
                 $stmt->execute([
                     $temp_order_id,
-                    $item['product_id'],
+                    $item['product_name'],
                     $item['quantity'],
                     $item['unit_price'],
                     $item['extra_sale'],
                     $item['total_price']
                 ]);
 
-                // اصلاح موجودی
-                $stmt_inventory = $pdo->prepare("
-                    INSERT INTO Inventory (user_id, product_id, quantity)
-                    VALUES (?, ?, -?)
-                    ON DUPLICATE KEY UPDATE quantity = quantity - ?
-                ");
-                $stmt_inventory->execute([$user_id, $item['product_id'], $item['quantity'], $item['quantity']]);
+                // اصلاح موجودی (فقط برای آیتم‌های غیرپستی)
+                if (strpos($item['product_id'], 'unknown_') !== 0) {
+                    $stmt_inventory = $pdo->prepare("
+                        INSERT INTO Inventory (user_id, product_id, quantity)
+                        VALUES (?, ?, -?)
+                        ON DUPLICATE KEY UPDATE quantity = quantity - ?
+                    ");
+                    $stmt_inventory->execute([$user_id, $item['product_id'], $item['quantity'], $item['quantity']]);
+                }
             }
 
             // ثبت پستی
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
                 $stmt->execute([
                     $temp_order_id,
+                    'ارسال پستی',
                     1,
                     $postal_price,
                     0,
                     $postal_price
                 ]);
-            }
-
-            // اصلاح موجودی برای اقلام قدیمی
-            foreach ($old_items as $item) {
-                $stmt_inventory = $pdo->prepare("
-                    UPDATE Inventory
-                    SET quantity = quantity + ?
-                    WHERE user_id = ? AND product_id = ?
-                ");
-                $stmt_inventory->execute([$item['quantity'], $user_id, $item['product_id']]);
             }
 
             $pdo->commit();
