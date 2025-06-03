@@ -130,15 +130,41 @@ try {
 
         case 'set_temp_invoice_price':
             $index = $_POST['index'] ?? '';
-            $invoice_price = (float)($_POST['invoice_price'] ?? 0);
+            $new_unit_price = (float)($_POST['invoice_price'] ?? 0);
 
-            if ($index === '' || $invoice_price < 0) {
-                sendResponse(false, 'قیمت فاکتور معتبر نیست.');
+            if ($index === '' || $new_unit_price < 0) {
+                sendResponse(false, 'قیمت واحد معتبر نیست.');
             }
 
-            $_SESSION['invoice_prices'][$index] = $invoice_price;
-            sendResponse(true, 'قیمت فاکتور با موفقیت تنظیم شد.', [
-                'invoice_prices' => $_SESSION['invoice_prices']
+            if ($index === 'postal') {
+                $_SESSION['invoice_prices']['postal'] = $new_unit_price;
+                $_SESSION['postal_price'] = $new_unit_price;
+            } else {
+                $index = (int)$index;
+                if (!isset($_SESSION['temp_order_items'][$index])) {
+                    sendResponse(false, 'آیتم یافت نشد.');
+                }
+
+                // آپدیت unit_price و total_price آیتم
+                $item = &$_SESSION['temp_order_items'][$index];
+                $item['unit_price'] = $new_unit_price;
+                $item['total_price'] = $item['quantity'] * ($new_unit_price + $item['extra_sale']);
+                
+                // ذخیره قیمت کل به‌عنوان invoice_price
+                $_SESSION['invoice_prices'][$index] = $item['total_price'];
+            }
+
+            $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
+            $final_amount = $total_amount - $_SESSION['discount'] + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
+
+            sendResponse(true, 'قیمت واحد با موفقیت تنظیم شد.', [
+                'items' => $_SESSION['temp_order_items'],
+                'total_amount' => $total_amount,
+                'final_amount' => $final_amount,
+                'discount' => $_SESSION['discount'],
+                'invoice_prices' => $_SESSION['invoice_prices'],
+                'postal_enabled' => $_SESSION['postal_enabled'],
+                'postal_price' => $_SESSION['postal_price']
             ]);
 
         case 'set_temp_postal_option':
