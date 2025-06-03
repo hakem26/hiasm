@@ -48,8 +48,6 @@ try {
             $quantity = (int) ($_POST['quantity'] ?? 0);
             $unit_price = (float) ($_POST['unit_price'] ?? 0);
             $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-            $discount = (float) ($_POST['discount'] ?? 0);
-
             if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0) {
                 sendResponse(false, 'لطفاً همه فیلدها را به درستی پر کنید.');
             }
@@ -68,6 +66,7 @@ try {
             $available_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
             $total_price = $quantity * ($unit_price + $extra_sale);
+
             $item = [
                 'product_id' => $product_id,
                 'product_name' => $product['product_name'],
@@ -194,6 +193,8 @@ try {
                 sendResponse(false, 'نام مشتری یا اقلام سفارش معتبر نیست.');
             }
 
+            error_log('Finalizing temp order for user_id: ' . $user_id . ', items: ' . json_encode($_SESSION['temp_order_items'], JSON_UNESCAPED_UNICODE));
+
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
@@ -218,9 +219,10 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?)
             ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
+                error_log('Inserting item: ' . json_encode($item, JSON_UNESCAPED_UNICODE));
                 $stmt->execute([
                     $order_id,
-                    $item['product_name'],
+                    $item['product_name'] ?? 'نامشخص',
                     $item['quantity'],
                     $item['unit_price'],
                     $item['extra_sale'],
@@ -241,6 +243,7 @@ try {
                     VALUES (?, ?, ?, ?, ?, ?)
                 ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
+                error_log('Inserting postal item: ' . $postal_price);
                 $stmt->execute([
                     $order_id,
                     'ارسال پستی',

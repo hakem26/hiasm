@@ -62,10 +62,10 @@ try {
             $stmt = $pdo->prepare("
                 SELECT item_id, temp_order_id, product_name, quantity, unit_price, extra_sale, total_price
                 FROM Temp_Order_Items
-                WHERE temp_order_id = ? AND product_name != 'ارسال پستی'
+                WHERE temp_order_id = ? AND unit_price != ?
                 ORDER BY item_id
             ");
-            $stmt->execute([$temp_order_id]);
+            $stmt->execute([$temp_order_id, $order['postal_price']]);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $_SESSION['temp_order_items'] = [];
@@ -82,6 +82,8 @@ try {
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
                 $_SESSION['invoice_prices'][$index] = $item['unit_price'];
             }
+
+            error_log('Loaded temp order: ' . json_encode($order, JSON_UNESCAPED_UNICODE) . ', items: ' . json_encode($_SESSION['temp_order_items'], JSON_UNESCAPED_UNICODE));
 
             sendResponse(true, 'فاکتور با موفقیت بارگذاری شد.', [
                 'customer_name' => $order['customer_name'],
@@ -319,7 +321,7 @@ try {
             foreach ($_SESSION['temp_order_items'] as $item) {
                 $stmt->execute([
                     $temp_order_id,
-                    $item['product_name'],
+                    $item['product_name'] ?? 'نامشخص',
                     $item['quantity'],
                     $item['unit_price'],
                     $item['extra_sale'],
