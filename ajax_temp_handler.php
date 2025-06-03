@@ -7,15 +7,13 @@ ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 // لاگ محلی به فایل debug.log
-function logError($message)
-{
+function logError($message) {
     $logFile = __DIR__ . '/debug.log';
     $timestamp = date('Y-m-d H:i:s');
     file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
 }
 
-function sendResponse($success, $message = '', $data = [])
-{
+function sendResponse($success, $message = '', $data = []) {
     $response = json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
     if (json_last_error() !== JSON_ERROR_NONE) {
         logError('JSON encode error: ' . json_last_error_msg());
@@ -59,10 +57,10 @@ try {
         case 'add_temp_item':
             $customer_name = $_POST['customer_name'] ?? '';
             $product_id = $_POST['product_id'] ?? '';
-            $quantity = (int) ($_POST['quantity'] ?? 0);
-            $unit_price = (float) ($_POST['unit_price'] ?? 0);
-            $extra_sale = (float) ($_POST['extra_sale'] ?? 0);
-            $discount = (float) ($_POST['discount'] ?? 0);
+            $quantity = (int)($_POST['quantity'] ?? 0);
+            $unit_price = (float)($_POST['unit_price'] ?? 0);
+            $extra_sale = (float)($_POST['extra_sale'] ?? 0);
+            $discount = (float)($_POST['discount'] ?? 0);
 
             if (!$customer_name || !$product_id || $quantity <= 0 || $unit_price <= 0) {
                 sendResponse(false, 'لطفاً همه فیلدها را به درستی پر کنید.');
@@ -77,7 +75,7 @@ try {
             }
 
             $items = $_SESSION['temp_order_items'];
-            if (array_filter($items, function($item) use ($product_id) { return $item['product_id'] === $product_id; })) {
+            if (array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
                 sendResponse(false, 'این محصول قبلاً در فاکتور ثبت شده است.');
             }
 
@@ -108,7 +106,7 @@ try {
             ]);
 
         case 'delete_temp_item':
-            $index = (int) ($_POST['index'] ?? -1);
+            $index = (int)($_POST['index'] ?? -1);
             if ($index < 0 || !isset($_SESSION['temp_order_items'][$index])) {
                 sendResponse(false, 'آیتم یافت نشد.');
             }
@@ -132,41 +130,15 @@ try {
 
         case 'set_temp_invoice_price':
             $index = $_POST['index'] ?? '';
-            $new_unit_price = (float) ($_POST['invoice_price'] ?? 0);
+            $invoice_price = (float)($_POST['invoice_price'] ?? 0);
 
-            if ($index === '' || $new_unit_price < 0) {
-                sendResponse(false, 'قیمت واحد معتبر نیست.');
+            if ($index === '' || $invoice_price < 0) {
+                sendResponse(false, 'قیمت فاکتور معتبر نیست.');
             }
 
-            if ($index === 'postal') {
-                $_SESSION['invoice_prices']['postal'] = $new_unit_price;
-                $_SESSION['postal_price'] = $new_unit_price;
-            } else {
-                $index = (int) $index;
-                if (!isset($_SESSION['temp_order_items'][$index])) {
-                    sendResponse(false, 'آیتم یافت نشد.');
-                }
-
-                // آپدیت unit_price و total_price آیتم
-                $item = &$_SESSION['temp_order_items'][$index];
-                $item['unit_price'] = $new_unit_price;
-                $item['total_price'] = $item['quantity'] * ($new_unit_price + $item['extra_sale']);
-
-                // ذخیره قیمت کل به‌عنوان invoice_price
-                $_SESSION['invoice_prices'][$index] = $item['total_price'];
-            }
-
-            $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
-            $final_amount = $total_amount - $_SESSION['discount'] + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
-
-            sendResponse(true, 'قیمت واحد با موفقیت تنظیم شد.', [
-                'items' => $_SESSION['temp_order_items'],
-                'total_amount' => $total_amount,
-                'final_amount' => $final_amount,
-                'discount' => $_SESSION['discount'],
-                'invoice_prices' => $_SESSION['invoice_prices'],
-                'postal_enabled' => $_SESSION['postal_enabled'],
-                'postal_price' => $_SESSION['postal_price']
+            $_SESSION['invoice_prices'][$index] = $invoice_price;
+            sendResponse(true, 'قیمت فاکتور با موفقیت تنظیم شد.', [
+                'invoice_prices' => $_SESSION['invoice_prices']
             ]);
 
         case 'set_temp_postal_option':
@@ -187,7 +159,7 @@ try {
             ]);
 
         case 'update_temp_discount':
-            $discount = (float) ($_POST['discount'] ?? 0);
+            $discount = (float)($_POST['discount'] ?? 0);
             if ($discount < 0) {
                 sendResponse(false, 'تخفیف معتبر نیست.');
             }
@@ -208,7 +180,7 @@ try {
 
         case 'finalize_temp_order':
             $customer_name = $_POST['customer_name'] ?? '';
-            $discount = (float) ($_POST['discount'] ?? 0);
+            $discount = (float)($_POST['discount'] ?? 0);
 
             if (!$customer_name || empty($_SESSION['temp_order_items'])) {
                 sendResponse(false, 'نام مشتری یا اقلام سفارش معتبر نیست.');
