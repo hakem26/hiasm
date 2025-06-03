@@ -67,10 +67,6 @@ try {
             $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
             $available_quantity = $inventory ? (int) $inventory['quantity'] : 0;
 
-            if ($available_quantity < $quantity) {
-                sendResponse(false, 'موجودی کافی نیست.');
-            }
-
             $total_price = $quantity * ($unit_price + $extra_sale);
             $item = [
                 'product_id' => $product_id,
