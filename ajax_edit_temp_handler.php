@@ -62,22 +62,24 @@ try {
                 SELECT item_id, temp_order_id, product_name, quantity, unit_price, extra_sale, total_price
                 FROM Temp_Order_Items
                 WHERE temp_order_id = ?
+                ORDER BY item_id
             ");
             $stmt->execute([$temp_order_id]);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // مدیریت product_name خالی و شبیه‌سازی product_id برای سشن
-            foreach ($items as &$item) {
+            // پاکسازی سشن برای جلوگیری از تکرار
+            $_SESSION['temp_order_items'] = [];
+            foreach ($items as $item) {
                 $item['product_name'] = $item['product_name'] ?: 'محصول ناشناس #' . $item['item_id'];
-                $item['product_id'] = 'unknown_' . $item['item_id']; // برای سازگاری با سشن
+                $item['product_id'] = 'unknown_' . $item['item_id'];
+                $_SESSION['temp_order_items'][] = $item;
             }
 
-            $_SESSION['temp_order_items'] = $items;
             $_SESSION['discount'] = (float)$order['discount'];
             $_SESSION['postal_enabled'] = (bool)$order['postal_enabled'];
             $_SESSION['postal_price'] = (float)$order['postal_price'];
             $_SESSION['invoice_prices'] = ['postal' => $_SESSION['postal_price']];
-            foreach ($items as $index => $item) {
+            foreach ($_SESSION['temp_order_items'] as $index => $item) {
                 $_SESSION['invoice_prices'][$index] = $item['unit_price'];
             }
 
@@ -292,14 +294,16 @@ try {
             $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
             $stmt->execute([$temp_order_id]);
 
+            // محاسبه مجموع آیتم‌ها
+            $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
+            $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
+
             // به‌روزرسانی فاکتور
             $stmt = $pdo->prepare("
                 UPDATE Temp_Orders
                 SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?, postal_enabled = ?, postal_price = ?
                 WHERE temp_order_id = ? AND user_id = ?
             ");
-            $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
-            $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
             $stmt->execute([
                 $customer_name,
                 $total_amount,
@@ -326,7 +330,6 @@ try {
                     $item['total_price']
                 ]);
 
-                // اصلاح موجودی (فقط برای آیتم‌های غیرپستی)
                 if (strpos($item['product_id'], 'unknown_') !== 0) {
                     $stmt_inventory = $pdo->prepare("
                         INSERT INTO Inventory (user_id, product_id, quantity)

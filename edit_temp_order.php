@@ -194,6 +194,16 @@ function renderItemsTable(data) {
         return;
     }
 
+    // جلوگیری از تکرار آیتم‌ها
+    const uniqueItems = [];
+    const seenItemIds = new Set();
+    data.items.forEach((item, index) => {
+        if (!seenItemIds.has(item.item_id)) {
+            seenItemIds.add(item.item_id);
+            uniqueItems.push({ ...item, index });
+        }
+    });
+
     itemsTable.innerHTML = `
         <table class="table table-light order-items-table">
             <thead>
@@ -208,23 +218,23 @@ function renderItemsTable(data) {
                 </tr>
             </thead>
             <tbody>
-                ${data.items.map((item, index) => `
-                    <tr id="item_row_${index}">
+                ${uniqueItems.map(item => `
+                    <tr id="item_row_${item.index}">
                         <td>${item.product_name}</td>
                         <td>${item.quantity}</td>
                         <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
                         <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
                         <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
-                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
+                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${item.index}">
                                 تنظیم قیمت
                             </button>
-                            <span class="invoice-price" data-index="${index}">
-                                ${Number(item.total_price).toLocaleString('fa')} تومان
+                            <span class="invoice-price" data-index="${item.index}">
+                                ${Number(invoicePrices[item.index] ?? item.unit_price).toLocaleString('fa')} تومان
                             </span>
                         </td>
                         <td>
-                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
+                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${item.index}">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -255,7 +265,7 @@ function renderItemsTable(data) {
                 </tr>
                 <tr class="total-row">
                     <td><label for="discount" class="form-label">تخفیف</label></td>
-                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
+                    <td><input type="number" class="form-control" id="discount" name="discount" value="${Number(data.discount)}" min="0"></td>
                     <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
