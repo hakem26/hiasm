@@ -1,17 +1,17 @@
 <?php
 session_start();
-ob_start(); // بافر خروجی برای جلوگیری از خروجی ناخواسته
+ob_start();
 require_once 'db.php';
 
 header('Content-Type: application/json; charset=utf-8');
-ini_set('display_errors', 0); // غیرفعال کردن نمایش خطاها
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php_errors.log'); // لاگ خطاها به فایل
+ini_set('error_log', __DIR__ . '/php_errors.log');
 
 function sendResponse($success, $message = '', $data = [])
 {
-    ob_clean(); // پاک کردن بافر خروجی
+    ob_clean();
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
     ob_end_flush();
     exit;
@@ -130,11 +130,10 @@ try {
                     sendResponse(false, 'آیتم یافت نشد.');
                 }
 
-                // آپدیت unit_price و محاسبه total_price
                 $item = &$_SESSION['temp_order_items'][$index];
                 $item['unit_price'] = $invoice_price;
                 $item['total_price'] = $item['quantity'] * ($invoice_price + $item['extra_sale']);
-                $_SESSION['invoice_prices'][$index] = $invoice_price; // ذخیره unit_price
+                $_SESSION['invoice_prices'][$index] = $invoice_price;
             }
 
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
@@ -189,7 +188,7 @@ try {
 
         case 'finalize_temp_order':
             $customer_name = $_POST['customer_name'] ?? '';
-            $discount = (float) ($_POST['discount'] ?? 0);
+            $discount = (float)($_POST['discount'] ?? 0);
 
             if (!$customer_name || empty($_SESSION['temp_order_items'])) {
                 sendResponse(false, 'نام مشتری یا اقلام سفارش معتبر نیست.');
@@ -198,9 +197,9 @@ try {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-        INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_enabled, postal_price, order_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-    ");
+                INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_enabled, postal_price, order_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            ");
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
             $stmt->execute([
@@ -215,34 +214,36 @@ try {
             $order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-        INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price)
-        VALUES (?, ?, ?, ?, ?)
-    ");
+                INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
                 $stmt->execute([
                     $order_id,
+                    $item['product_name'],
                     $item['quantity'],
-                    $item['unit_price'], // unit_price شامل قیمت تنظیم‌شده (مثل ۵۵۰) است
+                    $item['unit_price'],
                     $item['extra_sale'],
                     $item['total_price']
                 ]);
 
                 $stmt_inventory = $pdo->prepare("
-            INSERT INTO Inventory (user_id, product_id, quantity)
-            VALUES (?, ?, -?)
-            ON DUPLICATE KEY UPDATE quantity = quantity - ?
-        ");
+                    INSERT INTO Inventory (user_id, product_id, quantity)
+                    VALUES (?, ?, -?)
+                    ON DUPLICATE KEY UPDATE quantity = quantity - ?
+                ");
                 $stmt_inventory->execute([$user_id, $item['product_id'], $item['quantity'], $item['quantity']]);
             }
 
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
-            INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price)
-            VALUES (?, ?, ?, ?, ?)
-        ");
+                    INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
                 $stmt->execute([
                     $order_id,
+                    'ارسال پستی',
                     1,
                     $postal_price,
                     0,
@@ -268,7 +269,7 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    error_log('Error in ajax_temp_handler.php: ' . $e->getMessage()); // لاگ خطا
+    error_log('Error in ajax_temp_handler.php: ' . $e->getMessage());
     sendResponse(false, 'خطا در پردازش درخواست: ' . $e->getMessage());
 }
 ?>

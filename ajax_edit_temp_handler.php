@@ -9,7 +9,8 @@ error_reporting(E_ALL);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/php_errors.log');
 
-function sendResponse($success, $message = '', $data = []) {
+function sendResponse($success, $message = '', $data = [])
+{
     ob_clean();
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
     ob_end_flush();
@@ -61,13 +62,12 @@ try {
             $stmt = $pdo->prepare("
                 SELECT item_id, temp_order_id, product_name, quantity, unit_price, extra_sale, total_price
                 FROM Temp_Order_Items
-                WHERE temp_order_id = ?
+                WHERE temp_order_id = ? AND product_name != 'ارسال پستی'
                 ORDER BY item_id
             ");
             $stmt->execute([$temp_order_id]);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // پاکسازی سشن برای جلوگیری از تکرار
             $_SESSION['temp_order_items'] = [];
             foreach ($items as $item) {
                 $item['product_name'] = $item['product_name'] ?: 'محصول ناشناس #' . $item['item_id'];
@@ -290,15 +290,12 @@ try {
 
             $pdo->beginTransaction();
 
-            // حذف اقلام قبلی
             $stmt = $pdo->prepare("DELETE FROM Temp_Order_Items WHERE temp_order_id = ?");
             $stmt->execute([$temp_order_id]);
 
-            // محاسبه مجموع آیتم‌ها
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
 
-            // به‌روزرسانی فاکتور
             $stmt = $pdo->prepare("
                 UPDATE Temp_Orders
                 SET customer_name = ?, total_amount = ?, discount = ?, final_amount = ?, postal_enabled = ?, postal_price = ?
@@ -315,7 +312,6 @@ try {
                 $user_id
             ]);
 
-            // ثبت اقلام جدید
             $stmt = $pdo->prepare("
                 INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -340,7 +336,6 @@ try {
                 }
             }
 
-            // ثبت پستی
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
                     INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price)
