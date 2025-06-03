@@ -547,7 +547,7 @@ $_SESSION['postal_price'] = 50000;
                     }
                 }
             }
-        } else if (e.target.closest('.set-invoice-price')) {
+        } } else if (e.target.closest('.set-invoice-price')) {
             const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
             $('#invoice_price_index').val(index);
             const currentPrice = index === 'postal' ?
