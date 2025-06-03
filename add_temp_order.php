@@ -546,21 +546,27 @@ $_SESSION['postal_price'] = 50000;
                         alert(response.message);
                     }
                 }
+            } else if (e.target.closest('.set-invoice-price')) {
+                const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
+                $('#invoice_price_index').val(index);
+                let currentPrice = 0;
+                if (index === 'postal') {
+                    // مقدار پیش‌فرض برای پستی
+                    currentPrice = 50000;
+                    // گرفتن قیمت پستی از span کنار دکمه
+                    const postalPriceSpan = document.querySelector(`span.total-price[data-index="postal"]`);
+                    if (postalPriceSpan) {
+                        currentPrice = parseFloat(postalPriceSpan.textContent.replace(/[^\d]/g, '')) || 50000;
+                    }
+                } else {
+                    // قیمت واحد از ستون "قیمت واحد" (ستون سوم)
+                    const unitPriceCell = document.querySelector(`#item_row_${index} td:nth-child(3)`);
+                    currentPrice = unitPriceCell ? parseFloat(unitPriceCell.textContent.replace(/[^\d]/g, '')) || 0 : 0;
+                }
+                $('#invoice_price').val(currentPrice);
+                $('#invoicePriceModal').modal('show');
             }
-        } else if (e.target.closest('.set-invoice-price')) {
-            const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
-            $('#invoice_price_index').val(index);
-            let currentPrice = 0;
-            if (index === 'postal') {
-                currentPrice = Number(<?= json_encode($_SESSION['invoice_prices']['postal'] ?? 50000) ?>);
-            } else {
-                // قیمت واحد از ستون "قیمت واحد" توی جدول
-                const unitPriceCell = document.querySelector(`#item_row_${index} td:nth-child(3)`);
-                currentPrice = unitPriceCell ? parseFloat(unitPriceCell.textContent.replace(/[^\d]/g, '')) || 0 : 0;
-            }
-            $('#invoice_price').val(currentPrice);
-            $('#invoicePriceModal').modal('show');
-        }
+        });
 
         document.getElementById('save_invoice_price').addEventListener('click', async () => {
             const index = $('#invoice_price_index').val();
