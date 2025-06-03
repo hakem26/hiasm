@@ -1,27 +1,18 @@
 <?php
 session_start();
+ob_start(); // بافر خروجی برای جلوگیری از خروجی ناخواسته
 require_once 'db.php';
 
 header('Content-Type: application/json; charset=utf-8');
-ini_set('display_errors', 0);
+ini_set('display_errors', 0); // غیرفعال کردن نمایش خطاها
 error_reporting(E_ALL);
-
-// لاگ محلی به فایل debug.log
-function logError($message) {
-    $logFile = __DIR__ . '/debug.log';
-    $timestamp = date('Y-m-d H:i:s');
-    file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
-}
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/php_errors.log'); // لاگ خطاها به فایل
 
 function sendResponse($success, $message = '', $data = []) {
-    $response = json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        logError('JSON encode error: ' . json_last_error_msg());
-        header('HTTP/1.1 500 Internal Server Error');
-        echo json_encode(['success' => false, 'message' => 'خطا در تولید پاسخ JSON']);
-        exit;
-    }
-    echo $response;
+    ob_clean(); // پاک کردن بافر خروجی
+    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
+    ob_end_flush();
     exit;
 }
 
@@ -31,10 +22,6 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $action = $_POST['action'] ?? '';
-
-if (!$action) {
-    sendResponse(false, 'اکشن مشخص نشده است.');
-}
 
 if (!isset($_SESSION['temp_order_items'])) {
     $_SESSION['temp_order_items'] = [];
@@ -74,9 +61,13 @@ try {
                 sendResponse(false, 'محصول یافت نشد.');
             }
 
-            $items = $_SESSION['temp_order_items'];
-            if (array_filter($items, fn($item) => $item['product_id'] === $product_id)) {
-                sendResponse(false, 'این محصول قبلاً در فاکتور ثبت شده است.');
+            $stmt = $pdo->prepare("SELECT quantity FROM Inventory WHERE product_id = ? AND user_id = ?");
+            $stmt->execute([$product_id, $user_id]);
+            $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+            $available_quantity = $inventory ? (int)$inventory['quantity'] : 0;
+
+            if ($available_quantity < $quantity) {
+                sendResponse(false, 'موجودی کافی نیست.');
             }
 
             $total_price = $quantity * ($unit_price + $extra_sale);
@@ -106,13 +97,12 @@ try {
             ]);
 
         case 'delete_temp_item':
-            $index = (int)($_POST['index'] ?? -1);
-            if ($index < 0 || !isset($_SESSION['temp_order_items'][$index])) {
+            $index = $_POST['index'] ?? '';
+            if (!isset($_SESSION['temp_order_items'][$index])) {
                 sendResponse(false, 'آیتم یافت نشد.');
             }
 
-            unset($_SESSION['temp_order_items'][$index]);
-            $_SESSION['temp_order_items'] = array_values($_SESSION['temp_order_items']);
+            array_splice($_SESSION['temp_order_items'], $index, 1);
             unset($_SESSION['invoice_prices'][$index]);
 
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
@@ -132,7 +122,7 @@ try {
             $index = $_POST['index'] ?? '';
             $invoice_price = (float)($_POST['invoice_price'] ?? 0);
 
-            if ($index === '' || $invoice_price < 0) {
+            if ($invoice_price < 0) {
                 sendResponse(false, 'قیمت فاکتور معتبر نیست.');
             }
 
@@ -188,7 +178,6 @@ try {
 
             $pdo->beginTransaction();
 
-            // ثبت سفارش در Temp_Orders
             $stmt = $pdo->prepare("
                 INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_enabled, postal_price, order_date)
                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
@@ -206,44 +195,37 @@ try {
             ]);
             $order_id = $pdo->lastInsertId();
 
-            // ثبت اقلام در Temp_Order_Items (بدون invoice_price)
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Order_Items (temp_order_id, product_name, quantity, unit_price, extra_sale, total_price)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
+                $invoice_price = $_SESSION['invoice_prices'][$index] ?? $item['total_price'];
                 $stmt->execute([
                     $order_id,
-                    $item['product_name'],
+                    $item['product_id'],
                     $item['quantity'],
                     $item['unit_price'],
                     $item['extra_sale'],
-                    $item['total_price']
+                    $item['total_price'],
+                    $invoice_price
                 ]);
 
-                // آپدیت موجودی (اجازه به موجودی منفی)
                 $stmt_inventory = $pdo->prepare("
-                    INSERT INTO Inventory (user_id, product_id, quantity)
-                    VALUES (?, ?, -?)
-                    ON DUPLICATE KEY UPDATE quantity = quantity - ?
+                    UPDATE Inventory 
+                    SET quantity = quantity - ? 
+                    WHERE product_id = ? AND user_id = ?
                 ");
-                $stmt_inventory->execute([$user_id, $item['product_id'], $item['quantity'], $item['quantity']]);
+                $stmt_inventory->execute([$item['quantity'], $item['product_id'], $user_id]);
             }
 
-            // ثبت قیمت‌های فاکتور در Invoice_Prices
-            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
-            if (!empty($invoice_prices)) {
-                $stmt_invoice = $pdo->prepare("
-                    INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                    VALUES (?, ?, ?, ?, ?)
+            if ($_SESSION['postal_enabled']) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+                    VALUES (?, 0, 1, ?, 0, ?, ?)
                 ");
-                foreach ($invoice_prices as $index => $price) {
-                    if ($index === 'postal' && $_SESSION['postal_enabled']) {
-                        $stmt_invoice->execute([$order_id, -1, 0, true, $price]);
-                    } elseif ($index !== 'postal') {
-                        $stmt_invoice->execute([$order_id, $index, $price, false, 0]);
-                    }
-                }
+                $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
+                $stmt->execute([$order_id, $postal_price, $postal_price, $postal_price]);
             }
 
             $pdo->commit();
@@ -258,14 +240,13 @@ try {
             sendResponse(true, 'سفارش با موفقیت ثبت شد.', ['redirect' => 'temp_orders.php']);
 
         default:
-            sendResponse(false, 'اکشن نامعتبر است.');
+            sendResponse(false, 'اقدام نامعتبر است.');
     }
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    $errorMessage = 'Error in ajax_temp_handler.php: ' . $e->getMessage();
-    logError($errorMessage);
+    error_log('Error in ajax_temp_handler.php: ' . $e->getMessage()); // لاگ خطا
     sendResponse(false, 'خطا در پردازش درخواست: ' . $e->getMessage());
 }
 ?>
