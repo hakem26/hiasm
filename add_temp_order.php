@@ -299,8 +299,8 @@ $_SESSION['postal_price'] = 50000;
 
         if (!data.items || data.items.length === 0) {
             itemsTable.innerHTML = '';
-            totalAmountDisplay.textContent = '0 تومان';
-            finalAmountDisplay.textContent = '0 تومان';
+            totalAmountDisplay.textContent = '۰ تومان';
+            finalAmountDisplay.textContent = '۰ تومان';
             return;
         }
 
@@ -319,7 +319,7 @@ $_SESSION['postal_price'] = 50000;
         </thead>
         <tbody>
             ${data.items.map((item, index) => `
-                <tr id="order-${index}">
+                <tr id="item_row_${index}">
                     <td>${item.product_name}</td>
                     <td>${item.quantity}</td>
                     <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
@@ -330,18 +330,19 @@ $_SESSION['postal_price'] = 50000;
                             تنظیم قیمت
                         </button>
                         <span class="invoice-price" data-index="${index}">
-                            ${Number(item.total_price).toLocaleString('fa')} تومان</span>
-                        </td>
-                        <td>
-                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('')}
+                            ${Number(item.total_price).toLocaleString('fa')} تومان
+                        </span>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('')}
             ${postalEnabled ? `
                 <tr class="postal-row">
-                    <td>ارسال پستی</td>
+                    <td>ارسال</td>
                     <td>-</td>
                     <td>-</td>
                     <td>-</td>
@@ -349,35 +350,36 @@ $_SESSION['postal_price'] = 50000;
                     <td>
                         <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
                             تنظیم قیمت
-                        </td>
+                        </button>
                         <span class="invoice-price" data-index="postal">
-                            ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان</span>
-                        </td>
-                        <td>-</td>
-                    </tr>
-                ` : ''}
-            <tr class="total-row'>
-                <td colspan="4"><strong>Total Amount</strong></td>
-                <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} fa</strong></td>
+                            ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان
+                        </span>
+                    </td>
+                    <td>-</td>
+                </tr>
+            ` : ''}
+            <tr class="total-row">
+                <td colspan="4"><strong>جمع کل</strong></td>
+                <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
                 <td colspan="2"></td>
             </tr>
             <tr class="total-row">
-                <td><label for="discount" class="form-label">Discount</label></td>
+                <td><label for="discount" class="form-label">تخفیف</label></td>
                 <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} fa</strong></td>
+                <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
                 <td colspan="2"></td>
             </tr>
             <tr class="total-row">
-                <td><label for="postal_option" class="form-label">Post Order</label></td>
+                <td><label for="postal_option" class="form-label">پست سفارش</label></td>
                 <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
                 <td colspan="3"></td>
             </tr>
         </tbody>
     </table>
-`;
+    `;
 
         totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' fa';
+        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
     }
 
     document.addEventListener('DOMContentLoaded', () => {

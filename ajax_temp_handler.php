@@ -202,9 +202,9 @@ try {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_enabled, postal_price, order_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            ");
+        INSERT INTO Temp_Orders (user_id, customer_name, total_amount, discount, final_amount, postal_enabled, postal_price, order_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+    ");
             $total_amount = array_sum(array_column($_SESSION['temp_order_items'], 'total_price'));
             $final_amount = $total_amount - $discount + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0);
             $stmt->execute([
@@ -219,11 +219,11 @@ try {
             $order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-                INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ");
+        INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
-                $invoice_price = $_SESSION['invoice_prices'][$index] ?? $item['total_price'];
+                $invoice_price = $_SESSION['invoice_prices'][$index] ?? $item['unit_price'];
                 $stmt->execute([
                     $order_id,
                     $item['product_id'],
@@ -235,20 +235,28 @@ try {
                 ]);
 
                 $stmt_inventory = $pdo->prepare("
-                    UPDATE Inventory 
-                    SET quantity = quantity - ? 
-                    WHERE product_id = ? AND user_id = ?
-                ");
+            UPDATE Inventory 
+            SET quantity = quantity - ? 
+            WHERE product_id = ? AND user_id = ?
+        ");
                 $stmt_inventory->execute([$item['quantity'], $item['product_id'], $user_id]);
             }
 
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO Temp_Order_Items (order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
-                    VALUES (?, 0, 1, ?, 0, ?, ?)
-                ");
+            INSERT INTO Temp_Order_Items (temp_order_id, product_id, quantity, unit_price, extra_sale, total_price, invoice_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
-                $stmt->execute([$order_id, $postal_price, $postal_price, $postal_price]);
+                $stmt->execute([
+                    $order_id,
+                    0, // product_id برای پستی
+                    1,
+                    $postal_price,
+                    0,
+                    $postal_price,
+                    $postal_price
+                ]);
             }
 
             $pdo->commit();
