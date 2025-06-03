@@ -102,8 +102,10 @@ $_SESSION['postal_price'] = 50000;
 
         <div class="mb-3">
             <label for="product_name" class="form-label">نام محصول</label>
-            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="جستجو یا وارد کنید...">
-            <div id="product_suggestions" class="list-group position-absolute" style="width: 100%; z-index: 1000; display: none;"></div>
+            <input type="text" class="form-control" id="product_name" name="product_name"
+                placeholder="جستجو یا وارد کنید...">
+            <div id="product_suggestions" class="list-group position-absolute"
+                style="width: 100%; z-index: 1000; display: none;"></div>
             <input type="hidden" id="product_id" name="product_id">
         </div>
 
@@ -162,11 +164,13 @@ $_SESSION['postal_price'] = 50000;
                                 <td><?= number_format($item['extra_sale'], 0) ?></td>
                                 <td><?= number_format($item['total_price'], 0) ?></td>
                                 <td>
-                                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="<?= $index ?>">
+                                    <button type="button" class="btn btn-info btn-sm set-invoice-price"
+                                        data-index="<?= $index ?>">
                                         تنظیم قیمت
                                     </button>
                                     <span class="invoice-price" data-index="<?= $index ?>">
-                                        <?= number_format($_SESSION['invoice_prices'][$index] ?? $item['total_price'], 0) ?> تومان
+                                        <?= number_format($_SESSION['invoice_prices'][$index] ?? $item['total_price'], 0) ?>
+                                        تومان
                                     </span>
                                 </td>
                                 <td>
@@ -188,7 +192,8 @@ $_SESSION['postal_price'] = 50000;
                                         تنظیم قیمت
                                     </button>
                                     <span class="invoice-price" data-index="postal">
-                                        <?= number_format($_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'], 0) ?> تومان
+                                        <?= number_format($_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'], 0) ?>
+                                        تومان
                                     </span>
                                 </td>
                                 <td>-</td>
@@ -206,13 +211,15 @@ $_SESSION['postal_price'] = 50000;
                         </tr>
                         <tr class="total-row">
                             <td><label for="discount" class="form-label">تخفیف</label></td>
-                            <td><input type="number" class="form-control" id="discount" name="discount" value="<?= $discount ?>" min="0"></td>
+                            <td><input type="number" class="form-control" id="discount" name="discount"
+                                    value="<?= $discount ?>" min="0"></td>
                             <td><strong id="final_amount"><?= number_format($final_amount, 0) ?> تومان</strong></td>
                             <td colspan="2"></td>
                         </tr>
                         <tr class="total-row">
                             <td><label for="postal_option" class="form-label">پست سفارش</label></td>
-                            <td><input type="checkbox" id="postal_option" name="postal_option" <?= $_SESSION['postal_enabled'] ? 'checked' : '' ?>></td>
+                            <td><input type="checkbox" id="postal_option" name="postal_option"
+                                    <?= $_SESSION['postal_enabled'] ? 'checked' : '' ?>></td>
                             <td colspan="3"></td>
                         </tr>
                     </tbody>
@@ -221,8 +228,10 @@ $_SESSION['postal_price'] = 50000;
         </div>
 
         <div class="mb-3">
-            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount ?? 0, 0) ?> تومان</span></p>
-            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount ?? 0, 0) ?> تومان</span></p>
+            <p><strong>جمع کل:</strong> <span id="total_amount_display"><?= number_format($total_amount ?? 0, 0) ?>
+                    تومان</span></p>
+            <p><strong>مبلغ نهایی:</strong> <span id="final_amount_display"><?= number_format($final_amount ?? 0, 0) ?>
+                    تومان</span></p>
         </div>
 
         <button type="button" id="finalize_order_btn" class="btn btn-success mt-3">ثبت فاکتور</button>
@@ -231,7 +240,8 @@ $_SESSION['postal_price'] = 50000;
 </div>
 
 <!-- مودال تنظیم قیمت فاکتور -->
-<div class="modal fade" id="invoicePriceModal" tabindex="-1" aria-labelledby="invoicePriceModalLabel" aria-hidden="true">
+<div class="modal fade" id="invoicePriceModal" tabindex="-1" aria-labelledby="invoicePriceModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -316,10 +326,10 @@ $_SESSION['postal_price'] = 50000;
                         <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
                         <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
-                            <button type="button" class="btn btn-primary btn-sm set-invoice" data-index="${index}">
+                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
                                 تنظیم قیمت واحد
                             </button>
-                            <span class="total-price" data.items[i-1]?.total_price || item.total_price
+                            <span class="total-price" data-index="${index}">
                                 ${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان
                             </span>
                         </td>
@@ -546,10 +556,10 @@ $_SESSION['postal_price'] = 50000;
         });
 
         document.getElementById('save_invoice_price').addEventListener('click', async () => {
-            const index = parseInt($('#invoice_index').val());
-            const invoicePrice = parseInt($('#invoice_price').val());
+            const index = $('#invoice_price_index').val();
+            const invoicePrice = parseFloat($('#invoice_price').val());
 
-            if (invoice_price === '' || !invoicePrice) {
+            if (isNaN(invoicePrice) || invoicePrice < 0) {
                 alert('لطفاً یک قیمت معتبر وارد کنید.');
                 return;
             }
@@ -560,14 +570,14 @@ $_SESSION['postal_price'] = 50000;
                 invoice_price: invoicePrice
             };
 
-            const response = await sendResponse(data);
+            const response = await sendRequest('ajax_temp_handler.php', data);
             if (response.success) {
                 renderItemsTable(response.data);
-                $('#invoice_priceModal').hide();
+                $('#invoicePriceModal').modal('hide');
             } else {
                 alert(response.message);
             }
-        }
+        });
 
         document.getElementById('items_table').addEventListener('change', async (e) => {
             if (e.target.id === 'total_option') {
