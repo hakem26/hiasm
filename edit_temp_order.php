@@ -528,46 +528,29 @@ $_SESSION['editing_temp_order_id'] = $temp_order_id;
             }
         });
 
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
         document.getElementById('items_table').addEventListener('input', async (e) => {
             if (e.target.id === 'discount') {
                 const discountInput = e.target;
-                const updateDiscount = debounce(async (value) => {
-                    const activeElement = document.activeElement;
-                    const data = {
-                        action: 'update_temp_discount',
-                        temp_order_id: '<?= $temp_order_id ?>',
-                        discount: value,
-                        user_id: '<?= $current_user_id ?>'
-                    };
+                const discount = e.target.value.replace(/,/g, '') || 0;
+                const cursorPosition = discountInput.selectionStart; // ذخیره موقعیت کرسر
+                const data = {
+                    action: 'update_temp_discount',
+                    temp_order_id: '<?= $temp_order_id ?>',
+                    discount,
+                    user_id: '<?= $current_user_id ?>'
+                };
 
-                    const response = await sendRequest('ajax_edit_temp_handler.php', data);
-                    if (response.success) {
-                        renderItemsTable(response.data);
-                        // بازگرداندن فوکوس
-                        if (activeElement === discountInput) {
-                            discountInput.focus();
-                            discountInput.setSelectionRange(discountInput.value.length, discountInput.value.length);
-                        }
-                    } else {
-                        alert(response.message);
-                    }
-                }, 300);
-
-                const value = e.target.value.replace(/,/g, '') || 0;
-                if (!isNaN(value) && value >= 0) {
-                    updateDiscount(value);
+                const response = await sendRequest('ajax_edit_temp_handler.php', data);
+                if (response.success) {
+                    document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    // بازگرداندن فوکوس و کرسر
+                    discountInput.focus();
+                    discountInput.setSelectionRange(cursorPosition, cursorPosition);
+                } else {
+                    alert(response.message);
                 }
             }
         });
