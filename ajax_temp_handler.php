@@ -215,18 +215,16 @@ try {
             $order_id = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-        INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price, invoice_price)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price)
+        VALUES (?, ?, ?, ?, ?)
     ");
             foreach ($_SESSION['temp_order_items'] as $index => $item) {
-                $invoice_price = $_SESSION['invoice_prices'][$index] ?? $item['unit_price'];
                 $stmt->execute([
                     $order_id,
                     $item['quantity'],
-                    $item['unit_price'],
+                    $item['unit_price'], // unit_price شامل قیمت تنظیم‌شده (مثل ۵۵۰) است
                     $item['extra_sale'],
-                    $item['total_price'],
-                    $invoice_price
+                    $item['total_price']
                 ]);
 
                 $stmt_inventory = $pdo->prepare("
@@ -239,8 +237,8 @@ try {
 
             if ($_SESSION['postal_enabled']) {
                 $stmt = $pdo->prepare("
-            INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price, invoice_price)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO Temp_Order_Items (temp_order_id, quantity, unit_price, extra_sale, total_price)
+            VALUES (?, ?, ?, ?, ?)
         ");
                 $postal_price = $_SESSION['invoice_prices']['postal'] ?? $_SESSION['postal_price'];
                 $stmt->execute([
@@ -248,7 +246,6 @@ try {
                     1,
                     $postal_price,
                     0,
-                    $postal_price,
                     $postal_price
                 ]);
             }
