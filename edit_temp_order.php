@@ -23,7 +23,7 @@ if (!$temp_order_id) {
 }
 
 // بررسی دسترسی کاربر به فاکتور
-$stmt = $pdo->prepare("SELECT user_id FROM Temp_Orders WHERE id = ?");
+$stmt = $pdo->prepare("SELECT user_id FROM Temp_Orders WHERE temp_order_id = ?");
 $stmt->execute([$temp_order_id]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$order || $order['user_id'] != $current_user_id) {
