@@ -35,14 +35,10 @@ if ($work_month_id) {
     ");
     $stmt->execute([$work_month_id, $current_user_id]);
     if ($stmt->fetchColumn() == 0) {
-        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>شما مجاز به ثبت سفارش بدون تاریخ نیستید.</div></div>";
+        echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>شما دسترسی به این ماه کاری ندارید.</div></div>";
         require_once 'footer.php';
         exit;
     }
-} else {
-    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>لطفاً ماه کاری را انتخاب کنید.</div></div>";
-    require_once 'footer.php';
-    exit;
 }
 
 // آماده‌سازی سشن
@@ -129,6 +125,7 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
             <label for="customer_name" class="form-label">نام مشتری</label>
             <input type="text" class="form-control" id="customer_name" name="customer_name" required autocomplete="off">
         </div>
+        <!-- بقیه فرم بدون تغییر -->
         <div class="mb-3">
             <label for="product_name" class="form-label">نام محصول</label>
             <input type="text" class="form-control" id="product_name" name="product_name"
@@ -293,45 +290,45 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-async function sendRequest(url, data) {
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams(data)
-        });
-        const rawResponse = await response.text();
-        console.log('Raw response from ' + url + ':', rawResponse);
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers.get('content-type'));
+    async function sendRequest(url, data) {
         try {
-            return JSON.parse(rawResponse);
-        } catch (e) {
-            console.error('JSON Parse Error:', e, 'Raw Response:', rawResponse);
-            throw e;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(data)
+            });
+            const rawResponse = await response.text();
+            console.log('Raw response from ' + url + ':', rawResponse);
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers.get('content-type'));
+            try {
+                return JSON.parse(rawResponse);
+            } catch (e) {
+                console.error('JSON Parse Error:', e, 'Raw Response:', rawResponse);
+                throw e;
+            }
+        } catch (error) {
+            console.error('Request Error:', error);
+            return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
         }
-    } catch (error) {
-        console.error('Request Error:', error);
-        return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
-    }
-}
-
-function renderItemsTable(data) {
-    const itemsTable = document.getElementById('items_table');
-    const totalAmountDisplay = document.getElementById('total_amount_display');
-    const finalAmountDisplay = document.getElementById('final_amount_display');
-    const invoicePrices = data.invoice_prices || {};
-    const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
-    const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
-
-    if (!data.items || data.items.length === 0) {
-        itemsTable.innerHTML = '';
-        totalAmountDisplay.textContent = '۰ تومان';
-        finalAmountDisplay.textContent = '۰ تومان';
-        return;
     }
 
-    itemsTable.innerHTML = `
+    function renderItemsTable(data) {
+        const itemsTable = document.getElementById('items_table');
+        const totalAmountDisplay = document.getElementById('total_amount_display');
+        const finalAmountDisplay = document.getElementById('final_amount_display');
+        const invoicePrices = data.invoice_prices || {};
+        const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
+        const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
+
+        if (!data.items || data.items.length === 0) {
+            itemsTable.innerHTML = '';
+            totalAmountDisplay.textContent = '۰ تومان';
+            finalAmountDisplay.textContent = '۰ تومان';
+            return;
+        }
+
+        itemsTable.innerHTML = `
         <table class="table table-light order-items-table">
             <thead>
                 <tr>
@@ -404,37 +401,37 @@ function renderItemsTable(data) {
         </table>
     `;
 
-    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
-}
+        totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
+        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
+    }
 
-document.addEventListener('DOMContentLoaded', () => {
-    let initialInventory = 0;
-    let editingIndex = null;
+    document.addEventListener('DOMContentLoaded', () => {
+        let initialInventory = 0;
+        let editingIndex = null;
 
-    $('#product_name').on('input', function () {
-        let query = $(this).val().trim();
-        console.log('Search query:', query);
-        if (query.length >= 3) {
-            $.ajax({
-                url: 'get_products.php',
-                type: 'POST',
-                data: { query: query },
-                success: function (response) {
-                    console.log('get_products response:', response);
-                    if (!response.success || response.trim() === '') {
-                        $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+        $('#product_name').on('input', function () {
+            let query = $(this).val().trim();
+            console.log('Search query:', query);
+            if (query.length >= 3) {
+                $.ajax({
+                    url: 'get_products.php',
+                    type: 'POST',
+                    data: { query: query },
+                    success: function (response) {
+                        console.log('get_products response:', response);
+                        if (!response.success || response.trim() === '') {
+                            $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+                        } else {
+                            $('#product_suggestions').html(response.data);
+                            console.log('Suggestions displayed:', $('#product_suggestions').html());
+                        }
                     } else {
-                        $('#product_suggestions').html(response.data);
-                        console.log('Suggestions displayed:', $('#product_suggestions').html());
-                    }
-                } else {
-                    $('#product_suggestions').hide();
-                    error: function (xhr, status, error) {
-                        console.error('AJAX Error:', status, error, xhr.responseText);
-                        $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
-                    }
-                });
+                        $('#product_suggestions').hide();
+                        error: function (xhr, status, error) {
+                            console.error('AJAX Error:', status, error, xhr.responseText);
+                            $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
+                        }
+                    });
             } else {
                 $('#product_suggestions').hide();
             }
@@ -593,16 +590,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const index = $('#invoice_price_index').val();
             const invoicePrice = $('#invoice_price').val();
 
-            if (data === '' || data < 0) {
+            if (invoicePrice === '' || invoicePrice < 0) {
                 alert('لطفاً یک قیمت معتبر وارد کنید.');
                 return;
             }
 
             const data = {
                 action: 'set_temp_invoice_price',
-                index: invoice_price,
-                invoice_price,
-                user_id: '<?= $current_user_id ?>'
+                index: index, // استفاده از متغیر index
+                invoice_price: invoicePrice,
+                user_id: '<?= $current_user_id ?>' // اصلاح به current_user_id
             };
 
             const response = await sendRequest('ajax_temp_order_handler.php', data);
@@ -610,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderItemsTable(response.data);
                 $('#invoicePriceModal').modal('hide');
             } else {
-                alert(response.data.message);
+                alert(response.message);
             }
         });
 
