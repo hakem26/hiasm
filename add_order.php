@@ -352,9 +352,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
     }
 
     function renderItemsTable(data) {
-        const itemsTable = document.getElementById('items_table').itemTable;
-        const totalAmountDisplay = document.getElementById('total_amount').display;
-        const finalAmountDisplay = document.getElementById('final_amount').display;
+        const itemsTable = document.getElementById('items_table');
         const invoicePrices = data.invoice_prices || {};
         const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
         const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
@@ -373,88 +371,83 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
         if (!items || items.length === 0) {
             itemsTable.innerHTML = '';
-            totalAmountDisplay.textContent = '0 تومان';
-            finalAmountDisplay.textContent = '0 تومان';
             console.warn('No items to render in table');
             return;
         }
 
         itemsTable.innerHTML = `
-        <table class="table table-light order-items-table">
-            <thead>
-                <tr>
-                    <th>نام محصول</th>
-                    <th>تعداد</th>
-                    <th>قیمت واحد</th>
-                    <th>اضافه فروش</th>
-                    <th>قیمت کل</th>
-                    <th>قیمت فاکتور</th>
-                    <th>عملیات</th>
+    <table class="table table-light order-items-table">
+        <thead>
+            <tr>
+                <th>نام محصول</th>
+                <th>تعداد</th>
+                <th>قیمت واحد</th>
+                <th>اضافه فروش</th>
+                <th>قیمت کل</th>
+                <th>قیمت فاکتور</th>
+                <th>عملیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${items.map((item, index) => `
+                <tr id="item_row_${index}">
+                    <td>${item.product_name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
+                    <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
+                    <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
+                    <td>
+                        <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
+                            تنظیم قیمت
+                        </button>
+                        <span class="invoice-price" data-index="${index}">
+                            ${Number(invoicePrices[index] ?? item.unit_price).toLocaleString('fa')} تومان
+                        </span>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                ${items.map((item, index) => `
-                    <tr id="item_row_${index}">
-                        <td>${item.product_name}</td>
-                        <td>${item.quantity}</td>
-                        <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                        <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
-                        <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
-                        <td>
-                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
-                                تنظیم قیمت
-                            </button>
-                            <span class="invoice-price" data-index="${index}">
-                                ${Number(invoicePrices[index] ?? item.unit_price).toLocaleString('fa')} تومان
-                            </span>
-                        </td>
-                        <td>
-                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('')}
-                ${postalEnabled ? `
-                    <tr class="postal-row">
-                        <td>ارسال پستی</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>
-                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
-                                تنظیم قیمت
-                            </button>
-                            <span class="invoice-price" data-index="postal">
-                                ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان
-                            </span>
-                        </td>
-                        <td>-</td>
-                    </tr>
-                ` : ''}
-                <tr class="total-row">
-                    <td colspan="4"><strong>جمع کل</strong></td>
-                    <td><strong id="total_amount">${Number(totalAmount).toLocaleString('fa')} تومان</strong></td>
-                    <td colspan="2"></td>
+            `).join('')}
+            ${postalEnabled ? `
+                <tr class="postal-row">
+                    <td>ارسال پستی</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>
+                        <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
+                            تنظیم قیمت
+                        </button>
+                        <span class="invoice-price" data-index="postal">
+                            ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان
+                        </span>
+                    </td>
+                    <td>-</td>
                 </tr>
-                <tr class="total-row">
-                    <td><label for="discount" class="form-label">تخفیف</label></td>
-                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount || 0}" min="0"></td>
-                    <td><strong id="final_amount">${Number(finalAmount).toLocaleString('fa')} تومان</strong></td>
-                    <td colspan="2"></td>
-                </tr>
-                <tr class="total-row">
-                    <td><label for="postal_option" class="form-label">پست سفارش</label></td>
-                    <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
-                    <td colspan="3"></td>
-                </tr>
-            </tbody>
-        </table>
-        `;
-
-        totalAmountDisplay.textContent = Number(totalAmount).toLocaleString('fa') + ' تومان';
-        finalAmountDisplay.textContent = Number(finalAmount).toLocaleString('fa') + ' تومان';
+            ` : ''}
+            <tr class="total-row">
+                <td colspan="4"><strong>جمع کل</strong></td>
+                <td><strong id="total_amount">${Number(totalAmount).toLocaleString('fa')} تومان</strong></td>
+                <td colspan="2"></td>
+            </tr>
+            <tr class="total-row">
+                <td><label for="discount" class="form-label">تخفیف</label></td>
+                <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount || 0}" min="0"></td>
+                <td><strong id="final_amount">${Number(finalAmount).toLocaleString('fa')} تومان</strong></td>
+                <td colspan="2"></td>
+            </tr>
+            <tr class="total-row">
+                <td><label for="postal_option" class="form-label">پست سفارش</label></td>
+                <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
+                <td colspan="3"></td>
+            </tr>
+        </tbody>
+    </table>
+    `;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -713,11 +706,12 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             console.log('Updating discount:', discount);
             const data = {
                 action: 'update_discount',
-                discount: Number(discount),
+                discount: Number(discount) || 0,
                 partner1_id: '<?= $partner1_id ?>'
             };
 
             const response = await sendRequest('ajax_handler.php', data);
+            console.log('Update discount response:', response);
             if (response.success) {
                 renderItemsTable(response.data);
             } else {
@@ -727,7 +721,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
         document.getElementById('items_table').addEventListener('input', (e) => {
             if (e.target.id === 'discount') {
-                const discount = e.target.value || 0;
+                const discount = e.target.value;
                 updateDiscount(discount);
             }
         });
