@@ -156,13 +156,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     require_once 'db.php';
                     $query = "SELECT partner_id FROM Partners WHERE user_id1 = ?";
                     $stmt = $conn->prepare($query);
-                    $stmt->bind_param("i", $user_id);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    if ($result->num_rows > 0) {
+                    $stmt->execute([$user_id]);
+                    $result = $stmt->fetchAll();
+                    if (count($result) > 0) {
                         $is_partner1 = true;
                     }
-                    $stmt->close();
                 }
                 if ($is_partner1):
                     ?>
