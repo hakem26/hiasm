@@ -353,7 +353,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
     function renderItemsTable(data) {
         const itemsTable = document.getElementById('items_table').itemTable;
-        const totalAmountDisplay = document.getElementById('total_amount').display const itemsTable;
+        const totalAmountDisplay = document.getElementById('total_amount').display;
         const finalAmountDisplay = document.getElementById('final_amount').display;
         const invoicePrices = data.invoice_prices || {};
         const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
