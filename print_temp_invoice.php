@@ -22,6 +22,7 @@ if ($temp_order_id <= 0) {
 
 $stmt = $pdo->prepare("
     SELECT tord.temp_order_id, tord.customer_name, tord.total_amount, tord.discount, tord.final_amount, tord.order_date,
+           tord.postal_enabled, tord.postal_price,
            u.full_name AS seller_name, u.phone_number AS seller_phone
     FROM Temp_Orders tord
     LEFT JOIN Users u ON tord.user_id = u.user_id
@@ -40,33 +41,14 @@ if (!$order) {
 $stmt_items = $pdo->prepare("
     SELECT item_id, product_name, quantity, unit_price, extra_sale, total_price
     FROM Temp_Order_Items
-    WHERE temp_order_id = ? AND (product_name != 'ارسال پستی' OR product_name IS NULL)
+    WHERE temp_order_id = ?
     ORDER BY item_id ASC
 ");
 $stmt_items->execute([$temp_order_id]);
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-$invoice_prices = [];
-$postal_enabled = false;
-$postal_price = 0;
-$stmt_invoice = $pdo->prepare("
-    SELECT item_index, invoice_price, is_postal, postal_price
-    FROM Invoice_Prices
-    WHERE order_id = ? AND is_temp_order = 1
-    ORDER BY id DESC
-");
-$stmt_invoice->execute([$temp_order_id]);
-$invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
-foreach ($invoice_data as $row) {
-    if ($row['is_postal'] && $row['postal_price'] > 0) {
-        $postal_enabled = true;
-        $postal_price = $row['postal_price'];
-    } elseif (!$row['is_postal']) {
-        if (!isset($invoice_prices[$row['item_index']])) {
-            $invoice_prices[$row['item_index']] = $row['invoice_price'];
-        }
-    }
-}
+$postal_enabled = $order['postal_enabled'] ? true : false;
+$postal_price = $order['postal_price'] ? $order['postal_price'] : 0;
 
 $items_per_page = 14;
 $total_items = count($items) + ($postal_enabled ? 1 : 0);
@@ -302,8 +284,7 @@ $pages = array_chunk($items, $items_per_page);
                     $page_items = $pages[$page];
                     foreach ($page_items as $index => $item):
                         $global_index = $index + ($page * $items_per_page);
-                        $unit_price = isset($invoice_prices[$global_index]) ? $invoice_prices[$global_index] :
-                            ($item['extra_sale'] > 0 ? $item['unit_price'] + $item['extra_sale'] : $item['unit_price']);
+                        $unit_price = $item['extra_sale'] > 0 ? $item['unit_price'] + $item['extra_sale'] : $item['unit_price'];
                         $total_price = $unit_price * $item['quantity'];
                         $invoice_total += $total_price;
                         ?>
