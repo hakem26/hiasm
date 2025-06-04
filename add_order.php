@@ -355,15 +355,15 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
         }
 
         const invoicePrices = data.invoice_prices || {};
-        const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
+        const postalEnabled = data.postal_enabled ?? <?= json_encode($_SESSION['postal_enabled']) ?>;
         const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
         const totalAmount = data.total_amount || 0;
-        let finalAmount = data.final_amount || totalAmount;
+        const discount = data.discount || 0;
+        let finalAmount = totalAmount - discount;
 
         if (postalEnabled) {
             finalAmount += Number(invoicePrices['postal'] || postalPrice);
         }
-        finalAmount -= Number(data.discount || 0);
 
         const items = data.items && data.items.length > 0 ? data.items : <?= json_encode($_SESSION['order_items']) ?>;
 
@@ -374,6 +374,8 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             console.warn('No items to render');
             return;
         }
+
+        const wasDiscountFocused = document.activeElement.id === 'discount';
 
         itemsTable.innerHTML = `
     <table class="table table-light order-items-table">
@@ -436,7 +438,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             </tr>
             <tr class="total-row">
                 <td><label for="discount" class="form-label">تخفیف</label></td>
-                <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount || 0}" min="0"></td>
+                <td><input type="number" class="form-control" id="discount" name="discount" value="${discount}" min="0"></td>
                 <td><strong id="final_amount">${Number(finalAmount).toLocaleString('fa')} تومان</strong></td>
                 <td colspan="2"></td>
             </tr>
@@ -451,6 +453,14 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
         totalAmountDisplay.textContent = Number(totalAmount).toLocaleString('fa') + ' تومان';
         finalAmountDisplay.textContent = Number(finalAmount).toLocaleString('fa') + ' تومان';
+
+        if (wasDiscountFocused) {
+            const discountInput = document.getElementById('discount');
+            if (discountInput) {
+                discountInput.focus();
+                discountInput.setSelectionRange(discountInput.value.length, discountInput.value.length);
+            }
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -688,6 +698,9 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
         document.getElementById('items_table').addEventListener('input', async (e) => {
             if (e.target.id === 'discount') {
                 const discount = Number(e.target.value) || 0;
+                const postalOption = document.getElementById('postal_option');
+                const wasPostalChecked = postalOption ? postalOption.checked : <?= json_encode($_SESSION['postal_enabled']) ?>;
+
                 const data = {
                     action: 'update_discount',
                     discount: discount,
@@ -700,11 +713,20 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                 console.log('Discount response:', response);
 
                 if (response.success) {
+                    response.data.postal_enabled = wasPostalChecked;
                     renderItemsTable(response.data);
-                    e.target.focus(); // حفظ فوکوس روی اینپوت
                 } else {
                     alert(response.message);
-                    e.target.value = <?= json_encode($_SESSION['discount']) ?>; // بازگرداندن مقدار قبلی
+                    e.target.value = <?= json_encode($_SESSION['discount']) ?>;
+                    renderItemsTable({
+                        items: <?= json_encode($_SESSION['order_items']) ?>,
+                        invoice_prices: <?= json_encode($_SESSION['invoice_prices']) ?>,
+                        postal_enabled: wasPostalChecked,
+                        postal_price: <?= json_encode($_SESSION['postal_price']) ?>,
+                        total_amount: <?= json_encode(array_sum(array_column($_SESSION['order_items'], 'total_price'))) ?>,
+                        final_amount: <?= json_encode(array_sum(array_column($_SESSION['order_items'], 'total_price')) - $_SESSION['discount'] + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0)) ?>,
+                        discount: <?= json_encode($_SESSION['discount']) ?>
+                    });
                 }
             }
         });
