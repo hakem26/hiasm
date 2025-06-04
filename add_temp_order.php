@@ -602,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 action: 'set_temp_invoice_price',
                 index: invoice_price,
                 invoice_price,
-                user_id: '<?= index ?>'
+                user_id: '<?= $current_user_id ?>'
             };
 
             const response = await sendRequest('ajax_temp_order_handler.php', data);
