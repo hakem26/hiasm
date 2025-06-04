@@ -148,10 +148,27 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         <span>سفارشات</span>
                     </a>
                 </li>
-                <?php if ($_SESSION['role'] === 'seller'): ?>
+                <?php
+                // بررسی اینکه آیا کاربر به‌عنوان user_id1 در جدول Partners وجود دارد
+                $user_id = $_SESSION['user_id'] ?? null;
+                $is_partner1 = false;
+                if ($user_id) {
+                    require_once 'db.php';
+                    $query = "SELECT partner_id FROM Partners WHERE user_id1 = ?";
+                    $stmt = $conn->prepare($query);
+                    $stmt->bind_param("i", $user_id);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    if ($result->num_rows > 0) {
+                        $is_partner1 = true;
+                    }
+                    $stmt->close();
+                }
+                if ($is_partner1):
+                ?>
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'temp_orders.php' ? 'active' : ''; ?>"
-                            href="temp_orders.php">
+                           href="temp_orders.php">
                             <i class="fas fa-hourglass-half"></i>
                             <span>سفارشات موقت</span>
                         </a>
@@ -211,13 +228,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                 </a>
                             </li>
                         <?php endif; ?>
-                        <!-- <li class="nav-item">
-                            <a class="nav-link <?php echo $current_page == 'inventory_report.php' ? 'active' : ''; ?>"
-                                href="inventory_report.php">
-                                <i class="fas fa-warehouse"></i>
-                                <span>تخصیص</span>
-                            </a>
-                        </li> -->
                     </ul>
                 </li>
                 <hr class="sidebar-divider">
