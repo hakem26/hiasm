@@ -148,6 +148,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         <span>سفارشات</span>
                     </a>
                 </li>
+                <?php if ($_SESSION['role'] === 'seller'): ?>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $current_page == 'temp_orders.php' ? 'active' : ''; ?>"
+                            href="temp_orders.php">
+                            <i class="fas fa-hourglass-half"></i>
+                            <span>سفارشات موقت</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
                 <li class="nav-item">
                     <a class="nav-link <?php echo $current_page == 'work_details.php' ? 'active' : ''; ?>"
                         href="work_details.php">
