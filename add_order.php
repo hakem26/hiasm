@@ -557,7 +557,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                 return;
             }
 
-            const items = [{ json_encode($_SESSION['orders_items']) ?];
+            const items = <?= json_encode($_SESSION['order_items']) ?>;
             if (items.some(item => item.product_id === product_id)) {
                 alert('این محصول قبلاً در فاکتور ثبت شده است.');
                 return;
@@ -565,7 +565,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
             const data = {
                 action: 'add_item',
-                customer_name: string,
+                customer_name,
                 product_id,
                 quantity,
                 unit_price,
