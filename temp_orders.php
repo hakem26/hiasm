@@ -168,7 +168,6 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                         <th>مبلغ پرداختی</th>
                         <th>مانده حساب</th>
                         <th>فاکتور</th>
-                        <th>اطلاعات پرداخت</th>
                         <th>پرینت</th>
                     </tr>
                 </thead>
@@ -186,10 +185,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                                 <button class="btn btn-warning btn-sm convert-order" data-temp-order-id="<?= $order['temp_order_id'] ?>">تبدیل</button>
                             </td>
                             <td>
-                                <a href="edit_payment.php?order_id=<?= $order['temp_order_id'] ?>" class="btn btn-primary btn-sm">ویرایش</a>
-                            </td>
-                            <td>
-                                <a href="print_invoice.php?order_id=<?= $order['temp_order_id'] ?>" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
+                                <a href="print_temp_invoice.php?order_id=<?= $order['temp_order_id'] ?>" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -235,17 +231,17 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
                         <option value="">انتخاب کنید</option>
                         <?php
                         $stmt = $pdo->prepare("
-                            SELECT wd.id, wd.work_date, u2.full_name
+                            SELECT wd.id, wd.work_date
                             FROM Work_Details wd
                             JOIN Partners p ON wd.partner_id = p.partner_id
-                            LEFT JOIN Users u2 ON p.user_id2 = u2.user_id
                             WHERE wd.work_month_id = ? AND p.user_id1 = ?
+                            ORDER BY wd.work_date ASC
                         ");
                         $stmt->execute([$selected_work_month_id, $current_user_id]);
                         $work_days = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         foreach ($work_days as $day): ?>
                             <option value="<?= $day['id'] ?>">
-                                <?= gregorian_to_jalali_format($day['work_date']) ?> - <?= htmlspecialchars($day['full_name'] ?: 'نامشخص') ?>
+                                <?= gregorian_to_jalali_format($day['work_date']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
