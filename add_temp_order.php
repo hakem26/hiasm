@@ -414,23 +414,25 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
             let query = $(this).val().trim();
             console.log('Search query:', query);
             if (query.length >= 3) {
-                $.ajax({
-                    url: 'get_products.php',
-                    type: 'POST',
-                    data: { query: query },
-                    success: function (response) {
-                        console.log('get_products response:', response);
-                        if (!response.success || response.trim() === '') {
-                            $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+                $.ajax(
+                    {
+                        url: 'get_products.php',
+                        type: 'POST',
+                        data: { query: query },
+                        success: function (response) {
+                            console.log('get_products response:', response);
+                            if (!response.success || response.trim() === '') {
+                                $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+                            } else {
+                                $('#product_suggestions').html(response.data);
+                                console.log('Suggestions displayed:', $('#product_suggestions').html());
+                            }
                         } else {
-                            $('#product_suggestions').html(response.data);
-                            console.log('Suggestions displayed:', $('#product_suggestions').html());
-                        }
-                    } else {
-                        $('#product_suggestions').hide();
-                        error: function (xhr, status, error) {
-                            console.error('AJAX Error:', status, error, xhr.responseText);
-                            $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
+                            $('#product_suggestions').hide();
+                            error: function (xhr, status, error) {
+                                console.error('AJAX Error:', status, error, xhr.responseText);
+                                $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
+                            }
                         }
                     });
             } else {
