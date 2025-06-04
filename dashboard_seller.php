@@ -409,7 +409,7 @@ if ($current_work_month_id) {
 ?>
 
 <div class="container-fluid">
-    <h2 class="text-center mb-4">پیشخوان فروشندگان - <?= htmlspecialchars($user_name) ?></h2>
+    <h2 class="text-center mb-4">پیشخوان فروشنده - <?= htmlspecialchars($user_name) ?></h2>
 
     <div class="row">
         <div class="col-12 col-md-6 mb-4">
