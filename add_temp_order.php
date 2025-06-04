@@ -7,6 +7,16 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once 'header.php';
 require_once 'db.php';
+require_once 'jdf.php';
+
+function gregorian_to_jalali_format($gregorian_date)
+{
+    if (!$gregorian_date || $gregorian_date == '0000-00-00')
+        return 'نامشخص';
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd";
+}
 
 $is_admin = ($_SESSION['role'] === 'admin');
 if ($is_admin) {
@@ -15,7 +25,7 @@ if ($is_admin) {
 }
 $current_user_id = $_SESSION['user_id'];
 
-// بررسی اینکه کاربر همکار1 در ماه کاری انتخاب‌شده است یا خیر
+// بررسی دسترسی کاربر به ماه کاری
 $work_month_id = $_GET['work_month_id'] ?? '';
 if ($work_month_id) {
     $stmt = $pdo->prepare("
@@ -29,9 +39,13 @@ if ($work_month_id) {
         require_once 'footer.php';
         exit;
     }
+} else {
+    echo "<div class='container-fluid mt-5'><div class='alert alert-danger text-center'>لطفاً ماه کاری را انتخاب کنید.</div></div>";
+    require_once 'footer.php';
+    exit;
 }
 
-// آماده‌سازی سشن برای اقلام سفارش
+// آماده‌سازی سشن
 unset($_SESSION['temp_order_items']);
 unset($_SESSION['discount']);
 unset($_SESSION['invoice_prices']);
@@ -41,6 +55,10 @@ $_SESSION['invoice_prices'] = ['postal' => 50000];
 $_SESSION['is_temp_order_in_progress'] = true;
 $_SESSION['postal_enabled'] = false;
 $_SESSION['postal_price'] = 50000;
+
+// دریافت ماه‌های کاری
+$stmt_months = $pdo->query("SELECT work_month_id, start_date, end_date FROM Work_Months ORDER BY start_date DESC");
+$work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
@@ -96,10 +114,21 @@ $_SESSION['postal_price'] = 50000;
 
     <form id="add-temp-order-form">
         <div class="mb-3">
+            <label for="work_month_id" class="form-label">ماه کاری</label>
+            <select class="form-select" id="work_month_id" name="work_month_id" required>
+                <option value="">انتخاب کنید</option>
+                <?php foreach ($work_months as $month): ?>
+                    <option value="<?= $month['work_month_id'] ?>" <?= $work_month_id == $month['work_month_id'] ? 'selected' : '' ?>>
+                        <?= gregorian_to_jalali_format($month['start_date']) ?> تا
+                        <?= gregorian_to_jalali_format($month['end_date']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="mb-3">
             <label for="customer_name" class="form-label">نام مشتری</label>
             <input type="text" class="form-control" id="customer_name" name="customer_name" required autocomplete="off">
         </div>
-
         <div class="mb-3">
             <label for="product_name" class="form-label">نام محصول</label>
             <input type="text" class="form-control" id="product_name" name="product_name"
@@ -108,7 +137,6 @@ $_SESSION['postal_price'] = 50000;
                 style="width: 100%; z-index: 1000; display: none;"></div>
             <input type="hidden" id="product_id" name="product_id">
         </div>
-
         <div class="row g-3 mb-3">
             <div class="col-6 col-md-3">
                 <label for="quantity" class="form-label">تعداد</label>
@@ -135,7 +163,6 @@ $_SESSION['postal_price'] = 50000;
                 <p class="form-control-static" id="inventory_quantity">0</p>
             </div>
         </div>
-
         <div class="mb-3">
             <button type="button" id="add_item_btn" class="btn btn-primary">افزودن محصول</button>
             <button type="button" id="edit_item_btn" class="btn btn-warning" style="display: none;">ثبت ویرایش</button>
@@ -266,143 +293,143 @@ $_SESSION['postal_price'] = 50000;
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    async function sendRequest(url, data) {
+async function sendRequest(url, data) {
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(data)
+        });
+        const rawResponse = await response.text();
+        console.log('Raw response from ' + url + ':', rawResponse);
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
         try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams(data)
-            });
-            const rawResponse = await response.text();
-            console.log('Raw response from ' + url + ':', rawResponse); // لاگ پاسخ خام
-            console.log('Response status:', response.status); // لاگ وضعیت HTTP
-            console.log('Response headers:', response.headers.get('content-type')); // لاگ نوع محتوا
-            try {
-                return JSON.parse(rawResponse);
-            } catch (e) {
-                console.error('JSON Parse Error:', e, 'Raw Response:', rawResponse);
-                throw e;
-            }
-        } catch (error) {
-            console.error('Request Error:', error);
-            return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+            return JSON.parse(rawResponse);
+        } catch (e) {
+            console.error('JSON Parse Error:', e, 'Raw Response:', rawResponse);
+            throw e;
         }
+    } catch (error) {
+        console.error('Request Error:', error);
+        return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+    }
+}
+
+function renderItemsTable(data) {
+    const itemsTable = document.getElementById('items_table');
+    const totalAmountDisplay = document.getElementById('total_amount_display');
+    const finalAmountDisplay = document.getElementById('final_amount_display');
+    const invoicePrices = data.invoice_prices || {};
+    const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
+    const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
+
+    if (!data.items || data.items.length === 0) {
+        itemsTable.innerHTML = '';
+        totalAmountDisplay.textContent = '۰ تومان';
+        finalAmountDisplay.textContent = '۰ تومان';
+        return;
     }
 
-    function renderItemsTable(data) {
-        const itemsTable = document.getElementById('items_table');
-        const totalAmountDisplay = document.getElementById('total_amount_display');
-        const finalAmountDisplay = document.getElementById('final_amount_display');
-        const invoicePrices = data.invoice_prices || {};
-        const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
-        const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
-
-        if (!data.items || data.items.length === 0) {
-            itemsTable.innerHTML = '';
-            totalAmountDisplay.textContent = '۰ تومان';
-            finalAmountDisplay.textContent = '۰ تومان';
-            return;
-        }
-
-        itemsTable.innerHTML = `
-    <table class="table table-light order-items-table">
-        <thead>
-            <tr>
-                <th>نام محصول</th>
-                <th>تعداد</th>
-                <th>قیمت واحد</th>
-                <th>اضافه فروش</th>
-                <th>قیمت کل</th>
-                <th>قیمت فاکتور</th>
-                <th>عملیات</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${data.items.map((item, index) => `
-                <tr id="item_row_${index}">
-                    <td>${item.product_name}</td>
-                    <td>${item.quantity}</td>
-                    <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
-                    <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
-                    <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
-                    <td>
-                        <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
-                            تنظیم قیمت
-                        </button>
-                        <span class="invoice-price" data-index="${index}">
-                            ${Number(item.total_price).toLocaleString('fa')} تومان
-                        </span>
-                    </td>
-                    <td>
-                        <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
+    itemsTable.innerHTML = `
+        <table class="table table-light order-items-table">
+            <thead>
+                <tr>
+                    <th>نام محصول</th>
+                    <th>تعداد</th>
+                    <th>قیمت واحد</th>
+                    <th>اضافه فروش</th>
+                    <th>قیمت کل</th>
+                    <th>قیمت فاکتور</th>
+                    <th>عملیات</th>
                 </tr>
-            `).join('')}
-            ${postalEnabled ? `
-                <tr class="postal-row">
-                    <td>ارسال</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>
-                        <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
+            </thead>
+            <tbody>
+                ${data.items.map((item, index) => `
+                    <tr id="item_row_${index}">
+                        <td>${item.product_name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${Number(item.unit_price).toLocaleString('fa')} ${item.total_price}</td>
+                        <td>${Number(item.extra_sale).toLocaleString('en')} ${item.total_row}</td>
+                        <td>${Number(item.total_price).toLocaleString('fa')} ${item.currency_price}</td>
+                        <td>
+                            <button onclick="button" class="btn btn-info btn-sm set-invoice-btn-sm" data-index="${index}">
+                                <تنظیم قیمت
+                            </button>
+                            <span class="invoice-price" data-index="${index}">
+                                ${Number(item.total_price).toLocaleString('fa')} ${item.price_currency}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger-btn-sm" onclick="delete-item" data-index="${index}>
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+                ${postalEnabled ? `
+                    <tr class="postal-row">
+                        <td>ارسال</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <button class="btn btn-info btn-sm set-invoice-price" data-index="postal">
                             تنظیم قیمت
-                        </button>
+                        </td>
                         <span class="invoice-price" data-index="postal">
-                            ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان
+                            ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} ${item.currency}
+                        </td>
                         </span>
                     </td>
-                    <td>-</td>
+                    </tr>
+                ` : ''}
+                <tr class="total-row">
+                    <td colspan="4"><strong>جمع کل</strong></td>
+                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} ${data.total_amount}</strong></td>
+                    <td colspan="2"></td>
                 </tr>
-            ` : ''}
-            <tr class="total-row">
-                <td colspan="4"><strong>جمع کل</strong></td>
-                <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
-                <td colspan="2"></td>
-            </tr>
-            <tr class="total-row">
-                <td><label for="discount" class="form-label">تخفیف</label></td>
-                <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
-                <td colspan="2"></td>
-            </tr>
-            <tr class="total-row">
-                <td><label for="postal_option" class="form-label">پست سفارش</label></td>
-                <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
-                <td colspan="3"></td>
-            </tr>
-        </tbody>
-    </table>
+                <tr class="total-row">
+                    <td><label for="discount" class="form-label">تخفیف</label></td>
+                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
+                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} ${data.final_amount}</strong></td>
+                    <td colspan="2"></td>
+                </tr>
+                <tr class="total-row">
+                    <td><label for="postal_option" class="form-label">پست سفارش</label></td>
+                    <td><input type="checkbox" id="postal_option" name="postal_option" ${postalEnabled ? 'checked' : ''}></td>
+                    <td colspan="3"></td>
+                </tr>
+            </tbody>
+        </table>
     `;
 
-        totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
-    }
+    totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
+    finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
+}
 
-    document.addEventListener('DOMContentLoaded', () => {
-        let initialInventory = 0;
-        let editingIndex = null;
+document.addEventListener('DOMContentLoaded', () => {
+    let initialInventory = 0;
+    let editingIndex = null;
 
-        $('#product_name').on('input', function () {
-            let query = $(this).val().trim();
-            console.log('Search query:', query);
-            if (query.length >= 3) {
-                $.ajax({
-                    url: 'get_products.php',
-                    type: 'POST',
-                    data: { query: query },
-                    success: function (response) {
-                        console.log('get_products response:', response);
-                        if (!response || response.trim() === '') {
-                            $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
-                        } else {
-                            $('#product_suggestions').html(response).show();
-                            console.log('Suggestions displayed:', $('#product_suggestions').html());
-                        }
-                    },
+    $('#product_name').on('input', function () {
+        let query = $(this).val().trim();
+        console.log('Search query:', query);
+        if (query.length >= 3) {
+            $.ajax({
+                url: 'get_products.php',
+                type: 'POST',
+                data: { query: query },
+                success: function (response) {
+                    console.log('get_products response:', response);
+                    if (!response.success || response.trim() === '') {
+                        $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+                    } else {
+                        $('#product_suggestions').html(response.data);
+                        console.log('Suggestions displayed:', $('#product_suggestions').html());
+                    }
+                } else {
+                    $('#product_suggestions').hide();
                     error: function (xhr, status, error) {
                         console.error('AJAX Error:', status, error, xhr.responseText);
                         $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
@@ -520,7 +547,7 @@ $_SESSION['postal_price'] = 50000;
                 user_id: '<?= $current_user_id ?>'
             };
 
-            const addResponse = await sendRequest('ajax_temp_handler.php', data);
+            const addResponse = await sendRequest('ajax_temp_order_handler.php', data);
             if (addResponse.success) {
                 renderItemsTable(addResponse.data);
                 resetForm();
@@ -539,7 +566,7 @@ $_SESSION['postal_price'] = 50000;
                         user_id: '<?= $current_user_id ?>'
                     };
 
-                    const response = await sendRequest('ajax_temp_handler.php', data);
+                    const response = await sendRequest('ajax_temp_order_handler.php', data);
                     if (response.success) {
                         renderItemsTable(response.data);
                         resetForm();
@@ -552,14 +579,12 @@ $_SESSION['postal_price'] = 50000;
                 $('#invoice_price_index').val(index);
                 let currentPrice = 0;
                 if (index === 'postal') {
-                    // برای پستی، قیمت فعلی از invoice_prices یا پیش‌فرض
                     currentPrice = <?= json_encode($_SESSION['invoice_prices']['postal'] ?? 50000) ?>;
                 } else {
-                    // برای آیتم‌ها، unit_price از جدول (ستون سوم)
                     const unitPriceCell = document.querySelector(`#item_row_${index} td:nth-child(3)`);
-                    currentPrice = unitPriceCell ? parseFloat(unitPriceCell.textContent.replace(/[^\d]/g, '')) || 0 : 0;
+                    currentPrice = (unitPriceCell ? parseFloat(unitPriceCell.textContent.replace(/[^\d]/g, '')) || 0) : 0;
                 }
-                $('#invoice_price').val(currentPrice);
+                $('#invoice_price').value(currentPrice);
                 $('#invoicePriceModal').modal('show');
             }
         });
@@ -568,24 +593,24 @@ $_SESSION['postal_price'] = 50000;
             const index = $('#invoice_price_index').val();
             const invoicePrice = $('#invoice_price').val();
 
-            if (invoicePrice === '' || invoicePrice < 0) {
+            if (data === '' || data < 0) {
                 alert('لطفاً یک قیمت معتبر وارد کنید.');
                 return;
             }
 
             const data = {
                 action: 'set_temp_invoice_price',
-                index: index,
-                invoice_price: invoicePrice,
-                user_id: '<?= $current_user_id ?>'
+                index: invoice_price,
+                invoice_price,
+                user_id: '<?= index ?>'
             };
 
-            const response = await sendRequest('ajax_temp_handler.php', data);
+            const response = await sendRequest('ajax_temp_order_handler.php', data);
             if (response.success) {
-                renderItemsTable(response.data); // جدول رو با داده‌های جدید رندر کن
+                renderItemsTable(response.data);
                 $('#invoicePriceModal').modal('hide');
             } else {
-                alert(response.message);
+                alert(response.data.message);
             }
         });
 
@@ -594,10 +619,11 @@ $_SESSION['postal_price'] = 50000;
                 const enablePostal = e.target.checked;
                 const data = {
                     action: 'set_temp_postal_option',
-                    enable_postal: enablePostal
+                    enable_postal,
+                    user_id: enablePostal_option
                 };
 
-                const response = await sendRequest('ajax_temp_handler.php', data);
+                const response = await sendRequest('ajax_temp_order_handler.php', data);
                 if (response.success) {
                     renderItemsTable(response.data);
                 } else {
@@ -610,16 +636,16 @@ $_SESSION['postal_price'] = 50000;
             if (e.target.id === 'discount') {
                 const discount = e.target.value || 0;
                 const data = {
-                    action: 'update_temp_discount',
-                    discount
+                    action: 'update_temp_discount_price',
+                    discount,
                 };
 
-                const response = await sendRequest('ajax_temp_handler.php', data);
+                const response = await sendRequest('ajax_temp_order_handler.php', data);
                 if (response.success) {
-                    document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                    document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
-                    document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                    document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' €';
+                    document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' €';
+                    document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' €';
+                    document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' €';
                 } else {
                     alert(response.message);
                 }
@@ -629,9 +655,14 @@ $_SESSION['postal_price'] = 50000;
         document.getElementById('finalize_order_btn').addEventListener('click', async () => {
             const customer_name = document.getElementById('customer_name').value;
             const discount = document.getElementById('discount')?.value || 0;
+            const work_month_id = document.getElementById('work_month_id').value;
 
             if (!customer_name) {
-                alert('لطفاً نام مشتری را وارد کنید.');
+                alert('לطفاً نام مشتری را وارد کنید.');
+                return;
+            }
+            if (!work_month_id) {
+                alert('لطفاً ماه کاری را انتخاب کنید.');
                 return;
             }
 
@@ -639,11 +670,12 @@ $_SESSION['postal_price'] = 50000;
                 action: 'finalize_temp_order',
                 customer_name,
                 discount,
-                user_id: '<?= $current_user_id ?>'
+                work_month_id,
+                user_id: '<?= $_SESSION['user_id'] ?>';
             };
-            console.log('Data sent to finalize:', data); // لاگ داده‌های ارسالی
+            console.log('Data sent to finalize:', data);
 
-            const response = await sendRequest('ajax_temp_handler.php', data);
+            const response = await sendRequest('ajax_temp_order_handler.php', data);
             if (response.success) {
                 alert(response.message);
                 window.location.href = response.data.redirect;
@@ -653,7 +685,7 @@ $_SESSION['postal_price'] = 50000;
         });
 
         function resetForm() {
-            $('#product_name').val('').prop('disabled', false);
+            $('#product_form_reset').val('').prop('disabled', false);
             $('#product_id').val('');
             $('#quantity').val('1');
             $('#unit_price').val('');
