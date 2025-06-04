@@ -669,7 +669,7 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
                 customer_name,
                 discount,
                 work_month_id,
-                user_id: '<?= $_SESSION['user_id'] ?>';
+                user_id: '<?= $_SESSION['user_id'] ?>'
             };
             console.log('Data sent to finalize:', data);
 
