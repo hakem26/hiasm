@@ -72,13 +72,13 @@ $page = (int) ($_GET['page'] ?? 1);
 $per_page = 10;
 
 $is_partner1 = false;
-if ($selected_work_month_id && !$is_admin) {
+if (!$is_admin) {
     $stmt = $pdo->prepare("
         SELECT COUNT(*) FROM Work_Details wd
         JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id = ? AND p.user_id1 = ?
+        WHERE p.user_id1 = ?
     ");
-    $stmt->execute([$selected_work_month_id, $current_user_id]);
+    $stmt->execute([$current_user_id]);
     $is_partner1 = $stmt->fetchColumn() > 0;
 }
 
