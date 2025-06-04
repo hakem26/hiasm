@@ -432,9 +432,10 @@ switch ($action) {
         $index = $_POST['index'] ?? '';
         $invoice_price = (float) ($_POST['invoice_price'] ?? 0);
         $order_id = $_POST['order_id'] ?? '';
+        $partner1_id = $_POST['partner1_id'] ?? '';
 
-        if ($index === '' || $invoice_price < 0) {
-            respond(false, 'مقدار نامعتبر برای ایندکس یا قیمت فاکتور.');
+        if ($index === '' || $invoice_price < 0 || !$partner1_id) {
+            respond(false, 'مقدار نامعتبر برای ایندکس، قیمت فاکتور، یا کاربر.');
         }
 
         $_SESSION['invoice_prices'][$index] = $invoice_price;
@@ -442,10 +443,10 @@ switch ($action) {
         if ($order_id) { // برای edit_order.php
             if ($index === 'postal') {
                 $stmt = $pdo->prepare("
-                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
-                        VALUES (?, -1, 0, TRUE, ?)
-                        ON DUPLICATE KEY UPDATE postal_price = ?
-                    ");
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
+                VALUES (?, -1, 0, TRUE, ?)
+                ON DUPLICATE KEY UPDATE postal_price = ?
+            ");
                 $stmt->execute([$order_id, $invoice_price, $invoice_price]);
                 $_SESSION['postal_price'] = $invoice_price;
             } else {
@@ -454,18 +455,48 @@ switch ($action) {
                     respond(false, 'آیتم مورد نظر یافت نشد.');
                 }
                 $stmt = $pdo->prepare("
-                        INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
-                        VALUES (?, ?, ?, FALSE)
-                        ON DUPLICATE KEY UPDATE invoice_price = ?
-                    ");
+                INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal)
+                VALUES (?, ?, ?, FALSE)
+                ON DUPLICATE KEY UPDATE invoice_price = ?
+            ");
                 $stmt->execute([$order_id, $index, $invoice_price, $invoice_price]);
             }
-        } elseif ($index === 'postal') { // برای add_order.php
-            $_SESSION['postal_price'] = $invoice_price;
-            $_SESSION['postal_enabled'] = true; // فعال کردن ارسال پستی
+            $items = $_SESSION['edit_order_items'] ?? [];
+            $total_amount = array_sum(array_column($items, 'total_price'));
+            $discount = $_SESSION['edit_order_discount'] ?? 0;
+            $postal_price = $_SESSION['postal_price'] ?? 50000;
+            $postal_enabled = !empty($_SESSION['invoice_prices']['postal']);
+            $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
+        } else { // برای add_order.php
+            if ($index === 'postal') {
+                $_SESSION['postal_price'] = $invoice_price;
+                $_SESSION['postal_enabled'] = true;
+            } else {
+                $items = $_SESSION['order_items'] ?? [];
+                if (!isset($items[$index])) {
+                    respond(false, 'آیتم مورد نظر یافت نشد.');
+                }
+                // آپدیت unit_price آیتم
+                $items[$index]['unit_price'] = $invoice_price;
+                $items[$index]['total_price'] = $items[$index]['quantity'] * ($invoice_price + $items[$index]['extra_sale']);
+                $_SESSION['order_items'] = $items;
+            }
+            $total_amount = array_sum(array_column($items, 'total_price'));
+            $discount = $_SESSION['discount'] ?? 0;
+            $postal_price = $_SESSION['postal_price'] ?? 50000;
+            $postal_enabled = $_SESSION['postal_enabled'] ?? false;
+            $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
         }
 
-        respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.');
+        respond(true, 'قیمت فاکتور با موفقیت تنظیم شد.', [
+            'items' => $items,
+            'total_amount' => $total_amount,
+            'discount' => $discount,
+            'final_amount' => $final_amount,
+            'invoice_prices' => $_SESSION['invoice_prices'],
+            'postal_enabled' => $postal_enabled,
+            'postal_price' => $postal_price
+        ]);
         break;
 
     case 'set_postal_option':
