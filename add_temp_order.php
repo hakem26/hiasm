@@ -580,7 +580,7 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
                     currentPrice = <?= json_encode($_SESSION['invoice_prices']['postal'] ?? 50000) ?>;
                 } else {
                     const unitPriceCell = document.querySelector(`#item_row_${index} td:nth-child(3)`);
-                    currentPrice = (unitPriceCell ? parseFloat(unitPriceCell.textContent.replace(/[^\d]/g, '')) || 0) : 0;
+                    currentPrice = unitPriceCell ? (parseFloat(unitPriceCell.textContent.replace(/[^\d]/g, '')) || 0) : 0;
                 }
                 $('#invoice_price').value(currentPrice);
                 $('#invoicePriceModal').modal('show');
