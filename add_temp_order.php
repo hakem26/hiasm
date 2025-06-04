@@ -427,12 +427,10 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
                                 $('#product_suggestions').html(response.data);
                                 console.log('Suggestions displayed:', $('#product_suggestions').html());
                             }
-                        } else {
-                            $('#product_suggestions').hide();
-                            error: function (xhr, status, error) {
-                                console.error('AJAX Error:', status, error, xhr.responseText);
-                                $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
-                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('AJAX Error:', status, error, xhr.responseText);
+                            $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
                         }
                     });
             } else {
