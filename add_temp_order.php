@@ -419,17 +419,35 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
                     type: 'POST',
                     data: { query: query },
                     success: function (response) {
-                        console.log('get_products response:', response);
-                        if (response && response.trim() !== '') {
-                            $('#product_suggestions').html(response).show();
-                            console.log('Suggestions displayed:', $('#product_suggestions').html());
-                        } else {
-                            $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+                        console.log('get_products raw response:', response);
+                        console.log('response type:', typeof response);
+                        try {
+                            // اگر پاسخ JSON باشه
+                            let parsedResponse = typeof response === 'string' && response.trim().startsWith('{') ? JSON.parse(response) : response;
+                            if (typeof parsedResponse === 'object' && parsedResponse.data) {
+                                console.log('Parsed JSON response:', parsedResponse);
+                                if (parsedResponse.data && parsedResponse.data.trim() !== '') {
+                                    $('#product_suggestions').html(parsedResponse.data).show();
+                                } else {
+                                    $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+                                }
+                            } else {
+                                // اگر پاسخ HTML باشه
+                                console.log('Assuming HTML response:', response);
+                                if (response && response.trim() !== '') {
+                                    $('#product_suggestions').html(response).show();
+                                } else {
+                                    $('#product_suggestions').html('<div class="list-group-item">محصولی یافت نشد</div>').show();
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Response parse error:', e);
+                            $('#product_suggestions').html('<div class="list-group-item">خطا در پردازش پاسخ</div>').show();
                         }
                     },
                     error: function (xhr, status, error) {
                         console.error('AJAX Error:', status, error, xhr.responseText);
-                        $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو</div>').show();
+                        $('#product_suggestions').html('<div class="list-group-item">خطا در جستجو: ' + status + '</div>').show();
                     }
                 });
             } else {
