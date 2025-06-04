@@ -148,22 +148,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         <span>سفارشات</span>
                     </a>
                 </li>
-                <?php
-                // بررسی اینکه آیا کاربر به‌عنوان user_id1 در جدول Partners وجود دارد
-                $user_id = $_SESSION['user_id'] ?? null;
-                $is_partner1 = false;
-                if ($user_id) {
-                    require_once 'db.php';
-                    $query = "SELECT partner_id FROM Partners WHERE user_id1 = ?";
-                    $stmt = $conn->prepare($query);
-                    $stmt->execute([$user_id]);
-                    $result = $stmt->fetchAll();
-                    if (count($result) > 0) {
-                        $is_partner1 = true;
-                    }
-                }
-                if ($is_partner1):
-                    ?>
+                <?php if ($_SESSION['role'] === 'seller'): ?>
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'temp_orders.php' ? 'active' : ''; ?>"
                             href="temp_orders.php">
