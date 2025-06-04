@@ -376,6 +376,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
         }
 
         const wasDiscountFocused = document.activeElement.id === 'discount';
+        const discountValue = wasDiscountFocused ? document.activeElement.value : null;
 
         itemsTable.innerHTML = `
     <table class="table table-light order-items-table">
@@ -455,11 +456,18 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
         finalAmountDisplay.textContent = Number(finalAmount).toLocaleString('fa') + ' تومان';
 
         if (wasDiscountFocused) {
-            const discountInput = document.getElementById('discount');
-            if (discountInput) {
-                discountInput.focus();
-                discountInput.setSelectionRange(discountInput.value.length, discountInput.value.length);
-            }
+            setTimeout(() => {
+                const discountInput = document.getElementById('discount');
+                if (discountInput) {
+                    discountInput.value = discountValue || discount;
+                    discountInput.focus();
+                    try {
+                        discountInput.setSelectionRange(discountInput.value.length, discountInput.value.length);
+                    } catch (e) {
+                        console.warn('Could not set selection range:', e);
+                    }
+                }
+            }, 0);
         }
     }
 
@@ -697,37 +705,40 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
         document.getElementById('items_table').addEventListener('input', async (e) => {
             if (e.target.id === 'discount') {
-                const discount = Number(e.target.value) || 0;
-                const postalOption = document.getElementById('postal_option');
-                const wasPostalChecked = postalOption ? postalOption.checked : <?= json_encode($_SESSION['postal_enabled']) ?>;
+                clearTimeout(window.discountDebounce);
+                window.discountDebounce = setTimeout(async () => {
+                    const discount = Number(e.target.value) || 0;
+                    const postalOption = document.getElementById('postal_option');
+                    const wasPostalChecked = postalOption ? postalOption.checked : <?= json_encode($_SESSION['postal_enabled']) ?>;
 
-                const data = {
-                    action: 'update_discount',
-                    discount: discount,
-                    partner1_id: '<?= $partner1_id ?>'
-                };
+                    const data = {
+                        action: 'update_discount',
+                        discount: discount,
+                        partner1_id: '<?= $partner1_id ?>'
+                    };
 
-                console.log('Updating discount:', data);
+                    console.log('Updating discount:', data);
 
-                const response = await sendRequest('ajax_handler.php', data);
-                console.log('Discount response:', response);
+                    const response = await sendRequest('ajax_handler.php', data);
+                    console.log('Discount response:', response);
 
-                if (response.success) {
-                    response.data.postal_enabled = wasPostalChecked;
-                    renderItemsTable(response.data);
-                } else {
-                    alert(response.message);
-                    e.target.value = <?= json_encode($_SESSION['discount']) ?>;
-                    renderItemsTable({
-                        items: <?= json_encode($_SESSION['order_items']) ?>,
-                        invoice_prices: <?= json_encode($_SESSION['invoice_prices']) ?>,
-                        postal_enabled: wasPostalChecked,
-                        postal_price: <?= json_encode($_SESSION['postal_price']) ?>,
-                        total_amount: <?= json_encode(array_sum(array_column($_SESSION['order_items'], 'total_price'))) ?>,
-                        final_amount: <?= json_encode(array_sum(array_column($_SESSION['order_items'], 'total_price')) - $_SESSION['discount'] + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0)) ?>,
-                        discount: <?= json_encode($_SESSION['discount']) ?>
-                    });
-                }
+                    if (response.success) {
+                        response.data.postal_enabled = wasPostalChecked;
+                        renderItemsTable(response.data);
+                    } else {
+                        alert(response.message);
+                        e.target.value = <?= json_encode($_SESSION['discount']) ?>;
+                        renderItemsTable({
+                            items: <?= json_encode($_SESSION['order_items']) ?>,
+                            invoice_prices: <?= json_encode($_SESSION['invoice_prices']) ?>,
+                            postal_enabled: wasPostalChecked,
+                            postal_price: <?= json_encode($_SESSION['postal_price']) ?>,
+                            total_amount: <?= json_encode(array_sum(array_column($_SESSION['order_items'], 'total_price'))) ?>,
+                            final_amount: <?= json_encode(array_sum(array_column($_SESSION['order_items'], 'total_price')) - $_SESSION['discount'] + ($_SESSION['postal_enabled'] ? $_SESSION['postal_price'] : 0)) ?>,
+                            discount: <?= json_encode($_SESSION['discount']) ?>
+                        });
+                    }
+                }, 500);
             }
         });
 
