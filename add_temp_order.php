@@ -313,7 +313,7 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
         }
     }
 
-    function renderItemsTable(data) {
+    function renderItemsTable(data)function renderItemsTable(data) {
         const itemsTable = document.getElementById('items_table');
         const totalAmountDisplay = document.getElementById('total_amount_display');
         const finalAmountDisplay = document.getElementById('final_amount_display');
@@ -346,19 +346,19 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
                     <tr id="item_row_${index}">
                         <td>${item.product_name}</td>
                         <td>${item.quantity}</td>
-                        <td>${Number(item.unit_price).toLocaleString('fa')} ${item.total_price}</td>
-                        <td>${Number(item.extra_sale).toLocaleString('en')} ${item.total_row}</td>
-                        <td>${Number(item.total_price).toLocaleString('fa')} ${item.currency_price}</td>
+                        <td>${Number(item.unit_price).toLocaleString('fa')} تومان</td>
+                        <td>${Number(item.extra_sale).toLocaleString('fa')} تومان</td>
+                        <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
-                            <button onclick="button" class="btn btn-info btn-sm set-invoice-btn-sm" data-index="${index}">
-                                <تنظیم قیمت
+                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
+                                تنظیم قیمت
                             </button>
                             <span class="invoice-price" data-index="${index}">
-                                ${Number(item.total_price).toLocaleString('fa')} ${item.price_currency}
+                                ${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان
                             </span>
                         </td>
                         <td>
-                            <button class="btn btn-danger-btn-sm" onclick="delete-item" data-index="${index}>
+                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -371,25 +371,26 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
                         <td>-</td>
                         <td>-</td>
                         <td>-</td>
-                        <button class="btn btn-info btn-sm set-invoice-price" data-index="postal">
-                            تنظیم قیمت
+                        <td>
+                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
+                                تنظیم قیمت
+                            </button>
+                            <span class="invoice-price" data-index="postal">
+                                ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان
+                            </span>
                         </td>
-                        <span class="invoice-price" data-index="postal">
-                            ${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} ${item.currency}
-                        </td>
-                        </span>
-                    </td>
+                        <td>-</td>
                     </tr>
                 ` : ''}
                 <tr class="total-row">
                     <td colspan="4"><strong>جمع کل</strong></td>
-                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} ${data.total_amount}</strong></td>
+                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
                     <td><label for="discount" class="form-label">تخفیف</label></td>
                     <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} ${data.final_amount}</strong></td>
+                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
