@@ -375,8 +375,8 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             return;
         }
 
-        const wasDiscountFocused = document.activeElement.id === 'discount';
-        const discountValue = wasDiscountFocused ? document.activeElement.value : null;
+        const discountInput = document.getElementById('discount');
+        const discountValue = discountInput ? discountInput.value : discount;
 
         itemsTable.innerHTML = `
     <table class="table table-light order-items-table">
@@ -439,7 +439,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             </tr>
             <tr class="total-row">
                 <td><label for="discount" class="form-label">تخفیف</label></td>
-                <td><input type="number" class="form-control" id="discount" name="discount" value="${discount}" min="0"></td>
+                <td><input type="number" class="form-control" id="discount" name="discount" value="${discountValue}" min="0"></td>
                 <td><strong id="final_amount">${Number(finalAmount).toLocaleString('fa')} تومان</strong></td>
                 <td colspan="2"></td>
             </tr>
@@ -454,21 +454,6 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
         totalAmountDisplay.textContent = Number(totalAmount).toLocaleString('fa') + ' تومان';
         finalAmountDisplay.textContent = Number(finalAmount).toLocaleString('fa') + ' تومان';
-
-        if (wasDiscountFocused) {
-            setTimeout(() => {
-                const discountInput = document.getElementById('discount');
-                if (discountInput) {
-                    discountInput.value = discountValue || discount;
-                    discountInput.focus();
-                    try {
-                        discountInput.setSelectionRange(discountInput.value.length, discountInput.value.length);
-                    } catch (e) {
-                        console.warn('Could not set selection range:', e);
-                    }
-                }
-            }, 0);
-        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -738,7 +723,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                             discount: <?= json_encode($_SESSION['discount']) ?>
                         });
                     }
-                }, 500);
+                }, 300);
             }
         });
 
