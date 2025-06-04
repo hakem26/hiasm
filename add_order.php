@@ -338,9 +338,18 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
         const itemsTable = document.getElementById('items_table');
         const totalAmountDisplay = document.getElementById('total_amount_display');
         const finalAmountDisplay = document.getElementById('final_amount_display');
-        const invoicePrices = <?= json_encode($_SESSION['invoice_prices']) ?> || {};
-        const postalEnabled = data.postal_enabled || <?= $_SESSION['postal_enabled'] ? 'true' : 'false' ?>;
-        const postalPrice = data.postal_price || <?= $_SESSION['postal_price'] ?>;
+        const invoicePrices = data.invoice_prices || {};
+        const postalEnabled = data.postal_enabled || <?= json_encode($_SESSION['postal_enabled']) ?>;
+        const postalPrice = data.postal_price || <?= json_encode($_SESSION['postal_price']) ?>;
+        const totalAmount = data.total_amount || 0;
+        let finalAmount = data.final_amount || totalAmount;
+
+        // اضافه کردن مبلغ پستی به مبلغ نهایی اگه فعال باشه
+        if (postalEnabled) {
+            finalAmount += Number(invoicePrices['postal'] || postalPrice);
+        }
+        // کسر تخفیف
+        finalAmount -= Number(data.discount || 0);
 
         if (!data.items || data.items.length === 0) {
             itemsTable.innerHTML = '';
@@ -375,7 +384,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                                 تنظیم قیمت
                             </button>
                             <span class="invoice-price" data-index="${index}">
-                                ${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان
+                                ${Number(invoicePrices[index] ?? item.unit_price).toLocaleString('fa')} تومان
                             </span>
                         </td>
                         <td>
@@ -405,13 +414,13 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                 ` : ''}
                 <tr class="total-row">
                     <td colspan="4"><strong>جمع کل</strong></td>
-                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td><strong id="total_amount">${Number(totalAmount).toLocaleString('fa')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
                     <td><label for="discount" class="form-label">تخفیف</label></td>
-                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount || 0}" min="0"></td>
+                    <td><strong id="final_amount">${Number(finalAmount).toLocaleString('fa')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
@@ -421,10 +430,10 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                 </tr>
             </tbody>
         </table>
-    `;
+        `;
 
-        totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
+        totalAmountDisplay.textContent = Number(totalAmount).toLocaleString('fa') + ' تومان';
+        finalAmountDisplay.textContent = Number(finalAmount).toLocaleString('fa') + ' تومان';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -440,6 +449,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                     type: 'POST',
                     data: { query: query, work_details_id: work_details_id },
                     success: function (response) {
+                        console.log('get_products response:', response);
                         if (response.trim() === '') {
                             $('#product_suggestions').hide();
                         } else {
@@ -447,7 +457,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                         }
                     },
                     error: function (xhr, status, error) {
-                        console.error('AJAX Error:', status, error);
+                        console.error('AJAX Error:', status, error, xhr.responseText);
                         $('#product_suggestions').hide();
                     }
                 });
@@ -459,8 +469,15 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
         $(document).on('click', '.product-suggestion', function (e) {
             e.preventDefault();
             let product = $(this).data('product');
+            console.log('Selected product:', product);
             if (typeof product === 'string') {
-                product = JSON.parse(product);
+                try {
+                    product = JSON.parse(product);
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                    alert('خطا در پردازش محصول.');
+                    return;
+                }
             }
             $('#product_name').val(product.product_name).prop('disabled', false);
             $('#product_id').val(product.product_id);
@@ -479,6 +496,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                     work_details_id: '<?= $work['id'] ?>'
                 },
                 success: function (response) {
+                    console.log('get_inventory response:', response);
                     if (response.success) {
                         initialInventory = response.data.inventory || 0;
                         $('#inventory_quantity').text(initialInventory);
@@ -489,7 +507,8 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                         alert('خطا در دریافت موجودی: ' + response.message);
                     }
                 },
-                error: function () {
+                error: function (xhr, status, error) {
+                    console.error('Inventory AJAX Error:', status, error, xhr.responseText);
                     $('#inventory_quantity').text('0');
                     alert('خطا در دریافت موجودی.');
                 }
@@ -533,12 +552,12 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             const extra_sale = Number(document.getElementById('extra_sale').value) || 0;
             const discount = document.getElementById('discount')?.value || 0;
 
-            if (!customer_name || !product_id || quantity <= 0 || unit_price <= 0) {
+            if (!customer_name || !product_id || !quantity <= 0 || unit_price <= 0) {
                 alert('لطفاً همه فیلدها را پر کنید و تعداد را بیشتر از صفر وارد کنید.');
                 return;
             }
 
-            const items = <?= json_encode($_SESSION['order_items']) ?>;
+            const items = [{ json_encode($_SESSION['orders_items']) ?];
             if (items.some(item => item.product_id === product_id)) {
                 alert('این محصول قبلاً در فاکتور ثبت شده است.');
                 return;
@@ -546,7 +565,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
 
             const data = {
                 action: 'add_item',
-                customer_name,
+                customer_name: string,
                 product_id,
                 quantity,
                 unit_price,
@@ -586,7 +605,18 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             } else if (e.target.closest('.set-invoice-price')) {
                 const index = e.target.closest('.set-invoice-price').getAttribute('data-index');
                 $('#invoice_price_index').val(index);
-                const currentPrice = <?= json_encode($_SESSION['invoice_prices']) ?>[index] || '';
+                let currentPrice = 0;
+                if (index === 'postal') {
+                    currentPrice = <?= json_encode($_SESSION['invoice_prices']['postal'] ?? 50000) ?>;
+                } else {
+                    // گرفتن قیمت واحد از آیتم
+                    const items = <?= json_encode($_SESSION['order_items']) ?>;
+                    currentPrice = items[index] ? Number(items[index].unit_price) : 0;
+                    // اگه قیمت فاکتور قبلاً تنظیم شده، اونو استفاده کن
+                    if (<?= json_encode($_SESSION['invoice_prices']) ?>[index]) {
+                        currentPrice = <?= json_encode($_SESSION['invoice_prices']) ?>[index];
+                    }
+                }
                 $('#invoice_price').val(currentPrice);
                 $('#invoicePriceModal').modal('show');
             }
@@ -604,15 +634,13 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
             const data = {
                 action: 'set_invoice_price',
                 index: index,
-                invoice_price: invoicePrice
+                invoice_price: invoicePrice,
+                partner1_id: '<?= $partner1_id ?>'
             };
 
             const response = await sendRequest('ajax_handler.php', data);
             if (response.success) {
-                const priceSpan = document.querySelector(`.invoice-price[data-index="${index}"]`);
-                if (priceSpan) {
-                    priceSpan.textContent = Number(invoicePrice).toLocaleString('fa') + ' تومان';
-                }
+                renderItemsTable(response.data);
                 $('#invoicePriceModal').modal('hide');
             } else {
                 alert(response.message);
@@ -624,7 +652,8 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                 const enablePostal = e.target.checked;
                 const data = {
                     action: 'set_postal_option',
-                    enable_postal: enablePostal
+                    enable_postal: enablePostal,
+                    partner1_id: '<?= $partner1_id ?>'
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
@@ -641,15 +670,13 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                 const discount = e.target.value || 0;
                 const data = {
                     action: 'update_discount',
-                    discount
+                    discount,
+                    partner1_id: '<?= $partner1_id ?>'
                 };
 
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
-                    document.getElementById('total_amount').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                    document.getElementById('final_amount').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
-                    document.getElementById('total_amount_display').textContent = Number(response.data.total_amount).toLocaleString('fa') + ' تومان';
-                    document.getElementById('final_amount_display').textContent = Number(response.data.final_amount).toLocaleString('fa') + ' تومان';
+                    renderItemsTable(response.data);
                 } else {
                     alert(response.message);
                 }
