@@ -723,7 +723,7 @@ $_SESSION['postal_price'] = 50000; // پیش‌فرض قیمت پستی
                             discount: <?= json_encode($_SESSION['discount']) ?>
                         });
                     }
-                }, 300);
+                }, 3000);
             }
         });
 
