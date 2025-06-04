@@ -313,7 +313,7 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
         }
     }
 
-    function renderItemsTable(data)function renderItemsTable(data) {
+    function renderItemsTable(data) {
         const itemsTable = document.getElementById('items_table');
         const totalAmountDisplay = document.getElementById('total_amount_display');
         const finalAmountDisplay = document.getElementById('final_amount_display');
