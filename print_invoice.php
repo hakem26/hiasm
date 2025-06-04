@@ -5,6 +5,7 @@ require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date)
 {
+    if (!$gregorian_date || $gregorian_date == '0000-00-00') return 'نامشخص';
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return "$jy/$jm/$jd";
@@ -39,15 +40,24 @@ if (!$order) {
     exit;
 }
 
-$stmt_items = $pdo->prepare("SELECT * FROM Order_Items WHERE order_id = ? ORDER BY item_id ASC");
+$stmt_items = $pdo->prepare("
+    SELECT item_id, product_name, quantity, unit_price, extra_sale, total_price
+    FROM Order_Items
+    WHERE order_id = ?
+    ORDER BY item_id ASC
+");
 $stmt_items->execute([$order_id]);
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-// دریافت قیمت‌های فاکتور و پست از جدول Invoice_Prices
 $invoice_prices = [];
 $postal_enabled = false;
 $postal_price = 0;
-$stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price, is_postal, postal_price FROM Invoice_Prices WHERE order_id = ? ORDER BY id DESC");
+$stmt_invoice = $pdo->prepare("
+    SELECT item_index, invoice_price, is_postal, postal_price
+    FROM Invoice_Prices
+    WHERE order_id = ?
+    ORDER BY id DESC
+");
 $stmt_invoice->execute([$order_id]);
 $invoice_data = $stmt_invoice->fetchAll(PDO::FETCH_ASSOC);
 foreach ($invoice_data as $row) {
@@ -84,7 +94,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
@@ -92,7 +101,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
@@ -100,7 +108,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
@@ -108,7 +115,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
@@ -116,7 +122,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
@@ -124,7 +129,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
@@ -132,7 +136,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
@@ -140,7 +143,6 @@ $pages = array_chunk($items, $items_per_page);
             font-style: normal;
             font-display: swap;
         }
-
         @font-face {
             font-family: Vazirmatn RD FD NL;
             src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
@@ -230,7 +232,6 @@ $pages = array_chunk($items, $items_per_page);
             text-align: center;
         }
 
-        /* استایل دکمه ذخیره PNG */
         .save-png-btn {
             position: fixed;
             top: 10px;
@@ -293,7 +294,7 @@ $pages = array_chunk($items, $items_per_page);
                     <tr>
                         <th>ردیف</th>
                         <th>نام محصول</th>
-                        <th>قیمت فاکتور</th>
+                        <th>قیمت واحد</th>
                         <th>تعداد</th>
                         <th>قیمت کل</th>
                     </tr>
@@ -304,15 +305,17 @@ $pages = array_chunk($items, $items_per_page);
                     $page_items = $pages[$page];
                     foreach ($page_items as $index => $item):
                         $global_index = $index + ($page * $items_per_page);
-                        $item_invoice_price = $invoice_prices[$global_index] ?? $item['total_price'];
-                        $invoice_total += $item_invoice_price;
+                        $unit_price = isset($invoice_prices[$global_index]) ? $invoice_prices[$global_index] :
+                            ($item['extra_sale'] > 0 ? $item['unit_price'] + $item['extra_sale'] : $item['unit_price']);
+                        $total_price = $unit_price * $item['quantity'];
+                        $invoice_total += $total_price;
                         ?>
                         <tr>
                             <td><?= $global_index + 1 ?></td>
-                            <td><?= htmlspecialchars($item['product_name']) ?></td>
-                            <td><?= number_format($item_invoice_price, 0) ?> تومان</td>
+                            <td><?= htmlspecialchars($item['product_name'] ?: 'نامشخص') ?></td>
+                            <td><?= number_format($unit_price, 0) ?> تومان</td>
                             <td><?= $item['quantity'] ?></td>
-                            <td><?= number_format($item_invoice_price, 0) ?> تومان</td>
+                            <td><?= number_format($total_price, 0) ?> تومان</td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($postal_enabled && $page == $total_pages - 1): ?>
@@ -340,9 +343,9 @@ $pages = array_chunk($items, $items_per_page);
                 <hr>
                 <p>فروشندگان: </p>
                 <p>
-                    <?= htmlspecialchars($order['partner1_name']) ?> - شماره تماس:
+                    <?= htmlspecialchars($order['partner1_name'] ?: 'نامشخص') ?> - شماره تماس:
                     <?= htmlspecialchars($order['partner1_phone'] ?? 'نامشخص') ?> |
-                    <?= htmlspecialchars($order['partner2_name']) ?> - شماره تماس:
+                    <?= htmlspecialchars($order['partner2_name'] ?: 'نامشخص') ?> - شماره تماس:
                     <?= htmlspecialchars($order['partner2_phone'] ?? 'نامشخص') ?>
                 </p>
             </div>
@@ -350,9 +353,8 @@ $pages = array_chunk($items, $items_per_page);
     <?php endfor; ?>
 
     <script>
-        console.log('Script loaded'); // برای دیباگ
+        console.log('Script loaded');
 
-        // تعریف تابع به‌صورت جهانی
         function saveInvoiceAsPNG() {
             if (typeof html2canvas === 'undefined') {
                 console.error('html2canvas is not loaded');
@@ -371,7 +373,7 @@ $pages = array_chunk($items, $items_per_page);
                 }
 
                 html2canvas(invoiceContainer, {
-                    scale: 2, // برای کیفیت بالاتر
+                    scale: 2,
                     useCORS: true,
                     backgroundColor: '#ffffff'
                 }).then(canvas => {
@@ -386,15 +388,10 @@ $pages = array_chunk($items, $items_per_page);
             }
         }
 
-        // اطمینان از لود فونت‌ها
         document.fonts.ready.then(function () {
             console.log('Fonts loaded');
-            // پرینت خودکار
-            // window.print();
         }).catch(error => {
             console.error('Error loading fonts:', error);
-            // حتی اگه فونت‌ها لود نشن، پرینت اجرا بشه
-            // window.print();
         });
     </script>
 </body>
