@@ -1,11 +1,9 @@
 <?php
 // [BLOCK-DB-001]
-$config = require __DIR__ . '/env.php';
-
-$host = $config['DB_HOST'];
-$db   = $config['DB_NAME'];
-$user = $config['DB_USER'];
-$pass = $config['DB_PASS'];
+$host = 'localhost';
+$dbname = 'yshcvdau_hiasm';
+$username = 'yshcvdau_hiasmadmin';
+$password = 'H72j51300!';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
