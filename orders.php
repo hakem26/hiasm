@@ -373,7 +373,7 @@ $total_orders = $stmt_count->fetchColumn();
     <?php if (!empty($orders)): ?>
         <div class="table-responsive" style="overflow-x: auto; width: 100%;">
             <table id="ordersTable" class="table table-light table-hover display nowrap"
-                style="width: 100%; min-width: 800px;">
+                style="width: 100%; min-width: 800px; table-layout: fixed;">
                 <thead>
                     <tr>
                         <th style="min-width: 80px;">شماره</th>
@@ -436,7 +436,7 @@ $total_orders = $stmt_count->fetchColumn();
             "scrollX": true,
             "scrollCollapse": true,
             "paging": true,
-            "autoWidth": true,
+            "autoWidth": false,
             "ordering": true,
             "order": [[0, 'desc']], // مرتب‌سازی پیش‌فرض ستون اول (شماره) از زیاد به کم
             "responsive": false,

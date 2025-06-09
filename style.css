@@ -358,17 +358,14 @@ select {
 }
 .table-responsive table {
   min-width: 800px;
-}
-.table-responsive tbody {
-  display: block;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-.table-responsive thead,
-.table-responsive tfoot {
-  display: table;
-  width: 100%;
   table-layout: fixed;
+}
+th {
+  min-width: 80px; /* حداقل عرض برای همه ستون‌ها */
+  white-space: normal;
+  word-break: break-word;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 .dataTables_paginate {
   width: 100%;
@@ -393,13 +390,6 @@ select {
 }
 .dataTables_paginate .pagination .page-item:last-child .page-link {
   border-right: none;
-}
-th {
-  min-width: 80px; /* حداقل عرض برای همه ستون‌ها */
-  white-space: normal;
-  word-break: break-word;
-  text-overflow: ellipsis;
-  overflow: hidden;
 }
 
 /* تنظیمات موبایل */
