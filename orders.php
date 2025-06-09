@@ -363,7 +363,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
 
     <?php if (!empty($orders)): ?>
-        <div style="min-width: 1200px;">
+        <div>
             <table id="ordersTable" class="table table-light table-hover">
                 <thead>
                     <tr>
