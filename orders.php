@@ -421,27 +421,7 @@ $total_orders = $stmt_count->fetchColumn();
             </table>
         </div>
 
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center mt-3">
-                <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                    <a class="page-link"
-                        href="?page=<?= $page - 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">قبلی</a>
-                </li>
-                <?php
-                $start_page = max(1, $page - 2);
-                $end_page = min($total_pages, $page + 2);
-                for ($i = $start_page; $i <= $end_page; $i++): ?>
-                    <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                        <a class="page-link"
-                            href="?page=<?= $i ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>"><?= $i ?></a>
-                    </li>
-                <?php endfor; ?>
-                <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                    <a class="page-link"
-                        href="?page=<?= $page + 1 ?>&work_month_id=<?= $selected_work_month_id ?>&user_id=<?= $selected_partner_id ?>&work_day_id=<?= $selected_work_day_id ?>&year=<?= $selected_year ?>">بعدی</a>
-                </li>
-            </ul>
-        </nav>
+        
     <?php else: ?>
         <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
     <?php endif; ?>

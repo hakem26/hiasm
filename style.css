@@ -336,21 +336,21 @@ select {
   padding: 10px;
   text-align: center;
 }
-.dataTables_paginate .paginate_button {
+/* .dataTables_paginate .paginate_button {
   padding: 0.5em 1em;
-}
-.dataTables_length {
+} */
+/* .dataTables_length {
   position: sticky;
   bottom: 0;
   background: white;
   padding: 10px;
-}
-.dataTables_paginate {
+} */
+/* .dataTables_paginate {
   position: sticky;
   bottom: 0;
   background: white;
   padding: 10px;
-}
+} */
 
 /* تنظیمات موبایل */
 @media (max-width: 600px) {
