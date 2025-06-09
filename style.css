@@ -352,6 +352,25 @@ select {
   padding: 10px;
 } */
 
+.dataTables_paginate .pagination {
+  margin: 0;
+  padding: 0;
+}
+.dataTables_paginate .pagination .page-item {
+  margin: 0;
+  padding: 0;
+  display: inline-block; /* مطمئن شو المنت‌ها مخفی نیستن */
+}
+.dataTables_paginate .pagination .page-link {
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  border-right: 1px solid #dee2e6; /* خط جداکننده بین دکمه‌ها */
+}
+.dataTables_paginate .pagination .page-item:last-child .page-link {
+  border-right: none; /* حذف خط از دکمه آخر */
+}
+
 /* تنظیمات موبایل */
 @media (max-width: 600px) {
   body {

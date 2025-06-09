@@ -433,7 +433,7 @@ $total_orders = $stmt_count->fetchColumn();
             responsive: false,
             scrollX: true,
             autoWidth: true,
-            paging: true,
+            paging: true, // صفحه‌بندی فعال باشه
             pageLength: 10, // تعداد ردیف‌ها در هر صفحه
             lengthMenu: [10, 25, 50, 100], // امکان تغییر تعداد ردیف‌ها
             ordering: true,
@@ -453,7 +453,7 @@ $total_orders = $stmt_count->fetchColumn();
                     next: "بعدی"
                 }
             },
-            data: <?= json_encode($orders) ?>,
+            data: <?= json_encode($orders) ?>, // کل داده‌ها
             columns: [
                 { data: 'order_id' },
                 { data: 'work_date' },
@@ -486,22 +486,24 @@ $total_orders = $stmt_count->fetchColumn();
                 var api = this.api();
                 var info = api.page.info();
                 var $pagination = $('.dataTables_paginate .pagination');
-                $pagination.find('li').hide(); // ابتدا همه رو مخفی کن
                 var maxButtons = 5; // حداکثر 5 دکمه (قبلی، 1، 2، 3، بعدی)
-                var startPage = Math.max(0, info.page - 1);
-                var endPage = Math.min(info.pages - 1, startPage + 2); // 3 صفحه + قبلی و بعدی
+                var currentPage = info.page;
+                var totalPages = info.pages;
 
-                if (endPage - startPage + 1 < maxButtons - 2) { // اگه کمتر از 3 صفحه باشه
-                    startPage = Math.max(0, info.pages - (maxButtons - 2));
-                    endPage = info.pages - 1;
-                }
-
-                $pagination.find('li.paginate_button').each(function (index) {
+                $pagination.find('li').show(); // ابتدا همه رو نشون بده
+                $pagination.find('li.paginate_button').each(function () {
                     var page = $(this).data('dt-idx');
-                    if (page === 'previous' || page === 'next' || (page >= startPage && page <= endPage)) {
-                        $(this).show();
+                    if (page !== 'previous' && page !== 'next' && (page < currentPage - 1 || page > currentPage + 1)) {
+                        $(this).hide(); // فقط صفحه فعلی و دو صفحه کناری رو نگه دار
                     }
                 });
+
+                // مطمئن شو حداقل 5 دکمه (قبلی، 1، 2، 3، بعدی) باشه
+                var visibleButtons = $pagination.find('li:visible').length;
+                if (visibleButtons < maxButtons && currentPage > 1) {
+                    $pagination.find('li.paginate_button').eq(currentPage).show(); // صفحه فعلی
+                    if (currentPage > 2) $pagination.find('li.paginate_button').eq(currentPage - 2).show(); // دو صفحه قبل
+                }
             }
         });
 
