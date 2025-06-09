@@ -363,7 +363,7 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
 
     <?php if (!empty($orders)): ?>
-        <div>
+        <div style="min-width: 1200px;">
             <table id="ordersTable" class="table table-light table-hover">
                 <thead>
                     <tr>
@@ -445,30 +445,21 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     $(document).ready(function () {
         $('#ordersTable').DataTable({
             responsive: false,
-            scrollX: true,
-            autoWidth: false,
-            paging: true,
-            pageLength: 10,
-            lengthMenu: [10, 25, 50, 100],
+            scrollX: true, // نگه داشتن scrollX برای جدول‌های پهن
+            autoWidth: true, // اجازه دادن به ستون‌ها برای تنظیم خودکار عرض
+            paging: false, // غیرفعال کردن صفحه‌بندی کلاینت
             ordering: true,
-            order: [[0, 'desc']], // مرتب‌سازی بر اساس ستون اول (شماره) از بزرگ به کوچک
-            searching: true,
-            info: true,
+            order: [[0, 'desc']], // مرتب‌سازی بر اساس ستون شماره (order_id) از بزرگ به کوچک
+            searching: true, // جستجو فعال باشه
+            info: false, // اطلاعات صفحه‌بندی غیرفعال (چون سرور مدیریت می‌کنه)
             language: {
                 search: "جستجو:",
                 searchPlaceholder: "جستجو در همه ستون‌ها",
-                info: "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                infoEmpty: "هیچ فاکتوری یافت نشد",
-                zeroRecords: "هیچ فاکتوری یافت نشد",
-                lengthMenu: "نمایش _MENU_ ردیف",
-                paginate: {
-                    previous: "قبلی",
-                    next: "بعدی"
-                }
+                zeroRecords: "هیچ فاکتوری یافت نشد"
             }
         });
 
-        // حذف دکمه "بارگذاری بیشتر" چون صفحه‌بندی DataTables فعاله
+        // حذف دکمه "بارگذاری بیشتر" چون صفحه‌بندی سرور فعاله
         $('#loadMoreBtn').remove();
 
         // ارسال فرم هنگام تغییر سلکت‌ها
