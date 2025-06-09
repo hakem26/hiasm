@@ -371,8 +371,9 @@ $total_orders = $stmt_count->fetchColumn();
     <?php endif; ?>
 
     <?php if (!empty($orders)): ?>
-        <div>
-            <table id="ordersTable" class="table table-light table-hover">
+        <div class="table-responsive" style="overflow-x: auto; width: 100%;">
+            <table id="ordersTable" class="table table-light table-hover display nowrap"
+                style="width: 100%; min-width: 800px;">
                 <thead>
                     <tr>
                         <th>شماره</th>
@@ -402,7 +403,7 @@ $total_orders = $stmt_count->fetchColumn();
                             <?php if (!$is_admin): ?>
                                 <td>
                                     <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
-                                        class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>
+                                        class="btn btn-warning btn-sm me-2"><i class="fas fa-edit"></i></a>
                                     <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
                                         onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
@@ -430,29 +431,34 @@ $total_orders = $stmt_count->fetchColumn();
 <script>
     $(document).ready(function () {
         $('#ordersTable').DataTable({
-            responsive: false,
-            scrollX: true,
-            autoWidth: true,
-            paging: true, // صفحه‌بندی فعال باشه
-            pageLength: 10, // تعداد ردیف‌ها در هر صفحه
-            lengthMenu: [10, 25, 50, 100], // امکان تغییر تعداد ردیف‌ها
-            ordering: true,
-            order: [[0, 'desc']], // مرتب‌سازی بر اساس ستون شماره (order_id) از بزرگ به کوچک
-            searching: true,
-            info: true,
-            pagingType: 'simple_numbers', // نوع صفحه‌بندی ساده
-            language: {
-                search: "جستجو:",
-                searchPlaceholder: "جستجو در همه ستون‌ها",
-                info: "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                infoEmpty: "هیچ فاکتوری یافت نشد",
-                zeroRecords: "هیچ فاکتوری یافت نشد",
-                lengthMenu: "نمایش _MENU_ ردیف",
-                paginate: {
-                    previous: "قبلی",
-                    next: "بعدی"
+            "pageLength": 10,
+            "scrollX": true,
+            "scrollCollapse": true,
+            "paging": true,
+            "autoWidth": true,
+            "ordering": true,
+            "responsive": false,
+            "language": {
+                "decimal": "",
+                "emptyTable": "داده‌ای در جدول وجود ندارد",
+                "info": "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+                "infoEmpty": "نمایش 0 تا 0 از 0 ردیف",
+                "infoFiltered": "(فیلتر شده از _MAX_ ردیف کل)",
+                "lengthMenu": "نمایش _MENU_ ردیف",
+                "loadingRecords": "در حال بارگذاری...",
+                "processing": "در حال پردازش...",
+                "search": "جستجو:",
+                "zeroRecords": "هیچ ردیف منطبقی یافت نشد",
+                "paginate": {
+                    "first": "اولین",
+                    "last": "آخرین",
+                    "next": "بعدی",
+                    "previous": "قبلی"
                 }
             },
+            "columnDefs": [
+                { "targets": "_all", "className": "text-center" },
+            ],
             data: <?= json_encode($orders) ?>, // کل داده‌ها
             columns: [
                 { data: 'order_id' },
@@ -463,9 +469,9 @@ $total_orders = $stmt_count->fetchColumn();
                 { data: 'paid_amount' },
                 { data: 'remaining_amount' },
                 <?php if (!$is_admin): ?>
-                {
+                    {
                         data: null, render: function (data) {
-                            return '<a href="edit_order.php?order_id=' + data.order_id + '" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>' +
+                            return '<a href="edit_order.php?order_id=' + data.order_id + '" class="btn btn-warning btn-sm me-2"><i class="fas fa-edit"></i></a>' +
                                 '<a href="delete_order.php?order_id=' + data.order_id + '" class="btn btn-danger btn-sm" onclick="return confirm(\'حذف؟\');"><i class="fas fa-trash"></i></a>';
                         }
                     },
@@ -475,36 +481,12 @@ $total_orders = $stmt_count->fetchColumn();
                         }
                     },
                 <?php endif; ?>
-            {
+                {
                     data: null, render: function (data) {
                         return '<a href="print_invoice.php?order_id=' + data.order_id + '" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>';
                     }
                 }
-            ],
-            // کاستوم کردن صفحه‌بندی برای حداکثر 5 دکمه
-            drawCallback: function (settings) {
-                var api = this.api();
-                var info = api.page.info();
-                var $pagination = $('.dataTables_paginate .pagination');
-                var maxButtons = 5; // حداکثر 5 دکمه (قبلی، 1، 2، 3، بعدی)
-                var currentPage = info.page;
-                var totalPages = info.pages;
-
-                $pagination.find('li').show(); // ابتدا همه رو نشون بده
-                $pagination.find('li.paginate_button').each(function () {
-                    var page = $(this).data('dt-idx');
-                    if (page !== 'previous' && page !== 'next' && (page < currentPage - 1 || page > currentPage + 1)) {
-                        $(this).hide(); // فقط صفحه فعلی و دو صفحه کناری رو نگه دار
-                    }
-                });
-
-                // مطمئن شو حداقل 5 دکمه (قبلی، 1، 2، 3، بعدی) باشه
-                var visibleButtons = $pagination.find('li:visible').length;
-                if (visibleButtons < maxButtons && currentPage > 1) {
-                    $pagination.find('li.paginate_button').eq(currentPage).show(); // صفحه فعلی
-                    if (currentPage > 2) $pagination.find('li.paginate_button').eq(currentPage - 2).show(); // دو صفحه قبل
-                }
-            }
+            ]
         });
 
         // حذف دکمه "بارگذاری بیشتر" (در صورت وجود)
