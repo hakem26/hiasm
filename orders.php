@@ -420,8 +420,6 @@ $total_orders = $stmt_count->fetchColumn();
                 </tbody>
             </table>
         </div>
-
-
     <?php else: ?>
         <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
     <?php endif; ?>
@@ -435,19 +433,27 @@ $total_orders = $stmt_count->fetchColumn();
             responsive: false,
             scrollX: true,
             autoWidth: true,
-            paging: false, // غیرفعال کردن صفحه‌بندی کلاینت
-            pageLength: 10, // تعداد ردیف‌ها به‌صورت ثابت (چون صفحه‌بندی غیرفعاله)
-            lengthMenu: [], // منوی انتخاب تعداد ردیف‌ها رو غیرفعال می‌کنه
+            paging: true,
+            pageLength: 10, // تعداد ردیف‌ها در هر صفحه
+            lengthMenu: [10, 25, 50, 100], // امکان تغییر تعداد ردیف‌ها
             ordering: true,
             order: [[0, 'desc']], // مرتب‌سازی بر اساس ستون شماره (order_id) از بزرگ به کوچک
             searching: true,
-            info: false, // اطلاعات صفحه‌بندی غیرفعال می‌شه
+            info: true,
+            pagingType: 'simple_numbers', // نوع صفحه‌بندی ساده
             language: {
                 search: "جستجو:",
                 searchPlaceholder: "جستجو در همه ستون‌ها",
-                zeroRecords: "هیچ فاکتوری یافت نشد"
+                info: "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
+                infoEmpty: "هیچ فاکتوری یافت نشد",
+                zeroRecords: "هیچ فاکتوری یافت نشد",
+                lengthMenu: "نمایش _MENU_ ردیف",
+                paginate: {
+                    previous: "قبلی",
+                    next: "بعدی"
+                }
             },
-            data: <?= json_encode($orders) ?>, // کل داده‌ها
+            data: <?= json_encode($orders) ?>,
             columns: [
                 { data: 'order_id' },
                 { data: 'work_date' },
@@ -474,7 +480,29 @@ $total_orders = $stmt_count->fetchColumn();
                         return '<a href="print_invoice.php?order_id=' + data.order_id + '" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>';
                     }
                 }
-            ]
+            ],
+            // کاستوم کردن صفحه‌بندی برای حداکثر 5 دکمه
+            drawCallback: function (settings) {
+                var api = this.api();
+                var info = api.page.info();
+                var $pagination = $('.dataTables_paginate .pagination');
+                $pagination.find('li').hide(); // ابتدا همه رو مخفی کن
+                var maxButtons = 5; // حداکثر 5 دکمه (قبلی، 1، 2، 3، بعدی)
+                var startPage = Math.max(0, info.page - 1);
+                var endPage = Math.min(info.pages - 1, startPage + 2); // 3 صفحه + قبلی و بعدی
+
+                if (endPage - startPage + 1 < maxButtons - 2) { // اگه کمتر از 3 صفحه باشه
+                    startPage = Math.max(0, info.pages - (maxButtons - 2));
+                    endPage = info.pages - 1;
+                }
+
+                $pagination.find('li.paginate_button').each(function (index) {
+                    var page = $(this).data('dt-idx');
+                    if (page === 'previous' || page === 'next' || (page >= startPage && page <= endPage)) {
+                        $(this).show();
+                    }
+                });
+            }
         });
 
         // حذف دکمه "بارگذاری بیشتر" (در صورت وجود)
