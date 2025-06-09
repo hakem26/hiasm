@@ -421,7 +421,7 @@ $total_orders = $stmt_count->fetchColumn();
             </table>
         </div>
 
-        
+
     <?php else: ?>
         <div class="alert alert-warning text-center">سفارشی ثبت نشده است.</div>
     <?php endif; ?>
@@ -435,27 +435,19 @@ $total_orders = $stmt_count->fetchColumn();
             responsive: false,
             scrollX: true,
             autoWidth: true,
-            paging: true,
-            pageLength: 10,
-            lengthMenu: [10, 25, 50, 100],
+            paging: false, // غیرفعال کردن صفحه‌بندی کلاینت
+            pageLength: 10, // تعداد ردیف‌ها به‌صورت ثابت (چون صفحه‌بندی غیرفعاله)
+            lengthMenu: [], // منوی انتخاب تعداد ردیف‌ها رو غیرفعال می‌کنه
             ordering: true,
             order: [[0, 'desc']], // مرتب‌سازی بر اساس ستون شماره (order_id) از بزرگ به کوچک
             searching: true,
-            info: true,
+            info: false, // اطلاعات صفحه‌بندی غیرفعال می‌شه
             language: {
                 search: "جستجو:",
                 searchPlaceholder: "جستجو در همه ستون‌ها",
-                info: "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
-                infoEmpty: "هیچ فاکتوری یافت نشد",
-                zeroRecords: "هیچ فاکتوری یافت نشد",
-                lengthMenu: "نمایش _MENU_ ردیف",
-                paginate: {
-                    previous: "قبلی",
-                    next: "بعدی"
-                }
+                zeroRecords: "هیچ فاکتوری یافت نشد"
             },
-            serverSide: false, // صفحه‌بندی و مرتب‌سازی سمت کلاینت
-            data: <?= json_encode($orders) ?>, // ارسال کل داده‌ها به DataTables
+            data: <?= json_encode($orders) ?>, // کل داده‌ها
             columns: [
                 { data: 'order_id' },
                 { data: 'work_date' },
@@ -485,7 +477,7 @@ $total_orders = $stmt_count->fetchColumn();
             ]
         });
 
-        // حذف دکمه "بارگذاری بیشتر" چون DataTables صفحه‌بندی رو مدیریت می‌کنه
+        // حذف دکمه "بارگذاری بیشتر" (در صورت وجود)
         $('#loadMoreBtn').remove();
 
         // ارسال فرم هنگام تغییر سلکت‌ها
