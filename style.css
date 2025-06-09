@@ -394,6 +394,13 @@ select {
 .dataTables_paginate .pagination .page-item:last-child .page-link {
   border-right: none;
 }
+th {
+  min-width: 80px; /* حداقل عرض برای همه ستون‌ها */
+  white-space: normal;
+  word-break: break-word;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
 
 /* تنظیمات موبایل */
 @media (max-width: 600px) {
