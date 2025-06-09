@@ -376,18 +376,18 @@ $total_orders = $stmt_count->fetchColumn();
                 style="width: 100%; min-width: 800px; table-layout: fixed;">
                 <thead>
                     <tr>
-                        <th style="min-width: 80px;">شماره</th>
-                        <th style="min-width: 120px;">تاریخ</th>
-                        <th style="min-width: 150px;"><?= $is_admin ? 'همکاران' : 'نام همکار' ?></th>
-                        <th style="min-width: 150px;">نام مشتری</th>
-                        <th style="min-width: 120px;">مبلغ کل فاکتور</th>
-                        <th style="min-width: 120px;">مبلغ پرداختی</th>
-                        <th style="min-width: 120px;">مانده حساب</th>
+                        <th>شماره</th>
+                        <th>تاریخ</th>
+                        <th><?= $is_admin ? 'همکاران' : 'نام همکار' ?></th>
+                        <th>نام مشتری</th>
+                        <th>مبلغ کل فاکتور</th>
+                        <th>مبلغ پرداختی</th>
+                        <th>مانده حساب</th>
                         <?php if (!$is_admin): ?>
-                            <th style="min-width: 120px;">فاکتور</th>
-                            <th style="min-width: 120px;">اطلاعات پرداخت</th>
+                            <th>فاکتور</th>
+                            <th>اطلاعات پرداخت</th>
                         <?php endif; ?>
-                        <th style="min-width: 120px;">پرینت</th>
+                        <th>پرینت</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -436,7 +436,7 @@ $total_orders = $stmt_count->fetchColumn();
             "scrollX": true,
             "scrollCollapse": true,
             "paging": true,
-            "autoWidth": false,
+            "autoWidth": true, // فعال کردن تنظیم خودکار عرض
             "ordering": true,
             "order": [[0, 'desc']], // مرتب‌سازی پیش‌فرض ستون اول (شماره) از زیاد به کم
             "responsive": false,

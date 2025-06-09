@@ -361,11 +361,9 @@ select {
   table-layout: fixed;
 }
 th {
-  min-width: 80px; /* حداقل عرض برای همه ستون‌ها */
   white-space: normal;
   word-break: break-word;
-  text-overflow: ellipsis;
-  overflow: hidden;
+  /* حذف text-overflow: ellipsis */
 }
 .dataTables_paginate {
   width: 100%;
