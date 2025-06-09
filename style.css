@@ -352,6 +352,30 @@ select {
   padding: 10px;
 } */
 
+.table-responsive {
+  overflow-x: auto;
+  width: 100%;
+}
+.table-responsive table {
+  min-width: 800px;
+}
+.table-responsive tbody {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.table-responsive thead,
+.table-responsive tfoot {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+.dataTables_paginate {
+  width: 100%;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+}
 .dataTables_paginate .pagination {
   margin: 0;
   padding: 0;
@@ -359,16 +383,16 @@ select {
 .dataTables_paginate .pagination .page-item {
   margin: 0;
   padding: 0;
-  display: inline-block; /* مطمئن شو المنت‌ها مخفی نیستن */
+  display: inline-block;
 }
 .dataTables_paginate .pagination .page-link {
   margin: 0;
   padding: 0.25rem 0.5rem;
   border: none;
-  border-right: 1px solid #dee2e6; /* خط جداکننده بین دکمه‌ها */
+  border-right: 1px solid #dee2e6;
 }
 .dataTables_paginate .pagination .page-item:last-child .page-link {
-  border-right: none; /* حذف خط از دکمه آخر */
+  border-right: none;
 }
 
 /* تنظیمات موبایل */
