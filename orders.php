@@ -295,10 +295,18 @@ $total_orders = $stmt_count->fetchColumn();
 $total_pages = ceil($total_orders / $per_page);
 $offset = ($page - 1) * $per_page;
 
-$orders_query .= " LIMIT " . (int) $per_page . " OFFSET " . (int) $offset;
+// حذف LIMIT و OFFSET از کوئری
+// $orders_query .= " LIMIT " . (int) $per_page . " OFFSET " . (int) $offset; // این خط رو حذف کن
+
+// اجرای کوئری بدون LIMIT
 $stmt_orders = $pdo->prepare($orders_query);
 $stmt_orders->execute($params);
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
+
+// تعداد کل فاکتورها (برای info توی DataTables)
+$stmt_count = $pdo->prepare("SELECT COUNT(*) FROM ($orders_query) AS subquery");
+$stmt_count->execute($params);
+$total_orders = $stmt_count->fetchColumn();
 ?>
 
 <div class="container-fluid">
@@ -445,21 +453,59 @@ $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
     $(document).ready(function () {
         $('#ordersTable').DataTable({
             responsive: false,
-            scrollX: true, // نگه داشتن scrollX برای جدول‌های پهن
-            autoWidth: true, // اجازه دادن به ستون‌ها برای تنظیم خودکار عرض
-            paging: false, // غیرفعال کردن صفحه‌بندی کلاینت
+            scrollX: true,
+            autoWidth: true,
+            paging: true,
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
             ordering: true,
             order: [[0, 'desc']], // مرتب‌سازی بر اساس ستون شماره (order_id) از بزرگ به کوچک
-            searching: true, // جستجو فعال باشه
-            info: false, // اطلاعات صفحه‌بندی غیرفعال (چون سرور مدیریت می‌کنه)
+            searching: true,
+            info: true,
             language: {
                 search: "جستجو:",
                 searchPlaceholder: "جستجو در همه ستون‌ها",
-                zeroRecords: "هیچ فاکتوری یافت نشد"
-            }
+                info: "نمایش _START_ تا _END_ از _TOTAL_ فاکتور",
+                infoEmpty: "هیچ فاکتوری یافت نشد",
+                zeroRecords: "هیچ فاکتوری یافت نشد",
+                lengthMenu: "نمایش _MENU_ ردیف",
+                paginate: {
+                    previous: "قبلی",
+                    next: "بعدی"
+                }
+            },
+            serverSide: false, // صفحه‌بندی و مرتب‌سازی سمت کلاینت
+            data: <?= json_encode($orders) ?>, // ارسال کل داده‌ها به DataTables
+            columns: [
+                { data: 'order_id' },
+                { data: 'work_date' },
+                { data: <?= $is_admin ? "'partners_names'" : "'partner_name'" ?> },
+                { data: 'customer_name' },
+                { data: 'total_amount' },
+                { data: 'paid_amount' },
+                { data: 'remaining_amount' },
+                <?php if (!$is_admin): ?>
+                {
+                        data: null, render: function (data) {
+                            return '<a href="edit_order.php?order_id=' + data.order_id + '" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>' +
+                                '<a href="delete_order.php?order_id=' + data.order_id + '" class="btn btn-danger btn-sm" onclick="return confirm(\'حذف؟\');"><i class="fas fa-trash"></i></a>';
+                        }
+                    },
+                    {
+                        data: null, render: function (data) {
+                            return '<a href="edit_payment.php?order_id=' + data.order_id + '" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>';
+                        }
+                    },
+                <?php endif; ?>
+            {
+                    data: null, render: function (data) {
+                        return '<a href="print_invoice.php?order_id=' + data.order_id + '" class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>';
+                    }
+                }
+            ]
         });
 
-        // حذف دکمه "بارگذاری بیشتر" چون صفحه‌بندی سرور فعاله
+        // حذف دکمه "بارگذاری بیشتر" چون DataTables صفحه‌بندی رو مدیریت می‌کنه
         $('#loadMoreBtn').remove();
 
         // ارسال فرم هنگام تغییر سلکت‌ها
