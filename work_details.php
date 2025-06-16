@@ -319,11 +319,11 @@ if ($selected_year) {
                         <th>تاریخ</th>
                         <th>روز هفته</th>
                         <th>جمع کل فروش</th>
-                        <th>همکاران</th>
                         <th>آژانس</th>
                         <?php if ($is_admin): ?>
                             <th>وضعیت</th>
                         <?php endif; ?>
+                        <th>همکاران</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -332,7 +332,6 @@ if ($selected_year) {
                             <td><?= gregorian_to_jalali_format($work['work_date']) ?></td>
                             <td><?= $work['work_day'] ?></td>
                             <td><?= number_format($work['total_sales'], 0) ?></td>
-                            <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
                             <td>
                                 <select class="select-wdt form-select agency-select" data-id="<?= $work['work_date'] ?>"
                                     data-partner-id="<?= $work['partner_id'] ?>">
@@ -355,6 +354,7 @@ if ($selected_year) {
                                     <button class="btn btn-sm btn-danger delete-work" data-id="<?= $work['id'] ?>">حذف</button>
                                 </td>
                             <?php endif; ?>
+                            <td><?= htmlspecialchars($work['user1']) ?> - <?= htmlspecialchars($work['user2']) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
