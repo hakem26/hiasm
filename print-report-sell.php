@@ -68,16 +68,15 @@ $total_discount = $summary['total_discount'] ?? 0;
 // تعداد جلسات (ثابت "جلسه")
 $total_sessions = ""; // ثابت نگه داشتن به‌جای محاسبه
 
-// لیست همه محصولات از Products و جویین با Order_Items برای مقداردهی صفر
+// لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
 $products = [];
 $stmt = $pdo->prepare("
     SELECT p.product_name, p.unit_price, COALESCE(SUM(oi.quantity), 0) AS total_quantity, COALESCE(SUM(oi.total_price), 0) AS total_price
     FROM Products p
     LEFT JOIN Order_Items oi ON p.product_name = oi.product_name
-    JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p2 ON wd.partner_id = p2.partner_id
-    WHERE wd.work_month_id = ? AND p2.user_id1 = ?
+    LEFT JOIN Orders o ON oi.order_id = o.order_id AND o.work_details_id IS NOT NULL
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id AND wd.work_month_id = ?
+    LEFT JOIN Partners p2 ON wd.partner_id = p2.partner_id AND p2.user_id1 = ?
     GROUP BY p.product_name, p.unit_price
     ORDER BY p.product_name COLLATE utf8mb4_persian_ci
 ");
