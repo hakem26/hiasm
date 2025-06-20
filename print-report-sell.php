@@ -279,7 +279,7 @@ function get_jalali_month_name($month)
     <!-- صفحه اول: جمع کل‌ها -->
     <div class="page-container">
         <?php
-        echo '<h6 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
+        echo '<h6 style="text-align: center; margin: 4mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
         ?>
         <div class="summary-box">
             <table>
