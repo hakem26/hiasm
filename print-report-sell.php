@@ -57,11 +57,13 @@ $stmt = $pdo->prepare("
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
+    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
 ");
 $params = [$work_month_id];
-if ($selected_user_id !== 'all')
+if ($selected_user_id !== 'all') {
     $params[] = $selected_user_id;
+    $params[] = $selected_user_id;
+}
 $stmt->execute($params);
 $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sales = $summary['total_sales'] ?? 0;
@@ -72,30 +74,33 @@ $stmt = $pdo->prepare("
     SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
     FROM Work_Details wd
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
+    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
 ");
 $params = [$work_month_id];
-if ($selected_user_id !== 'all')
+if ($selected_user_id !== 'all') {
     $params[] = $selected_user_id;
+    $params[] = $selected_user_id;
+}
 $stmt->execute($params);
 $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sessions = $sessions['total_sessions'] ?? 0;
 
-// لیست محصولات
-$products = [];
+// لیست محصولات (بدون فیلتر تعداد صفر)
 $stmt = $pdo->prepare("
-    SELECT oi.product_name, oi.unit_price, SUM(oi.quantity) AS total_quantity, SUM(oi.total_price) AS total_price
+    SELECT oi.product_name, oi.unit_price, COALESCE(SUM(oi.quantity), 0) AS total_quantity, COALESCE(SUM(oi.total_price), 0) AS total_price
     FROM Order_Items oi
-    JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ?" : "") . "
+    RIGHT JOIN Orders o ON oi.order_id = o.order_id
+    RIGHT JOIN Work_Details wd ON o.work_details_id = wd.id
+    RIGHT JOIN Partners p ON wd.partner_id = p.partner_id
+    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
     GROUP BY oi.product_name, oi.unit_price
     ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
 ");
 $params = [$work_month_id];
-if ($selected_user_id !== 'all')
+if ($selected_user_id !== 'all') {
     $params[] = $selected_user_id;
+    $params[] = $selected_user_id;
+}
 $stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -329,9 +334,9 @@ function get_jalali_month_name($month)
         // تیتر صفحه
         echo '<h5 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
 
-        // جدول محصولات (با ستون سود)
+        // جدول محصولات (با ستون سود و اضافه فروش-توضیحات)
         echo '<table class="products-table">';
-        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th></tr></thead>';
+        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th><th>اضافه فروش-توضیحات</th></tr></thead>';
         echo '<tbody>';
 
         $page_total = 0;
@@ -348,6 +353,7 @@ function get_jalali_month_name($month)
             echo '<td>' . $item['total_quantity'] . '</td>';
             echo '<td>' . number_format($total_price, 0) . ' </td>';
             echo '<td></td>'; // ستون سود (فعلاً خالی)
+            echo '<td></td>'; // ستون اضافه فروش-توضیحات (خالی)
             echo '</tr>';
         }
 
@@ -356,6 +362,7 @@ function get_jalali_month_name($month)
         echo '<td colspan="4">جمع کل</td>';
         echo '<td>' . number_format($page_total, 0) . ' تومان</td>';
         echo '<td></td>'; // ستون سود برای جمع کل
+        echo '<td></td>'; // ستون اضافه فروش-توضیحات برای جمع کل
         echo '</tr>';
 
         // اگر صفحه آخر باشه، ردیف جمع کل فروش رو اضافه کن
@@ -364,6 +371,7 @@ function get_jalali_month_name($month)
             echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
             echo '<td>' . number_format($total_sales, 0) . ' تومان</td>';
             echo '<td></td>'; // ستون سود برای جمع کل فروش
+            echo '<td></td>'; // ستون اضافه فروش-توضیحات برای جمع کل فروش
             echo '</tr>';
         }
 
