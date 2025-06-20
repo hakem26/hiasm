@@ -225,7 +225,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                 <div>
                     <label for="work_month_id" class="form-label">ماه کاری</label>
                     <div class="input-group">
-                        <button id="view-report-btn" class="btn btn-info" disabled>
+                        <button id="view-report-btn" class="btn btn-info" formtarget="_blank" disabled>
                             <i class="fas fa-eye"></i> مشاهده
                         </button>
                         <select name="work_month_id" id="work_month_id" class="form-select">
