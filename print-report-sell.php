@@ -66,7 +66,7 @@ $total_sales = $summary['total_sales'] ?? 0;
 $total_discount = $summary['total_discount'] ?? 0;
 
 // تعداد جلسات (ثابت "جلسه")
-$total_sessions = "جلسه"; // ثابت نگه داشتن به‌جای محاسبه
+$total_sessions = "   جلسه"; // ثابت نگه داشتن به‌جای محاسبه
 
 // لیست همه محصولات از Products و جویین با Order_Items برای مقداردهی صفر
 $products = [];
