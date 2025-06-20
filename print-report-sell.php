@@ -231,7 +231,7 @@ function get_jalali_month_name($month)
         .products-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 5px;
         }
 
         .products-table th,
@@ -279,7 +279,7 @@ function get_jalali_month_name($month)
     <!-- صفحه اول: جمع کل‌ها -->
     <div class="page-container">
         <?php
-        echo '<h5 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
+        echo '<h6 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
         ?>
         <div class="summary-box">
             <table>
