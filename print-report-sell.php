@@ -50,57 +50,38 @@ if ($selected_user_id !== 'all' && $user_role === 'admin') {
     $partner_name = $user_name;
 }
 
-// جمع کل فروش و تخفیف
+// جمع کل فروش و تخفیف (فقط برای user_id1)
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
            COALESCE(SUM(o.discount), 0) AS total_discount
     FROM Orders o
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
+    WHERE wd.work_month_id = ? AND p.user_id1 = ?
 ");
-$params = [$work_month_id];
-if ($selected_user_id !== 'all') {
-    $params[] = $selected_user_id;
-    $params[] = $selected_user_id;
-}
+$params = [$work_month_id, $selected_user_id];
 $stmt->execute($params);
 $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sales = $summary['total_sales'] ?? 0;
 $total_discount = $summary['total_discount'] ?? 0;
 
-// تعداد جلسات (روزهای کاری)
-$stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
-    FROM Work_Details wd
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
-");
-$params = [$work_month_id];
-if ($selected_user_id !== 'all') {
-    $params[] = $selected_user_id;
-    $params[] = $selected_user_id;
-}
-$stmt->execute($params);
-$sessions = $stmt->fetch(PDO::FETCH_ASSOC);
-$total_sessions = $sessions['total_sessions'] ?? 0;
+// تعداد جلسات (ثابت "جلسه")
+$total_sessions = "جلسه"; // ثابت نگه داشتن به‌جای محاسبه
 
-// لیست محصولات (بدون فیلتر تعداد صفر)
+// لیست همه محصولات از Products و جویین با Order_Items برای مقداردهی صفر
+$products = [];
 $stmt = $pdo->prepare("
-    SELECT oi.product_name, oi.unit_price, COALESCE(SUM(oi.quantity), 0) AS total_quantity, COALESCE(SUM(oi.total_price), 0) AS total_price
-    FROM Order_Items oi
-    RIGHT JOIN Orders o ON oi.order_id = o.order_id
-    RIGHT JOIN Work_Details wd ON o.work_details_id = wd.id
-    RIGHT JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
-    GROUP BY oi.product_name, oi.unit_price
-    ORDER BY oi.product_name COLLATE utf8mb4_persian_ci
+    SELECT p.product_name, p.unit_price, COALESCE(SUM(oi.quantity), 0) AS total_quantity, COALESCE(SUM(oi.total_price), 0) AS total_price
+    FROM Products p
+    LEFT JOIN Order_Items oi ON p.product_name = oi.product_name
+    JOIN Orders o ON oi.order_id = o.order_id
+    JOIN Work_Details wd ON o.work_details_id = wd.id
+    JOIN Partners p2 ON wd.partner_id = p2.partner_id
+    WHERE wd.work_month_id = ? AND p2.user_id1 = ?
+    GROUP BY p.product_name, p.unit_price
+    ORDER BY p.product_name COLLATE utf8mb4_persian_ci
 ");
-$params = [$work_month_id];
-if ($selected_user_id !== 'all') {
-    $params[] = $selected_user_id;
-    $params[] = $selected_user_id;
-}
+$params = [$work_month_id, $selected_user_id];
 $stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -313,7 +294,7 @@ function get_jalali_month_name($month)
                 </tr>
                 <tr>
                     <td>آژانس</td>
-                    <td><?= $total_sessions ?> جلسه</td>
+                    <td><?= $total_sessions ?></td>
                 </tr>
             </table>
         </div>
@@ -334,7 +315,7 @@ function get_jalali_month_name($month)
         // تیتر صفحه
         echo '<h5 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
 
-        // جدول محصولات (با ستون سود و اضافه فروش-توضیحات)
+        // جدول محصولات
         echo '<table class="products-table">';
         echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th><th>اضافه فروش-توضیحات</th></tr></thead>';
         echo '<tbody>';
