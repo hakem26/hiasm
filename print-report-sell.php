@@ -316,7 +316,7 @@ function get_jalali_month_name($month)
 
         // جدول محصولات
         echo '<table class="products-table">';
-        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th><th>اضافه فروش-توضیحات</th></tr></thead>';
+        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th> سود </th><th>اضافه فروش-توضیحات</th></tr></thead>';
         echo '<tbody>';
 
         $page_total = 0;
