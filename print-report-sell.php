@@ -66,7 +66,7 @@ $total_sales = $summary['total_sales'] ?? 0;
 $total_discount = $summary['total_discount'] ?? 0;
 
 // تعداد جلسات (ثابت "جلسه")
-$total_sessions = ""; // ثابت نگه داشتن به‌جای محاسبه
+$total_sessions = "جلسه"; // ثابت نگه داشتن به‌جای محاسبه
 
 // لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
 $products = [];
@@ -74,13 +74,14 @@ $stmt = $pdo->prepare("
     SELECT p.product_name, p.unit_price, COALESCE(SUM(oi.quantity), 0) AS total_quantity, COALESCE(SUM(oi.total_price), 0) AS total_price
     FROM Products p
     LEFT JOIN Order_Items oi ON p.product_name = oi.product_name
-    LEFT JOIN Orders o ON oi.order_id = o.order_id AND o.work_details_id IS NOT NULL
+    LEFT JOIN Orders o ON oi.order_id = o.order_id
     LEFT JOIN Work_Details wd ON o.work_details_id = wd.id AND wd.work_month_id = ?
     LEFT JOIN Partners p2 ON wd.partner_id = p2.partner_id AND p2.user_id1 = ?
+    WHERE (wd.work_month_id = ? OR wd.work_month_id IS NULL)
     GROUP BY p.product_name, p.unit_price
     ORDER BY p.product_name COLLATE utf8mb4_persian_ci
 ");
-$params = [$work_month_id, $selected_user_id];
+$params = [$work_month_id, $selected_user_id, $work_month_id];
 $stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -231,7 +232,7 @@ function get_jalali_month_name($month)
         .products-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 5px;
+            margin-top: 20px;
         }
 
         .products-table th,
@@ -301,7 +302,7 @@ function get_jalali_month_name($month)
 
     <!-- صفحه دوم به بعد: لیست محصولات -->
     <?php
-    $items_per_page = 32;
+    $items_per_page = 30;
     $total_items = count($products);
     $total_pages = ceil($total_items / $items_per_page);
 
@@ -312,11 +313,11 @@ function get_jalali_month_name($month)
         $page_items = array_slice($products, $start, $items_per_page);
 
         // تیتر صفحه
-        echo '<h5 style="text-align: center; margin: 4mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
+        echo '<h5 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
 
         // جدول محصولات
         echo '<table class="products-table">';
-        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود کلی</th><th>اضافه فروش-توضیحات</th></tr></thead>';
+        echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود</th><th>اضافه فروش-توضیحات</th></tr></thead>';
         echo '<tbody>';
 
         $page_total = 0;
