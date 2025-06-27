@@ -71,17 +71,18 @@ $total_sessions = "جلسه"; // ثابت نگه داشتن به‌جای محا
 // لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
 $products = [];
 $stmt = $pdo->prepare("
-    SELECT p.product_name, p.unit_price, COALESCE(SUM(oi.quantity), 0) AS total_quantity, COALESCE(SUM(oi.total_price), 0) AS total_price
+    SELECT p.product_name, p.unit_price, 
+           COALESCE(SUM(CASE WHEN wd.work_month_id = ? AND p2.user_id1 = ? THEN oi.quantity ELSE 0 END), 0) AS total_quantity,
+           COALESCE(SUM(CASE WHEN wd.work_month_id = ? AND p2.user_id1 = ? THEN oi.total_price ELSE 0 END), 0) AS total_price
     FROM Products p
     LEFT JOIN Order_Items oi ON p.product_name = oi.product_name
     LEFT JOIN Orders o ON oi.order_id = o.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id AND wd.work_month_id = ?
-    LEFT JOIN Partners p2 ON wd.partner_id = p2.partner_id AND p2.user_id1 = ?
-    WHERE (wd.work_month_id = ? OR wd.work_month_id IS NULL)
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
+    LEFT JOIN Partners p2 ON wd.partner_id = p2.partner_id
     GROUP BY p.product_name, p.unit_price
     ORDER BY p.product_name COLLATE utf8mb4_persian_ci
 ");
-$params = [$work_month_id, $selected_user_id, $work_month_id];
+$params = [$work_month_id, $selected_user_id, $work_month_id, $selected_user_id];
 $stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
