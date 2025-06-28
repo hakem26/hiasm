@@ -302,7 +302,7 @@ function get_jalali_month_name($month)
 
     <!-- صفحه دوم به بعد: لیست محصولات -->
     <?php
-    $items_per_page = 30;
+    $items_per_page = 32;
     $total_items = count($products);
     $total_pages = ceil($total_items / $items_per_page);
 
