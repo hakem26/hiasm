@@ -65,8 +65,17 @@ $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sales = $summary['total_sales'] ?? 0;
 $total_discount = $summary['total_discount'] ?? 0;
 
-// تعداد جلسات (ثابت "جلسه")
-$total_sessions = ""; // ثابت نگه داشتن به‌جای محاسبه
+// محاسبه تعداد جلسات آژانس برای user_id1
+$stmt = $pdo->prepare("
+    SELECT COUNT(*) AS session_count
+    FROM Work_Details wd
+    JOIN Partners p ON wd.partner_id = p.partner_id
+    WHERE wd.work_month_id = ? AND p.user_id1 = ? AND wd.agency_owner_id = p.user_id1
+");
+$params = [$work_month_id, $selected_user_id];
+$stmt->execute($params);
+$total_sessions = $stmt->fetchColumn() ?: 0;
+$total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
 
 // لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
 $products = [];
