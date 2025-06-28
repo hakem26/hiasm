@@ -71,7 +71,7 @@ $total_sessions = ""; // ثابت نگه داشتن به‌جای محاسبه
 // لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
 $products = [];
 $stmt = $pdo->prepare("
-    SELECT p.product_name, p.unit_price,
+    SELECT p.product_name, p.unit_price, 
            COALESCE(SUM(CASE WHEN wd.work_month_id = ? AND p2.user_id1 = ? THEN oi.quantity ELSE 0 END), 0) AS total_quantity,
            COALESCE(SUM(CASE WHEN wd.work_month_id = ? AND p2.user_id1 = ? THEN oi.total_price ELSE 0 END), 0) AS total_price
     FROM Products p
@@ -85,9 +85,6 @@ $stmt = $pdo->prepare("
 $params = [$work_month_id, $selected_user_id, $work_month_id, $selected_user_id];
 $stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// محاسبه مجموع کل محصولات
-$total_products_sales = array_sum(array_column($products, 'total_price'));
 
 // تبدیل تاریخ به شمسی
 function gregorian_to_jalali_format($gregorian_date)
@@ -305,10 +302,9 @@ function get_jalali_month_name($month)
 
     <!-- صفحه دوم به بعد: لیست محصولات -->
     <?php
-    $items_per_page = 32;
+    $items_per_page = 30;
     $total_items = count($products);
     $total_pages = ceil($total_items / $items_per_page);
-    $running_total = 0; // جمع کل در حال اجرا
 
     for ($page = 0; $page < $total_pages; $page++) {
         echo '<div class="page-container page-break">';
@@ -317,7 +313,7 @@ function get_jalali_month_name($month)
         $page_items = array_slice($products, $start, $items_per_page);
 
         // تیتر صفحه
-        echo '<h6 style="text-align: center; margin: 4mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
+        echo '<h6 style="text-align: center; margin: 2mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
 
         // جدول محصولات
         echo '<table class="products-table">';
@@ -330,7 +326,6 @@ function get_jalali_month_name($month)
             $row_number = $start + $i + 1;
             $total_price = $item['total_price'];
             $page_total += $total_price;
-            $running_total += $total_price; // اضافه کردن به جمع کل در حال اجرا
 
             echo '<tr>';
             echo '<td>' . $row_number . '</td>';
@@ -351,25 +346,18 @@ function get_jalali_month_name($month)
         echo '<td></td>'; // ستون اضافه فروش-توضیحات برای جمع کل
         echo '</tr>';
 
+        // اگر صفحه آخر باشه، ردیف جمع کل فروش رو اضافه کن
+        if ($page == $total_pages - 1) {
+            echo '<tr class="grand-total-row">';
+            echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
+            echo '<td>' . number_format($total_sales, 0) . ' تومان</td>';
+            echo '<td></td>'; // ستون سود برای جمع کل فروش
+            echo '<td></td>'; // ستون اضافه فروش-توضیحات برای جمع کل فروش
+            echo '</tr>';
+        }
+
         echo '</tbody></table>';
         echo '</div>'; // بستن page-container
-    }
-
-    // نمایش جمع کل نهایی در صفحه آخر
-    if ($page == $total_pages - 1) {
-        echo '<div class="page-container">';
-        echo '<h6 style="text-align: center; margin: 4mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
-        echo '<table class="products-table">';
-        echo '<thead><tr><th colspan="7">جمع کل نهایی</th></tr></thead>';
-        echo '<tbody>';
-        echo '<tr class="grand-total-row">';
-        echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
-        echo '<td>' . number_format($running_total, 0) . ' تومان</td>';
-        echo '<td></td>';
-        echo '<td></td>';
-        echo '</tr>';
-        echo '</tbody></table>';
-        echo '</div>';
     }
     ?>
 </body>
