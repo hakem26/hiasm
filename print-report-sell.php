@@ -313,7 +313,7 @@ function get_jalali_month_name($month)
         $page_items = array_slice($products, $start, $items_per_page);
 
         // تیتر صفحه
-        echo '<h6 style="text-align: center; margin: 2mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
+        echo '<h6 style="text-align: center; margin: 4mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
 
         // جدول محصولات
         echo '<table class="products-table">';
