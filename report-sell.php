@@ -145,7 +145,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
         $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sessions = $sessions['total_sessions'] ?? 0;
     }
-    $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
+    $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "تست: 5 جلسه"; // تغییر تست
 
     // لیست محصولات
     $stmt = $pdo->prepare("
