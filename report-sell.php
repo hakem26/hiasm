@@ -128,7 +128,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
     $total_sales = $summary['total_sales'] ?? 0;
     $total_discount = $summary['total_discount'] ?? 0;
 
-    // محاسبه تعداد جلسات آژانس برای user_id1 (همون‌طور که توی print-report-sell.php هست)
+    // محاسبه تعداد جلسات آژانس برای user_id1
     $total_sessions = 0;
     if ($selected_user_id !== 'all') {
         $stmt = $pdo->prepare("
@@ -330,10 +330,10 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                                 console.log('Rendering HTML:', response.html);
                                 $('#products-table').html(response.html);
-                                // به‌روزرسانی جمع کل‌ها
-                                $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' ' : '0 ');
-                                $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' ' : '0 ');
-                                $('#total-sessions').text(response.total_sessions ? response.total_sessions : '0');
+                                // فقط جدول محصولات رو آپدیت می‌کنیم، جمع کل‌ها رو از سرور می‌گیریم
+                                $('#total-sales').text('<?= number_format($total_sales, 0) ?> ');
+                                $('#total-discount').text('<?= number_format($total_discount, 0) ?> ');
+                                $('#total-sessions').text('<?= $total_sessions ?>');
                                 $('#view-report-btn').prop('disabled', false);
                             } else {
                                 throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
