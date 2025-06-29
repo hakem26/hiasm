@@ -129,22 +129,22 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
     $total_discount = $summary['total_discount'] ?? 0;
 
     // محاسبه تعداد جلسات آژانس برای user_id1
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) AS total_sessions
-        FROM Work_Details wd
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-        WHERE wd.work_month_id = ? 
-        AND wm.start_date >= ? AND wm.start_date < ?
-        " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ? AND wd.agency_owner_id = p.user_id1" : "") . "
-    ");
-    $params = [$selected_month, $start_date, $end_date];
+    $total_sessions = 0; // مقدار اولیه
     if ($selected_user_id !== 'all') {
-        $params[] = $selected_user_id;
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) AS total_sessions
+            FROM Work_Details wd
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+            WHERE wd.work_month_id = ? 
+            AND wm.start_date >= ? AND wm.start_date < ?
+            AND p.user_id1 = ? AND wd.agency_owner_id = p.user_id1
+        ");
+        $params = [$selected_month, $start_date, $end_date, $selected_user_id];
+        $stmt->execute($params);
+        $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
+        $total_sessions = $sessions['total_sessions'] ?? 0;
     }
-    $stmt->execute($params);
-    $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
-    $total_sessions = $sessions['total_sessions'] ?? 0;
     $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
 
     // لیست محصولات
