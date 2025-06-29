@@ -128,8 +128,8 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
     $total_sales = $summary['total_sales'] ?? 0;
     $total_discount = $summary['total_discount'] ?? 0;
 
-    // محاسبه تعداد جلسات آژانس برای user_id1
-    $total_sessions = 0; // مقدار اولیه
+    // محاسبه تعداد جلسات آژانس برای user_id1 (همون‌طور که توی print-report-sell.php هست)
+    $total_sessions = 0;
     if ($selected_user_id !== 'all') {
         $stmt = $pdo->prepare("
             SELECT COUNT(*) AS total_sessions
@@ -145,7 +145,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
         $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sessions = $sessions['total_sessions'] ?? 0;
     }
-    $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "تست: 5 جلسه"; // تغییر تست
+    $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
 
     // لیست محصولات
     $stmt = $pdo->prepare("
