@@ -128,24 +128,24 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
     $total_sales = $summary['total_sales'] ?? 0;
     $total_discount = $summary['total_discount'] ?? 0;
 
-    // تعداد جلسات (روزهای کاری)
+    // محاسبه تعداد جلسات آژانس برای user_id1
     $stmt = $pdo->prepare("
-        SELECT COUNT(DISTINCT wd.work_date) AS total_sessions
+        SELECT COUNT(*) AS total_sessions
         FROM Work_Details wd
         JOIN Partners p ON wd.partner_id = p.partner_id
         JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
         WHERE wd.work_month_id = ? 
         AND wm.start_date >= ? AND wm.start_date < ?
-        " . ($selected_user_id !== 'all' ? "AND (p.user_id1 = ? OR p.user_id2 = ?)" : "") . "
+        " . ($selected_user_id !== 'all' ? "AND p.user_id1 = ? AND wd.agency_owner_id = p.user_id1" : "") . "
     ");
     $params = [$selected_month, $start_date, $end_date];
     if ($selected_user_id !== 'all') {
-        $params[] = $selected_user_id;
         $params[] = $selected_user_id;
     }
     $stmt->execute($params);
     $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_sessions = $sessions['total_sessions'] ?? 0;
+    $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
 
     // لیست محصولات
     $stmt = $pdo->prepare("
@@ -191,7 +191,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
         <div class="mb-4">
             <p>جمع کل فروش: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
             <p>جمع کل تخفیفات: <span id="total-discount"><?= number_format($total_discount, 0) ?></span> تومان</p>
-            <p>مجموع جلسات آژانس: <span id="total-sessions"><?= $total_sessions ?></span> جلسه</p>
+            <p>مجموع جلسات آژانس: <span id="total-sessions"><?= $total_sessions ?></span></p>
         </div>
 
         <!-- فرم فیلترها -->
@@ -333,7 +333,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                                 // به‌روزرسانی جمع کل‌ها
                                 $('#total-sales').text(response.total_sales ? new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' ' : '0 ');
                                 $('#total-discount').text(response.total_discount ? new Intl.NumberFormat('fa-IR').format(response.total_discount) + ' ' : '0 ');
-                                $('#total-sessions').text(response.total_sessions ? response.total_sessions : 0);
+                                $('#total-sessions').text(response.total_sessions ? response.total_sessions : '0');
                                 $('#view-report-btn').prop('disabled', false);
                             } else {
                                 throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
