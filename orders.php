@@ -404,9 +404,8 @@ $total_orders = $stmt_count->fetchColumn();
                                 <td>
                                     <a href="edit_order.php?order_id=<?= $order['order_id'] ?>"
                                         class="btn btn-warning btn-sm me-2"><i class="fas fa-edit"></i></a>
-                                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>"
-                                        class="btn btn-danger btn-sm" onclick="return confirm('حذف؟');"><i
-                                            class="fas fa-trash"></i></a>
+                                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('حذف؟');"><i class="fas fa-trash"></i></a>
                                 </td>
                                 <td>
                                     <a href="edit_payment.php?order_id=<?= $order['order_id'] ?>"
@@ -414,8 +413,8 @@ $total_orders = $stmt_count->fetchColumn();
                                 </td>
                             <?php endif; ?>
                             <td>
-                                <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>"
-                                    class="btn btn-success btn-sm"><i class="fas fa-eye"></i> مشاهده</a>
+                                <a href="print_invoice.php?order_id=<?= $order['order_id'] ?>" class="btn btn-success btn-sm"><i
+                                        class="fas fa-eye"></i> مشاهده</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -436,9 +435,9 @@ $total_orders = $stmt_count->fetchColumn();
             "scrollX": true,
             "scrollCollapse": true,
             "paging": true,
-            "autoWidth": true, // فعال کردن تنظیم خودکار عرض
+            "autoWidth": true,
             "ordering": true,
-            "order": [[0, 'desc']], // مرتب‌سازی پیش‌فرض ستون اول (شماره) از زیاد به کم
+            "order": [[0, 'desc']],
             "responsive": false,
             "language": {
                 "decimal": "",
@@ -461,7 +460,10 @@ $total_orders = $stmt_count->fetchColumn();
             "columnDefs": [
                 { "targets": "_all", "className": "text-center" },
             ],
-            data: <?= json_encode($orders) ?>, // کل داده‌ها
+            data: <?= json_encode(array_map(function ($order) {
+                $order['work_date'] = $order['work_date'] ? gregorian_to_jalali_format($order['work_date']) : 'نامشخص';
+                return $order;
+            }, $orders)) ?>,
             columns: [
                 { data: 'order_id' },
                 { data: 'work_date' },
@@ -471,17 +473,17 @@ $total_orders = $stmt_count->fetchColumn();
                 { data: 'paid_amount' },
                 { data: 'remaining_amount' },
                 <?php if (!$is_admin): ?>
-                {
-                    data: null, render: function (data) {
-                        return '<a href="edit_order.php?order_id=' + data.order_id + '" class="btn btn-warning btn-sm me-2"><i class="fas fa-edit"></i></a>' +
-                            '<a href="delete_order.php?order_id=' + data.order_id + '" class="btn btn-danger btn-sm" onclick="return confirm(\'حذف؟\');"><i class="fas fa-trash"></i></a>';
-                    }
-                },
-                {
-                    data: null, render: function (data) {
-                        return '<a href="edit_payment.php?order_id=' + data.order_id + '" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>';
-                    }
-                },
+                    {
+                        data: null, render: function (data) {
+                            return '<a href="edit_order.php?order_id=' + data.order_id + '" class="btn btn-warning btn-sm me-2"><i class="fas fa-edit"></i></a>' +
+                                '<a href="delete_order.php?order_id=' + data.order_id + '" class="btn btn-danger btn-sm" onclick="return confirm(\'حذف؟\');"><i class="fas fa-trash"></i></a>';
+                        }
+                    },
+                    {
+                        data: null, render: function (data) {
+                            return '<a href="edit_payment.php?order_id=' + data.order_id + '" class="btn btn-primary btn-sm me-2"><i class="fas fa-edit"></i></a>';
+                        }
+                    },
                 <?php endif; ?>
                 {
                     data: null, render: function (data) {
@@ -491,10 +493,8 @@ $total_orders = $stmt_count->fetchColumn();
             ]
         });
 
-        // حذف دکمه "بارگذاری بیشتر" (در صورت وجود)
         $('#loadMoreBtn').remove();
 
-        // ارسال فرم هنگام تغییر سلکت‌ها
         $('select[name="year"]').change(function () {
             this.form.submit();
         });
