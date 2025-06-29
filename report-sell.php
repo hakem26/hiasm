@@ -128,7 +128,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
     $total_sales = $summary['total_sales'] ?? 0;
     $total_discount = $summary['total_discount'] ?? 0;
 
-    // محاسبه تعداد جلسات آژانس برای user_id1
+    // محاسبه تعداد جلسات آژانس برای user_id1 با دیباگ
     $total_sessions = 0;
     if ($selected_user_id !== 'all') {
         $stmt = $pdo->prepare("
@@ -144,6 +144,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
         $stmt->execute($params);
         $sessions = $stmt->fetch(PDO::FETCH_ASSOC);
         $total_sessions = $sessions['total_sessions'] ?? 0;
+        error_log("report_sell.php: Calculated total_sessions for user_id $selected_user_id, work_month_id $selected_month: $total_sessions");
     }
     $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
 
@@ -330,10 +331,7 @@ if ($selected_year_jalali && $selected_month && isset($year_mapping[$selected_ye
                             if (response.success && typeof response.html === 'string' && response.html.trim().length > 0) {
                                 console.log('Rendering HTML:', response.html);
                                 $('#products-table').html(response.html);
-                                // فقط جدول محصولات رو آپدیت می‌کنیم، جمع کل‌ها رو از سرور می‌گیریم
-                                $('#total-sales').text('<?= number_format($total_sales, 0) ?> ');
-                                $('#total-discount').text('<?= number_format($total_discount, 0) ?> ');
-                                $('#total-sessions').text('<?= $total_sessions ?>');
+                                // فقط جدول محصولات رو آپدیت می‌کنیم، جمع کل‌ها از PHP هست
                                 $('#view-report-btn').prop('disabled', false);
                             } else {
                                 throw new Error('HTML نامعتبر یا خالی است: ' + (response.message || 'داده‌ای برای نمایش وجود ندارد'));
