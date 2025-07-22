@@ -70,12 +70,16 @@ $stmt = $pdo->prepare("
     SELECT COUNT(*) AS session_count
     FROM Work_Details wd
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND p.user_id1 = ? AND wd.agency_owner_id = p.user_id1
+    WHERE wd.work_month_id = ? 
+    AND (
+        (p.user_id1 = ? AND wd.agency_owner_id = p.user_id1) 
+        OR (p.user_id2 = ? AND wd.agency_owner_id = p.user_id2)
+    )
 ");
-$params = [$work_month_id, $selected_user_id];
+$params = [$work_month_id, $selected_user_id, $selected_user_id];
 $stmt->execute($params);
 $total_sessions = $stmt->fetchColumn() ?: 0;
-$total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
+error_log("Calculated total_sessions for user_id $selected_user_id, work_month_id $work_month_id: $total_sessions");
 
 // لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
 $products = [];
@@ -303,7 +307,7 @@ function get_jalali_month_name($month)
                 </tr>
                 <tr>
                     <td>آژانس</td>
-                    <td><?= $total_sessions ?></td>
+                    <td><?= $total_sessions > 0 ? "$total_sessions جلسه" : "" ?></td>
                 </tr>
             </table>
         </div>
