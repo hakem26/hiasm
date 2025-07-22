@@ -288,7 +288,7 @@ function get_jalali_month_name($month)
 
         .page-header {
             text-align: center;
-            margin-bottom: 5mm;
+            margin-bottom: 1mm;
         }
 
         .save-png-btn {
@@ -371,7 +371,7 @@ function get_jalali_month_name($month)
         $page_items = array_slice($products, $start, $items_per_page);
 
         echo '<div class="page-header">';
-        echo '<h6>گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
+        echo '<h5>گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
         echo '</div>';
 
         echo '<table class="products-table">';
