@@ -65,7 +65,7 @@ $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sales = $summary['total_sales'] ?? 0;
 $total_discount = $summary['total_discount'] ?? 0;
 
-// محاسبه تعداد جلسات آژانس برای user_id1
+// محاسبه تعداد جلسات آژانس که کاربر خودش رو ثبت کرده (بررسی user_id1 و user_id2)
 $stmt = $pdo->prepare("
     SELECT COUNT(*) AS session_count
     FROM Work_Details wd
@@ -80,6 +80,7 @@ $params = [$work_month_id, $selected_user_id, $selected_user_id];
 $stmt->execute($params);
 $total_sessions = $stmt->fetchColumn() ?: 0;
 error_log("Calculated total_sessions for user_id $selected_user_id, work_month_id $work_month_id: $total_sessions");
+$total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
 
 // لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
 $products = [];
@@ -134,7 +135,8 @@ function get_jalali_month_name($month)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>چاپ گزارش فروش</title>
-    <link rel="stylesheet" href="assets/css/bootstrap.rtl.min.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @font-face {
             font-family: Vazirmatn RD FD NL;
@@ -208,11 +210,18 @@ function get_jalali_month_name($month)
             font-display: swap;
         }
 
+        * {
+            font-feature-settings: "lnum" 0;
+            font-variant-numeric: normal;
+        }
+
         body {
             margin: 0;
             padding: 0;
             font-family: "Vazirmatn RD FD NL";
+            unicode-range: U+06F0-06F9;
             direction: rtl;
+            text-align: right;
         }
 
         .page-container {
@@ -224,6 +233,11 @@ function get_jalali_month_name($month)
             border: 1px solid #ccc;
             position: relative;
             overflow: hidden;
+            page-break-after: always;
+        }
+
+        .page-container:last-child {
+            page-break-after: auto;
         }
 
         .summary-box {
@@ -246,17 +260,19 @@ function get_jalali_month_name($month)
         .products-table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 3mm;
         }
 
         .products-table th,
         .products-table td {
-            border: 1px solid #ccc;
+            border: 1px solid #000;
             text-align: center;
-            padding: 3px 0;
+            padding: 5px;
+            font-size: 10pt;
         }
 
-        .products-table td:last-child {
-            min-width: 25mm;
+        .products-table th {
+            background-color: #f0f0f0;
         }
 
         .total-row {
@@ -268,14 +284,49 @@ function get_jalali_month_name($month)
             background-color: #fff3cd;
             font-weight: bold;
             font-size: 16px;
-            /* فونت بزرگ‌تر */
         }
 
-        .page-break {
-            page-break-before: always;
+        .page-header {
+            text-align: center;
+            margin-bottom: 5mm;
+            position: relative;
+        }
+
+        .page-number {
+            position: absolute;
+            top: 2mm;
+            right: 5mm;
+            font-size: 10pt;
+        }
+
+        .save-png-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Vazirmatn RD FD NL";
+            font-size: 12pt;
+            z-index: 1000;
+        }
+
+        .save-png-btn:hover {
+            background-color: #218838;
         }
 
         @media print {
+            .page-container {
+                border: none;
+            }
+
+            .save-png-btn {
+                display: none;
+            }
+
             @page {
                 size: A4 portrait;
                 margin: 0;
@@ -290,11 +341,14 @@ function get_jalali_month_name($month)
 </head>
 
 <body>
+    <button class="save-png-btn" onclick="saveReportAsPNG()">ذخیره به‌صورت PNG</button>
+
     <!-- صفحه اول: جمع کل‌ها -->
-    <div class="page-container">
-        <?php
-        echo '<h5 style="text-align: center; margin: 4mm auto 2mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h5>';
-        ?>
+    <div class="page-container" id="page-1">
+        <div class="page-header">
+            <h5>گزارش کاری <?= $month_name ?> - <?= $partner_name ?> - از <?= $start_date ?> تا <?= $end_date ?></h5>
+            <div class="page-number">صفحه 1 از <?= ceil(count($products) / 32 + 1) ?></div>
+        </div>
         <div class="summary-box">
             <table>
                 <tr>
@@ -307,7 +361,7 @@ function get_jalali_month_name($month)
                 </tr>
                 <tr>
                     <td>آژانس</td>
-                    <td><?= $total_sessions > 0 ? "$total_sessions جلسه" : "" ?></td>
+                    <td><?= $total_sessions ?></td>
                 </tr>
             </table>
         </div>
@@ -320,15 +374,16 @@ function get_jalali_month_name($month)
     $total_pages = ceil($total_items / $items_per_page);
 
     for ($page = 0; $page < $total_pages; $page++) {
-        echo '<div class="page-container page-break">';
+        echo '<div class="page-container" id="page-' . ($page + 2) . '">';
         $start = $page * $items_per_page;
         $end = min(($page + 1) * $items_per_page, $total_items);
         $page_items = array_slice($products, $start, $items_per_page);
 
-        // تیتر صفحه
-        echo '<h6 style="text-align: center; margin: 4mm auto 1mm auto;">گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
+        echo '<div class="page-header">';
+        echo '<h6>گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
+        echo '<div class="page-number">صفحه ' . ($page + 2) . ' از ' . (ceil(count($products) / 32 + 1)) . '</div>';
+        echo '</div>';
 
-        // جدول محصولات
         echo '<table class="products-table">';
         echo '<thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سود کلی</th><th>اضافه فروش-توضیحات</th></tr></thead>';
         echo '<tbody>';
@@ -351,7 +406,6 @@ function get_jalali_month_name($month)
             echo '</tr>';
         }
 
-        // ردیف جمع کل صفحه
         echo '<tr class="total-row">';
         echo '<td colspan="4">جمع کل</td>';
         echo '<td>' . number_format($page_total, 0) . ' تومان</td>';
@@ -359,7 +413,6 @@ function get_jalali_month_name($month)
         echo '<td></td>'; // ستون اضافه فروش-توضیحات برای جمع کل
         echo '</tr>';
 
-        // اگر صفحه آخر باشه، ردیف جمع کل فروش رو اضافه کن
         if ($page == $total_pages - 1) {
             echo '<tr class="grand-total-row">';
             echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
@@ -370,9 +423,54 @@ function get_jalali_month_name($month)
         }
 
         echo '</tbody></table>';
-        echo '</div>'; // بستن page-container
+        echo '</div>';
     }
     ?>
+
+    <script>
+        console.log('Script loaded');
+
+        function saveReportAsPNG() {
+            if (typeof html2canvas === 'undefined') {
+                console.error('html2canvas is not loaded');
+                alert('خطا: کتابخانه html2canvas لود نشده است. لطفاً اتصال اینترنت را بررسی کنید.');
+                return;
+            }
+
+            const totalPages = <?= ceil(count($products) / 32 + 1) ?>;
+            const workMonthId = <?= $work_month_id ?>;
+            const userId = <?= $selected_user_id ?>;
+
+            for (let page = 1; page <= totalPages; page++) {
+                const pageContainer = document.getElementById(`page-${page}`);
+                if (!pageContainer) {
+                    console.error(`Page container for page ${page} not found`);
+                    continue;
+                }
+
+                html2canvas(pageContainer, {
+                    scale: 4, // کیفیت بالاتر با scale 4
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: true
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png', 1.0); // کیفیت 100%
+                    link.download = `گزارش_فروش_ماه_${workMonthId}_کاربر_${userId}_صفحه_${page}.png`;
+                    link.click();
+                }).catch(error => {
+                    console.error('Error saving PNG:', error);
+                    alert('خطا در ذخیره تصویر گزارش. لطفاً دوباره تلاش کنید.');
+                });
+            }
+        }
+
+        document.fonts.ready.then(function () {
+            console.log('Fonts loaded');
+        }).catch(error => {
+            console.error('Error loading fonts:', error);
+        });
+    </script>
 </body>
 
 </html>
