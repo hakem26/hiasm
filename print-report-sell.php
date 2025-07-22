@@ -31,7 +31,7 @@ if (!$month) {
 $start_date = gregorian_to_jalali_format($month['start_date']);
 $end_date = gregorian_to_jalali_format($month['end_date']);
 list($jy, $jm, $jd) = explode('/', $start_date);
-$month_name = get_jalali_month_name((int) $jm) . ' ' . $jy;
+$month_name = get_jalali_month_name((int) $jm);
 
 // دریافت نام کاربر گزارش‌گیرنده
 $stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
@@ -289,14 +289,6 @@ function get_jalali_month_name($month)
         .page-header {
             text-align: center;
             margin-bottom: 5mm;
-            position: relative;
-        }
-
-        .page-number {
-            position: absolute;
-            top: 2mm;
-            right: 5mm;
-            font-size: 10pt;
         }
 
         .save-png-btn {
@@ -347,7 +339,6 @@ function get_jalali_month_name($month)
     <div class="page-container" id="page-1">
         <div class="page-header">
             <h5>گزارش کاری <?= $month_name ?> - <?= $partner_name ?> - از <?= $start_date ?> تا <?= $end_date ?></h5>
-            <div class="page-number">صفحه 1 از <?= ceil(count($products) / 32 + 1) ?></div>
         </div>
         <div class="summary-box">
             <table>
@@ -381,7 +372,6 @@ function get_jalali_month_name($month)
 
         echo '<div class="page-header">';
         echo '<h6>گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h6>';
-        echo '<div class="page-number">صفحه ' . ($page + 2) . ' از ' . (ceil(count($products) / 32 + 1)) . '</div>';
         echo '</div>';
 
         echo '<table class="products-table">';
@@ -449,14 +439,14 @@ function get_jalali_month_name($month)
                 }
 
                 html2canvas(pageContainer, {
-                    scale: 4, // کیفیت بالاتر با scale 4
+                    scale: 4,
                     useCORS: true,
                     backgroundColor: '#ffffff',
                     logging: true
                 }).then(canvas => {
                     const link = document.createElement('a');
-                    link.href = canvas.toDataURL('image/png', 1.0); // کیفیت 100%
-                    link.download = `گزارش_فروش_ماه_${workMonthId}_کاربر_${userId}_صفحه_${page}.png`;
+                    link.href = canvas.toDataURL('image/png', 1.0);
+                    link.download = `گزارش فروش ماه ${<?= json_encode($month_name) ?>} ${<?= json_encode($partner_name) ?>} صفحه_${page}.png`;
                     link.click();
                 }).catch(error => {
                     console.error('Error saving PNG:', error);
