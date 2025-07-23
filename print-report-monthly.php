@@ -146,6 +146,8 @@ $total_pages = ceil($total_tables / $tables_per_page);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>چاپ گزارش ماهانه</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @font-face {
             font-family: Vazirmatn RD FD NL;
@@ -237,6 +239,10 @@ $total_pages = ceil($total_tables / $tables_per_page);
             border: 1px solid #000;
         }
 
+        .page:last-child {
+            page-break-after: auto;
+        }
+
         .header {
             text-align: center;
             margin-bottom: 10mm;
@@ -248,6 +254,7 @@ $total_pages = ceil($total_tables / $tables_per_page);
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10mm;
+            table-layout: fixed;
         }
 
         th,
@@ -256,6 +263,7 @@ $total_pages = ceil($total_tables / $tables_per_page);
             padding: 5px;
             text-align: center;
             vertical-align: middle;
+            word-wrap: break-word;
         }
 
         th {
@@ -264,29 +272,50 @@ $total_pages = ceil($total_tables / $tables_per_page);
         }
 
         .col-date {
+            width: 10%;
             white-space: nowrap;
         }
 
         .col-customer {
+            width: 15%;
             white-space: nowrap;
         }
 
-        .col-items {}
-
-        .col-total {
-            white-space: nowrap;
+        .col-items {
+            width: 30%;
+            word-break: break-all;
         }
 
-        .col-discount {
-            white-space: nowrap;
-        }
-
-        .col-final {
+        .col-total,
+        .col-discount,
+        .col-final,
+        .col-remaining {
+            width: 10%;
             white-space: nowrap;
         }
 
         .col-payment {
-            white-space: nowrap;
+            width: 25%;
+            word-break: break-all;
+        }
+
+        .save-png-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Vazirmatn RD FD NL";
+            font-size: 12pt;
+            z-index: 1000;
+        }
+
+        .save-png-btn:hover {
+            background-color: #218838;
         }
 
         @media print {
@@ -299,13 +328,19 @@ $total_pages = ceil($total_tables / $tables_per_page);
                 margin: 0;
                 padding: 0;
             }
+
+            .save-png-btn {
+                display: none;
+            }
         }
     </style>
 </head>
 
 <body>
+    <button class="save-png-btn" onclick="saveReportAsPNG()">ذخیره به‌صورت PNG</button>
+
     <?php for ($page = 1; $page <= $total_pages; $page++): ?>
-        <div class="page">
+        <div class="page" id="page-<?= $page ?>">
             <div class="header">
                 گزارش کاری <?= htmlspecialchars($user1_name) ?> و <?= htmlspecialchars($user2_name) ?>
                 از تاریخ <?= $start_date ?> تا تاریخ <?= $end_date ?>
@@ -380,6 +415,51 @@ $total_pages = ceil($total_tables / $tables_per_page);
             <?php endfor; ?>
         </div>
     <?php endfor; ?>
+
+    <script>
+        console.log('Script loaded');
+
+        function saveReportAsPNG() {
+            if (typeof html2canvas === 'undefined') {
+                console.error('html2canvas is not loaded');
+                alert('خطا: کتابخانه html2canvas لود نشده است. لطفاً اتصال اینترنت را بررسی کنید.');
+                return;
+            }
+
+            const totalPages = <?= $total_pages ?>;
+            const user1Name = <?= json_encode($user1_name) ?>;
+            const user2Name = <?= json_encode($user2_name) ?>;
+
+            for (let page = 1; page <= totalPages; page++) {
+                const pageContainer = document.getElementById(`page-${page}`);
+                if (!pageContainer) {
+                    console.error(`Page container for page ${page} not found`);
+                    continue;
+                }
+
+                html2canvas(pageContainer, {
+                    scale: 4,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: true
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png', 1.0);
+                    link.download = `گزارش ماهانه ${user1Name} و ${user2Name} صفحه_${page}.png`;
+                    link.click();
+                }).catch(error => {
+                    console.error('Error saving PNG:', error);
+                    alert('خطا در ذخیره تصویر گزارش. لطفاً دوباره تلاش کنید.');
+                });
+            }
+        }
+
+        document.fonts.ready.then(function () {
+            console.log('Fonts loaded');
+        }).catch(error => {
+            console.error('Error loading fonts:', error);
+        });
+    </script>
 </body>
 
 </html>
