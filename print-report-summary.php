@@ -293,6 +293,25 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
             font-size: 11pt;
         }
 
+        .print-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Vazirmatn RD FD NL";
+            font-size: 12pt;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            background-color: #218838;
+        }
+
         @media print {
             @page {
                 size: A4 portrait;
@@ -303,11 +322,17 @@ $work_days_chunks = array_chunk($work_days_with_month, $days_per_page);
                 margin: 0;
                 padding: 0;
             }
+
+            .print-btn {
+                display: none;
+            }
         }
     </style>
 </head>
 
 <body>
+    <button class="print-btn" onclick="window.print()">چاپ گزارش</button>
+
     <?php
     foreach ($work_days_chunks as $page_index => $chunk) {
         // اینجا پر نمی‌کنیم چون می‌خواهیم سلول‌ها خالی بمونن
