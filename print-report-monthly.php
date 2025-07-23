@@ -85,8 +85,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $items_str = [];
         foreach ($items as $item) {
             $quantity = $item['quantity'] == 1 ? '' : '(' . $item['quantity'] . 'عدد)';
-            $price_str = number_format($item['total_price'] / 1000, 0) . ' هزار تومان';
-            $items_str[] = "{$item['product_name']} {$quantity} ({$price_str})";
+            $items_str[] = "{$item['product_name']} {$quantity}(" . number_format($item['total_price'] / 1000, 0) . ")";
         }
         $items_display = implode(' - ', $items_str);
 
@@ -147,8 +146,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>چاپ گزارش ماهانه</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @font-face {
             font-family: Vazirmatn RD FD NL;
@@ -228,7 +225,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
             margin: 0;
             padding: 0;
             direction: rtl;
-            unicode-range: U+06F0-06F9, U+0600-06FF;
         }
 
         .page {
@@ -239,10 +235,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
             box-sizing: border-box;
             page-break-after: always;
             border: 1px solid #000;
-        }
-
-        .page:last-child {
-            page-break-after: auto;
         }
 
         .header {
@@ -256,7 +248,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10mm;
-            table-layout: fixed;
         }
 
         th,
@@ -265,7 +256,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
             padding: 5px;
             text-align: center;
             vertical-align: middle;
-            word-wrap: break-word;
         }
 
         th {
@@ -274,39 +264,32 @@ $total_pages = ceil($total_tables / $tables_per_page);
         }
 
         .col-date {
-            width: 10%;
             white-space: nowrap;
         }
 
         .col-customer {
-            width: 15%;
             white-space: nowrap;
         }
 
-        .col-items {
-            width: 30%;
-            word-break: break-all;
+        .col-items {}
+
+        .col-total {
+            white-space: nowrap;
         }
 
-        .col-items .price {
-            direction: ltr;
-            display: inline-block;
+        .col-discount {
+            white-space: nowrap;
         }
 
-        .col-total,
-        .col-discount,
-        .col-final,
-        .col-remaining {
-            width: 10%;
+        .col-final {
             white-space: nowrap;
         }
 
         .col-payment {
-            width: 25%;
-            word-break: break-all;
+            white-space: nowrap;
         }
 
-        .save-png-btn {
+        .print-btn {
             position: fixed;
             top: 10px;
             right: 10px;
@@ -321,7 +304,7 @@ $total_pages = ceil($total_tables / $tables_per_page);
             z-index: 1000;
         }
 
-        .save-png-btn:hover {
+        .print-btn:hover {
             background-color: #218838;
         }
 
@@ -336,7 +319,7 @@ $total_pages = ceil($total_tables / $tables_per_page);
                 padding: 0;
             }
 
-            .save-png-btn {
+            .print-btn {
                 display: none;
             }
         }
@@ -344,10 +327,10 @@ $total_pages = ceil($total_tables / $tables_per_page);
 </head>
 
 <body>
-    <button class="save-png-btn" onclick="saveReportAsPNG()">ذخیره به‌صورت PNG</button>
+    <button class="print-btn" onclick="window.print()">چاپ گزارش</button>
 
     <?php for ($page = 1; $page <= $total_pages; $page++): ?>
-        <div class="page" id="page-<?= $page ?>">
+        <div class="page">
             <div class="header">
                 گزارش کاری <?= htmlspecialchars($user1_name) ?> و <?= htmlspecialchars($user2_name) ?>
                 از تاریخ <?= $start_date ?> تا تاریخ <?= $end_date ?>
@@ -397,15 +380,7 @@ $total_pages = ceil($total_tables / $tables_per_page);
                                             <td class="col-date" rowspan="<?= $rowspan ?>"><?= $day['work_date'] ?></td>
                                             <td class="col-customer" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($order['customer_name']) ?>
                                             </td>
-                                            <td class="col-items" rowspan="<?= $rowspan ?>">
-                                                <?= preg_replace_callback(
-                                                    '/\((\d+(?:\.\d+)?(?: هزار تومان)?)\)/',
-                                                    function ($matches) {
-                                                        return '<span class="price">(' . $matches[1] . ')</span>';
-                                                    },
-                                                    htmlspecialchars($order['items'])
-                                                ) ?>
-                                            </td>
+                                            <td class="col-items" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($order['items']) ?></td>
                                             <td class="col-total" rowspan="<?= $rowspan ?>"><?= number_format($order['total_amount'], 0) ?></td>
                                             <td class="col-discount" rowspan="<?= $rowspan ?>"><?= number_format($order['discount'], 0) ?></td>
                                             <td class="col-final" rowspan="<?= $rowspan ?>"><?= number_format($order['final_amount'], 0) ?></td>
@@ -430,52 +405,6 @@ $total_pages = ceil($total_tables / $tables_per_page);
             <?php endfor; ?>
         </div>
     <?php endfor; ?>
-
-    <script>
-        console.log('Script loaded');
-
-        function saveReportAsPNG() {
-            if (typeof html2canvas === 'undefined') {
-                console.error('html2canvas is not loaded');
-                alert('خطا: کتابخانه html2canvas لود نشده است. لطفاً اتصال اینترنت را بررسی کنید.');
-                return;
-            }
-
-            const totalPages = <?= $total_pages ?>;
-            const user1Name = <?= json_encode($user1_name) ?>;
-            const user2Name = <?= json_encode($user2_name) ?>;
-
-            for (let page = 1; page <= totalPages; page++) {
-                const pageContainer = document.getElementById(`page-${page}`);
-                if (!pageContainer) {
-                    console.error(`Page container for page ${page} not found`);
-                    continue;
-                }
-
-                html2canvas(pageContainer, {
-                    scale: 4,
-                    useCORS: true,
-                    backgroundColor: '#ffffff',
-                    logging: true,
-                    letterRendering: true // برای رندر بهتر متن
-                }).then(canvas => {
-                    const link = document.createElement('a');
-                    link.href = canvas.toDataURL('image/png', 1.0);
-                    link.download = `گزارش ماهانه ${user1Name} و ${user2Name} صفحه_${page}.png`;
-                    link.click();
-                }).catch(error => {
-                    console.error('Error saving PNG:', error);
-                    alert('خطا در ذخیره تصویر گزارش. لطفاً دوباره تلاش کنید.');
-                });
-            }
-        }
-
-        document.fonts.ready.then(function () {
-            console.log('Fonts loaded');
-        }).catch(error => {
-            console.error('Error loading fonts:', error);
-        });
-    </script>
 </body>
 
 </html>
