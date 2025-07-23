@@ -226,10 +226,47 @@ foreach ($inventory_data as $item) {
             direction: rtl;
             text-align: center;
         }
+
+        .print-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Vazirmatn RD FD NL";
+            font-size: 12pt;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            background-color: #218838;
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .print-btn {
+                display: none;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <button class="print-btn" onclick="window.print()">چاپ گزارش</button>
+
     <?php
     $rows_per_page = 32;
     $row_count = 0;
