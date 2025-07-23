@@ -10,6 +10,13 @@ function gregorian_to_jalali_full_date($gregorian_date)
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
+// بررسی ورود کاربر
+if (!isset($_SESSION['user_id'])) {
+    // اگر کاربر وارد نشده، می‌توانیم او را به صفحه ورود هدایت کنیم
+    header("Location: index.php");
+    exit;
+}
+
 $work_month_id = $_GET['work_month_id'] ?? null;
 $product_id = $_GET['product_id'] ?? null;
 if (!$work_month_id)
@@ -150,10 +157,47 @@ $report = $stmt->fetchAll(PDO::FETCH_ASSOC);
         thead {
             display: table-header-group;
         }
+
+        .print-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Vazirmatn RD FD NL";
+            font-size: 12pt;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            background-color: #218838;
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .print-btn {
+                display: none;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <button class="print-btn" onclick="window.print()">چاپ گزارش</button>
+
     <?php
     $rows_per_page = 32;
     $row_count = 0;
