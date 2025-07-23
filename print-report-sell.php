@@ -336,7 +336,7 @@ function get_jalali_month_name($month)
     <!-- صفحه اول: جمع کل‌ها -->
     <div class="page-container" id="page-1">
         <div class="page-header">
-            <h4>گزارش کاری <?= $month_name ?> - <?= $partner_name ?> - از <?= $start_date ?> تا <?= $end_date ?></h4>
+            <h4>گزارش کاری - <?= $partner_name ?> - از <?= $start_date ?> تا <?= $end_date ?></h4>
         </div>
         <div class="summary-box">
             <table>
@@ -369,7 +369,7 @@ function get_jalali_month_name($month)
         $page_items = array_slice($products, $start, $items_per_page);
 
         echo '<div class="page-header">';
-        echo '<h4>گزارش کاری ' . $month_name . ' - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
+        echo '<h4>گزارش کاری  - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
         echo '</div>';
 
         echo '<table class="products-table">';
