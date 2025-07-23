@@ -85,7 +85,8 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $items_str = [];
         foreach ($items as $item) {
             $quantity = $item['quantity'] == 1 ? '' : '(' . $item['quantity'] . 'عدد)';
-            $items_str[] = "{$item['product_name']} {$quantity}(" . number_format($item['total_price'] / 1000, 0) . ")";
+            $price_str = number_format($item['total_price'] / 1000, 0) . ' هزار تومان';
+            $items_str[] = "{$item['product_name']} {$quantity} ({$price_str})";
         }
         $items_display = implode(' - ', $items_str);
 
@@ -227,6 +228,7 @@ $total_pages = ceil($total_tables / $tables_per_page);
             margin: 0;
             padding: 0;
             direction: rtl;
+            unicode-range: U+06F0-06F9, U+0600-06FF;
         }
 
         .page {
@@ -284,6 +286,11 @@ $total_pages = ceil($total_tables / $tables_per_page);
         .col-items {
             width: 30%;
             word-break: break-all;
+        }
+
+        .col-items .price {
+            direction: ltr;
+            display: inline-block;
         }
 
         .col-total,
@@ -390,7 +397,15 @@ $total_pages = ceil($total_tables / $tables_per_page);
                                             <td class="col-date" rowspan="<?= $rowspan ?>"><?= $day['work_date'] ?></td>
                                             <td class="col-customer" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($order['customer_name']) ?>
                                             </td>
-                                            <td class="col-items" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($order['items']) ?></td>
+                                            <td class="col-items" rowspan="<?= $rowspan ?>">
+                                                <?= preg_replace_callback(
+                                                    '/\((\d+(?:\.\d+)?(?: هزار تومان)?)\)/',
+                                                    function ($matches) {
+                                                        return '<span class="price">(' . $matches[1] . ')</span>';
+                                                    },
+                                                    htmlspecialchars($order['items'])
+                                                ) ?>
+                                            </td>
                                             <td class="col-total" rowspan="<?= $rowspan ?>"><?= number_format($order['total_amount'], 0) ?></td>
                                             <td class="col-discount" rowspan="<?= $rowspan ?>"><?= number_format($order['discount'], 0) ?></td>
                                             <td class="col-final" rowspan="<?= $rowspan ?>"><?= number_format($order['final_amount'], 0) ?></td>
@@ -441,7 +456,8 @@ $total_pages = ceil($total_tables / $tables_per_page);
                     scale: 4,
                     useCORS: true,
                     backgroundColor: '#ffffff',
-                    logging: true
+                    logging: true,
+                    letterRendering: true // برای رندر بهتر متن
                 }).then(canvas => {
                     const link = document.createElement('a');
                     link.href = canvas.toDataURL('image/png', 1.0);
