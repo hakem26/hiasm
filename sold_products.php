@@ -174,11 +174,10 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
     ";
     $params = array_merge($selected_work_month_ids, [$selected_month]);
 
+    // فقط برای نقش غیر admin، کاربر فعلی را از لیست حذف نکنیم
     if ($user_role !== 'admin') {
         $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
         $params[] = $current_user_id;
-        $params[] = $current_user_id;
-        $query .= " AND u.user_id != ?";
         $params[] = $current_user_id;
     }
 
@@ -186,6 +185,14 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // اضافه کردن نام کاربر فعلی به لیست همکاران
+    $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
+    $stmt_user->execute([$current_user_id]);
+    $current_user_name = $stmt_user->fetchColumn();
+    if ($current_user_name && !in_array(['user_id' => $current_user_id, 'full_name' => $current_user_name], $partners)) {
+        $partners[] = ['user_id' => $current_user_id, 'full_name' => $current_user_name];
+    }
 }
 ?>
 
@@ -303,6 +310,23 @@ $(document).ready(function () {
             data: { year: year, work_month_id: work_month_id },
             success: function (response) {
                 $('#partner_id').html('<option value="all">همه</option>' + response);
+                // اضافه کردن نام کاربر فعلی به لیست همکاران
+                $.ajax({
+                    url: 'get_current_user.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function (user) {
+                        if (user && user.user_id && user.full_name) {
+                            let option = `<option value="${user.user_id}" ${'<?= $selected_partner_id ?>' == user.user_id ? 'selected' : ''}>${user.full_name}</option>`;
+                            if ($('#partner_id option[value="' + user.user_id + '"]').length === 0) {
+                                $('#partner_id').append(option);
+                            }
+                        }
+                    },
+                    error: function () {
+                        console.log('خطا در بارگذاری نام کاربر فعلی');
+                    }
+                });
             },
             error: function () {
                 $('#partner_id').html('<option value="all">همه</option>');
