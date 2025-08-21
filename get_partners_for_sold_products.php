@@ -58,18 +58,26 @@ $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // لاگ برای دیباگ
 error_log("Partners query result: " . print_r($partners, true));
 
-// اگر user_id1 و user_id2 یکسان باشن، فقط اون کاربر رو نگه دار
+// چک کردن اگه user_id1 و user_id2 یکسان باشن، فقط کاربر فعلی رو نگه دار
 $filtered_partners = [];
+$has_self_pair = false;
 foreach ($partners as $partner) {
     $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners p JOIN Work_Details wd ON p.partner_id = wd.partner_id WHERE (p.user_id1 = ? AND p.user_id2 = ?) AND wd.work_month_id = ?");
     $stmt_check->execute([$current_user_id, $current_user_id, $work_month_id]);
     $count_same = $stmt_check->fetchColumn();
     if ($count_same > 0 && $partner['user_id'] == $current_user_id) {
-        $filtered_partners = [['user_id' => $current_user_id, 'full_name' => $partner['full_name']]];
+        $has_self_pair = true;
         break;
-    } else {
-        $filtered_partners[] = $partner;
     }
+}
+
+if ($has_self_pair) {
+    $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
+    $stmt_user->execute([$current_user_id]);
+    $current_user_name = $stmt_user->fetchColumn();
+    $filtered_partners[] = ['user_id' => $current_user_id, 'full_name' => $current_user_name];
+} else {
+    $filtered_partners = $partners;
 }
 
 foreach ($filtered_partners as $partner) {
