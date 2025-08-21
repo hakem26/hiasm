@@ -171,14 +171,12 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
         JOIN Work_Details wd ON p.partner_id = wd.partner_id
         WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
         AND wd.work_month_id = ?
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
     ";
-    $params = array_merge($selected_work_month_ids, [$selected_month]);
+    $params = array_merge($selected_work_month_ids, [$selected_month, $current_user_id, $current_user_id]);
 
-    // فقط برای نقش غیر admin، کاربر فعلی را از لیست حذف نکنیم
     if ($user_role !== 'admin') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $params[] = $current_user_id;
-        $params[] = $current_user_id;
+        // فقط فیلتر بر اساس دسترسی کاربر فعلی، بدون حذف خودش
     }
 
     $query .= " ORDER BY u.full_name";
@@ -186,12 +184,21 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
     $stmt->execute($params);
     $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // اضافه کردن نام کاربر فعلی به لیست همکاران
+    // اضافه کردن کاربر فعلی اگر در لیست نباشد
     $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
     $stmt_user->execute([$current_user_id]);
     $current_user_name = $stmt_user->fetchColumn();
-    if ($current_user_name && !in_array(['user_id' => $current_user_id, 'full_name' => $current_user_name], $partners)) {
-        $partners[] = ['user_id' => $current_user_id, 'full_name' => $current_user_name];
+    if ($current_user_name) {
+        $user_exists = false;
+        foreach ($partners as $partner) {
+            if ($partner['user_id'] == $current_user_id) {
+                $user_exists = true;
+                break;
+            }
+        }
+        if (!$user_exists) {
+            $partners[] = ['user_id' => $current_user_id, 'full_name' => $current_user_name];
+        }
     }
 }
 ?>
