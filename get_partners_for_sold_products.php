@@ -54,6 +54,11 @@ if ($user_role !== 'admin') {
     $params[] = $current_user_id;
 }
 
+// شرط جدید: اگر user_id1 و user_id2 یکسان باشن، فقط اون کاربر رو برگردون
+$query .= " AND (p.user_id1 != p.user_id2 OR (p.user_id1 = ? AND p.user_id2 = ?))";
+$params[] = $current_user_id;
+$params[] = $current_user_id;
+
 $query .= " ORDER BY u.full_name";
 
 $stmt = $pdo->prepare($query);
