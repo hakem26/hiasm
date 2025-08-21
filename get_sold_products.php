@@ -81,10 +81,14 @@ if ($work_month_id !== 'all') {
 
 if ($partner_id !== 'all') {
     // فیلتر برای همکار خاص، شامل حالت یکسان بودن user_id1 و user_id2
-    $sales_query .= " AND ((p.user_id1 = ? OR p.user_id2 = ?) OR (p.user_id1 = p.user_id2 AND p.user_id1 = ?))";
-    $quantity_query .= " AND ((p.user_id1 = ? OR p.user_id2 = ?) OR (p.user_id1 = p.user_id2 AND p.user_id1 = ?))";
-    $params[] = $partner_id; $params[] = $partner_id; $params[] = $partner_id;
-    $params_quantity[] = $partner_id; $params_quantity[] = $partner_id; $params_quantity[] = $partner_id;
+    $sales_query .= " AND ((p.user_id1 = ? AND p.user_id2 = ?) OR (p.user_id1 = ? AND p.user_id2 != ?) OR (p.user_id2 = ? AND p.user_id1 != ?))";
+    $quantity_query .= " AND ((p.user_id1 = ? AND p.user_id2 = ?) OR (p.user_id1 = ? AND p.user_id2 != ?) OR (p.user_id2 = ? AND p.user_id1 != ?))";
+    $params[] = $partner_id; $params[] = $partner_id;
+    $params[] = $partner_id; $params[] = $partner_id;
+    $params[] = $partner_id; $params[] = $partner_id;
+    $params_quantity[] = $partner_id; $params_quantity[] = $partner_id;
+    $params_quantity[] = $partner_id; $params_quantity[] = $partner_id;
+    $params_quantity[] = $partner_id; $params_quantity[] = $partner_id;
 }
 
 try {
@@ -127,8 +131,10 @@ if ($work_month_id !== 'all') {
 
 if ($partner_id !== 'all') {
     // فیلتر برای همکار خاص، شامل حالت یکسان بودن user_id1 و user_id2
-    $products_query .= " AND ((p.user_id1 = ? OR p.user_id2 = ?) OR (p.user_id1 = p.user_id2 AND p.user_id1 = ?))";
-    $params_products[] = $partner_id; $params_products[] = $partner_id; $params_products[] = $partner_id;
+    $products_query .= " AND ((p.user_id1 = ? AND p.user_id2 = ?) OR (p.user_id1 = ? AND p.user_id2 != ?) OR (p.user_id2 = ? AND p.user_id1 != ?))";
+    $params_products[] = $partner_id; $params_products[] = $partner_id;
+    $params_products[] = $partner_id; $params_products[] = $partner_id;
+    $params_products[] = $partner_id; $params_products[] = $partner_id;
 }
 
 $products_query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";

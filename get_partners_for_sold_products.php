@@ -24,9 +24,6 @@ foreach ($all_work_months as $month) {
     }
 }
 
-// لاگ برای دیباگ
-error_log("Selected work_month_ids in get_partners: " . print_r($selected_work_month_ids, true));
-
 if (empty($selected_work_month_ids)) {
     echo '';
     exit;
@@ -58,26 +55,26 @@ $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // لاگ برای دیباگ
 error_log("Partners query result: " . print_r($partners, true));
 
-// چک کردن اگه user_id1 و user_id2 یکسان باشن، فقط کاربر فعلی رو نگه دار
-$filtered_partners = [];
-$has_self_pair = false;
-foreach ($partners as $partner) {
-    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners p JOIN Work_Details wd ON p.partner_id = wd.partner_id WHERE (p.user_id1 = ? AND p.user_id2 = ?) AND wd.work_month_id = ?");
-    $stmt_check->execute([$current_user_id, $current_user_id, $work_month_id]);
-    $count_same = $stmt_check->fetchColumn();
-    if ($count_same > 0 && $partner['user_id'] == $current_user_id) {
-        $has_self_pair = true;
-        break;
-    }
-}
+// اضافه کردن کاربر فعلی اگه به‌تنهایی کار کرده
+$filtered_partners = $partners;
+$stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners p JOIN Work_Details wd ON p.partner_id = wd.partner_id WHERE (p.user_id1 = ? AND p.user_id2 = ?) AND wd.work_month_id = ?");
+$stmt_check->execute([$current_user_id, $current_user_id, $work_month_id]);
+$count_same = $stmt_check->fetchColumn();
 
-if ($has_self_pair) {
+if ($count_same > 0) {
     $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
     $stmt_user->execute([$current_user_id]);
     $current_user_name = $stmt_user->fetchColumn();
-    $filtered_partners[] = ['user_id' => $current_user_id, 'full_name' => $current_user_name];
-} else {
-    $filtered_partners = $partners;
+    $user_exists = false;
+    foreach ($filtered_partners as $partner) {
+        if ($partner['user_id'] == $current_user_id) {
+            $user_exists = true;
+            break;
+        }
+    }
+    if (!$user_exists && $current_user_name) {
+        $filtered_partners[] = ['user_id' => $current_user_id, 'full_name' => $current_user_name];
+    }
 }
 
 foreach ($filtered_partners as $partner) {
