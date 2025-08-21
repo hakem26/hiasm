@@ -52,8 +52,6 @@ if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $current_user_id;
     $params[] = $current_user_id;
-    $query .= " AND u.user_id != ?";
-    $params[] = $current_user_id;
 }
 
 $query .= " ORDER BY u.full_name";
