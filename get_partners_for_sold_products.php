@@ -24,6 +24,9 @@ foreach ($all_work_months as $month) {
     }
 }
 
+// لاگ برای دیباگ
+error_log("Selected work_month_ids in get_partners: " . print_r($selected_work_month_ids, true));
+
 if (empty($selected_work_month_ids)) {
     echo '';
     exit;
@@ -42,9 +45,16 @@ $query = "
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
     WHERE wm.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
     AND wd.work_month_id = ?
-    AND (p.user_id1 = ? OR p.user_id2 = ?)
 ";
-$params = array_merge($selected_work_month_ids, [$work_month_id, $current_user_id, $current_user_id]);
+$params = array_merge($selected_work_month_ids, [$work_month_id]);
+
+if ($user_role !== 'admin') {
+    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+    $query .= " AND u.user_id != ?";
+    $params[] = $current_user_id;
+}
 
 $query .= " ORDER BY u.full_name";
 
@@ -55,29 +65,7 @@ $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // لاگ برای دیباگ
 error_log("Partners query result: " . print_r($partners, true));
 
-// اضافه کردن کاربر فعلی اگه به‌تنهایی کار کرده
-$filtered_partners = $partners;
-$stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners p JOIN Work_Details wd ON p.partner_id = wd.partner_id WHERE (p.user_id1 = ? AND p.user_id2 = ?) AND wd.work_month_id = ?");
-$stmt_check->execute([$current_user_id, $current_user_id, $work_month_id]);
-$count_same = $stmt_check->fetchColumn();
-
-if ($count_same > 0) {
-    $stmt_user = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
-    $stmt_user->execute([$current_user_id]);
-    $current_user_name = $stmt_user->fetchColumn();
-    $user_exists = false;
-    foreach ($filtered_partners as $partner) {
-        if ($partner['user_id'] == $current_user_id) {
-            $user_exists = true;
-            break;
-        }
-    }
-    if (!$user_exists && $current_user_name) {
-        $filtered_partners[] = ['user_id' => $current_user_id, 'full_name' => $current_user_name];
-    }
-}
-
-foreach ($filtered_partners as $partner) {
+foreach ($partners as $partner) {
     echo "<option value='{$partner['user_id']}'>" . htmlspecialchars($partner['full_name']) . "</option>";
 }
 ?>
