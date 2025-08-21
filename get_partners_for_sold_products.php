@@ -45,19 +45,9 @@ $query = "
     JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
     WHERE wm.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
     AND wd.work_month_id = ?
+    AND (p.user_id1 = ? OR p.user_id2 = ?)
 ";
-$params = array_merge($selected_work_month_ids, [$work_month_id]);
-
-if ($user_role !== 'admin') {
-    $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params[] = $current_user_id;
-    $params[] = $current_user_id;
-}
-
-// شرط جدید: اگر user_id1 و user_id2 یکسان باشن، فقط اون کاربر رو برگردون
-$query .= " AND (p.user_id1 != p.user_id2 OR (p.user_id1 = ? AND p.user_id2 = ?))";
-$params[] = $current_user_id;
-$params[] = $current_user_id;
+$params = array_merge($selected_work_month_ids, [$work_month_id, $current_user_id, $current_user_id]);
 
 $query .= " ORDER BY u.full_name";
 
@@ -68,7 +58,21 @@ $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // لاگ برای دیباگ
 error_log("Partners query result: " . print_r($partners, true));
 
+// اگر user_id1 و user_id2 یکسان باشن، فقط اون کاربر رو نگه دار
+$filtered_partners = [];
 foreach ($partners as $partner) {
+    $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM Partners p JOIN Work_Details wd ON p.partner_id = wd.partner_id WHERE (p.user_id1 = ? AND p.user_id2 = ?) AND wd.work_month_id = ?");
+    $stmt_check->execute([$current_user_id, $current_user_id, $work_month_id]);
+    $count_same = $stmt_check->fetchColumn();
+    if ($count_same > 0 && $partner['user_id'] == $current_user_id) {
+        $filtered_partners = [['user_id' => $current_user_id, 'full_name' => $partner['full_name']]];
+        break;
+    } else {
+        $filtered_partners[] = $partner;
+    }
+}
+
+foreach ($filtered_partners as $partner) {
     echo "<option value='{$partner['user_id']}'>" . htmlspecialchars($partner['full_name']) . "</option>";
 }
 ?>

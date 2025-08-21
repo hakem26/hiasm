@@ -80,13 +80,13 @@ if ($work_month_id !== 'all') {
 }
 
 if ($partner_id !== 'all') {
-    // اگر همکار خاص انتخاب شده، فقط داده‌های اون همکار رو بگیر
-    $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params[] = $partner_id;
-    $params[] = $partner_id;
-    $params_quantity[] = $partner_id;
-    $params_quantity[] = $partner_id;
+    // فیلتر دقیق برای همکار خاص
+    $sales_query .= " AND ((p.user_id1 = ? AND p.user_id2 != ?) OR (p.user_id2 = ? AND p.user_id1 != ?))";
+    $quantity_query .= " AND ((p.user_id1 = ? AND p.user_id2 != ?) OR (p.user_id2 = ? AND p.user_id1 != ?))";
+    $params[] = $partner_id; $params[] = $partner_id;
+    $params[] = $partner_id; $params[] = $partner_id;
+    $params_quantity[] = $partner_id; $params_quantity[] = $partner_id;
+    $params_quantity[] = $partner_id; $params_quantity[] = $partner_id;
 }
 
 try {
@@ -129,9 +129,9 @@ if ($work_month_id !== 'all') {
 
 if ($partner_id !== 'all') {
     // فیلتر دقیق برای همکار خاص
-    $products_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params_products[] = $partner_id;
-    $params_products[] = $partner_id;
+    $products_query .= " AND ((p.user_id1 = ? AND p.user_id2 != ?) OR (p.user_id2 = ? AND p.user_id1 != ?))";
+    $params_products[] = $partner_id; $params_products[] = $partner_id;
+    $params_products[] = $partner_id; $params_products[] = $partner_id;
 }
 
 $products_query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
