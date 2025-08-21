@@ -80,6 +80,7 @@ if ($work_month_id !== 'all') {
 }
 
 if ($partner_id !== 'all') {
+    // اگر همکار خاص انتخاب شده، فقط داده‌های اون همکار رو بگیر
     $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $partner_id;
@@ -127,6 +128,7 @@ if ($work_month_id !== 'all') {
 }
 
 if ($partner_id !== 'all') {
+    // فیلتر دقیق برای همکار خاص
     $products_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params_products[] = $partner_id;
     $params_products[] = $partner_id;
