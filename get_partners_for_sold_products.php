@@ -70,7 +70,6 @@ if ($partner_type !== 'all') {
 
 $query .= " ORDER BY u.full_name";
 
-// لاگ برای دیباگ
 error_log("Partners Query: $query, Params: " . print_r($params, true));
 
 $stmt = $pdo->prepare($query);
