@@ -1,11 +1,11 @@
 <?php
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/error.log');
-
 session_start();
 require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
+
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error.log');
 
 $jalali_year = $_POST['year'] ?? '';
 $work_month_id = $_POST['work_month_id'] ?? 'all';
@@ -69,6 +69,9 @@ if ($partner_type !== 'all') {
 }
 
 $query .= " ORDER BY u.full_name";
+
+// لاگ برای دیباگ
+error_log("Partners Query: $query, Params: " . print_r($params, true));
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);

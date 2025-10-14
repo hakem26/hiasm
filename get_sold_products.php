@@ -4,14 +4,13 @@ require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
 
-// غیرفعال کردن نمایش خطاها در خروجی (فقط لاگ بشن)
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error.log');
 
 $jalali_year = $_GET['year'] ?? null;
 $work_month_id = $_GET['work_month_id'] ?? 'all';
 $partner_id = $_GET['partner_id'] ?? 'all';
-$partner_type = $_GET['partner_type'] ?? 'all'; // فیلتر جدید
+$partner_type = $_GET['partner_type'] ?? 'all';
 $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$jalali_year || !$current_user_id) {
@@ -80,6 +79,24 @@ if ($work_month_id !== 'all') {
     $params_quantity[] = $work_month_id;
 }
 
+if ($partner_type !== 'all') {
+    $sales_query .= " AND (";
+    $quantity_query .= " AND (";
+    if ($partner_type === 'leader') {
+        $sales_query .= "p.user_id1 = ?";
+        $quantity_query .= "p.user_id1 = ?";
+        $params[] = $current_user_id;
+        $params_quantity[] = $current_user_id;
+    } elseif ($partner_type === 'sub') {
+        $sales_query .= "p.user_id2 = ?";
+        $quantity_query .= "p.user_id2 = ?";
+        $params[] = $current_user_id;
+        $params_quantity[] = $current_user_id;
+    }
+    $sales_query .= ")";
+    $quantity_query .= ")";
+}
+
 if ($partner_id !== 'all') {
     $sales_query .= " AND (";
     $quantity_query .= " AND (";
@@ -114,7 +131,7 @@ try {
     $stmt->execute($params_quantity);
     $total_quantity = $stmt->fetchColumn() ?? 0;
 } catch (Exception $e) {
-    error_log("Error in get_sold_products queries: " . $e->getMessage());
+    error_log("Error in get_sold_products queries: " . $e->getMessage() . " Query: $sales_query, Params: " . print_r($params, true));
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'خطا در پایگاه داده']);
     exit;
@@ -149,7 +166,7 @@ if ($user_role !== 'admin') {
         $stmt_leader->execute($leader_params);
         $total_leader_sales = $stmt_leader->fetchColumn() ?? 0;
     } catch (Exception $e) {
-        error_log("Error in leader sales query: " . $e->getMessage());
+        error_log("Error in leader sales query: " . $e->getMessage() . " Query: $leader_query, Params: " . print_r($leader_params, true));
     }
 }
 
@@ -176,6 +193,18 @@ if ($work_month_id !== 'all') {
     $params_products[] = $work_month_id;
 }
 
+if ($partner_type !== 'all') {
+    $products_query .= " AND (";
+    if ($partner_type === 'leader') {
+        $products_query .= "p.user_id1 = ?";
+        $params_products[] = $current_user_id;
+    } elseif ($partner_type === 'sub') {
+        $products_query .= "p.user_id2 = ?";
+        $params_products[] = $current_user_id;
+    }
+    $products_query .= ")";
+}
+
 if ($partner_id !== 'all') {
     $products_query .= " AND (";
     if ($partner_type === 'leader') {
@@ -199,7 +228,7 @@ try {
     $stmt->execute($params_products);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    error_log("Error fetching products in get_sold_products: " . $e->getMessage());
+    error_log("Error fetching products in get_sold_products: " . $e->getMessage() . " Query: $products_query, Params: " . print_r($params_products, true));
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'خطا در دریافت محصولات']);
     exit;

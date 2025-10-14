@@ -1,7 +1,4 @@
 <?php
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/error.log');
-
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
@@ -12,6 +9,9 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
+
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error.log');
 
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
@@ -93,43 +93,9 @@ if (!empty($selected_work_month_ids)) {
         $sales_params[] = $quantity_params[] = $selected_month;
     }
 
-    // شرط partner_type (حتی اگر partner_id all باشه)
-    if ($selected_partner_type !== 'all') {
-        $sales_query .= " AND (";
-        $quantity_query .= " AND (";
-        if ($selected_partner_type === 'leader') {
-            $sales_query .= "p.user_id1 = ?";
-            $quantity_query .= "p.user_id1 = ?";
-            $sales_params[] = $quantity_params[] = $current_user_id;
-        } elseif ($selected_partner_type === 'sub') {
-            $sales_query .= "p.user_id2 = ?";
-            $quantity_query .= "p.user_id2 = ?";
-            $sales_params[] = $quantity_params[] = $current_user_id;
-        }
-        $sales_query .= ")";
-        $quantity_query .= ")";
-    }
-
-    if ($selected_partner_id !== 'all') {
-        $sales_query .= " AND (";
-        $quantity_query .= " AND (";
-        if ($selected_partner_type === 'leader') {
-            $sales_query .= "p.user_id1 = ?";
-            $quantity_query .= "p.user_id1 = ?";
-            $sales_params[] = $quantity_params[] = $selected_partner_id;
-        } elseif ($selected_partner_type === 'sub') {
-            $sales_query .= "p.user_id2 = ?";
-            $quantity_query .= "p.user_id2 = ?";
-            $sales_params[] = $quantity_params[] = $selected_partner_id;
-        } else {
-            $sales_query .= "p.user_id1 = ? OR p.user_id2 = ?";
-            $quantity_query .= "p.user_id1 = ? OR p.user_id2 = ?";
-            $sales_params[] = $quantity_params[] = $selected_partner_id;
-            $sales_params[] = $quantity_params[] = $selected_partner_id;
-        }
-        $sales_query .= ")";
-        $quantity_query .= ")";
-    }
+    // لاگ برای دیباگ
+    error_log("Sales Query: $sales_query, Params: " . print_r($sales_params, true));
+    error_log("Quantity Query: $quantity_query, Params: " . print_r($quantity_params, true));
 
     $stmt_sales = $pdo->prepare($sales_query);
     $stmt_sales->execute($sales_params);
@@ -193,6 +159,9 @@ if (!empty($selected_work_month_ids)) {
     }
 
     $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
+
+    // لاگ برای دیباگ
+    error_log("Products Query: $query, Params: " . print_r($params, true));
 
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
@@ -379,11 +348,11 @@ $(document).ready(function () {
             data: { year: year },
             success: function (response) {
                 $('#work_month_id').html('<option value="all">همه</option>' + response);
-                // پیش‌فرض به آخرین ماه کاری
                 if ($('#work_month_id option:last').val() !== 'all') {
                     $('#work_month_id').val($('#work_month_id option:last').val());
                 }
                 loadPartners(year, $('#work_month_id').val());
+                loadProducts(); // لود اولیه با آخرین ماه
             },
             error: function () {
                 $('#work_month_id').html('<option value="all">همه</option>');
@@ -474,12 +443,11 @@ $(document).ready(function () {
     if (initial_year) {
         loadMonths(initial_year);
     }
-    loadProducts();
+    // loadProducts(); // حذف شد، چون در loadMonths فراخوانی می‌شه
 
     $('#year').on('change', function () {
         const year = $(this).val();
         loadMonths(year);
-        loadProducts();
     });
 
     $('#work_month_id').on('change', function () {
