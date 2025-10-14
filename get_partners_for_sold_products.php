@@ -2,111 +2,76 @@
 session_start();
 require_once 'db.php';
 require_once 'jdf.php';
+require_once 'persian_year.php';
 
-function gregorian_to_jalali_format($gregorian_date) {
-    $date = date('Y-m-d', strtotime($gregorian_date));
-    list($gy, $gm, $gd) = explode('-', $date);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
-}
+$jalali_year = $_POST['year'] ?? '';
+$work_month_id = $_POST['work_month_id'] ?? 'all';
+$partner_type = $_POST['partner_type'] ?? 'all';
+$current_user_id = $_SESSION['user_id'] ?? null;
 
-$current_user_id = $_SESSION['user_id'] ?? 0;
-$product_name = $_GET['product_name'] ?? '';
-$selected_year = $_GET['year'] ?? null;
-$selected_month = $_GET['work_month_id'] ?? 'all';
-$selected_partner_id = $_GET['partner_id'] ?? 'all';
-$selected_partner_type = $_GET['partner_type'] ?? 'all';
-
-if (empty($product_name)) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'نام محصول مشخص نشده است.']);
+if (!$jalali_year || !$current_user_id || $work_month_id === 'all') {
+    echo '';
     exit;
 }
 
+// پیدا کردن work_month_idهایی که توی سال شمسی انتخاب‌شده هستن
 $selected_work_month_ids = [];
-if ($selected_year) {
-    $stmt = $pdo->query("SELECT work_month_id, start_date FROM Work_Months WHERE YEAR(start_date) = ?");
-    $stmt->execute([substr($selected_year, 0, 4)]); // فرض بر میلادی، تنظیم اگر لازم
-    $selected_work_month_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$stmt = $pdo->query("SELECT work_month_id, start_date FROM Work_Months");
+$all_work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+foreach ($all_work_months as $month) {
+    $jalali_year_from_date = get_persian_year($month['start_date']);
+    if ($jalali_year_from_date == $jalali_year) {
+        $selected_work_month_ids[] = $month['work_month_id'];
+    }
 }
 
-$in_clause = empty($selected_work_month_ids) ? '0' : implode(',', $selected_work_month_ids);
+if (empty($selected_work_month_ids)) {
+    echo '';
+    exit;
+}
+
+// بررسی نقش کاربر
+$stmt = $pdo->prepare("SELECT role FROM Users WHERE user_id = ?");
+$stmt->execute([$current_user_id]);
+$user_role = $stmt->fetchColumn();
 
 $query = "
-    SELECT DISTINCT o.order_id, o.created_at, o.customer_name, oi.quantity
-    FROM Orders o
-    JOIN Order_Items oi ON o.order_id = oi.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE oi.product_name = ? AND wd.work_month_id IN ($in_clause)
+    SELECT DISTINCT u.user_id, u.full_name
+    FROM Users u
+    JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
+    JOIN Work_Details wd ON p.partner_id = wd.partner_id
+    JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+    WHERE wm.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+    AND wd.work_month_id = ?
 ";
-$params = [$product_name];
-if (!empty($selected_work_month_ids)) {
-    $params = array_merge($params, $selected_work_month_ids);
-}
+$params = array_merge($selected_work_month_ids, [$work_month_id]);
 
-if ($current_user_id && $_SESSION['role'] !== 'admin') {
+if ($user_role !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $current_user_id;
     $params[] = $current_user_id;
+    $query .= " AND u.user_id != ?";
+    $params[] = $current_user_id;
 }
 
-if ($selected_month !== 'all') {
-    $query .= " AND wd.work_month_id = ?";
-    $params[] = $selected_month;
+// فیلتر بر اساس نوع همکار
+if ($partner_type === 'leader') {
+    // زیرگروه‌های من (user_id2 = current_user)
+    $query .= " AND p.user_id2 = ?";
+    $params[] = $current_user_id;
+} elseif ($partner_type === 'sub') {
+    // سرگروه‌های من (user_id1 = current_user)
+    $query .= " AND p.user_id1 = ?";
+    $params[] = $current_user_id;
 }
 
-if ($selected_partner_id !== 'all') {
-    $query .= " AND (";
-    if ($selected_partner_type === 'leader') {
-        $query .= "p.user_id1 = ?";
-        $params[] = $selected_partner_id;
-    } elseif ($selected_partner_type === 'sub') {
-        $query .= "p.user_id2 = ?";
-        $params[] = $selected_partner_id;
-    } else {
-        $query .= "p.user_id1 = ? OR p.user_id2 = ?";
-        $params[] = $selected_partner_id;
-        $params[] = $selected_partner_id;
-    }
-    $query .= ")";
-}
-
-$query .= " ORDER BY o.created_at DESC";
+$query .= " ORDER BY u.full_name";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
-$orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-if (empty($orders)) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'سفارشی یافت نشد.']);
-    exit;
+foreach ($partners as $partner) {
+    echo "<option value='{$partner['user_id']}'>" . htmlspecialchars($partner['full_name']) . "</option>";
 }
-
-$html = '<table class="table table-light">
-    <thead>
-        <tr>
-            <th>کد سفارش</th>
-            <th>تاریخ</th>
-            <th>نام مشتری</th>
-            <th>تعداد</th>
-            <th>فاکتور</th>
-        </tr>
-    </thead>
-    <tbody>';
-foreach ($orders as $order) {
-    $date = gregorian_to_jalali_format($order['created_at']);
-    $html .= "<tr>
-        <td>{$order['order_id']}</td>
-        <td>{$date}</td>
-        <td>" . htmlspecialchars($order['customer_name']) . "</td>
-        <td>{$order['quantity']}</td>
-        <td><a href='print_invoice.php?order_id={$order['order_id']}' class='btn btn-primary btn-sm' target='_blank'>مشاهده</a></td>
-    </tr>";
-}
-$html .= '</tbody></table>';
-
-header('Content-Type: application/json');
-echo json_encode(['success' => true, 'html' => $html]);
 ?>
