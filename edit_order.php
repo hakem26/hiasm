@@ -132,6 +132,11 @@ foreach ($invoice_data as $row) {
     }
 }
 $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
+
+// به‌روزرسانی Session برای invoice_prices و postal
+$_SESSION['edit_postal_enabled'] = $postal_enabled;
+$_SESSION['edit_postal_price'] = $postal_price;
+$_SESSION['edit_invoice_prices'] = $invoice_prices; // Session جدا برای edit
 ?>
 
 <style>
@@ -295,7 +300,7 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
                                 <td>-</td>
                                 <td>-</td>
                                 <td>-</td>
-                                <td>-</td>
+                                <td>-</td> <!-- این را به postal_price تغییر دادم برای consistency -->
                                 <td>
                                     <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">
                                         تنظیم قیمت
@@ -375,10 +380,15 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(data)
             });
-            return await response.json();
+            const rawResponse = await response.text();
+            console.log('Raw response:', rawResponse); // debug
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${rawResponse}`);
+            }
+            return JSON.parse(rawResponse);
         } catch (error) {
-            console.error('Error:', error);
-            return { success: false, message: 'خطایی در ارسال درخواست رخ داد.' };
+            console.error('Request Error:', error);
+            return { success: false, message: 'خطایی در ارسال درخواست رخ داد: ' + error.message };
         }
     }
 
@@ -386,15 +396,44 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
         const itemsTable = document.getElementById('items_table');
         const totalAmountDisplay = document.getElementById('total_amount_display');
         const finalAmountDisplay = document.getElementById('final_amount_display');
-        const invoicePrices = <?= json_encode($invoice_prices) ?> || {};
-        const postalEnabled = data.postal_enabled || <?= $postal_enabled ? 'true' : 'false' ?>;
-        const postalPrice = data.postal_price || <?= $postal_price ?>;
 
-        if (!data.items || data.items.length === 0) {
-            itemsTable.innerHTML = '';
-            totalAmountDisplay.textContent = '0 تومان';
-            finalAmountDisplay.textContent = '0 تومان';
+        // همیشه از data استفاده کنید، fallback را حذف کردیم
+        const invoicePrices = data.invoice_prices || {};
+        const postalEnabled = data.postal_enabled ?? false; // default false
+        const postalPrice = data.postal_price || 0;
+        const totalAmount = data.total_amount || 0;
+        const discount = data.discount || 0;
+        let finalAmount = totalAmount - discount;
+        if (postalEnabled) {
+            finalAmount += Number(invoicePrices['postal'] || postalPrice);
+        }
+
+        const items = data.items || [];
+
+        if (items.length === 0) {
+            itemsTable.innerHTML = '<p>هیچ محصولی در سبد خرید وجود ندارد.</p>';
+            totalAmountDisplay.textContent = '۰ تومان';
+            finalAmountDisplay.textContent = '۰ تومان';
             return;
+        }
+
+        // چک کنید اگر postalEnabled تغییر کرده، row را اضافه/حذف کنید
+        let postalRow = '';
+        if (postalEnabled) {
+            postalRow = `
+            <tr class="postal-row">
+                <td>ارسال پستی</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>
+                    <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="postal">تنظیم قیمت</button>
+                    <span class="invoice-price" data-index="postal">${Number(invoicePrices['postal'] ?? postalPrice).toLocaleString('fa')} تومان</span>
+                </td>
+                <td>-</td>
+            </tr>
+        `;
         }
 
         itemsTable.innerHTML = `
@@ -411,7 +450,7 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
                 </tr>
             </thead>
             <tbody>
-                ${data.items.map((item, index) => `
+                ${items.map((item, index) => `
                     <tr id="item_row_${index}">
                         <td>${item.product_name}</td>
                         <td>${item.quantity}</td>
@@ -419,41 +458,25 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
                         <td>${Number(item.extra_sale ?? 0).toLocaleString('fa')} تومان</td>
                         <td>${Number(item.total_price).toLocaleString('fa')} تومان</td>
                         <td>
-                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">
-                                تنظیم قیمت
-                            </button>
+                            <button type="button" class="btn btn-info btn-sm set-invoice-price" data-index="${index}">تنظیم قیمت</button>
                             <span class="invoice-price" data-index="${index}">${Number(invoicePrices[index] ?? item.total_price).toLocaleString('fa')} تومان</span>
                         </td>
                         <td>
-                            <button type="button" class="btn btn-warning btn-sm edit-item" data-index="${index}">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <button type="button" class="btn btn-warning btn-sm edit-item" data-index="${index}"><i class="fas fa-edit"></i></button>
+                            <button type="button" class="btn btn-danger btn-sm delete-item" data-index="${index}"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `).join('')}
-                ${postalEnabled ? `
-                    <tr class="postal-row">
-                        <td>ارسال پستی</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>${Number(postalPrice).toLocaleString('fa')} تومان</td>
-                        <td>-</td>
-                        <td>-</td>
-                    </tr>
-                ` : ''}
+                ${postalRow}
                 <tr class="total-row">
                     <td colspan="4"><strong>جمع کل</strong></td>
-                    <td><strong id="total_amount">${Number(data.total_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td><strong id="total_amount">${Number(totalAmount).toLocaleString('fa')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
                     <td><label for="discount" class="form-label">تخفیف</label></td>
-                    <td><input type="number" class="form-control" id="discount" name="discount" value="${data.discount}" min="0"></td>
-                    <td><strong id="final_amount">${Number(data.final_amount).toLocaleString('fa')} تومان</strong></td>
+                    <td><input type="number" class="form-control" id="discount" name="discount" value="${discount}" min="0"></td>
+                    <td><strong id="final_amount">${Number(finalAmount).toLocaleString('fa')} تومان</strong></td>
                     <td colspan="2"></td>
                 </tr>
                 <tr class="total-row">
@@ -465,8 +488,8 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
         </table>
     `;
 
-        totalAmountDisplay.textContent = Number(data.total_amount).toLocaleString('fa') + ' تومان';
-        finalAmountDisplay.textContent = Number(data.final_amount).toLocaleString('fa') + ' تومان';
+        totalAmountDisplay.textContent = Number(totalAmount).toLocaleString('fa') + ' تومان';
+        finalAmountDisplay.textContent = Number(finalAmount).toLocaleString('fa') + ' تومان';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -745,12 +768,14 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
                     order_id: '<?= $order_id ?>',
                     enable_postal: enablePostal
                 };
-
                 const response = await sendRequest('ajax_handler.php', data);
                 if (response.success) {
+                    // force re-render با data جدید
+                    response.data.postal_enabled = enablePostal; // مطمئن شوید
                     renderItemsTable(response.data);
                 } else {
                     alert(response.message);
+                    e.target.checked = !enablePostal; // برگردان
                 }
             }
         });
@@ -777,11 +802,16 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
         });
 
         document.getElementById('save_changes_btn').addEventListener('click', async () => {
-            const customer_name = document.getElementById('customer_name').value;
-            const discount = document.getElementById('discount')?.value || 0;
+            const customer_name = document.getElementById('customer_name').value.trim();
+            const discount = Number(document.getElementById('discount')?.value) || 0;
+            const items = <?= json_encode(array_keys($_SESSION['edit_order_items'])) ?>; // چک items
 
             if (!customer_name) {
                 alert('لطفاً نام مشتری را وارد کنید.');
+                return;
+            }
+            if (items.length === 0) {
+                alert('حداقل یک محصول اضافه کنید.');
                 return;
             }
 
@@ -793,12 +823,16 @@ $_SESSION['invoice_prices'] = $invoice_prices; // ذخیره در سشن
                 partner1_id: '<?= $partner1_id ?>'
             };
 
+            console.log('Saving data:', data); // debug
+
             const response = await sendRequest('ajax_handler.php', data);
+            console.log('Save response:', response); // debug
+
             if (response.success) {
                 alert(response.message);
                 window.location.href = response.data.redirect;
             } else {
-                alert(response.message);
+                alert(response.message || 'خطایی در ذخیره رخ داد.');
             }
         });
 

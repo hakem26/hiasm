@@ -305,16 +305,33 @@ switch ($action) {
         $_SESSION['edit_order_items'][] = $new_item;
 
         $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
-        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-        $stmt_postal->execute([$order_id]);
-        $postal_price = $stmt_postal->fetchColumn() ?: 0;
-        $final_amount = $total_amount - $discount + $postal_price;
+
+        // بارگذاری اطلاعات پستی و قیمت‌های فاکتور از DB برای response کامل
+        $stmt_postal_count = $pdo->prepare("SELECT COUNT(*) FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_count->execute([$order_id]);
+        $postal_enabled = $stmt_postal_count->fetchColumn() > 0;
+
+        $stmt_postal_price = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_price->execute([$order_id]);
+        $postal_price = $stmt_postal_price->fetchColumn() ?: 0;
+
+        $stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = FALSE");
+        $stmt_invoice->execute([$order_id]);
+        $invoice_prices = [];
+        while ($row = $stmt_invoice->fetch(PDO::FETCH_ASSOC)) {
+            $invoice_prices[$row['item_index']] = (float) $row['invoice_price'];
+        }
+
+        $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
 
         respond(true, 'محصول با موفقیت اضافه شد.', [
             'items' => $_SESSION['edit_order_items'],
             'total_amount' => $total_amount,
             'discount' => $discount,
-            'final_amount' => $final_amount
+            'final_amount' => $final_amount,
+            'postal_enabled' => $postal_enabled,
+            'postal_price' => $postal_price,
+            'invoice_prices' => $invoice_prices
         ]);
         break;
 
@@ -357,16 +374,33 @@ switch ($action) {
         ];
 
         $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
-        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-        $stmt_postal->execute([$order_id]);
-        $postal_price = $stmt_postal->fetchColumn() ?: 0;
-        $final_amount = $total_amount - $discount + $postal_price;
+
+        // بارگذاری اطلاعات پستی و قیمت‌های فاکتور از DB برای response کامل
+        $stmt_postal_count = $pdo->prepare("SELECT COUNT(*) FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_count->execute([$order_id]);
+        $postal_enabled = $stmt_postal_count->fetchColumn() > 0;
+
+        $stmt_postal_price = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_price->execute([$order_id]);
+        $postal_price = $stmt_postal_price->fetchColumn() ?: 0;
+
+        $stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = FALSE");
+        $stmt_invoice->execute([$order_id]);
+        $invoice_prices = [];
+        while ($row = $stmt_invoice->fetch(PDO::FETCH_ASSOC)) {
+            $invoice_prices[$row['item_index']] = (float) $row['invoice_price'];
+        }
+
+        $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
 
         respond(true, 'محصول با موفقیت ویرایش شد.', [
             'items' => $_SESSION['edit_order_items'],
             'total_amount' => $total_amount,
             'discount' => $discount,
-            'final_amount' => $final_amount
+            'final_amount' => $final_amount,
+            'postal_enabled' => $postal_enabled,
+            'postal_price' => $postal_price,
+            'invoice_prices' => $invoice_prices
         ]);
         break;
 
@@ -391,16 +425,33 @@ switch ($action) {
 
         $total_amount = array_sum(array_column($_SESSION['edit_order_items'], 'total_price'));
         $discount = $_SESSION['edit_order_discount'] ?? 0;
-        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-        $stmt_postal->execute([$order_id]);
-        $postal_price = $stmt_postal->fetchColumn() ?: 0;
-        $final_amount = $total_amount - $discount + $postal_price;
+
+        // بارگذاری اطلاعات پستی و قیمت‌های فاکتور از DB برای response کامل
+        $stmt_postal_count = $pdo->prepare("SELECT COUNT(*) FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_count->execute([$order_id]);
+        $postal_enabled = $stmt_postal_count->fetchColumn() > 0;
+
+        $stmt_postal_price = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_price->execute([$order_id]);
+        $postal_price = $stmt_postal_price->fetchColumn() ?: 0;
+
+        $stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = FALSE");
+        $stmt_invoice->execute([$order_id]);
+        $invoice_prices = [];
+        while ($row = $stmt_invoice->fetch(PDO::FETCH_ASSOC)) {
+            $invoice_prices[$row['item_index']] = (float) $row['invoice_price'];
+        }
+
+        $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
 
         respond(true, 'محصول با موفقیت حذف شد.', [
             'items' => $_SESSION['edit_order_items'],
             'total_amount' => $total_amount,
             'discount' => $discount,
-            'final_amount' => $final_amount
+            'final_amount' => $final_amount,
+            'postal_enabled' => $postal_enabled,
+            'postal_price' => $postal_price,
+            'invoice_prices' => $invoice_prices
         ]);
         break;
 
@@ -415,16 +466,33 @@ switch ($action) {
         $_SESSION['edit_order_discount'] = $discount;
         $items = $_SESSION['edit_order_items'] ?? [];
         $total_amount = array_sum(array_column($items, 'total_price'));
-        $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
-        $stmt_postal->execute([$order_id]);
-        $postal_price = $stmt_postal->fetchColumn() ?: 0;
-        $final_amount = $total_amount - $discount + $postal_price;
+
+        // بارگذاری اطلاعات پستی و قیمت‌های فاکتور از DB برای response کامل
+        $stmt_postal_count = $pdo->prepare("SELECT COUNT(*) FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_count->execute([$order_id]);
+        $postal_enabled = $stmt_postal_count->fetchColumn() > 0;
+
+        $stmt_postal_price = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_price->execute([$order_id]);
+        $postal_price = $stmt_postal_price->fetchColumn() ?: 0;
+
+        $stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = FALSE");
+        $stmt_invoice->execute([$order_id]);
+        $invoice_prices = [];
+        while ($row = $stmt_invoice->fetch(PDO::FETCH_ASSOC)) {
+            $invoice_prices[$row['item_index']] = (float) $row['invoice_price'];
+        }
+
+        $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
 
         respond(true, 'تخفیف با موفقیت به‌روزرسانی شد.', [
             'items' => $items,
             'total_amount' => $total_amount,
             'discount' => $discount,
-            'final_amount' => $final_amount
+            'final_amount' => $final_amount,
+            'postal_enabled' => $postal_enabled,
+            'postal_price' => $postal_price,
+            'invoice_prices' => $invoice_prices
         ]);
         break;
 
@@ -502,9 +570,13 @@ switch ($action) {
     case 'set_postal_option':
         $order_id = $_POST['order_id'] ?? '';
         $enable_postal = filter_var($_POST['enable_postal'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $postal_price = $_SESSION['postal_price'] ?? 50000;
 
         if ($order_id) { // برای edit_order.php
+            $postal_price = 50000; // پیش‌فرض اگر از DB نباشد
+            $stmt_postal = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+            $stmt_postal->execute([$order_id]);
+            $postal_price = $stmt_postal->fetchColumn() ?: $postal_price;
+
             if ($enable_postal) {
                 $stmt = $pdo->prepare("
                         INSERT INTO Invoice_Prices (order_id, item_index, invoice_price, is_postal, postal_price)
@@ -517,12 +589,23 @@ switch ($action) {
                 $stmt = $pdo->prepare("DELETE FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
                 $stmt->execute([$order_id]);
                 unset($_SESSION['invoice_prices']['postal']);
-                $_SESSION['postal_price'] = 0;
             }
             $items = $_SESSION['edit_order_items'] ?? [];
             $total_amount = array_sum(array_column($items, 'total_price'));
             $discount = $_SESSION['edit_order_discount'] ?? 0;
+
+            // بارگذاری invoice_prices از DB
+            $stmt_invoice = $pdo->prepare("SELECT item_index, invoice_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = FALSE");
+            $stmt_invoice->execute([$order_id]);
+            $invoice_prices = [];
+            while ($row = $stmt_invoice->fetch(PDO::FETCH_ASSOC)) {
+                $invoice_prices[$row['item_index']] = (float) $row['invoice_price'];
+            }
+            if ($enable_postal) {
+                $invoice_prices['postal'] = $postal_price;
+            }
         } else { // برای add_order.php
+            $postal_price = $_SESSION['postal_price'] ?? 50000;
             $_SESSION['postal_enabled'] = $enable_postal;
             if ($enable_postal) {
                 $_SESSION['postal_price'] = $postal_price;
@@ -534,6 +617,7 @@ switch ($action) {
             $items = $_SESSION['order_items'] ?? [];
             $total_amount = array_sum(array_column($items, 'total_price'));
             $discount = $_SESSION['discount'] ?? 0;
+            $invoice_prices = $_SESSION['invoice_prices'] ?? [];
         }
 
         $final_amount = $total_amount - $discount + ($enable_postal ? $postal_price : 0);
@@ -544,7 +628,8 @@ switch ($action) {
             'discount' => $discount,
             'final_amount' => $final_amount,
             'postal_enabled' => $enable_postal,
-            'postal_price' => $enable_postal ? $postal_price : 0
+            'postal_price' => $enable_postal ? $postal_price : 0,
+            'invoice_prices' => $invoice_prices
         ]);
         break;
 
@@ -553,7 +638,6 @@ switch ($action) {
         $customer_name = $_POST['customer_name'] ?? '';
         $discount = (float) ($_POST['discount'] ?? 0);
         $partner1_id = $_POST['partner1_id'] ?? '';
-        $postal_enabled = isset($_POST['postal_option']) && $_POST['postal_option'] === 'on';
 
         if (!$order_id || !$customer_name || !$partner1_id) {
             respond(false, 'لطفاً تمام فیلدها را پر کنید.');
@@ -565,8 +649,17 @@ switch ($action) {
         }
 
         $total_amount = array_sum(array_column($new_items, 'total_price'));
-        $postal_price = $postal_enabled && isset($_SESSION['invoice_prices']['postal']) ? (float) $_SESSION['invoice_prices']['postal'] : 0;
-        $final_amount = $total_amount - $discount + $postal_price;
+
+        // بارگذاری اطلاعات پستی از DB (به جای POST که وجود ندارد)
+        $stmt_postal_count = $pdo->prepare("SELECT COUNT(*) FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_count->execute([$order_id]);
+        $postal_enabled = $stmt_postal_count->fetchColumn() > 0;
+
+        $stmt_postal_price = $pdo->prepare("SELECT postal_price FROM Invoice_Prices WHERE order_id = ? AND is_postal = TRUE");
+        $stmt_postal_price->execute([$order_id]);
+        $postal_price = $stmt_postal_price->fetchColumn() ?: 0;
+
+        $final_amount = $total_amount - $discount + ($postal_enabled ? $postal_price : 0);
 
         $pdo->beginTransaction();
         try {
