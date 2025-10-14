@@ -729,10 +729,7 @@ switch ($action) {
                     $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
                     $new_quantity = $current_quantity + $quantity_diff;
 
-                    if ($new_quantity < 0) {
-                        throw new Exception("موجودی کافی برای محصول '{$old_item['product_name']}' نیست. موجودی: " . $current_quantity);
-                    }
-
+                    // حذف چک منفی برای اجازه موجودی منفی
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                                    ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
@@ -746,11 +743,9 @@ switch ($action) {
                     $inventory = $stmt_inventory->fetch(PDO::FETCH_ASSOC);
 
                     $current_quantity = $inventory ? (int) $inventory['quantity'] : 0;
-                    if ($current_quantity < $new_item['quantity']) {
-                        throw new Exception("موجودی کافی برای محصول '{$new_item['product_name']}' نیست. موجودی: " . $current_quantity . "، درخواست: " . $new_item['quantity']);
-                    }
-
                     $new_quantity = $current_quantity - $new_item['quantity'];
+
+                    // حذف چک موجودی برای اجازه منفی
                     $stmt_update = $pdo->prepare("INSERT INTO Inventory (user_id, product_id, quantity) VALUES (?, ?, ?) 
                                                    ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)");
                     $stmt_update->execute([$partner1_id, $product_id, $new_quantity]);
