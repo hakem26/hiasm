@@ -10,16 +10,28 @@ require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
 
-function gregorian_to_jalali_format($gregorian_date) {
+function gregorian_to_jalali_format($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
-function get_jalali_month_name($month) {
+function get_jalali_month_name($month)
+{
     $month_names = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد', 4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر', 10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+        1 => 'فروردین',
+        2 => 'اردیبهشت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -331,7 +343,8 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                             <td><?= $product['total_quantity'] ?></td>
                             <td><?= number_format($product['total_price'], 0) ?> تومان</td>
                             <td>
-                                <button type="button" class="btn btn-info btn-sm view-orders" data-product="<?= htmlspecialchars($product['product_name']) ?>">
+                                <button type="button" class="btn btn-info btn-sm view-orders"
+                                    data-product="<?= htmlspecialchars($product['product_name']) ?>">
                                     مشاهده سفارشات
                                 </button>
                             </td>
@@ -363,136 +376,136 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-$(document).ready(function () {
-    function loadMonths(year) {
-        if (!year) {
-            $('#work_month_id').html('<option value="all">همه</option>');
-            $('#partner_id').html('<option value="all">همه</option>');
-            return;
-        }
-        $.ajax({
-            url: 'get_months_for_sold_products.php',
-            type: 'POST',
-            data: { year: year },
-            success: function (response) {
-                $('#work_month_id').html('<option value="all">همه</option>' + response);
-                loadPartners(year, $('#work_month_id').val());
-            },
-            error: function () {
+    $(document).ready(function () {
+        function loadMonths(year) {
+            if (!year) {
                 $('#work_month_id').html('<option value="all">همه</option>');
                 $('#partner_id').html('<option value="all">همه</option>');
+                return;
             }
-        });
-    }
-
-    function loadPartners(year, work_month_id) {
-        const partner_type = $('#partner_type').val();
-        if (!year || work_month_id === 'all') {
-            $('#partner_id').html('<option value="all">همه</option>');
-            return;
+            $.ajax({
+                url: 'get_months_for_sold_products.php',
+                type: 'POST',
+                data: { year: year },
+                success: function (response) {
+                    $('#work_month_id').html('<option value="all">همه</option>' + response);
+                    loadPartners(year, $('#work_month_id').val());
+                },
+                error: function () {
+                    $('#work_month_id').html('<option value="all">همه</option>');
+                    $('#partner_id').html('<option value="all">همه</option>');
+                }
+            });
         }
-        $.ajax({
-            url: 'get_partners_for_sold_products.php',
-            type: 'POST',
-            data: { year: year, work_month_id: work_month_id, partner_type: partner_type },
-            success: function (response) {
-                $('#partner_id').html('<option value="all">همه</option>' + response);
-            },
-            error: function () {
+
+        function loadPartners(year, work_month_id) {
+            const partner_type = $('#partner_type').val();
+            if (!year || work_month_id === 'all') {
                 $('#partner_id').html('<option value="all">همه</option>');
+                return;
             }
-        });
-    }
-
-    function loadProducts() {
-        const year = $('#year').val();
-        const work_month_id = $('#work_month_id').val();
-        const partner_id = $( '#partner_id').val();
-        const partner_type = $('#partner_type').val();
-
-        $.ajax({
-            url: 'get_sold_products.php',
-            type: 'GET',
-            data: { year: year, work_month_id: work_month_id, partner_id: partner_id, partner_type: partner_type },
-            dataType: 'json',
-            success: function (response) {
-                if (response.success) {
-                    $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
-                    let salesHtml = new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان';
-                    $('#total-sales').html(salesHtml);
-                    $('#products-table').html(response.html);
-                } else {
-                    $('#products-table').html('<div class="alert alert-danger text-center">خطا: ' + response.message + '</div>');
+            $.ajax({
+                url: 'get_partners_for_sold_products.php',
+                type: 'POST',
+                data: { year: year, work_month_id: work_month_id, partner_type: partner_type },
+                success: function (response) {
+                    $('#partner_id').html('<option value="all">همه</option>' + response);
+                },
+                error: function () {
+                    $('#partner_id').html('<option value="all">همه</option>');
                 }
-            },
-            error: function () {
-                $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد.</div>');
-            }
-        });
-    }
-
-    // Event برای مشاهده سفارشات
-    $(document).on('click', '.view-orders', function () {
-        const productName = $(this).data('product');
-        const year = $('#year').val();
-        const work_month_id = $('#work_month_id').val();
-        const partner_id = $('#partner_id').val();
-        const partner_type = $('#partner_type').val();
-
-        if (!productName) {
-            alert('نام محصول مشخص نیست.');
-            return;
+            });
         }
 
-        $('#ordersModalLabel').text('سفارشات مربوط به محصول ' + productName + ':');
-        $.ajax({
-            url: 'get_orders_for_product.php',
-            type: 'GET',
-            data: { product_name: productName, year: year, work_month_id: work_month_id, partner_id: partner_id, partner_type: partner_type },
-            success: function (response) {
-                if (response.success) {
-                    $('#ordersTableContainer').html(response.html);
-                } else {
-                    $('#ordersTableContainer').html('<div class="alert alert-danger">خطا: ' + response.message + '</div>');
+        function loadProducts() {
+            const year = $('#year').val();
+            const work_month_id = $('#work_month_id').val();
+            const partner_id = $('#partner_id').val();
+            const partner_type = $('#partner_type').val();
+
+            $.ajax({
+                url: 'get_sold_products.php',
+                type: 'GET',
+                data: { year: year, work_month_id: work_month_id, partner_id: partner_id, partner_type: partner_type },
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
+                        let salesHtml = new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان';
+                        $('#total-sales').html(salesHtml);
+                        $('#products-table').html(response.html);
+                    } else {
+                        $('#products-table').html('<div class="alert alert-danger text-center">خطا: ' + response.message + '</div>');
+                    }
+                },
+                error: function () {
+                    $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد.</div>');
                 }
-            },
-            error: function () {
-                $('#ordersTableContainer').html('<div class="alert alert-danger">خطایی در بارگذاری سفارشات رخ داد.</div>');
+            });
+        }
+
+        // Event برای مشاهده سفارشات
+        $(document).on('click', '.view-orders', function () {
+            const productName = $(this).data('product');
+            const year = $('#year').val();
+            const work_month_id = $('#work_month_id').val();
+            const partner_id = $('#partner_id').val();
+            const partner_type = $('#partner_type').val();
+
+            if (!productName) {
+                alert('نام محصول مشخص نیست.');
+                return;
             }
+
+            $('#ordersModalLabel').text('سفارشات مربوط به محصول ' + productName + ':');
+            $.ajax({
+                url: 'get_orders_for_product.php',
+                type: 'GET',
+                data: { product_name: productName, year: year, work_month_id: work_month_id, partner_id: partner_id, partner_type: partner_type },
+                success: function (response) {
+                    if (response.success) {
+                        $('#ordersTableContainer').html(response.html);
+                    } else {
+                        $('#ordersTableContainer').html('<div class="alert alert-danger">خطا: ' + response.message + '</div>');
+                    }
+                },
+                error: function () {
+                    $('#ordersTableContainer').html('<div class="alert alert-danger">خطایی در بارگذاری سفارشات رخ داد.</div>');
+                }
+            });
+            $('#ordersModal').modal('show');
         });
-        $('#ordersModal').modal('show');
-    });
 
-    const initial_year = $('#year').val();
-    if (initial_year) {
-        loadMonths(initial_year);
-    }
-    loadProducts();
-
-    $('#year').on('change', function () {
-        const year = $(this).val();
-        loadMonths(year);
+        const initial_year = $('#year').val();
+        if (initial_year) {
+            loadMonths(initial_year);
+        }
         loadProducts();
-    });
 
-    $('#work_month_id').on('change', function () {
-        const year = $('#year').val();
-        const work_month_id = $(this).val();
-        loadPartners(year, work_month_id);
-        loadProducts();
-    });
+        $('#year').on('change', function () {
+            const year = $(this).val();
+            loadMonths(year);
+            loadProducts();
+        });
 
-    $('#partner_type').on('change', function () {
-        const year = $('#year').val();
-        const work_month_id = $('#work_month_id').val();
-        loadPartners(year, work_month_id);
-        loadProducts();
-    });
+        $('#work_month_id').on('change', function () {
+            const year = $('#year').val();
+            const work_month_id = $(this).val();
+            loadPartners(year, work_month_id);
+            loadProducts();
+        });
 
-    $('#partner_id').on('change', function () {
-        loadProducts();
+        $('#partner_type').on('change', function () {
+            const year = $('#year').val();
+            const work_month_id = $('#work_month_id').val();
+            loadPartners(year, work_month_id);
+            loadProducts();
+        });
+
+        $('#partner_id').on('change', function () {
+            loadProducts();
+        });
     });
-});
 </script>
 
 <?php require_once 'footer.php'; ?>
