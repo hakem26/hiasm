@@ -1,4 +1,7 @@
 <?php
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error.log');
+
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");

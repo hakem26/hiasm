@@ -1,4 +1,7 @@
 <?php
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error.log');
+
 session_start();
 require_once 'db.php';
 require_once 'jdf.php';
