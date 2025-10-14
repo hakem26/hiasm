@@ -4,7 +4,8 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 function gregorian_to_jalali_format($gregorian_date) {
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    $date = date('Y-m-d', strtotime($gregorian_date));
+    list($gy, $gm, $gd) = explode('-', $date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
@@ -17,16 +18,19 @@ $selected_partner_id = $_GET['partner_id'] ?? 'all';
 $selected_partner_type = $_GET['partner_type'] ?? 'all';
 
 if (empty($product_name)) {
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'نام محصول مشخص نشده است.']);
     exit;
 }
 
 $selected_work_month_ids = [];
 if ($selected_year) {
-    $stmt = $pdo->query("SELECT work_month_id FROM Work_Months WHERE YEAR(start_date) = ?");
-    $stmt->execute([$selected_year]);
+    $stmt = $pdo->query("SELECT work_month_id, start_date FROM Work_Months WHERE YEAR(start_date) = ?");
+    $stmt->execute([substr($selected_year, 0, 4)]); // فرض بر میلادی، تنظیم اگر لازم
     $selected_work_month_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
+
+$in_clause = empty($selected_work_month_ids) ? '0' : implode(',', $selected_work_month_ids);
 
 $query = "
     SELECT DISTINCT o.order_id, o.created_at, o.customer_name, oi.quantity
@@ -34,7 +38,7 @@ $query = "
     JOIN Order_Items oi ON o.order_id = oi.order_id
     JOIN Work_Details wd ON o.work_details_id = wd.id
     JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE oi.product_name = ? AND wd.work_month_id IN (" . (empty($selected_work_month_ids) ? '0' : implode(',', array_fill(0, count($selected_work_month_ids), '?'))) . ")
+    WHERE oi.product_name = ? AND wd.work_month_id IN ($in_clause)
 ";
 $params = [$product_name];
 if (!empty($selected_work_month_ids)) {
@@ -75,6 +79,7 @@ $stmt->execute($params);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (empty($orders)) {
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'سفارشی یافت نشد.']);
     exit;
 }
@@ -102,5 +107,6 @@ foreach ($orders as $order) {
 }
 $html .= '</tbody></table>';
 
+header('Content-Type: application/json');
 echo json_encode(['success' => true, 'html' => $html]);
 ?>

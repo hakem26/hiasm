@@ -43,7 +43,7 @@ rsort($years);
 $selected_year = $_GET['year'] ?? ($years[0] ?? null);
 $selected_month = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['partner_id'] ?? 'all';
-$selected_partner_type = $_GET['partner_type'] ?? 'all'; // فیلتر جدید: همه، سرگروه، زیرگروه
+$selected_partner_type = $_GET['partner_type'] ?? 'all';
 
 $selected_work_month_ids = [];
 if ($selected_year) {
@@ -58,10 +58,9 @@ if ($selected_year) {
 }
 
 $total_sales = 0;
-$total_leader_sales = 0; // جدید: فروش سرگروه
+$total_leader_sales = 0;
 $total_quantity = 0;
 if (!empty($selected_work_month_ids)) {
-    // query اصلی برای total_sales و total_quantity
     $sales_query = "
         SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales
         FROM Orders o
@@ -119,8 +118,8 @@ if (!empty($selected_work_month_ids)) {
     $stmt_quantity->execute($quantity_params);
     $total_quantity = $stmt_quantity->fetchColumn() ?? 0;
 
-    // محاسبه total_leader_sales (فقط اگر کاربر سرگروه باشه)
-    if ($user_role !== 'admin') {
+    // محاسبه total_leader_sales فقط اگر partner_type 'all' باشه و کاربر سرگروه باشه
+    if ($selected_partner_type === 'all' && $user_role !== 'admin') {
         $leader_query = "
             SELECT COALESCE(SUM(o.total_amount), 0) AS total_leader_sales
             FROM Orders o
@@ -134,11 +133,6 @@ if (!empty($selected_work_month_ids)) {
         if ($selected_month !== 'all') {
             $leader_query .= " AND wd.work_month_id = ?";
             $leader_params[] = $selected_month;
-        }
-
-        if ($selected_partner_id !== 'all') {
-            $leader_query .= " AND p.user_id2 = ?";
-            $leader_params[] = $selected_partner_id;
         }
 
         $stmt_leader = $pdo->prepare($leader_query);
@@ -279,6 +273,14 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                 </select>
             </div>
             <div class="col-md-3">
+                <label for="partner_type" class="form-label">نوع همکار</label>
+                <select name="partner_type" id="partner_type" class="form-select">
+                    <option value="all" <?= $selected_partner_type === 'all' ? 'selected' : '' ?>>همه</option>
+                    <option value="leader" <?= $selected_partner_type === 'leader' ? 'selected' : '' ?>>سرگروه</option>
+                    <option value="sub" <?= $selected_partner_type === 'sub' ? 'selected' : '' ?>>زیرگروه</option>
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label for="partner_id" class="form-label">نام همکار</label>
                 <select name="partner_id" id="partner_id" class="form-select">
                     <option value="all" <?= $selected_partner_id === 'all' ? 'selected' : '' ?>>همه</option>
@@ -287,14 +289,6 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                             <?= htmlspecialchars($partner['full_name']) ?>
                         </option>
                     <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="partner_type" class="form-label">نوع همکار</label>
-                <select name="partner_type" id="partner_type" class="form-select">
-                    <option value="all" <?= $selected_partner_type === 'all' ? 'selected' : '' ?>>همه</option>
-                    <option value="leader" <?= $selected_partner_type === 'leader' ? 'selected' : '' ?>>سرگروه</option>
-                    <option value="sub" <?= $selected_partner_type === 'sub' ? 'selected' : '' ?>>زیرگروه</option>
                 </select>
             </div>
         </div>
@@ -309,7 +303,7 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                     <th>قیمت واحد</th>
                     <th>تعداد</th>
                     <th>قیمت کل</th>
-                    <th>سفارشات</th> <!-- ستون جدید -->
+                    <th>سفارشات</th>
                 </tr>
             </thead>
             <tbody>
@@ -372,7 +366,7 @@ $(document).ready(function () {
             data: { year: year },
             success: function (response) {
                 $('#work_month_id').html('<option value="all">همه</option>' + response);
-                $('#partner_id').html('<option value="all">همه</option>');
+                loadPartners(year, $('#work_month_id').val());
             },
             error: function () {
                 $('#work_month_id').html('<option value="all">همه</option>');
@@ -382,6 +376,7 @@ $(document).ready(function () {
     }
 
     function loadPartners(year, work_month_id) {
+        const partner_type = $('#partner_type').val();
         if (!year || work_month_id === 'all') {
             $('#partner_id').html('<option value="all">همه</option>');
             return;
@@ -389,7 +384,7 @@ $(document).ready(function () {
         $.ajax({
             url: 'get_partners_for_sold_products.php',
             type: 'POST',
-            data: { year: year, work_month_id: work_month_id },
+            data: { year: year, work_month_id: work_month_id, partner_type: partner_type },
             success: function (response) {
                 $('#partner_id').html('<option value="all">همه</option>' + response);
             },
@@ -413,8 +408,12 @@ $(document).ready(function () {
             success: function (response) {
                 if (response.success) {
                     $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
-                    $('#total-sales').html(new Intl.NumberFormat('fa-IR').format(response.total_sales) + (response.total_leader_sales > 0 ? ' (' + new Intl.NumberFormat('fa-IR').format(response.total_leader_sales) + ' تومان سرگروه)' : ''));
-                    $('#products-table tbody').html(response.html);
+                    let salesHtml = new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان';
+                    if (response.total_leader_sales > 0) {
+                        salesHtml += ' (' + new Intl.NumberFormat('fa-IR').format(response.total_leader_sales) + ' تومان سرگروه)';
+                    }
+                    $('#total-sales').html(salesHtml);
+                    $('#products-table').html(response.html);
                 } else {
                     $('#products-table tbody').html('<tr><td colspan="6" class="text-center">خطا: ' + response.message + '</td></tr>');
                 }
@@ -432,6 +431,11 @@ $(document).ready(function () {
         const work_month_id = $('#work_month_id').val();
         const partner_id = $('#partner_id').val();
         const partner_type = $('#partner_type').val();
+
+        if (!productName) {
+            alert('نام محصول مشخص نیست.');
+            return;
+        }
 
         $('#ordersModalLabel').text('سفارشات مربوط به محصول ' + productName + ':');
         $.ajax({
@@ -455,7 +459,6 @@ $(document).ready(function () {
     const initial_year = $('#year').val();
     if (initial_year) {
         loadMonths(initial_year);
-        loadPartners(initial_year, $('#work_month_id').val());
     }
     loadProducts();
 
@@ -472,7 +475,14 @@ $(document).ready(function () {
         loadProducts();
     });
 
-    $('#partner_id, #partner_type').on('change', function () {
+    $('#partner_type').on('change', function () {
+        const year = $('#year').val();
+        const work_month_id = $('#work_month_id').val();
+        loadPartners(year, work_month_id);
+        loadProducts();
+    });
+
+    $('#partner_id').on('change', function () {
         loadProducts();
     });
 });

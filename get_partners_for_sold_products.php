@@ -6,6 +6,7 @@ require_once 'persian_year.php';
 
 $jalali_year = $_POST['year'] ?? '';
 $work_month_id = $_POST['work_month_id'] ?? 'all';
+$partner_type = $_POST['partner_type'] ?? 'all';
 $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$jalali_year || !$current_user_id || $work_month_id === 'all') {
@@ -23,9 +24,6 @@ foreach ($all_work_months as $month) {
         $selected_work_month_ids[] = $month['work_month_id'];
     }
 }
-
-// لاگ برای دیباگ
-error_log("Selected work_month_ids in get_partners: " . print_r($selected_work_month_ids, true));
 
 if (empty($selected_work_month_ids)) {
     echo '';
@@ -56,14 +54,22 @@ if ($user_role !== 'admin') {
     $params[] = $current_user_id;
 }
 
+// فیلتر بر اساس نوع همکار
+if ($partner_type === 'leader') {
+    // زیرگروه‌های من (user_id2 = current_user)
+    $query .= " AND p.user_id2 = ?";
+    $params[] = $current_user_id;
+} elseif ($partner_type === 'sub') {
+    // سرگروه‌های من (user_id1 = current_user)
+    $query .= " AND p.user_id1 = ?";
+    $params[] = $current_user_id;
+}
+
 $query .= " ORDER BY u.full_name";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// لاگ برای دیباگ
-error_log("Partners query result: " . print_r($partners, true));
 
 foreach ($partners as $partner) {
     echo "<option value='{$partner['user_id']}'>" . htmlspecialchars($partner['full_name']) . "</option>";
