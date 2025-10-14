@@ -192,8 +192,8 @@ if (!empty($selected_work_month_ids)) {
 }
 
 // پیش‌فرض selected_month به آخرین ماه کاری
-if ($selected_month === 'all') {
-    $selected_month = end($work_months)['work_month_id'] ?? 'all';
+if ($selected_month === 'all' && !empty($work_months)) {
+    $selected_month = $work_months[0]['work_month_id']; // آخرین ماه
 }
 
 $partners = [];
@@ -348,11 +348,12 @@ $(document).ready(function () {
             data: { year: year },
             success: function (response) {
                 $('#work_month_id').html('<option value="all">همه</option>' + response);
+                // تنظیم به آخرین ماه به‌جای 'all'
                 if ($('#work_month_id option:last').val() !== 'all') {
                     $('#work_month_id').val($('#work_month_id option:last').val());
                 }
                 loadPartners(year, $('#work_month_id').val());
-                loadProducts(); // لود اولیه با آخرین ماه
+                loadProducts(); // لود با آخرین ماه
             },
             error: function () {
                 $('#work_month_id').html('<option value="all">همه</option>');
@@ -363,7 +364,7 @@ $(document).ready(function () {
 
     function loadPartners(year, work_month_id) {
         const partner_type = $('#partner_type').val();
-        if (!year || work_month_id === 'all') {
+        if (!year || !work_month_id) {
             $('#partner_id').html('<option value="all">همه</option>');
             return;
         }
@@ -443,7 +444,6 @@ $(document).ready(function () {
     if (initial_year) {
         loadMonths(initial_year);
     }
-    // loadProducts(); // حذف شد، چون در loadMonths فراخوانی می‌شه
 
     $('#year').on('change', function () {
         const year = $(this).val();

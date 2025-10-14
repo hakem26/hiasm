@@ -203,6 +203,7 @@ if ($partner_type !== 'all') {
         $params_products[] = $current_user_id;
     }
     $products_query .= ")";
+    error_log("Partner Type Applied: $partner_type");
 }
 
 if ($partner_id !== 'all') {
@@ -227,6 +228,7 @@ try {
     $stmt = $pdo->prepare($products_query);
     $stmt->execute($params_products);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    error_log("Products fetched: " . print_r($products, true));
 } catch (Exception $e) {
     error_log("Error fetching products in get_sold_products: " . $e->getMessage() . " Query: $products_query, Params: " . print_r($params_products, true));
     header('Content-Type: application/json');
