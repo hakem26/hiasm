@@ -243,9 +243,6 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
     <div class="summary-text">
         <p>تعداد کل: <span id="total-quantity"><?= number_format($total_quantity, 0) ?></span> عدد</p>
         <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان
-            <?php if ($total_leader_sales > 0): ?>
-                (<?= number_format($total_leader_sales, 0) ?> تومان سرگروه)
-            <?php endif; ?>
         </p>
     </div>
 

@@ -2,6 +2,7 @@
 session_start();
 require_once 'db.php';
 require_once 'jdf.php';
+require_once 'persian_year.php';
 
 function gregorian_to_jalali_format($gregorian_date) {
     $date = date('Y-m-d', strtotime($gregorian_date));
@@ -23,15 +24,19 @@ if (empty($product_name)) {
     exit;
 }
 
+// محاسبه selected_work_month_ids بر اساس سال شمسی
 $selected_work_month_ids = [];
 if ($selected_year) {
-    $stmt = $pdo->query("SELECT work_month_id, start_date FROM Work_Months WHERE YEAR(start_date) = ?");
-    $stmt->execute([substr($selected_year, 0, 4)]); // فرض بر میلادی، تنظیم اگر لازم
-    $selected_work_month_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $stmt = $pdo->query("SELECT work_month_id, start_date FROM Work_Months");
+    $all_work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($all_work_months as $month) {
+        if (get_persian_year($month['start_date']) == $selected_year) {
+            $selected_work_month_ids[] = $month['work_month_id'];
+        }
+    }
 }
 
-$in_clause = empty($selected_work_month_ids) ? '0' : implode(',', $selected_work_month_ids);
-
+$in_clause = !empty($selected_work_month_ids) ? implode(',', $selected_work_month_ids) : '0';
 $query = "
     SELECT DISTINCT o.order_id, o.created_at, o.customer_name, oi.quantity
     FROM Orders o
@@ -45,7 +50,7 @@ if (!empty($selected_work_month_ids)) {
     $params = array_merge($params, $selected_work_month_ids);
 }
 
-if ($current_user_id && $_SESSION['role'] !== 'admin') {
+if ($current_user_id && isset($_SESSION['role']) && $_SESSION['role'] !== 'admin') {
     $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $params[] = $current_user_id;
     $params[] = $current_user_id;
@@ -74,9 +79,16 @@ if ($selected_partner_id !== 'all') {
 
 $query .= " ORDER BY o.created_at DESC";
 
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log("Error in get_orders_for_product: " . $e->getMessage());
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'خطا در دریافت سفارشات: ' . $e->getMessage()]);
+    exit;
+}
 
 if (empty($orders)) {
     header('Content-Type: application/json');
