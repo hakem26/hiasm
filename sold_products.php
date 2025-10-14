@@ -406,9 +406,6 @@ $(document).ready(function () {
                 if (response.success) {
                     $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
                     let salesHtml = new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان';
-                    if (response.total_leader_sales > 0) {
-                        salesHtml += ' (' + new Intl.NumberFormat('fa-IR').format(response.total_leader_sales) + ' تومان سرگروه)';
-                    }
                     $('#total-sales').html(salesHtml);
                     $('#products-table').html(response.html);
                 } else {
