@@ -4,8 +4,11 @@ require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
 
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/error.log');
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return "$jy/$jm/$jd";
+}
 
 $jalali_year = $_POST['year'] ?? '';
 $current_user_id = $_SESSION['user_id'] ?? null;
@@ -26,6 +29,7 @@ foreach ($all_work_months as $month) {
     }
 }
 
+// لاگ برای دیباگ
 error_log("Selected work_month_ids in get_months: " . print_r($selected_work_month_ids, true));
 
 if (empty($selected_work_month_ids)) {
@@ -59,6 +63,7 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// لاگ برای دیباگ
 error_log("Months result in get_months: " . print_r($months, true));
 
 $output = '';

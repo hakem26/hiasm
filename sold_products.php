@@ -10,9 +10,6 @@ require_once 'db.php';
 require_once 'jdf.php';
 require_once 'persian_year.php';
 
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/error.log');
-
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
@@ -61,13 +58,13 @@ if ($selected_year) {
 }
 
 $total_sales = 0;
+$total_leader_sales = 0;
 $total_quantity = 0;
 if (!empty($selected_work_month_ids)) {
     $sales_query = "
         SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales
         FROM Orders o
         JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
         WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
     ";
     $quantity_query = "
@@ -75,14 +72,13 @@ if (!empty($selected_work_month_ids)) {
         FROM Order_Items oi
         JOIN Orders o ON oi.order_id = o.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
         WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
     ";
     $sales_params = $quantity_params = $selected_work_month_ids;
 
     if ($user_role !== 'admin') {
-        $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
+        $sales_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
+        $quantity_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
         $sales_params[] = $quantity_params[] = $current_user_id;
         $sales_params[] = $quantity_params[] = $current_user_id;
     }
@@ -93,26 +89,9 @@ if (!empty($selected_work_month_ids)) {
         $sales_params[] = $quantity_params[] = $selected_month;
     }
 
-    // شرط partner_type (حتی اگر partner_id all باشه)
-    if ($selected_partner_type !== 'all') {
-        $sales_query .= " AND (";
-        $quantity_query .= " AND (";
-        if ($selected_partner_type === 'leader') {
-            $sales_query .= "p.user_id1 = ?";
-            $quantity_query .= "p.user_id1 = ?";
-            $sales_params[] = $quantity_params[] = $current_user_id;
-        } elseif ($selected_partner_type === 'sub') {
-            $sales_query .= "p.user_id2 = ?";
-            $quantity_query .= "p.user_id2 = ?";
-            $sales_params[] = $quantity_params[] = $current_user_id;
-        }
-        $sales_query .= ")";
-        $quantity_query .= ")";
-    }
-
     if ($selected_partner_id !== 'all') {
-        $sales_query .= " AND (";
-        $quantity_query .= " AND (";
+        $sales_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (";
+        $quantity_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (";
         if ($selected_partner_type === 'leader') {
             $sales_query .= "p.user_id1 = ?";
             $quantity_query .= "p.user_id1 = ?";
@@ -127,12 +106,9 @@ if (!empty($selected_work_month_ids)) {
             $sales_params[] = $quantity_params[] = $selected_partner_id;
             $sales_params[] = $quantity_params[] = $selected_partner_id;
         }
-        $sales_query .= ")";
-        $quantity_query .= ")";
+        $sales_query .= "))";
+        $quantity_query .= "))";
     }
-
-    error_log("Sales Query: $sales_query, Params: " . print_r($sales_params, true));
-    error_log("Quantity Query: $quantity_query, Params: " . print_r($quantity_params, true));
 
     $stmt_sales = $pdo->prepare($sales_query);
     $stmt_sales->execute($sales_params);
@@ -141,6 +117,28 @@ if (!empty($selected_work_month_ids)) {
     $stmt_quantity = $pdo->prepare($quantity_query);
     $stmt_quantity->execute($quantity_params);
     $total_quantity = $stmt_quantity->fetchColumn() ?? 0;
+
+    // محاسبه total_leader_sales فقط اگر partner_type 'all' باشه و کاربر سرگروه باشه
+    if ($selected_partner_type === 'all' && $user_role !== 'admin') {
+        $leader_query = "
+            SELECT COALESCE(SUM(o.total_amount), 0) AS total_leader_sales
+            FROM Orders o
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+            AND p.user_id1 = ?
+        ";
+        $leader_params = array_merge($selected_work_month_ids, [$current_user_id]);
+
+        if ($selected_month !== 'all') {
+            $leader_query .= " AND wd.work_month_id = ?";
+            $leader_params[] = $selected_month;
+        }
+
+        $stmt_leader = $pdo->prepare($leader_query);
+        $stmt_leader->execute($leader_params);
+        $total_leader_sales = $stmt_leader->fetchColumn() ?? 0;
+    }
 }
 
 $products = [];
@@ -166,19 +164,6 @@ if (!empty($selected_work_month_ids)) {
         $params[] = $selected_month;
     }
 
-    // شرط partner_type (حتی اگر partner_id all باشه)
-    if ($selected_partner_type !== 'all') {
-        $query .= " AND (";
-        if ($selected_partner_type === 'leader') {
-            $query .= "p.user_id1 = ?";
-            $params[] = $current_user_id;
-        } elseif ($selected_partner_type === 'sub') {
-            $query .= "p.user_id2 = ?";
-            $params[] = $current_user_id;
-        }
-        $query .= ")";
-    }
-
     if ($selected_partner_id !== 'all') {
         $query .= " AND (";
         if ($selected_partner_type === 'leader') {
@@ -196,8 +181,6 @@ if (!empty($selected_work_month_ids)) {
     }
 
     $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
-
-    error_log("Products Query: $query, Params: " . print_r($params, true));
 
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
@@ -259,7 +242,8 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
 
     <div class="summary-text">
         <p>تعداد کل: <span id="total-quantity"><?= number_format($total_quantity, 0) ?></span> عدد</p>
-        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
+        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان
+        </p>
     </div>
 
     <div class="mb-4">
@@ -276,7 +260,7 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
             </div>
             <div class="col-md-3">
                 <label for="work_month_id" class="form-label">ماه کاری</label>
-                <select name="work_month_id" class="form-select">
+                <select name="work_month_id" id="work_month_id" class="form-select">
                     <option value="all" <?= $selected_month === 'all' ? 'selected' : '' ?>>همه</option>
                     <?php foreach ($work_months as $month): ?>
                         <option value="<?= $month['work_month_id'] ?>" <?= $selected_month == $month['work_month_id'] ? 'selected' : '' ?>>
@@ -422,14 +406,17 @@ $(document).ready(function () {
                 if (response.success) {
                     $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
                     let salesHtml = new Intl.NumberFormat('fa-IR').format(response.total_sales) + ' تومان';
+                    if (response.total_leader_sales > 0) {
+                        salesHtml += ' (' + new Intl.NumberFormat('fa-IR').format(response.total_leader_sales) + ' تومان سرگروه)';
+                    }
                     $('#total-sales').html(salesHtml);
                     $('#products-table').html(response.html);
                 } else {
-                    $('#products-table').html('<div class="alert alert-danger text-center">خطا: ' + response.message + '</div>');
+                    $('#products-table tbody').html('<tr><td colspan="6" class="text-center">خطا: ' + response.message + '</td></tr>');
                 }
             },
             error: function () {
-                $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد.</div>');
+                $('#products-table tbody').html('<tr><td colspan="6" class="text-center">خطایی در بارگذاری محصولات رخ داد.</td></tr>');
             }
         });
     }
