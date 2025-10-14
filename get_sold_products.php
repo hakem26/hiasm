@@ -58,19 +58,23 @@ $quantity_query = "
     JOIN Partners p ON wd.partner_id = p.partner_id
     WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
 ";
-$sales_params = $quantity_params = $selected_work_month_ids;
+$params = $selected_work_month_ids;
+$params_quantity = $selected_work_month_ids;
 
 if ($user_role !== 'admin') {
     $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
     $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $sales_params[] = $quantity_params[] = $current_user_id;
-    $sales_params[] = $quantity_params[] = $current_user_id;
+    $params[] = $current_user_id;
+    $params[] = $current_user_id;
+    $params_quantity[] = $current_user_id;
+    $params_quantity[] = $current_user_id;
 }
 
 if ($work_month_id !== 'all') {
     $sales_query .= " AND wd.work_month_id = ?";
     $quantity_query .= " AND wd.work_month_id = ?";
-    $sales_params[] = $quantity_params[] = $work_month_id;
+    $params[] = $work_month_id;
+    $params_quantity[] = $work_month_id;
 }
 
 if ($partner_type !== 'all') {
@@ -79,11 +83,13 @@ if ($partner_type !== 'all') {
     if ($partner_type === 'leader') {
         $sales_query .= "p.user_id1 = ?";
         $quantity_query .= "p.user_id1 = ?";
-        $sales_params[] = $quantity_params[] = $current_user_id;
+        $params[] = $current_user_id;
+        $params_quantity[] = $current_user_id;
     } elseif ($partner_type === 'sub') {
         $sales_query .= "p.user_id2 = ?";
         $quantity_query .= "p.user_id2 = ?";
-        $sales_params[] = $quantity_params[] = $current_user_id;
+        $params[] = $current_user_id;
+        $params_quantity[] = $current_user_id;
     }
     $sales_query .= ")";
     $quantity_query .= ")";
@@ -95,58 +101,38 @@ if ($partner_id !== 'all') {
     if ($partner_type === 'leader') {
         $sales_query .= "p.user_id1 = ?";
         $quantity_query .= "p.user_id1 = ?";
-        $sales_params[] = $quantity_params[] = $partner_id;
+        $params[] = $partner_id;
+        $params_quantity[] = $partner_id;
     } elseif ($partner_type === 'sub') {
         $sales_query .= "p.user_id2 = ?";
         $quantity_query .= "p.user_id2 = ?";
-        $sales_params[] = $quantity_params[] = $partner_id;
+        $params[] = $partner_id;
+        $params_quantity[] = $partner_id;
     } else {
         $sales_query .= "p.user_id1 = ? OR p.user_id2 = ?";
         $quantity_query .= "p.user_id1 = ? OR p.user_id2 = ?";
-        $sales_params[] = $quantity_params[] = $partner_id;
-        $sales_params[] = $quantity_params[] = $partner_id;
+        $params[] = $partner_id;
+        $params[] = $partner_id;
+        $params_quantity[] = $partner_id;
+        $params_quantity[] = $partner_id;
     }
     $sales_query .= ")";
     $quantity_query .= ")";
 }
 
-error_log("Sales Query: $sales_query, Params: " . print_r($sales_params, true));
-error_log("Quantity Query: $quantity_query, Params: " . print_r($quantity_params, true));
+try {
+    $stmt = $pdo->prepare($sales_query);
+    $stmt->execute($params);
+    $total_sales = $stmt->fetchColumn() ?? 0;
 
-$stmt_sales = $pdo->prepare($sales_query);
-$stmt_sales->execute($sales_params);
-$total_sales = $stmt_sales->fetchColumn() ?? 0;
-
-$stmt_quantity = $pdo->prepare($quantity_query);
-$stmt_quantity->execute($quantity_params);
-$total_quantity = $stmt_quantity->fetchColumn() ?? 0;
-
-// محاسبه total_leader_sales (فقط اگر کاربر سرگروه باشه)
-$total_leader_sales = 0;
-if ($user_role !== 'admin') {
-    $leader_query = "
-        SELECT COALESCE(SUM(o.total_amount), 0) AS total_leader_sales
-        FROM Orders o
-        JOIN Work_Details wd ON o.work_details_id = wd.id
-        JOIN Partners p ON wd.partner_id = p.partner_id
-        WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
-        AND p.user_id1 = ?
-    ";
-    $leader_params = array_merge($selected_work_month_ids, [$current_user_id]);
-
-    if ($work_month_id !== 'all') {
-        $leader_query .= " AND wd.work_month_id = ?";
-        $leader_params[] = $work_month_id;
-    }
-
-    if ($partner_id !== 'all') {
-        $leader_query .= " AND p.user_id2 = ?";
-        $leader_params[] = $partner_id;
-    }
-
-    $stmt_leader = $pdo->prepare($leader_query);
-    $stmt_leader->execute($leader_params);
-    $total_leader_sales = $stmt_leader->fetchColumn() ?? 0;
+    $stmt = $pdo->prepare($quantity_query);
+    $stmt->execute($params_quantity);
+    $total_quantity = $stmt->fetchColumn() ?? 0;
+} catch (Exception $e) {
+    error_log("Error in get_sold_products queries: " . $e->getMessage() . " Query: $sales_query, Params: " . print_r($params, true));
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'خطا در پایگاه داده']);
+    exit;
 }
 
 // لیست محصولات فروخته‌شده
@@ -201,11 +187,16 @@ if ($partner_id !== 'all') {
 
 $products_query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
 
-error_log("Products Query: $products_query, Params: " . print_r($params_products, true));
-
-$stmt = $pdo->prepare($products_query);
-$stmt->execute($params_products);
-$products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare($products_query);
+    $stmt->execute($params_products);
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log("Error fetching products in get_sold_products: " . $e->getMessage() . " Query: $products_query, Params: " . print_r($params_products, true));
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'خطا در دریافت محصولات']);
+    exit;
+}
 
 // تولید HTML جدول محصولات
 $html = '<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سفارشات</th></tr></thead><tbody>';
@@ -231,7 +222,6 @@ echo json_encode([
     'success' => true,
     'total_quantity' => $total_quantity,
     'total_sales' => $total_sales,
-    'total_leader_sales' => $total_leader_sales,
     'html' => $html
 ]);
 exit;
