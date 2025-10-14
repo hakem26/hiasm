@@ -219,6 +219,9 @@ if (!empty($selected_work_month_ids)) {
     $work_months = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// پیش‌فرض selected_month به آخرین ماه کاری
+$selected_month = $_GET['work_month_id'] ?? end($work_months)['work_month_id'] ?? 'all';
+
 $partners = [];
 if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
     $query = "
