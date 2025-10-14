@@ -43,6 +43,7 @@ rsort($years);
 $selected_year = $_GET['year'] ?? ($years[0] ?? null);
 $selected_month = $_GET['work_month_id'] ?? 'all';
 $selected_partner_id = $_GET['partner_id'] ?? 'all';
+$selected_partner_type = $_GET['partner_type'] ?? 'all'; // فیلتر جدید: همه، سرگروه، زیرگروه
 
 $selected_work_month_ids = [];
 if ($selected_year) {
@@ -57,8 +58,10 @@ if ($selected_year) {
 }
 
 $total_sales = 0;
+$total_leader_sales = 0; // جدید: فروش سرگروه
 $total_quantity = 0;
 if (!empty($selected_work_month_ids)) {
+    // query اصلی برای total_sales و total_quantity
     $sales_query = "
         SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales
         FROM Orders o
@@ -88,10 +91,24 @@ if (!empty($selected_work_month_ids)) {
     }
 
     if ($selected_partner_id !== 'all') {
-        $sales_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
-        $quantity_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))";
-        $sales_params[] = $quantity_params[] = $selected_partner_id;
-        $sales_params[] = $quantity_params[] = $selected_partner_id;
+        $sales_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (";
+        $quantity_query .= " AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (";
+        if ($selected_partner_type === 'leader') {
+            $sales_query .= "p.user_id1 = ?";
+            $quantity_query .= "p.user_id1 = ?";
+            $sales_params[] = $quantity_params[] = $selected_partner_id;
+        } elseif ($selected_partner_type === 'sub') {
+            $sales_query .= "p.user_id2 = ?";
+            $quantity_query .= "p.user_id2 = ?";
+            $sales_params[] = $quantity_params[] = $selected_partner_id;
+        } else {
+            $sales_query .= "p.user_id1 = ? OR p.user_id2 = ?";
+            $quantity_query .= "p.user_id1 = ? OR p.user_id2 = ?";
+            $sales_params[] = $quantity_params[] = $selected_partner_id;
+            $sales_params[] = $quantity_params[] = $selected_partner_id;
+        }
+        $sales_query .= "))";
+        $quantity_query .= "))";
     }
 
     $stmt_sales = $pdo->prepare($sales_query);
@@ -101,6 +118,33 @@ if (!empty($selected_work_month_ids)) {
     $stmt_quantity = $pdo->prepare($quantity_query);
     $stmt_quantity->execute($quantity_params);
     $total_quantity = $stmt_quantity->fetchColumn() ?? 0;
+
+    // محاسبه total_leader_sales (فقط اگر کاربر سرگروه باشه)
+    if ($user_role !== 'admin') {
+        $leader_query = "
+            SELECT COALESCE(SUM(o.total_amount), 0) AS total_leader_sales
+            FROM Orders o
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            JOIN Partners p ON wd.partner_id = p.partner_id
+            WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+            AND p.user_id1 = ?
+        ";
+        $leader_params = array_merge($selected_work_month_ids, [$current_user_id]);
+
+        if ($selected_month !== 'all') {
+            $leader_query .= " AND wd.work_month_id = ?";
+            $leader_params[] = $selected_month;
+        }
+
+        if ($selected_partner_id !== 'all') {
+            $leader_query .= " AND p.user_id2 = ?";
+            $leader_params[] = $selected_partner_id;
+        }
+
+        $stmt_leader = $pdo->prepare($leader_query);
+        $stmt_leader->execute($leader_params);
+        $total_leader_sales = $stmt_leader->fetchColumn() ?? 0;
+    }
 }
 
 $products = [];
@@ -127,9 +171,19 @@ if (!empty($selected_work_month_ids)) {
     }
 
     if ($selected_partner_id !== 'all') {
-        $query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-        $params[] = $selected_partner_id;
-        $params[] = $selected_partner_id;
+        $query .= " AND (";
+        if ($selected_partner_type === 'leader') {
+            $query .= "p.user_id1 = ?";
+            $params[] = $selected_partner_id;
+        } elseif ($selected_partner_type === 'sub') {
+            $query .= "p.user_id2 = ?";
+            $params[] = $selected_partner_id;
+        } else {
+            $query .= "p.user_id1 = ? OR p.user_id2 = ?";
+            $params[] = $selected_partner_id;
+            $params[] = $selected_partner_id;
+        }
+        $query .= ")";
     }
 
     $query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
@@ -194,12 +248,16 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
 
     <div class="summary-text">
         <p>تعداد کل: <span id="total-quantity"><?= number_format($total_quantity, 0) ?></span> عدد</p>
-        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان</p>
+        <p>مبلغ کل: <span id="total-sales"><?= number_format($total_sales, 0) ?></span> تومان
+            <?php if ($total_leader_sales > 0): ?>
+                (<?= number_format($total_leader_sales, 0) ?> تومان سرگروه)
+            <?php endif; ?>
+        </p>
     </div>
 
     <div class="mb-4">
         <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label for="year" class="form-label">سال</label>
                 <select name="year" id="year" class="form-select">
                     <?php foreach ($years as $year): ?>
@@ -209,7 +267,7 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label for="work_month_id" class="form-label">ماه کاری</label>
                 <select name="work_month_id" id="work_month_id" class="form-select">
                     <option value="all" <?= $selected_month === 'all' ? 'selected' : '' ?>>همه</option>
@@ -220,8 +278,8 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-4">
-                <label for="partner_id" class="form-label">همکار</label>
+            <div class="col-md-3">
+                <label for="partner_id" class="form-label">نام همکار</label>
                 <select name="partner_id" id="partner_id" class="form-select">
                     <option value="all" <?= $selected_partner_id === 'all' ? 'selected' : '' ?>>همه</option>
                     <?php foreach ($partners as $partner): ?>
@@ -229,6 +287,14 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                             <?= htmlspecialchars($partner['full_name']) ?>
                         </option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="partner_type" class="form-label">نوع همکار</label>
+                <select name="partner_type" id="partner_type" class="form-select">
+                    <option value="all" <?= $selected_partner_type === 'all' ? 'selected' : '' ?>>همه</option>
+                    <option value="leader" <?= $selected_partner_type === 'leader' ? 'selected' : '' ?>>سرگروه</option>
+                    <option value="sub" <?= $selected_partner_type === 'sub' ? 'selected' : '' ?>>زیرگروه</option>
                 </select>
             </div>
         </div>
@@ -243,27 +309,50 @@ if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
                     <th>قیمت واحد</th>
                     <th>تعداد</th>
                     <th>قیمت کل</th>
+                    <th>سفارشات</th> <!-- ستون جدید -->
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($products)): ?>
                     <tr>
-                        <td colspan="5" class="text-center">محصولی یافت نشد.</td>
+                        <td colspan="6" class="text-center">محصولی یافت نشد.</td>
                     </tr>
                 <?php else: ?>
                     <?php $row_number = 1; ?>
                     <?php foreach ($products as $product): ?>
-                        <tr>
+                        <tr data-product-name="<?= htmlspecialchars($product['product_name']) ?>">
                             <td><?= $row_number++ ?></td>
                             <td><?= htmlspecialchars($product['product_name']) ?></td>
                             <td><?= number_format($product['unit_price'], 0) ?> تومان</td>
                             <td><?= $product['total_quantity'] ?></td>
                             <td><?= number_format($product['total_price'], 0) ?> تومان</td>
+                            <td>
+                                <button type="button" class="btn btn-info btn-sm view-orders" data-product="<?= htmlspecialchars($product['product_name']) ?>">
+                                    مشاهده سفارشات
+                                </button>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Modal برای سفارشات -->
+<div class="modal fade" id="ordersModal" tabindex="-1" aria-labelledby="ordersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ordersModalLabel">سفارشات مربوط به محصول</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="ordersTableContainer">
+                    <!-- جدول سفارشات اینجا لود می‌شه -->
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -314,26 +403,54 @@ $(document).ready(function () {
         const year = $('#year').val();
         const work_month_id = $('#work_month_id').val();
         const partner_id = $('#partner_id').val();
+        const partner_type = $('#partner_type').val();
 
         $.ajax({
             url: 'get_sold_products.php',
             type: 'GET',
-            data: { year: year, work_month_id: work_month_id, partner_id: partner_id },
+            data: { year: year, work_month_id: work_month_id, partner_id: partner_id, partner_type: partner_type },
             dataType: 'json',
             success: function (response) {
                 if (response.success) {
                     $('#total-quantity').text(new Intl.NumberFormat('fa-IR').format(response.total_quantity));
-                    $('#total-sales').text(new Intl.NumberFormat('fa-IR').format(response.total_sales));
-                    $('#products-table').html(response.html);
+                    $('#total-sales').html(new Intl.NumberFormat('fa-IR').format(response.total_sales) + (response.total_leader_sales > 0 ? ' (' + new Intl.NumberFormat('fa-IR').format(response.total_leader_sales) + ' تومان سرگروه)' : ''));
+                    $('#products-table tbody').html(response.html);
                 } else {
-                    $('#products-table').html('<div class="alert alert-danger text-center">خطا: ' + response.message + '</div>');
+                    $('#products-table tbody').html('<tr><td colspan="6" class="text-center">خطا: ' + response.message + '</td></tr>');
                 }
             },
             error: function () {
-                $('#products-table').html('<div class="alert alert-danger text-center">خطایی در بارگذاری محصولات رخ داد.</div>');
+                $('#products-table tbody').html('<tr><td colspan="6" class="text-center">خطایی در بارگذاری محصولات رخ داد.</td></tr>');
             }
         });
     }
+
+    // Event برای مشاهده سفارشات
+    $(document).on('click', '.view-orders', function () {
+        const productName = $(this).data('product');
+        const year = $('#year').val();
+        const work_month_id = $('#work_month_id').val();
+        const partner_id = $('#partner_id').val();
+        const partner_type = $('#partner_type').val();
+
+        $('#ordersModalLabel').text('سفارشات مربوط به محصول ' + productName + ':');
+        $.ajax({
+            url: 'get_orders_for_product.php',
+            type: 'GET',
+            data: { product_name: productName, year: year, work_month_id: work_month_id, partner_id: partner_id, partner_type: partner_type },
+            success: function (response) {
+                if (response.success) {
+                    $('#ordersTableContainer').html(response.html);
+                } else {
+                    $('#ordersTableContainer').html('<div class="alert alert-danger">خطا: ' + response.message + '</div>');
+                }
+            },
+            error: function () {
+                $('#ordersTableContainer').html('<div class="alert alert-danger">خطایی در بارگذاری سفارشات رخ داد.</div>');
+            }
+        });
+        $('#ordersModal').modal('show');
+    });
 
     const initial_year = $('#year').val();
     if (initial_year) {
@@ -355,7 +472,7 @@ $(document).ready(function () {
         loadProducts();
     });
 
-    $('#partner_id').on('change', function () {
+    $('#partner_id, #partner_type').on('change', function () {
         loadProducts();
     });
 });
