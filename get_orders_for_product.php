@@ -36,9 +36,16 @@ if ($selected_year) {
     }
 }
 
-$in_clause = !empty($selected_work_month_ids) ? implode(',', $selected_work_month_ids) : '0';
+// ساخت IN clause
+if (!empty($selected_work_month_ids)) {
+    $in_placeholders = str_repeat('?,', count($selected_work_month_ids) - 1) . '?';
+    $in_clause = $in_placeholders;
+} else {
+    $in_clause = '0'; // یا NULL، اما 0 برای جلوگیری از خطا
+}
+
 $query = "
-    SELECT DISTINCT o.order_id, o.created_at, o.customer_name, oi.quantity
+    SELECT DISTINCT o.order_id, DATE(o.created_at) as created_at, o.customer_name, oi.quantity
     FROM Orders o
     JOIN Order_Items oi ON o.order_id = oi.order_id
     JOIN Work_Details wd ON o.work_details_id = wd.id
@@ -46,6 +53,7 @@ $query = "
     WHERE oi.product_name = ? AND wd.work_month_id IN ($in_clause)
 ";
 $params = [$product_name];
+
 if (!empty($selected_work_month_ids)) {
     $params = array_merge($params, $selected_work_month_ids);
 }
@@ -83,8 +91,8 @@ try {
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    error_log("Error in get_orders_for_product: " . $e->getMessage());
+} catch (PDOException $e) {
+    error_log("PDO Error in get_orders_for_product: " . $e->getMessage() . "\nQuery: " . $query . "\nParams: " . print_r($params, true));
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'خطا در دریافت سفارشات: ' . $e->getMessage()]);
     exit;
