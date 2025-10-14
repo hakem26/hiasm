@@ -40,8 +40,7 @@ $query = "
     FROM Users u
     JOIN Partners p ON (u.user_id = p.user_id1 OR u.user_id = p.user_id2)
     JOIN Work_Details wd ON p.partner_id = wd.partner_id
-    JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
-    WHERE wm.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+    WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
     AND wd.work_month_id = ?
 ";
 $params = array_merge($selected_work_month_ids, [$work_month_id]);
@@ -54,15 +53,16 @@ if ($user_role !== 'admin') {
     $params[] = $current_user_id;
 }
 
-// فیلتر بر اساس نوع همکار
-if ($partner_type === 'leader') {
-    // زیرگروه‌های من (user_id2 = current_user)
-    $query .= " AND p.user_id2 = ?";
-    $params[] = $current_user_id;
-} elseif ($partner_type === 'sub') {
-    // سرگروه‌های من (user_id1 = current_user)
-    $query .= " AND p.user_id1 = ?";
-    $params[] = $current_user_id;
+if ($partner_type !== 'all') {
+    $query .= " AND (";
+    if ($partner_type === 'leader') {
+        $query .= "p.user_id1 = ?";
+        $params[] = $current_user_id;
+    } elseif ($partner_type === 'sub') {
+        $query .= "p.user_id2 = ?";
+        $params[] = $current_user_id;
+    }
+    $query .= ")";
 }
 
 $query .= " ORDER BY u.full_name";

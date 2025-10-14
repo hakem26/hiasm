@@ -220,7 +220,9 @@ if (!empty($selected_work_month_ids)) {
 }
 
 // پیش‌فرض selected_month به آخرین ماه کاری
-$selected_month = $_GET['work_month_id'] ?? end($work_months)['work_month_id'] ?? 'all';
+if ($selected_month === 'all') {
+    $selected_month = end($work_months)['work_month_id'] ?? 'all';
+}
 
 $partners = [];
 if (!empty($selected_work_month_ids) && $selected_month !== 'all') {
@@ -405,7 +407,7 @@ $(document).ready(function () {
     function loadProducts() {
         const year = $('#year').val();
         const work_month_id = $('#work_month_id').val();
-        const partner_id = $('#partner_id').val();
+        const partner_id = $( '#partner_id').val();
         const partner_type = $('#partner_type').val();
 
         $.ajax({
