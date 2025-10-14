@@ -11,6 +11,7 @@ error_reporting(E_ALL);
 $jalali_year = $_GET['year'] ?? null;
 $work_month_id = $_GET['work_month_id'] ?? 'all';
 $partner_id = $_GET['partner_id'] ?? 'all';
+$partner_type = $_GET['partner_type'] ?? 'all'; // فیلتر جدید
 $current_user_id = $_SESSION['user_id'] ?? null;
 
 if (!$jalali_year || !$current_user_id) {
@@ -80,12 +81,28 @@ if ($work_month_id !== 'all') {
 }
 
 if ($partner_id !== 'all') {
-    $sales_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $quantity_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params[] = $partner_id;
-    $params[] = $partner_id;
-    $params_quantity[] = $partner_id;
-    $params_quantity[] = $partner_id;
+    $sales_query .= " AND (";
+    $quantity_query .= " AND (";
+    if ($partner_type === 'leader') {
+        $sales_query .= "p.user_id1 = ?";
+        $quantity_query .= "p.user_id1 = ?";
+        $params[] = $partner_id;
+        $params_quantity[] = $partner_id;
+    } elseif ($partner_type === 'sub') {
+        $sales_query .= "p.user_id2 = ?";
+        $quantity_query .= "p.user_id2 = ?";
+        $params[] = $partner_id;
+        $params_quantity[] = $partner_id;
+    } else {
+        $sales_query .= "p.user_id1 = ? OR p.user_id2 = ?";
+        $quantity_query .= "p.user_id1 = ? OR p.user_id2 = ?";
+        $params[] = $partner_id;
+        $params[] = $partner_id;
+        $params_quantity[] = $partner_id;
+        $params_quantity[] = $partner_id;
+    }
+    $sales_query .= ")";
+    $quantity_query .= ")";
 }
 
 try {
@@ -101,6 +118,39 @@ try {
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'خطا در پایگاه داده']);
     exit;
+}
+
+// محاسبه total_leader_sales (فقط اگر کاربر سرگروه باشه)
+$total_leader_sales = 0;
+if ($user_role !== 'admin') {
+    $leader_query = "
+        SELECT COALESCE(SUM(o.total_amount), 0) AS total_leader_sales
+        FROM Orders o
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        JOIN Work_Months wm ON wd.work_month_id = wm.work_month_id
+        WHERE wd.work_month_id IN (" . implode(',', array_fill(0, count($selected_work_month_ids), '?')) . ")
+        AND p.user_id1 = ?
+    ";
+    $leader_params = array_merge($selected_work_month_ids, [$current_user_id]);
+
+    if ($work_month_id !== 'all') {
+        $leader_query .= " AND wd.work_month_id = ?";
+        $leader_params[] = $work_month_id;
+    }
+
+    if ($partner_id !== 'all') {
+        $leader_query .= " AND p.user_id2 = ?";
+        $leader_params[] = $partner_id;
+    }
+
+    try {
+        $stmt_leader = $pdo->prepare($leader_query);
+        $stmt_leader->execute($leader_params);
+        $total_leader_sales = $stmt_leader->fetchColumn() ?? 0;
+    } catch (Exception $e) {
+        error_log("Error in leader sales query: " . $e->getMessage());
+    }
 }
 
 // لیست محصولات فروخته‌شده
@@ -127,9 +177,19 @@ if ($work_month_id !== 'all') {
 }
 
 if ($partner_id !== 'all') {
-    $products_query .= " AND (p.user_id1 = ? OR p.user_id2 = ?)";
-    $params_products[] = $partner_id;
-    $params_products[] = $partner_id;
+    $products_query .= " AND (";
+    if ($partner_type === 'leader') {
+        $products_query .= "p.user_id1 = ?";
+        $params_products[] = $partner_id;
+    } elseif ($partner_type === 'sub') {
+        $products_query .= "p.user_id2 = ?";
+        $params_products[] = $partner_id;
+    } else {
+        $products_query .= "p.user_id1 = ? OR p.user_id2 = ?";
+        $params_products[] = $partner_id;
+        $params_products[] = $partner_id;
+    }
+    $products_query .= ")";
 }
 
 $products_query .= " GROUP BY oi.product_name, oi.unit_price ORDER BY oi.product_name COLLATE utf8mb4_persian_ci";
@@ -146,18 +206,19 @@ try {
 }
 
 // تولید HTML جدول محصولات
-$html = '<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th></tr></thead><tbody>';
+$html = '<table class="table table-light"><thead><tr><th>ردیف</th><th>اقلام</th><th>قیمت واحد</th><th>تعداد</th><th>قیمت کل</th><th>سفارشات</th></tr></thead><tbody>';
 if (empty($products)) {
-    $html .= '<tr><td colspan="5" class="text-center">محصولی یافت نشد.</td></tr>';
+    $html .= '<tr><td colspan="6" class="text-center">محصولی یافت نشد.</td></tr>';
 } else {
     $row_number = 1;
     foreach ($products as $product) {
-        $html .= '<tr>';
+        $html .= '<tr data-product-name="' . htmlspecialchars($product['product_name']) . '">';
         $html .= '<td>' . $row_number++ . '</td>';
         $html .= '<td>' . htmlspecialchars($product['product_name']) . '</td>';
         $html .= '<td>' . number_format($product['unit_price'], 0) . ' تومان</td>';
         $html .= '<td>' . $product['total_quantity'] . '</td>';
         $html .= '<td>' . number_format($product['total_price'], 0) . ' تومان</td>';
+        $html .= '<td><button type="button" class="btn btn-info btn-sm view-orders" data-product="' . htmlspecialchars($product['product_name']) . '">مشاهده سفارشات</button></td>';
         $html .= '</tr>';
     }
 }
@@ -168,6 +229,7 @@ echo json_encode([
     'success' => true,
     'total_quantity' => $total_quantity,
     'total_sales' => $total_sales,
+    'total_leader_sales' => $total_leader_sales,
     'html' => $html
 ]);
 exit;
