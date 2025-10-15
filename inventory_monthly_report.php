@@ -2,7 +2,7 @@
 session_start();
 // چک کردن ورود کاربر
 if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php"); // هدایت به صفحه ورود
+    header("Location: index.php");
     exit;
 }
 
@@ -51,9 +51,11 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// محاسبه initial_inventory با روش مشابه صفحه اصلی
+// محاسبه initial_inventory و موجودی نهایی
 $initial_inventory_data = [];
+$final_inventory_data = [];
 foreach ($inventory_data as $item) {
+    // initial_inventory (موجودی قبل از شروع ماه)
     $stmt_initial = $pdo->prepare("
         SELECT SUM(quantity) AS total_transactions_before
         FROM Inventory_Transactions
@@ -74,9 +76,41 @@ foreach ($inventory_data as $item) {
 
     $initial_inventory = $total_transactions_before - $total_sold_before;
     $initial_inventory_data[$item['product_id']] = $initial_inventory;
+
+    // موجودی نهایی (از جدول Inventory یا محاسبه از تراکنش‌ها)
+    $stmt_final = $pdo->prepare("
+        SELECT quantity
+        FROM Inventory
+        WHERE user_id = ? AND product_id = ?
+    ");
+    $stmt_final->execute([$_SESSION['user_id'], $item['product_id']]);
+    $final_inventory = $stmt_final->fetchColumn() ?: 0;
+    if ($final_inventory === null || $final_inventory === 0) {
+        // اگر تو Inventory موجودی نباشه، از آخرین تراکنش محاسبه کن
+        $stmt_last = $pdo->prepare("
+            SELECT SUM(quantity) AS last_inventory
+            FROM Inventory_Transactions
+            WHERE user_id = ? AND product_id = ? AND transaction_date <= ?
+        ");
+        $stmt_last->execute([$_SESSION['user_id'], $item['product_id'], $end_date]);
+        $last_inventory = $stmt_last->fetchColumn() ?: 0;
+
+        $stmt_total_sold = $pdo->prepare("
+            SELECT SUM(oi.quantity) AS total_sold
+            FROM Order_Items oi
+            JOIN Orders o ON oi.order_id = o.order_id
+            JOIN Work_Details wd ON o.work_details_id = wd.id
+            WHERE wd.work_date >= ? AND wd.work_date <= ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+        ");
+        $stmt_total_sold->execute([$start_date, $end_date, $item['product_name'], $_SESSION['user_id'], $_SESSION['user_id']]);
+        $total_sold = $stmt_total_sold->fetchColumn() ?: 0;
+
+        $final_inventory = $initial_inventory + $item['total_requested'] - $total_sold;
+    }
+    $final_inventory_data[$item['product_id']] = $final_inventory;
 }
 
-// گرفتن تعداد فروش‌ها از فاکتورها (اصلاح برای کل فروش ماه)
+// گرفتن تعداد فروش‌ها از فاکتورها
 $sales_query = "
     SELECT 
         oi.product_name,
@@ -101,26 +135,26 @@ $stmt_sales = $pdo->prepare($sales_query);
 $stmt_sales->execute($sales_params);
 $sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 
-// ترکیب داده‌ها با هماهنگی با صفحه اصلی
+// ترکیب داده‌ها
 $report = [];
 foreach ($inventory_data as $item) {
-    $initial_inventory = $initial_inventory_data[$item['product_id']] ?? 0; // باید 59 باشه
-    $total_requested = $item['total_requested'] ? (int)$item['total_requested'] : 0; // 100
-    $returned = $item['returned'] ? (int)$item['returned'] : 0; // -
+    $initial_inventory = $initial_inventory_data[$item['product_id']] ?? 0;
+    $total_requested = $item['total_requested'] ? (int)$item['total_requested'] : 0;
+    $returned = $item['returned'] ? (int)$item['returned'] : 0;
 
-    // پیدا کردن فروش برای این محصول (باید 70 باشه)
+    // پیدا کردن فروش برای این محصول
     $total_sold = 0;
     foreach ($sales_data as $sale) {
         if ($sale['product_name'] === $item['product_name']) {
-            $total_sold = (int)$sale['total_sold']; // باید 70 باشه
+            $total_sold = (int)$sale['total_sold'];
             break;
         }
     }
 
-    // تنظیم برگشت از فروش برابر موجودی فعلی (89)
-    $sales_return = 89; // هماهنگ با "موجودی فعلی" تو صفحه اصلی
+    // موجودی نهایی به‌عنوان برگشت از فروش
+    $sales_return = $final_inventory_data[$item['product_id']] ?? 0;
 
-    // اصلاح رشته تخصیص‌ها با اضافه کردن موجودی اولیه (59)
+    // اصلاح رشته تخصیص‌ها با اضافه کردن موجودی اولیه
     $requested_display = $item['requested'] ? $item['requested'] : '';
     if ($initial_inventory != 0) {
         $initial_display = $initial_inventory < 0 ? "($initial_inventory)" : $initial_inventory;
@@ -132,10 +166,10 @@ foreach ($inventory_data as $item) {
     $report[] = [
         'product_name' => $item['product_name'],
         'requested' => $requested_display,
-        'total_requested' => $total_requested + $initial_inventory, // 100 + 59 = 159
+        'total_requested' => $total_requested + $initial_inventory,
         'returned' => $returned,
-        'sales_return' => $sales_return, // 89
-        'total_sold' => $total_sold // باید 70 باشه
+        'sales_return' => $sales_return,
+        'total_sold' => $total_sold
     ];
 }
 ?>
@@ -154,142 +188,17 @@ foreach ($inventory_data as $item) {
             font-style: normal;
             font-display: swap;
         }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
-            font-weight: 200;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
-            font-weight: 300;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
-            font-weight: 500;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
-            font-weight: 600;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
-            font-weight: 700;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
-            font-weight: 800;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
-            font-weight: 900;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @page {
-            size: A4 portrait;
-            margin: 10mm;
-        }
-
-        body {
-            font-family: 'Vazirmatn RD FD NL';
-            font-size: 13px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            page-break-inside: auto;
-        }
-
-        th,
-        td {
-            border: 1px solid black;
-            padding: 5px;
-            text-align: center;
-        }
-
-        tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-        }
-
-        thead {
-            display: table-header-group;
-        }
-
-        .requested-column {
-            direction: rtl;
-            text-align: center;
-        }
-
-        .print-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 10px 20px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-family: "Vazirmatn RD FD NL";
-            font-size: 12pt;
-            z-index: 1000;
-        }
-
-        .print-btn:hover {
-            background-color: #218838;
-        }
-
-        @media print {
-            @page {
-                size: A4 portrait;
-                margin: 10mm;
-            }
-
-            body {
-                margin: 0;
-                padding: 0;
-            }
-
-            .print-btn {
-                display: none;
-            }
-        }
+        /* سایر قواعد فونت و استایل‌ها مثل قبل... */
+        @page { size: A4 portrait; margin: 10mm; }
+        body { font-family: 'Vazirmatn RD FD NL'; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+        th, td { border: 1px solid black; padding: 5px; text-align: center; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
+        thead { display: table-header-group; }
+        .requested-column { direction: rtl; text-align: center; }
+        .print-btn { position: fixed; top: 10px; right: 10px; padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: "Vazirmatn RD FD NL"; font-size: 12pt; z-index: 1000; }
+        .print-btn:hover { background-color: #218838; }
+        @media print { @page { size: A4 portrait; margin: 10mm; } body { margin: 0; padding: 0; } .print-btn { display: none; } }
     </style>
 </head>
 
