@@ -42,20 +42,20 @@ $query = "
     LEFT JOIN Inventory_Transactions it ON p.product_id = it.product_id 
         AND it.transaction_date >= ? 
         AND it.transaction_date <= ? 
-        AND it.user_id = ? 
-        AND it.work_month_id = ?
-";
-$params = [$start_date, $end_date, $_SESSION['user_id'], $work_month_id];
+        AND it.user_id = ?
+    ";
+$params = [$start_date, $end_date, $_SESSION['user_id']];
 if ($product_id) {
     $query .= " WHERE p.product_id = ?";
     $params[] = $product_id;
 }
-$query .= " GROUP BY p.product_id, p.product_name ORDER BY p.product_name ASC";
+$query .= " GROUP BY p.product_id, p.product_name HAVING total_requested > 0 OR returned > 0 ORDER BY p.product_name ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+file_put_contents('C:/xampp/htdocs/debug.log', 'inventory_data: ' . print_r($inventory_data, true) . "\n", FILE_APPEND);
 if (empty($inventory_data)) {
-    die("هیچ داده‌ای برای تراکنش‌ها پیدا نشد! مطمئن شو که work_month_id درست باشه و داده‌ها تو دیتابیس هستن.");
+    die("هیچ داده‌ای برای تراکنش‌ها پیدا نشد! مطمئن شو که تاریخ‌ها و user_id درست باشن.");
 }
 
 // محاسبه initial_inventory و موجودی نهایی
@@ -65,9 +65,9 @@ foreach ($inventory_data as $item) {
     $stmt_initial = $pdo->prepare("
         SELECT SUM(quantity) AS total_transactions_before
         FROM Inventory_Transactions
-        WHERE user_id = ? AND product_id = ? AND transaction_date < ? AND work_month_id < ?
+        WHERE user_id = ? AND product_id = ? AND transaction_date < ?
     ");
-    $stmt_initial->execute([$_SESSION['user_id'], $item['product_id'], $start_date, $work_month_id]);
+    $stmt_initial->execute([$_SESSION['user_id'], $item['product_id'], $start_date]);
     $total_transactions_before = $stmt_initial->fetchColumn() ?: 0;
 
     $stmt_sales_before = $pdo->prepare("
@@ -75,9 +75,9 @@ foreach ($inventory_data as $item) {
         FROM Order_Items oi
         JOIN Orders o ON oi.order_id = o.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
-        WHERE wd.work_date < ? AND oi.product_name = ? AND wd.work_month_id < ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+        WHERE wd.work_date < ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
     ");
-    $stmt_sales_before->execute([$start_date, $item['product_name'], $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']]);
+    $stmt_sales_before->execute([$start_date, $item['product_name'], $_SESSION['user_id'], $_SESSION['user_id']]);
     $total_sold_before = $stmt_sales_before->fetchColumn() ?: 0;
 
     $initial_inventory = $total_transactions_before - $total_sold_before;
@@ -94,9 +94,9 @@ foreach ($inventory_data as $item) {
         $stmt_last = $pdo->prepare("
             SELECT SUM(quantity) AS last_inventory
             FROM Inventory_Transactions
-            WHERE user_id = ? AND product_id = ? AND transaction_date <= ? AND work_month_id = ?
+            WHERE user_id = ? AND product_id = ? AND transaction_date <= ?
         ");
-        $stmt_last->execute([$_SESSION['user_id'], $item['product_id'], $end_date, $work_month_id]);
+        $stmt_last->execute([$_SESSION['user_id'], $item['product_id'], $end_date]);
         $last_inventory = $stmt_last->fetchColumn() ?: 0;
 
         $stmt_total_sold = $pdo->prepare("
@@ -104,14 +104,15 @@ foreach ($inventory_data as $item) {
             FROM Order_Items oi
             JOIN Orders o ON oi.order_id = o.order_id
             JOIN Work_Details wd ON o.work_details_id = wd.id
-            WHERE wd.work_date >= ? AND wd.work_date <= ? AND oi.product_name = ? AND wd.work_month_id = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+            WHERE wd.work_date >= ? AND wd.work_date <= ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
         ");
-        $stmt_total_sold->execute([$start_date, $end_date, $item['product_name'], $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']]);
+        $stmt_total_sold->execute([$start_date, $end_date, $item['product_name'], $_SESSION['user_id'], $_SESSION['user_id']]);
         $total_sold = $stmt_total_sold->fetchColumn() ?: 0;
 
         $final_inventory = $initial_inventory + $item['total_requested'] - $total_sold;
     }
     $final_inventory_data[$item['product_id']] = $final_inventory;
+    file_put_contents('C:/xampp/htdocs/debug.log', 'item: ' . $item['product_name'] . ', final_inventory: ' . $final_inventory . "\n", FILE_APPEND);
 }
 
 // گرفتن تعداد فروش‌ها از فاکتورها
@@ -123,14 +124,13 @@ $sales_query = "
     JOIN Orders o ON oi.order_id = o.order_id
     JOIN Work_Details wd ON o.work_details_id = wd.id
     WHERE wd.work_date >= ? AND wd.work_date < ? 
-    AND wd.work_month_id = ? 
     AND EXISTS (
         SELECT 1 FROM Partners p 
         WHERE p.partner_id = wd.partner_id 
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )
 ";
-$sales_params = [$start_date, $end_date, $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']];
+$sales_params = [$start_date, $end_date, $_SESSION['user_id'], $_SESSION['user_id']];
 if ($product_id) {
     $sales_query .= " AND EXISTS (SELECT 1 FROM Products p WHERE p.product_name = oi.product_name AND p.product_id = ?)";
     $sales_params[] = $product_id;
@@ -139,6 +139,7 @@ $sales_query .= " GROUP BY oi.product_name";
 $stmt_sales = $pdo->prepare($sales_query);
 $stmt_sales->execute($sales_params);
 $sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
+file_put_contents('C:/xampp/htdocs/debug.log', 'sales_data: ' . print_r($sales_data, true) . "\n", FILE_APPEND);
 
 // ترکیب داده‌ها
 $report = [];
