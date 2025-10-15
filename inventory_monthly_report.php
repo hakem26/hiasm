@@ -28,15 +28,14 @@ $query = "
             ORDER BY it.transaction_date DESC SEPARATOR '+'
         ) as requested,
         SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as total_requested,
-        SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned,
-        (SELECT SUM(quantity) FROM Inventory_Transactions WHERE user_id = ? AND product_id = p.product_id AND transaction_date < ?) as initial_inventory
+        SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned
     FROM Products p
     LEFT JOIN Inventory_Transactions it ON p.product_id = it.product_id 
         AND it.transaction_date >= ? 
         AND it.transaction_date <= ? 
         AND it.user_id = ?
 ";
-$params = [$_SESSION['user_id'], $start_date, $start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
+$params = [$start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
 if ($product_id) {
     $query .= " WHERE p.product_id = ?";
     $params[] = $product_id;
@@ -45,6 +44,31 @@ $query .= " GROUP BY p.product_id, p.product_name ORDER BY p.product_name ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// محاسبه initial_inventory با روش مشابه صفحه اصلی
+$initial_inventory_data = [];
+foreach ($inventory_data as $item) {
+    $stmt_initial = $pdo->prepare("
+        SELECT SUM(quantity) AS total_transactions_before
+        FROM Inventory_Transactions
+        WHERE user_id = ? AND product_id = ? AND transaction_date < ?
+    ");
+    $stmt_initial->execute([$_SESSION['user_id'], $item['product_id'], $start_date]);
+    $total_transactions_before = $stmt_initial->fetchColumn() ?: 0;
+
+    $stmt_sales_before = $pdo->prepare("
+        SELECT SUM(oi.quantity) AS total_sold_before
+        FROM Order_Items oi
+        JOIN Orders o ON oi.order_id = o.order_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        WHERE wd.work_date < ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+    ");
+    $stmt_sales_before->execute([$start_date, $item['product_name'], $_SESSION['user_id'], $_SESSION['user_id']]);
+    $total_sold_before = $stmt_sales_before->fetchColumn() ?: 0;
+
+    $initial_inventory = $total_transactions_before - $total_sold_before;
+    $initial_inventory_data[$item['product_id']] = $initial_inventory;
+}
 
 // گرفتن تعداد فروش‌ها از فاکتورها
 $sales_query = "
@@ -74,7 +98,7 @@ $sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 // ترکیب داده‌ها
 $report = [];
 foreach ($inventory_data as $item) {
-    $initial_inventory = $item['initial_inventory'] ? (int)$item['initial_inventory'] : 0;
+    $initial_inventory = $initial_inventory_data[$item['product_id']] ?? 0;
     $total_requested = $item['total_requested'] ? (int)$item['total_requested'] : 0;
     $returned = $item['returned'] ? (int)$item['returned'] : 0;
 
@@ -222,7 +246,6 @@ foreach ($inventory_data as $item) {
             display: table-header-group;
         }
 
-        /* برای راست‌چین کردن متن در ستون تخصیص‌ها */
         .requested-column {
             direction: rtl;
             text-align: center;
