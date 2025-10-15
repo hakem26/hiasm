@@ -87,8 +87,9 @@ foreach ($inventory_data as $item) {
         }
     }
 
-    // محاسبه موجودی فعلی (برگشت از فروش)
+    // محاسبه برگشت از فروش (موجودی فعلی = اولیه + درخواست - فروش)
     $current_inventory = $initial_inventory + $total_requested - $total_sold;
+    $sales_return = $current_inventory >= 0 ? $current_inventory : 0;
 
     // اصلاح رشته تخصیص‌ها با اضافه کردن موجودی اولیه
     $requested_display = $item['requested'] ? $item['requested'] : '';
@@ -104,7 +105,7 @@ foreach ($inventory_data as $item) {
         'requested' => $requested_display,
         'total_requested' => $total_requested + $initial_inventory,
         'returned' => $returned,
-        'current_inventory' => $current_inventory,
+        'sales_return' => $sales_return,
         'total_sold' => $total_sold
     ];
 }
@@ -295,7 +296,7 @@ foreach ($inventory_data as $item) {
                     <td class="requested-column"><?= $item['requested'] ?></td>
                     <td><?= $item['total_requested'] ?></td>
                     <td><?= $item['returned'] ?: '-' ?></td>
-                    <td><?= $item['current_inventory'] >= 0 ? $item['current_inventory'] : 0 ?></td>
+                    <td><?= $item['sales_return'] ?></td>
                     <td><?= $item['total_sold'] ?></td>
                 </tr>
                 <?php

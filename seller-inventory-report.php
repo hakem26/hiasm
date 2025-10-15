@@ -71,18 +71,35 @@ if ($work_month_id) {
         }
 
         $query .= " ORDER BY it.transaction_date ASC";
-        $stmt_transactions = $pdo->prepare($query);
-        $stmt_transactions->execute($params);
-        $transactions_raw = $stmt_transactions->fetchAll(PDO::FETCH_ASSOC);
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $transactions_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($transactions_raw as $transaction) {
+            // محاسبه موجودی قبل از این تراکنش (تراکنش‌های قبلی - فروش‌های قبلی)
             $stmt_before = $pdo->prepare("
-                SELECT SUM(quantity) as total_before
+                SELECT SUM(quantity) AS total_transactions_before
                 FROM Inventory_Transactions
                 WHERE user_id = ? AND product_id = ? AND transaction_date < ?
             ");
             $stmt_before->execute([$transaction['user_id'], $transaction['product_id'], $transaction['transaction_date']]);
-            $total_before = $stmt_before->fetchColumn() ?: 0;
+            $total_transactions_before = $stmt_before->fetchColumn() ?: 0;
+
+            $stmt_sales_before = $pdo->prepare("
+                SELECT SUM(oi.quantity) AS total_sold_before
+                FROM Order_Items oi
+                JOIN Orders o ON oi.order_id = o.order_id
+                JOIN Work_Details wd ON o.work_details_id = wd.id
+                WHERE wd.work_date < ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+            ");
+            $stmt_sales_before->execute([$transaction['transaction_date'], $transaction['product_name'], $transaction['user_id'], $transaction['user_id']]);
+            $total_sold_before = $stmt_sales_before->fetchColumn() ?: 0;
+
+            $previous_inventory = $total_transactions_before - $total_sold_before;
+
+            $stmt_current = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
+            $stmt_current->execute([$transaction['user_id'], $transaction['product_id']]);
+            $current_inventory = $stmt_current->fetchColumn() ?: 0;
 
             $transactions[] = [
                 'id' => $transaction['id'],
@@ -91,7 +108,8 @@ if ($work_month_id) {
                 'product_name' => $transaction['product_name'],
                 'quantity' => abs($transaction['quantity']),
                 'status' => $transaction['quantity'] > 0 ? 'تخصیص' : 'بازگشت',
-                'previous_inventory' => $total_before
+                'previous_inventory' => $previous_inventory,
+                'current_inventory' => $current_inventory
             ];
         }
     }
@@ -161,6 +179,7 @@ if ($work_month_id) {
                         <th>ویرایش تعداد</th>
                         <th>وضعیت تخصیص</th>
                         <th>موجودی قبل</th>
+                        <th>موجودی فعلی</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -184,6 +203,7 @@ if ($work_month_id) {
                             </td>
                             <td><?php echo $transaction['status']; ?></td>
                             <td><?php echo $transaction['previous_inventory']; ?></td>
+                            <td><?php echo $transaction['current_inventory']; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -346,7 +366,7 @@ $(document).ready(function () {
             alert('شناسه تراکنش نامعتبر است.');
             return;
         }
-        if (!productId || productId <= 0) {
+        if (!productId || product_id <= 0) {
             alert('شناسه محصول نامعتبر است.');
             return;
         }

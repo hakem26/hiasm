@@ -12,7 +12,6 @@ function gregorian_to_jalali_full_date($gregorian_date)
 
 // بررسی ورود کاربر
 if (!isset($_SESSION['user_id'])) {
-    // اگر کاربر وارد نشده، می‌توانیم او را به صفحه ورود هدایت کنیم
     header("Location: index.php");
     exit;
 }
@@ -30,7 +29,8 @@ $end_date = $month['end_date'];
 
 $query = "
     SELECT it.transaction_date, p.product_name, it.quantity,
-           SUM(CASE WHEN it2.quantity IS NOT NULL THEN it2.quantity ELSE 0 END) as total_before
+           SUM(CASE WHEN it2.quantity IS NOT NULL THEN it2.quantity ELSE 0 END) as total_transactions_before,
+           (SELECT SUM(oi.quantity) FROM Order_Items oi JOIN Orders o ON oi.order_id = o.order_id JOIN Work_Details wd ON o.work_details_id = wd.id WHERE wd.work_date < it.transaction_date AND oi.product_name = p.product_name AND EXISTS (SELECT 1 FROM Partners p2 WHERE p2.partner_id = wd.partner_id AND (p2.user_id1 = it.user_id OR p2.user_id2 = it.user_id))) as total_sold_before
     FROM Inventory_Transactions it
     JOIN Products p ON it.product_id = p.product_id
     LEFT JOIN Inventory_Transactions it2 ON it2.user_id = it.user_id AND it2.product_id = it.product_id AND it2.transaction_date < it.transaction_date
@@ -44,7 +44,18 @@ if ($product_id) {
 $query .= " GROUP BY it.id, it.transaction_date, p.product_name, it.quantity ORDER BY it.transaction_date ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
-$report = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$report_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$report = [];
+foreach ($report_raw as $item) {
+    $total_before = $item['total_transactions_before'] - $item['total_sold_before'];
+    $report[] = [
+        'transaction_date' => $item['transaction_date'],
+        'product_name' => $item['product_name'],
+        'quantity' => $item['quantity'],
+        'total_before' => $total_before
+    ];
+}
 ?>
 
 <!DOCTYPE html>

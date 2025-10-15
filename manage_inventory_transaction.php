@@ -154,4 +154,3 @@ try {
     file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Error: " . $e->getMessage() . "\n", FILE_APPEND);
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
-?>
