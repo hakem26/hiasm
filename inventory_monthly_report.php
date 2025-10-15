@@ -42,9 +42,10 @@ $query = "
     LEFT JOIN Inventory_Transactions it ON p.product_id = it.product_id 
         AND it.transaction_date >= ? 
         AND it.transaction_date <= ? 
-        AND it.user_id = ?
+        AND it.user_id = ? 
+        AND it.work_month_id = ?
 ";
-$params = [$start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
+$params = [$start_date, $end_date, $_SESSION['user_id'], $work_month_id];
 if ($product_id) {
     $query .= " WHERE p.product_id = ?";
     $params[] = $product_id;
@@ -64,9 +65,9 @@ foreach ($inventory_data as $item) {
     $stmt_initial = $pdo->prepare("
         SELECT SUM(quantity) AS total_transactions_before
         FROM Inventory_Transactions
-        WHERE user_id = ? AND product_id = ? AND transaction_date < ?
+        WHERE user_id = ? AND product_id = ? AND transaction_date < ? AND work_month_id < ?
     ");
-    $stmt_initial->execute([$_SESSION['user_id'], $item['product_id'], $start_date]);
+    $stmt_initial->execute([$_SESSION['user_id'], $item['product_id'], $start_date, $work_month_id]);
     $total_transactions_before = $stmt_initial->fetchColumn() ?: 0;
 
     $stmt_sales_before = $pdo->prepare("
@@ -74,9 +75,9 @@ foreach ($inventory_data as $item) {
         FROM Order_Items oi
         JOIN Orders o ON oi.order_id = o.order_id
         JOIN Work_Details wd ON o.work_details_id = wd.id
-        WHERE wd.work_date < ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+        WHERE wd.work_date < ? AND oi.product_name = ? AND wd.work_month_id < ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
     ");
-    $stmt_sales_before->execute([$start_date, $item['product_name'], $_SESSION['user_id'], $_SESSION['user_id']]);
+    $stmt_sales_before->execute([$start_date, $item['product_name'], $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']]);
     $total_sold_before = $stmt_sales_before->fetchColumn() ?: 0;
 
     $initial_inventory = $total_transactions_before - $total_sold_before;
@@ -93,9 +94,9 @@ foreach ($inventory_data as $item) {
         $stmt_last = $pdo->prepare("
             SELECT SUM(quantity) AS last_inventory
             FROM Inventory_Transactions
-            WHERE user_id = ? AND product_id = ? AND transaction_date <= ?
+            WHERE user_id = ? AND product_id = ? AND transaction_date <= ? AND work_month_id = ?
         ");
-        $stmt_last->execute([$_SESSION['user_id'], $item['product_id'], $end_date]);
+        $stmt_last->execute([$_SESSION['user_id'], $item['product_id'], $end_date, $work_month_id]);
         $last_inventory = $stmt_last->fetchColumn() ?: 0;
 
         $stmt_total_sold = $pdo->prepare("
@@ -103,9 +104,9 @@ foreach ($inventory_data as $item) {
             FROM Order_Items oi
             JOIN Orders o ON oi.order_id = o.order_id
             JOIN Work_Details wd ON o.work_details_id = wd.id
-            WHERE wd.work_date >= ? AND wd.work_date <= ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+            WHERE wd.work_date >= ? AND wd.work_date <= ? AND oi.product_name = ? AND wd.work_month_id = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
         ");
-        $stmt_total_sold->execute([$start_date, $end_date, $item['product_name'], $_SESSION['user_id'], $_SESSION['user_id']]);
+        $stmt_total_sold->execute([$start_date, $end_date, $item['product_name'], $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']]);
         $total_sold = $stmt_total_sold->fetchColumn() ?: 0;
 
         $final_inventory = $initial_inventory + $item['total_requested'] - $total_sold;
@@ -122,13 +123,14 @@ $sales_query = "
     JOIN Orders o ON oi.order_id = o.order_id
     JOIN Work_Details wd ON o.work_details_id = wd.id
     WHERE wd.work_date >= ? AND wd.work_date < ? 
+    AND wd.work_month_id = ? 
     AND EXISTS (
         SELECT 1 FROM Partners p 
         WHERE p.partner_id = wd.partner_id 
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )
 ";
-$sales_params = [$start_date, $end_date, $_SESSION['user_id'], $_SESSION['user_id']];
+$sales_params = [$start_date, $end_date, $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']];
 if ($product_id) {
     $sales_query .= " AND EXISTS (SELECT 1 FROM Products p WHERE p.product_name = oi.product_name AND p.product_id = ?)";
     $sales_params[] = $product_id;
