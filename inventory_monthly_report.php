@@ -21,11 +21,6 @@ $month = $month_query->fetch(PDO::FETCH_ASSOC);
 $start_date = $month['start_date'];
 $end_date = $month['end_date'];
 
-// گرفتن ماه قبلی برای محاسبه initial_inventory
-$prev_month_query = $pdo->prepare("SELECT work_month_id FROM Work_Months WHERE end_date < ? ORDER BY end_date DESC LIMIT 1");
-$prev_month_query->execute([$start_date]);
-$prev_month = $prev_month_query->fetchColumn() ?: null;
-
 // گرفتن همه محصولات و تراکنش‌ها
 $query = "
     SELECT 
@@ -39,14 +34,15 @@ $query = "
             ORDER BY it.transaction_date DESC SEPARATOR '+'
         ) as requested,
         SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as total_requested,
-        SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned
+        SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned,
+        (SELECT SUM(quantity) FROM Inventory_Transactions WHERE user_id = ? AND product_id = p.product_id AND transaction_date < ?) as initial_inventory
     FROM Products p
     LEFT JOIN Inventory_Transactions it ON p.product_id = it.product_id 
         AND it.transaction_date >= ? 
         AND it.transaction_date <= ? 
         AND it.user_id = ?
 ";
-$params = [$start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
+$params = [$_SESSION['user_id'], $start_date, $start_date, $end_date . ' 23:59:59', $_SESSION['user_id']];
 if ($product_id) {
     $query .= " WHERE p.product_id = ?";
     $params[] = $product_id;
@@ -55,21 +51,6 @@ $query .= " GROUP BY p.product_id, p.product_name ORDER BY p.product_name ASC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// گرفتن initial_inventory از گزارش ماه قبل
-$initial_inventory_data = [];
-if ($prev_month) {
-    $prev_report_query = $pdo->prepare("
-        SELECT product_name, sales_return 
-        FROM inventory_monthly_report 
-        WHERE work_month_id = ? AND user_id = ?
-    ");
-    $prev_report_query->execute([$prev_month, $_SESSION['user_id']]);
-    $prev_report = $prev_report_query->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($prev_report as $prev_item) {
-        $initial_inventory_data[$prev_item['product_name']] = (int)$prev_item['sales_return'];
-    }
-}
 
 // گرفتن تعداد فروش‌ها از فاکتورها
 $sales_query = "
@@ -100,7 +81,7 @@ $sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 // ترکیب داده‌ها
 $report = [];
 foreach ($inventory_data as $item) {
-    $initial_inventory = $initial_inventory_data[$item['product_name']] ?? 0;
+    $initial_inventory = $item['initial_inventory'] ? (int)$item['initial_inventory'] : 0;
     $total_requested = $item['total_requested'] ? (int)$item['total_requested'] : 0;
     $returned = $item['returned'] ? (int)$item['returned'] : 0;
 
