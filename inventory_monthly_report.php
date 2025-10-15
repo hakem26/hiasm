@@ -1,5 +1,11 @@
 <?php
 session_start();
+// چک کردن ورود کاربر
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php"); // هدایت به صفحه ورود
+    exit;
+}
+
 require_once 'db.php';
 require_once 'jdf.php';
 
