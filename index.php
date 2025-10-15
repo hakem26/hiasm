@@ -93,7 +93,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
 </head>
 <body style="background: linear-gradient(to bottom right, lightgreen, lightcyan);">
     <div class="login-box">
-        <h6 class="text-center mb-4">سیستم مدیریت فروش محصولات پوست و مو</h6>
+        <h6 class="text-center mb-4">سیستم مدیریت فروش محصولات پوست و مو تست</h6>
         <?php
         if (isset($_SESSION['error'])) {
             echo '<div class="alert alert-danger">' . $_SESSION['error'] . '</div>';

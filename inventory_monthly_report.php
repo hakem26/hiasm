@@ -1,5 +1,11 @@
 <?php
 session_start();
+// چک کردن ورود کاربر
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit;
+}
+
 require_once 'db.php';
 require_once 'jdf.php';
 
@@ -29,7 +35,8 @@ $query = "
         ) as requested,
         SUM(CASE WHEN it.quantity > 0 THEN it.quantity ELSE 0 END) as total_requested,
         SUM(CASE WHEN it.quantity < 0 THEN ABS(it.quantity) ELSE 0 END) as returned,
-        (SELECT SUM(quantity) FROM Inventory_Transactions WHERE user_id = ? AND product_id = p.product_id AND transaction_date < ?) as initial_inventory
+        (SELECT COALESCE(SUM(it2.quantity), 0) FROM Inventory_Transactions it2 
+         WHERE it2.user_id = ? AND it2.product_id = p.product_id AND it2.transaction_date < ?) as initial_inventory
     FROM Products p
     LEFT JOIN Inventory_Transactions it ON p.product_id = it.product_id 
         AND it.transaction_date >= ? 
@@ -46,7 +53,24 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// گرفتن تعداد فروش‌ها از فاکتورها
+// گرفتن تعداد فروش‌ها از فاکتورها تا پایان ماه قبل برای initial_inventory
+$prev_sales_query = $pdo->prepare("
+    SELECT oi.product_name, SUM(oi.quantity) as total_sold_before
+    FROM Order_Items oi
+    JOIN Orders o ON oi.order_id = o.order_id
+    JOIN Work_Details wd ON o.work_details_id = wd.id
+    WHERE wd.work_date < ? 
+    AND EXISTS (
+        SELECT 1 FROM Partners p 
+        WHERE p.partner_id = wd.partner_id 
+        AND (p.user_id1 = ? OR p.user_id2 = ?)
+    )
+    GROUP BY oi.product_name
+");
+$prev_sales_query->execute([$start_date, $_SESSION['user_id'], $_SESSION['user_id']]);
+$prev_sales_data = $prev_sales_query->fetchAll(PDO::FETCH_ASSOC);
+
+// گرفتن تعداد فروش‌ها از فاکتورها برای ماه جاری
 $sales_query = "
     SELECT 
         oi.product_name,
@@ -54,14 +78,15 @@ $sales_query = "
     FROM Order_Items oi
     JOIN Orders o ON oi.order_id = o.order_id
     JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE wd.work_date >= ? AND wd.work_date <= ? 
+    WHERE wd.work_date >= ? AND wd.work_date < ? 
+    AND wd.work_month_id = ?
     AND EXISTS (
         SELECT 1 FROM Partners p 
         WHERE p.partner_id = wd.partner_id 
         AND (p.user_id1 = ? OR p.user_id2 = ?)
     )
 ";
-$sales_params = [$start_date, $end_date, $_SESSION['user_id'], $_SESSION['user_id']];
+$sales_params = [$start_date, $end_date, $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']];
 if ($product_id) {
     $sales_query .= " AND EXISTS (SELECT 1 FROM Products p WHERE p.product_name = oi.product_name AND p.product_id = ?)";
     $sales_params[] = $product_id;
@@ -75,6 +100,17 @@ $sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 $report = [];
 foreach ($inventory_data as $item) {
     $initial_inventory = $item['initial_inventory'] ? (int)$item['initial_inventory'] : 0;
+
+    // کسر فروش‌های قبل از start_date از initial_inventory
+    $total_sold_before = 0;
+    foreach ($prev_sales_data as $sale) {
+        if ($sale['product_name'] === $item['product_name']) {
+            $total_sold_before = (int)$sale['total_sold_before'];
+            break;
+        }
+    }
+    $initial_inventory -= $total_sold_before;
+
     $total_requested = $item['total_requested'] ? (int)$item['total_requested'] : 0;
     $returned = $item['returned'] ? (int)$item['returned'] : 0;
 
@@ -87,8 +123,8 @@ foreach ($inventory_data as $item) {
         }
     }
 
-    // محاسبه موجودی فعلی (برگشت از فروش)
-    $current_inventory = $initial_inventory + $total_requested - $total_sold;
+    // محاسبه برگشت از فروش
+    $sales_return = $initial_inventory + $total_requested - $total_sold;
 
     // اصلاح رشته تخصیص‌ها با اضافه کردن موجودی اولیه
     $requested_display = $item['requested'] ? $item['requested'] : '';
@@ -104,7 +140,7 @@ foreach ($inventory_data as $item) {
         'requested' => $requested_display,
         'total_requested' => $total_requested + $initial_inventory,
         'returned' => $returned,
-        'current_inventory' => $current_inventory,
+        'sales_return' => $sales_return,
         'total_sold' => $total_sold
     ];
 }
@@ -221,7 +257,6 @@ foreach ($inventory_data as $item) {
             display: table-header-group;
         }
 
-        /* برای راست‌چین کردن متن در ستون تخصیص‌ها */
         .requested-column {
             direction: rtl;
             text-align: center;
@@ -295,7 +330,7 @@ foreach ($inventory_data as $item) {
                     <td class="requested-column"><?= $item['requested'] ?></td>
                     <td><?= $item['total_requested'] ?></td>
                     <td><?= $item['returned'] ?: '-' ?></td>
-                    <td><?= $item['current_inventory'] >= 0 ? $item['current_inventory'] : 0 ?></td>
+                    <td><?= $item['sales_return'] ?></td>
                     <td><?= $item['total_sold'] ?></td>
                 </tr>
                 <?php
