@@ -10,11 +10,12 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // دریافت لیست همکاران
-$stmt = $pdo->query("SELECT p.*, u1.full_name AS full_name1, u2.full_name AS full_name2 
-                    FROM Partners p 
-                    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
-                    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id 
-                    ORDER BY p.partner_id DESC");
+$stmt = $pdo->prepare("SELECT p.*, p.active, u1.full_name AS full_name1, u2.full_name AS full_name2 
+                       FROM Partners p 
+                       LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
+                       LEFT JOIN Users u2 ON p.user_id2 = u2.user_id 
+                       ORDER BY p.partner_id DESC");
+$stmt->execute();
 $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // دریافت برنامه کاری همکارها
