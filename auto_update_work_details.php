@@ -45,7 +45,8 @@ $end_date = $month['end_date'];
 error_log("Processing work_month_id: $work_month_id, start_date: $start_date, end_date: $end_date");
 
 // دریافت همه همکاری‌ها
-$partners_query = $pdo->prepare("SELECT partner_id, user_id1, user_id2 FROM Partners");
+// فقط همکاران فعال
+$partners_query = $pdo->prepare("SELECT partner_id, user_id1, user_id2 FROM Partners WHERE active = 1");
 $partners_query->execute();
 $all_partners = $partners_query->fetchAll(PDO::FETCH_ASSOC);
 

@@ -51,52 +51,51 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <?php if (empty($partners)): ?>
-    <div class="alert alert-warning text-center">هیچ همکاری ثبت نشده است.</div>
+        <div class="alert alert-warning text-center">هیچ همکاری ثبت نشده است.</div>
     <?php else: ?>
-    <table class="table table-light table-hover">
-        <thead>
-            <tr>
-                <th>ردیف</th>
-                <th>همکار 1</th>
-                <th>همکار 2</th>
-                <th>روزهای کاری</th>
-                <th>عملیات</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php $row = 1; foreach ($partners as $partner): ?>
-            <tr>
-                <td><?php echo $row++; ?></td>
-                <td><?php echo $partner['full_name1'] ?: '-'; ?></td>
-                <td><?php echo $partner['full_name2'] ?: '-'; ?></td>
-                <td>
-                    <?php
-                    if (isset($partner_schedules[$partner['partner_id']])) {
-                        $days = array_map(function($day) use ($days_of_week) {
-                            return $days_of_week[$day];
-                        }, $partner_schedules[$partner['partner_id']]);
-                        echo implode(', ', $days);
-                    } else {
-                        echo '-';
-                    }
-                    ?>
-                </td>
-                <td>
-                    <!-- <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editPartnerModal" 
-                            data-partner-id="<?php echo $partner['partner_id']; ?>" 
-                            data-user1="<?php echo $partner['user_id1']; ?>" 
-                            data-user2="<?php echo $partner['user_id2']; ?>"
-                            data-days="<?php echo isset($partner_schedules[$partner['partner_id']]) ? implode(',', $partner_schedules[$partner['partner_id']]) : ''; ?>">
-                        ویرایش
-                    </button> -->
-                    <button class="btn btn-danger btn-sm" onclick="confirmDeletePartner(<?php echo $partner['partner_id']; ?>)">
-                        حذف
-                    </button>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+        <table class="table table-light table-hover">
+            <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>همکار 1</th>
+                    <th>همکار 2</th>
+                    <th>روزهای کاری</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php $row = 1;
+                foreach ($partners as $partner): ?>
+                    <tr>
+                        <td><?php echo $row++; ?></td>
+                        <td><?php echo $partner['full_name1'] ?: '-'; ?></td>
+                        <td><?php echo $partner['full_name2'] ?: '-'; ?></td>
+                        <td>
+                            <?php
+                            if (isset($partner_schedules[$partner['partner_id']])) {
+                                $days = array_map(function ($day) use ($days_of_week) {
+                                    return $days_of_week[$day];
+                                }, $partner_schedules[$partner['partner_id']]);
+                                echo implode(', ', $days);
+                            } else {
+                                echo '-';
+                            }
+                            ?>
+                        </td>
+                        <!-- ستون عملیات -->
+                        <td>
+                            <button class="btn btn-sm <?= $partner['active'] ? 'btn-warning' : 'btn-success' ?> toggle-active"
+                                data-partner-id="<?= $partner['partner_id'] ?>" data-active="<?= $partner['active'] ?>">
+                                <?= $partner['active'] ? 'غیرفعال' : 'فعال' ?>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="confirmDeletePartner(<?= $partner['partner_id'] ?>)">
+                                حذف
+                            </button>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     <?php endif; ?>
 </div>
 
@@ -115,16 +114,16 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <select class="form-select" id="add_user_id1" name="user_id1" required>
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($users as $user): ?>
-                            <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
+                                <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="add_user_id2" class="form-label">همکار 2</label>
                         <select class="form-select" id="add_user_id2" name="user_id2">
-                        <option value="">انتخاب کنید (اختیاری)</option>
+                            <option value="">انتخاب کنید (اختیاری)</option>
                             <?php foreach ($users as $user): ?>
-                            <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
+                                <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -132,7 +131,7 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <label for="add_days_of_week" class="form-label">روزهای کاری</label>
                         <select class="form-select" id="add_days_of_week" name="days_of_week[]" multiple required>
                             <?php foreach ($days_of_week as $day_number => $day_name): ?>
-                            <option value="<?php echo $day_number; ?>"><?php echo $day_name; ?></option>
+                                <option value="<?php echo $day_number; ?>"><?php echo $day_name; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -159,7 +158,7 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <select class="form-select" id="edit_user_id1" name="user_id1" required>
                             <option value="">انتخاب کنید</option>
                             <?php foreach ($users as $user): ?>
-                            <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
+                                <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -168,7 +167,7 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <select class="form-select" id="edit_user_id2" name="user_id2">
                             <option value="">انتخاب کنید (اختیاری)</option>
                             <?php foreach ($users as $user): ?>
-                            <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
+                                <option value="<?php echo $user['user_id']; ?>"><?php echo $user['full_name']; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -176,7 +175,7 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <label for="edit_days_of_week" class="form-label">روزهای کاری</label>
                         <select class="form-select" id="edit_days_of_week" name="days_of_week[]" multiple required>
                             <?php foreach ($days_of_week as $day_number => $day_name): ?>
-                            <option value="<?php echo $day_number; ?>"><?php echo $day_name; ?></option>
+                                <option value="<?php echo $day_number; ?>"><?php echo $day_name; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -189,49 +188,43 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <!-- اسکریپت‌ها -->
 <script>
-// [BLOCK-PARTNERS-003]
-document.addEventListener('DOMContentLoaded', () => {
-    // پر کردن اطلاعات در مودال ویرایش
-    document.querySelectorAll('[data-bs-target="#editPartnerModal"]').forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            const partnerId = button.getAttribute('data-partner-id');
-            const user1 = button.getAttribute('data-user1');
-            const user2 = button.getAttribute('data-user2');
-            const days = button.getAttribute('data-days').split(',');
+    document.addEventListener('DOMContentLoaded', () => {
+        // دکمه فعال/غیرفعال
+        document.querySelectorAll('.toggle-active').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const partnerId = this.dataset.partnerId;
+                const isActive = this.dataset.active === '1';
+                const action = isActive ? 'غیرفعال' : 'فعال';
+                const confirmMsg = `آیا مطمئن هستید که می‌خواهید این همکار را ${action} کنید؟`;
 
-            document.getElementById('edit_partner_id').value = partnerId;
-            document.getElementById('edit_user_id1').value = user1 || '';
-            document.getElementById('edit_user_id2').value = user2 || '';
-
-            const editDaysSelect = document.getElementById('edit_days_of_week');
-            Array.from(editDaysSelect.options).forEach(option => {
-                option.selected = days.includes(option.value);
+                if (confirm(confirmMsg)) {
+                    fetch('toggle_partner_active.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'partner_id=' + partnerId
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(data.message);
+                                location.reload();
+                            } else {
+                                alert('خطا: ' + data.message);
+                            }
+                        })
+                        .catch(() => alert('خطا در ارتباط با سرور!'));
+                }
             });
         });
-    });
 
-    // حذف همکار
-    window.confirmDeletePartner = function(partnerId) {
-        if (confirm('آیا مطمئن هستید که می‌خواهید این همکار را حذف کنید؟')) {
-            fetch('delete_partner.php?partner_id=' + partnerId, {
-                method: 'GET'
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.reload(); // رفرش صفحه پس از حذف
-                } else {
-                    alert('خطا در حذف همکار!');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('خطا در اتصال به سرور!');
-            });
-        }
-        return false;
-    };
-});
+        // حذف (قبلی)
+        window.confirmDeletePartner = function (partnerId) {
+            if (confirm('آیا مطمئن هستید که می‌خواهید این همکار را حذف کنید؟')) {
+                fetch('delete_partner.php?partner_id=' + partnerId)
+                    .then(r => r.ok ? location.reload() : alert('خطا در حذف!'));
+            }
+        };
+    });
 </script>
 
 <?php
