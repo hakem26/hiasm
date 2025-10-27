@@ -10,11 +10,13 @@ require_once 'db.php';
 require_once 'jdf.php';
 
 // دریافت لیست همکاران
-$stmt = $pdo->prepare("SELECT p.*, p.active, u1.full_name AS full_name1, u2.full_name AS full_name2 
-                       FROM Partners p 
-                       LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
-                       LEFT JOIN Users u2 ON p.user_id2 = u2.user_id 
-                       ORDER BY p.partner_id DESC");
+$stmt = $pdo->prepare("
+    SELECT p.*, u1.full_name AS full_name1, u2.full_name AS full_name2 
+    FROM Partners p 
+    LEFT JOIN Users u1 ON p.user_id1 = u1.user_id 
+    LEFT JOIN Users u2 ON p.user_id2 = u2.user_id 
+    ORDER BY p.partner_id DESC
+");
 $stmt->execute();
 $partners = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -85,9 +87,12 @@ $users = $users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         </td>
                         <!-- ستون عملیات -->
                         <td>
-                            <button class="btn btn-sm <?= $partner['active'] ? 'btn-warning' : 'btn-success' ?> toggle-active"
-                                data-partner-id="<?= $partner['partner_id'] ?>" data-active="<?= $partner['active'] ?>">
-                                <?= $partner['active'] ? 'غیرفعال' : 'فعال' ?>
+                            <?php
+                            $is_active = !empty($partner['active']); // یا (bool)$partner['active']
+                            ?>
+                            <button class="btn btn-sm <?= $is_active ? 'btn-warning' : 'btn-success' ?> toggle-active"
+                                data-partner-id="<?= $partner['partner_id'] ?>" data-active="<?= $is_active ? '1' : '0' ?>">
+                                <?= $is_active ? 'غیرفعال' : 'فعال' ?>
                             </button>
                             <button class="btn btn-danger btn-sm" onclick="confirmDeletePartner(<?= $partner['partner_id'] ?>)">
                                 حذف
