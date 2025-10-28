@@ -8,12 +8,14 @@ require_once 'header.php';
 require_once 'db.php';
 require_once 'jdf.php';
 
-function gregorian_to_jalali_full($gregorian_date) {
+function gregorian_to_jalali_full($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
     return gregorian_to_jalali($gy, $gm, $gd);
 }
 
-function gregorian_to_jalali_full_date($gregorian_date) {
+function gregorian_to_jalali_full_date($gregorian_date)
+{
     list($gy, $gm, $gd) = explode('-', date('Y-m-d', strtotime($gregorian_date)));
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
@@ -39,7 +41,7 @@ $work_months = $stmt_months->fetchAll(PDO::FETCH_ASSOC);
 
 $is_admin = ($_SESSION['role'] === 'admin');
 $current_user_id = $_SESSION['user_id'];
-$work_month_id = isset($_GET['work_month_id']) ? (int)$_GET['work_month_id'] : ($work_months ? $work_months[0]['work_month_id'] : null);
+$work_month_id = isset($_GET['work_month_id']) ? (int) $_GET['work_month_id'] : ($work_months ? $work_months[0]['work_month_id'] : null);
 
 $product_id = $_GET['product_id'] ?? null;
 
@@ -76,35 +78,45 @@ if ($work_month_id) {
         $transactions_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($transactions_raw as $transaction) {
-            // محاسبه موجودی قبل از این تراکنش (تراکنش‌های قبلی - فروش‌های قبلی)
+            $user_id = $transaction['user_id'];
+            $product_id = $transaction['product_id'];
+            $transaction_date = $transaction['transaction_date'];
+
+            // --- تخصیص‌های قبلی (همه تخصیص‌ها برای این کاربر و محصول) ---
             $stmt_before = $pdo->prepare("
-                SELECT SUM(quantity) AS total_transactions_before
-                FROM Inventory_Transactions
+                SELECT COALESCE(SUM(quantity), 0) 
+                FROM Inventory_Transactions 
                 WHERE user_id = ? AND product_id = ? AND transaction_date < ?
             ");
-            $stmt_before->execute([$transaction['user_id'], $transaction['product_id'], $transaction['transaction_date']]);
-            $total_transactions_before = $stmt_before->fetchColumn() ?: 0;
+            $stmt_before->execute([$user_id, $product_id, $transaction_date]);
+            $total_allocated_before = $stmt_before->fetchColumn();
 
+            // --- فروش‌های قبلی (فقط وقتی کاربر همکار ۱ بوده) ---
             $stmt_sales_before = $pdo->prepare("
-                SELECT SUM(oi.quantity) AS total_sold_before
+                SELECT COALESCE(SUM(oi.quantity), 0)
                 FROM Order_Items oi
                 JOIN Orders o ON oi.order_id = o.order_id
                 JOIN Work_Details wd ON o.work_details_id = wd.id
-                WHERE wd.work_date < ? AND oi.product_name = ? AND EXISTS (SELECT 1 FROM Partners p WHERE p.partner_id = wd.partner_id AND (p.user_id1 = ? OR p.user_id2 = ?))
+                JOIN Partners p ON wd.partner_id = p.partner_id
+                WHERE wd.work_date < ? 
+                  AND oi.product_name = ? 
+                  AND p.user_id1 = ?
             ");
-            $stmt_sales_before->execute([$transaction['transaction_date'], $transaction['product_name'], $transaction['user_id'], $transaction['user_id']]);
-            $total_sold_before = $stmt_sales_before->fetchColumn() ?: 0;
+            $stmt_sales_before->execute([$transaction_date, $transaction['product_name'], $user_id]);
+            $total_sold_before = $stmt_sales_before->fetchColumn();
 
-            $previous_inventory = $total_transactions_before - $total_sold_before;
+            // --- موجودی قبل از این تراکنش ---
+            $previous_inventory = $total_allocated_before - $total_sold_before;
 
+            // --- موجودی فعلی (از جدول Inventory) ---
             $stmt_current = $pdo->prepare("SELECT quantity FROM Inventory WHERE user_id = ? AND product_id = ?");
-            $stmt_current->execute([$transaction['user_id'], $transaction['product_id']]);
+            $stmt_current->execute([$user_id, $product_id]);
             $current_inventory = $stmt_current->fetchColumn() ?: 0;
 
             $transactions[] = [
                 'id' => $transaction['id'],
-                'product_id' => $transaction['product_id'],
-                'date' => gregorian_to_jalali_full_date($transaction['transaction_date']),
+                'product_id' => $product_id,
+                'date' => gregorian_to_jalali_full_date($transaction_date),
                 'product_name' => $transaction['product_name'],
                 'quantity' => abs($transaction['quantity']),
                 'status' => $transaction['quantity'] > 0 ? 'تخصیص' : 'بازگشت',
@@ -160,7 +172,8 @@ if ($work_month_id) {
     <div class="row g-3 mb-4">
         <div class="col-auto">
             <a href="inventory_monthly_report.php?work_month_id=<?php echo $work_month_id; ?>&product_id=<?php echo $product_id ?? ''; ?>"
-                target="_blank" class="btn btn-success <?php echo !$work_month_id ? 'disabled' : ''; ?>">گزارش ماهانه</a>
+                target="_blank" class="btn btn-success <?php echo !$work_month_id ? 'disabled' : ''; ?>">گزارش
+                ماهانه</a>
         </div>
         <div class="col-auto">
             <a href="inventory_time_report.php?work_month_id=<?php echo $work_month_id; ?>&product_id=<?php echo $product_id ?? ''; ?>"
@@ -196,8 +209,8 @@ if ($work_month_id) {
                                     data-product="<?php echo htmlspecialchars($transaction['product_name']); ?>"
                                     data-quantity="<?php echo $transaction['quantity']; ?>"
                                     data-status="<?php echo $transaction['status']; ?>"
-                                    data-previous="<?php echo $transaction['previous_inventory']; ?>"
-                                    data-bs-toggle="modal" data-bs-target="#editQuantityModal">
+                                    data-previous="<?php echo $transaction['previous_inventory']; ?>" data-bs-toggle="modal"
+                                    data-bs-target="#editQuantityModal">
                                     ویرایش
                                 </button>
                             </td>
@@ -215,7 +228,8 @@ if ($work_month_id) {
         <div class="alert alert-info text-center">لطفاً یک ماه کاری انتخاب کنید.</div>
     <?php endif; ?>
 
-    <div class="modal fade" id="editQuantityModal" tabindex="-1" aria-labelledby="editQuantityModalLabel" aria-hidden="true">
+    <div class="modal fade" id="editQuantityModal" tabindex="-1" aria-labelledby="editQuantityModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -248,10 +262,12 @@ if ($work_month_id) {
                         </div>
                         <div class="mb-3">
                             <label for="modal_new_quantity" class="form-label">تعداد جدید</label>
-                            <input type="number" class="form-control" id="modal_new_quantity" name="new_quantity" min="0" required>
+                            <input type="number" class="form-control" id="modal_new_quantity" name="new_quantity"
+                                min="0" required>
                         </div>
                         <p class="text-muted" style="font-size: 0.9em;">
-                            لطفاً ویرایش اطلاعات را در اسرع وقت انجام دهید. در صورت تأخیر در اصلاح اطلاعات نادرست، مسئولیت تمامی عواقب خطاها در آمار و گزارش نهایی بر عهده کارشناس مربوطه خواهد بود.
+                            لطفاً ویرایش اطلاعات را در اسرع وقت انجام دهید. در صورت تأخیر در اصلاح اطلاعات نادرست،
+                            مسئولیت تمامی عواقب خطاها در آمار و گزارش نهایی بر عهده کارشناس مربوطه خواهد بود.
                         </p>
                     </form>
                 </div>
@@ -266,180 +282,180 @@ if ($work_month_id) {
 </div>
 
 <script>
-$(document).ready(function () {
-    var timeout;
-    $("#product_search").on("input", function () {
-        clearTimeout(timeout);
-        var query = $(this).val().trim();
-        var $productList = $("#product_list");
-        var $filterButton = $("#filter_product");
+    $(document).ready(function () {
+        var timeout;
+        $("#product_search").on("input", function () {
+            clearTimeout(timeout);
+            var query = $(this).val().trim();
+            var $productList = $("#product_list");
+            var $filterButton = $("#filter_product");
 
-        if (query.length < 3) {
-            $productList.hide().empty();
-            $("#product_id").val("");
-            $filterButton.prop("disabled", true);
-            return;
+            if (query.length < 3) {
+                $productList.hide().empty();
+                $("#product_id").val("");
+                $filterButton.prop("disabled", true);
+                return;
+            }
+
+            timeout = setTimeout(function () {
+                $.ajax({
+                    url: "get_products.php",
+                    method: "POST",
+                    data: { query: query },
+                    dataType: "html",
+                    success: function (data) {
+                        $productList.empty();
+                        if (data) {
+                            $(data).each(function () {
+                                var product = JSON.parse($(this).attr("data-product"));
+                                $productList.append(
+                                    $("<option>", {
+                                        value: product.product_id,
+                                        text: product.product_name
+                                    })
+                                );
+                            });
+                            $productList.show();
+                        } else {
+                            $productList.hide();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("AJAX error:", status, error);
+                    }
+                });
+            }, 300);
+        });
+
+        $("#product_list").on("change", function () {
+            var selectedId = $(this).val();
+            var selectedName = $(this).find("option:selected").text();
+            $("#product_id").val(selectedId);
+            $("#product_search").val(selectedName);
+            $("#product_list").hide();
+            $("#filter_product").prop("disabled", false);
+        });
+
+        if (!$("#product_id").val()) {
+            $("#filter_product").prop("disabled", true);
         }
 
-        timeout = setTimeout(function () {
+        $('.edit-quantity-btn').on('click', function () {
+            var id = $(this).data('id');
+            var productId = $(this).data('product-id');
+            var date = $(this).data('date');
+            var product = $(this).data('product');
+            var quantity = $(this).data('quantity');
+            var status = $(this).data('status');
+            var previous = $(this).data('previous');
+
+            $('#transaction_id').val(id);
+            $('#product_id').val(productId);
+            $('#modal_date').val(date);
+            $('#modal_product').val(product);
+            $('#modal_quantity').val(quantity);
+            $('#modal_status').val(status);
+            $('#modal_previous').val(previous);
+            $('#modal_new_quantity').val(quantity);
+
+            console.log('Modal Data:', {
+                transaction_id: id,
+                product_id: productId,
+                quantity: quantity
+            });
+        });
+
+        $('#saveQuantityBtn').on('click', function () {
+            var transactionId = $('#transaction_id').val();
+            var productId = $('#product_id').val();
+            var newQuantity = $('#modal_new_quantity').val();
+
+            var formData = {
+                transaction_id: transactionId,
+                product_id: productId,
+                new_quantity: newQuantity,
+                action: 'update'
+            };
+            console.log('Form Data:', formData);
+
+            if (!transactionId || transactionId <= 0) {
+                alert('شناسه تراکنش نامعتبر است.');
+                return;
+            }
+            if (!productId || product_id <= 0) {
+                alert('شناسه محصول نامعتبر است.');
+                return;
+            }
+            if (newQuantity === '' || newQuantity < 0 || isNaN(newQuantity)) {
+                alert('لطفاً مقدار معتبر برای تعداد جدید وارد کنید.');
+                return;
+            }
+
             $.ajax({
-                url: "get_products.php",
-                method: "POST",
-                data: { query: query },
-                dataType: "html",
-                success: function (data) {
-                    $productList.empty();
-                    if (data) {
-                        $(data).each(function () {
-                            var product = JSON.parse($(this).attr("data-product"));
-                            $productList.append(
-                                $("<option>", {
-                                    value: product.product_id,
-                                    text: product.product_name
-                                })
-                            );
-                        });
-                        $productList.show();
+                url: 'manage_inventory_transaction.php',
+                method: 'POST',
+                data: formData,
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        alert('تعداد با موفقیت به‌روزرسانی شد.');
+                        location.reload();
                     } else {
-                        $productList.hide();
+                        alert('خطا: ' + response.message);
                     }
                 },
                 error: function (xhr, status, error) {
-                    console.error("AJAX error:", status, error);
+                    console.error('AJAX error:', status, error);
+                    alert('خطا در ارتباط با سرور.');
                 }
             });
-        }, 300);
-    });
-
-    $("#product_list").on("change", function () {
-        var selectedId = $(this).val();
-        var selectedName = $(this).find("option:selected").text();
-        $("#product_id").val(selectedId);
-        $("#product_search").val(selectedName);
-        $("#product_list").hide();
-        $("#filter_product").prop("disabled", false);
-    });
-
-    if (!$("#product_id").val()) {
-        $("#filter_product").prop("disabled", true);
-    }
-
-    $('.edit-quantity-btn').on('click', function () {
-        var id = $(this).data('id');
-        var productId = $(this).data('product-id');
-        var date = $(this).data('date');
-        var product = $(this).data('product');
-        var quantity = $(this).data('quantity');
-        var status = $(this).data('status');
-        var previous = $(this).data('previous');
-
-        $('#transaction_id').val(id);
-        $('#product_id').val(productId);
-        $('#modal_date').val(date);
-        $('#modal_product').val(product);
-        $('#modal_quantity').val(quantity);
-        $('#modal_status').val(status);
-        $('#modal_previous').val(previous);
-        $('#modal_new_quantity').val(quantity);
-
-        console.log('Modal Data:', {
-            transaction_id: id,
-            product_id: productId,
-            quantity: quantity
         });
-    });
 
-    $('#saveQuantityBtn').on('click', function () {
-        var transactionId = $('#transaction_id').val();
-        var productId = $('#product_id').val();
-        var newQuantity = $('#modal_new_quantity').val();
-
-        var formData = {
-            transaction_id: transactionId,
-            product_id: productId,
-            new_quantity: newQuantity,
-            action: 'update'
-        };
-        console.log('Form Data:', formData);
-
-        if (!transactionId || transactionId <= 0) {
-            alert('شناسه تراکنش نامعتبر است.');
-            return;
-        }
-        if (!productId || product_id <= 0) {
-            alert('شناسه محصول نامعتبر است.');
-            return;
-        }
-        if (newQuantity === '' || newQuantity < 0 || isNaN(newQuantity)) {
-            alert('لطفاً مقدار معتبر برای تعداد جدید وارد کنید.');
-            return;
-        }
-
-        $.ajax({
-            url: 'manage_inventory_transaction.php',
-            method: 'POST',
-            data: formData,
-            dataType: 'json',
-            success: function (response) {
-                if (response.success) {
-                    alert('تعداد با موفقیت به‌روزرسانی شد.');
-                    location.reload();
-                } else {
-                    alert('خطا: ' + response.message);
-                }
-            },
-            error: function (xhr, status, error) {
-                console.error('AJAX error:', status, error);
-                alert('خطا در ارتباط با سرور.');
+        $('#deleteTransactionBtn').on('click', function () {
+            if (!confirm('آیا مطمئن هستید که می‌خواهید این تراکنش را حذف کنید؟')) {
+                return;
             }
-        });
-    });
+            var transactionId = $('#transaction_id').val();
+            var productId = $('#product_id').val();
 
-    $('#deleteTransactionBtn').on('click', function () {
-        if (!confirm('آیا مطمئن هستید که می‌خواهید این تراکنش را حذف کنید؟')) {
-            return;
-        }
-        var transactionId = $('#transaction_id').val();
-        var productId = $('#product_id').val();
+            var data = {
+                transaction_id: transactionId,
+                product_id: productId,
+                action: 'delete'
+            };
+            console.log('Delete Data:', data);
 
-        var data = {
-            transaction_id: transactionId,
-            product_id: productId,
-            action: 'delete'
-        };
-        console.log('Delete Data:', data);
-
-        $.ajax({
-            url: 'manage_inventory_transaction.php',
-            method: 'POST',
-            data: data,
-            dataType: 'json',
-            success: function (response) {
-                if (response.success) {
-                    alert('تراکنش با موفقیت حذف شد.');
-                    location.reload();
-                } else {
-                    alert('خطا: ' + response.message);
+            $.ajax({
+                url: 'manage_inventory_transaction.php',
+                method: 'POST',
+                data: data,
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        alert('تراکنش با موفقیت حذف شد.');
+                        location.reload();
+                    } else {
+                        alert('خطا: ' + response.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('AJAX error:', status, error);
+                    alert('خطا در ارتباط با سرور.');
                 }
+            });
+        });
+
+        $('#inventoryTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
             },
-            error: function (xhr, status, error) {
-                console.error('AJAX error:', status, error);
-                alert('خطا در ارتباط با سرور.');
-            }
+            "paging": true,
+            "searching": false,
+            "ordering": true,
+            "info": true,
+            "lengthMenu": [10, 25, 50, 100]
         });
     });
-
-    $('#inventoryTable').DataTable({
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/fa.json"
-        },
-        "paging": true,
-        "searching": false,
-        "ordering": true,
-        "info": true,
-        "lengthMenu": [10, 25, 50, 100]
-    });
-});
 </script>
 
 <?php require_once 'footer.php'; ?>

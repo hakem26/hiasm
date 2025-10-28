@@ -54,39 +54,34 @@ $stmt->execute($params);
 $inventory_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // گرفتن تعداد فروش‌ها از فاکتورها تا پایان ماه قبل برای initial_inventory
+// گرفتن تعداد فروش‌ها از فاکتورها تا پایان ماه قبل (فقط وقتی کاربر همکار ۱ بوده)
 $prev_sales_query = $pdo->prepare("
-    SELECT oi.product_name, SUM(oi.quantity) as total_sold_before
-    FROM Order_Items oi
-    JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE wd.work_date < ? 
-    AND EXISTS (
-        SELECT 1 FROM Partners p 
-        WHERE p.partner_id = wd.partner_id 
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-    )
-    GROUP BY oi.product_name
-");
-$prev_sales_query->execute([$start_date, $_SESSION['user_id'], $_SESSION['user_id']]);
+        SELECT oi.product_name, SUM(oi.quantity) as total_sold_before
+        FROM Order_Items oi
+        JOIN Orders o ON oi.order_id = o.order_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_date < ? 
+          AND p.user_id1 = ?
+        GROUP BY oi.product_name
+    ");
+$prev_sales_query->execute([$start_date, $_SESSION['user_id']]);
 $prev_sales_data = $prev_sales_query->fetchAll(PDO::FETCH_ASSOC);
 
-// گرفتن تعداد فروش‌ها از فاکتورها برای ماه جاری
+// گرفتن تعداد فروش‌ها از فاکتورها برای ماه جاری (فقط وقتی کاربر همکار ۱ بوده)
 $sales_query = "
-    SELECT 
-        oi.product_name,
-        SUM(oi.quantity) as total_sold
-    FROM Order_Items oi
-    JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    WHERE wd.work_date >= ? AND wd.work_date < ? 
-    AND wd.work_month_id = ?
-    AND EXISTS (
-        SELECT 1 FROM Partners p 
-        WHERE p.partner_id = wd.partner_id 
-        AND (p.user_id1 = ? OR p.user_id2 = ?)
-    )
-";
-$sales_params = [$start_date, $end_date, $work_month_id, $_SESSION['user_id'], $_SESSION['user_id']];
+        SELECT 
+            oi.product_name,
+            SUM(oi.quantity) as total_sold
+        FROM Order_Items oi
+        JOIN Orders o ON oi.order_id = o.order_id
+        JOIN Work_Details wd ON o.work_details_id = wd.id
+        JOIN Partners p ON wd.partner_id = p.partner_id
+        WHERE wd.work_date >= ? AND wd.work_date < ? 
+          AND wd.work_month_id = ?
+          AND p.user_id1 = ?
+    ";
+$sales_params = [$start_date, $end_date, $work_month_id, $_SESSION['user_id']];
 if ($product_id) {
     $sales_query .= " AND EXISTS (SELECT 1 FROM Products p WHERE p.product_name = oi.product_name AND p.product_id = ?)";
     $sales_params[] = $product_id;
@@ -99,26 +94,26 @@ $sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 // ترکیب داده‌ها
 $report = [];
 foreach ($inventory_data as $item) {
-    $initial_inventory = $item['initial_inventory'] ? (int)$item['initial_inventory'] : 0;
+    $initial_inventory = $item['initial_inventory'] ? (int) $item['initial_inventory'] : 0;
 
     // کسر فروش‌های قبل از start_date از initial_inventory
     $total_sold_before = 0;
     foreach ($prev_sales_data as $sale) {
         if ($sale['product_name'] === $item['product_name']) {
-            $total_sold_before = (int)$sale['total_sold_before'];
+            $total_sold_before = (int) $sale['total_sold_before'];
             break;
         }
     }
     $initial_inventory -= $total_sold_before;
 
-    $total_requested = $item['total_requested'] ? (int)$item['total_requested'] : 0;
-    $returned = $item['returned'] ? (int)$item['returned'] : 0;
+    $total_requested = $item['total_requested'] ? (int) $item['total_requested'] : 0;
+    $returned = $item['returned'] ? (int) $item['returned'] : 0;
 
     // پیدا کردن فروش برای این محصول
     $total_sold = 0;
     foreach ($sales_data as $sale) {
         if ($sale['product_name'] === $item['product_name']) {
-            $total_sold = (int)$sale['total_sold'];
+            $total_sold = (int) $sale['total_sold'];
             break;
         }
     }
