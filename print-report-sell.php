@@ -65,7 +65,7 @@ $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 $total_sales = $summary['total_sales'] ?? 0;
 $total_discount = $summary['total_discount'] ?? 0;
 
-// محاسبه تعداد جلسات آژانس که کاربر خودش رو ثبت کرده (بررسی user_id1 و user_id2)
+// تعداد جلسات آژانس
 $stmt = $pdo->prepare("
     SELECT COUNT(*) AS session_count
     FROM Work_Details wd
@@ -79,52 +79,207 @@ $stmt = $pdo->prepare("
 $params = [$work_month_id, $selected_user_id, $selected_user_id];
 $stmt->execute($params);
 $total_sessions = $stmt->fetchColumn() ?: 0;
-error_log("Calculated total_sessions for user_id $selected_user_id, work_month_id $work_month_id: $total_sessions");
 $total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
 
-// لیست همه محصولات از Products با مقداردهی صفر برای محصولات بدون فروش
-$products = [];
-$stmt = $pdo->prepare("
-    SELECT p.product_name, p.unit_price, 
-           COALESCE(SUM(CASE WHEN wd.work_month_id = ? AND p2.user_id1 = ? THEN oi.quantity ELSE 0 END), 0) AS total_quantity,
-           COALESCE(SUM(CASE WHEN wd.work_month_id = ? AND p2.user_id1 = ? THEN oi.total_price ELSE 0 END), 0) AS total_price
-    FROM Products p
-    LEFT JOIN Order_Items oi ON p.product_name = oi.product_name
-    LEFT JOIN Orders o ON oi.order_id = o.order_id
-    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
-    LEFT JOIN Partners p2 ON wd.partner_id = p2.partner_id
-    GROUP BY p.product_name, p.unit_price
-    ORDER BY p.product_name COLLATE utf8mb4_persian_ci
-");
-$params = [$work_month_id, $selected_user_id, $work_month_id, $selected_user_id];
-$stmt->execute($params);
-$products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// لیست ثابت محصولات (به ترتیب دلخواه)
+$fixed_products = [
+    'آبرسان نیتروژنار',
+    'آکواژل لاروشه',
+    'اسپری بریدگی/سوختگی',
+    'اسکالپ اسکراب ریوولی',
+    'اسکراب اسکین',
+    'اسکراب اینگون',
+    'اسکراب رشوبی',
+    'اسکراب فوری',
+    'انتی ملاسما',
+    'انواع خوشبو کننده بدن',
+    'انواع ژل ضد جوش',
+    'انواع میسلار واتر ریوولی',
+    'انواع ویال',
+    'انواع کپسول ویتامین ای',
+    'بادی ژل ریوولی',
+    'بادی لوسیون / میلک ریوولی',
+    'بادی واش انتی پیمپل',
+    'بالم سیکاپلاست لاروشه',
+    'بالم لب',
+    'پچ چشم',
+    'پچ چشم مایع ریوولی',
+    'پچ لب',
+    'پیلینگ ژل ریوولی',
+    'پک اورال اورجینال',
+    'پک دیور',
+    'پک گرلن',
+    'ترک پا ریوولی',
+    'ترک پا هندی',
+    'تقویت مژه ماوالا',
+    'تقویت مژه ریوولی',
+    'تقویت ناخن ریوولی',
+    'تونر KA',
+    'تونر آبی راشل',
+    'تونر ریوولی',
+    'تونر سبز راشل',
+    'تونر طلا',
+    'تونر مجیک ریوولی',
+    'تونر کنترل چربی ریوولی',
+    'تونیک عصاره سیکا ریوولی',
+    'تونیک لیفت فرش ریوولی',
+    'خمیر دندان ترمد',
+    'خمیر دندان فرشکول',
+    'خمیر دندان فرشکول کوچک',
+    'خمیر دندان کاپیتانو',
+    'دور چشم ریوولی',
+    'دور چشم شتر مرغ اسکین',
+    'ریمل اسنس',
+    'ریمل اوربیوتی',
+    'ژل شستشو ریوولی',
+    'ژل ضد جوش سراوی',
+    'ژل کرم نیاسینامید ریوولی',
+    'ژل کرم کلاژن ریوولی',
+    'ژل کلینسر سراوی',
+    'ست ویال ویتامین E',
+    'سرم اورال',
+    'سرم پلی پپتاید ریوولی',
+    'سرم سراوی',
+    'سرم سنتلا ریوولی',
+    'سرم ضد قرمزی ریوولی',
+    'سرم لاروشه',
+    'سرم نیاسینامید ریوولی',
+    'سرم هیدراتراپی ریوولی',
+    'سرم کراتین اسکین',
+    'سرم کریستال موی ریوولی',
+    'شامپو جنسینگ',
+    'شامپو دکسی',
+    'شامپو ضد زردی ریوولی',
+    'شامپو های کویین',
+    'شامپو کارلزاپ کاندیشنر',
+    'شامپو کلاژن نایس فرش',
+    'شاور کرم ریوولی',
+    'شاورژل کویین',
+    'شربت کلروفیل NOW',
+    'صابون',
+    'صابون ابرو',
+    'KA SPF 50 ضد آفتاب',
+    'ضد آفتاب استیلن',
+    'ضد آفتاب اوسرین',
+    'ضد آفتاب پیگمنت لاروشه',
+    'ضد آفتاب ریوولی',
+    'ضد آفتاب سراوی',
+    'ضد آفتاب لاروشه',
+    'ضد آفتاب KA 50 پلاس',
+    'ضد آفتاب سلرانیکو کره ای',
+    'ضد لک مردان EXPLORE',
+    'فارم استی',
+    'فوم پمپی ریوولی',
+    'فوم ضد جوش سراوی',
+    'فوم ویتامین E',
+    'فوم کلاژن',
+    'فیس واش / افتر شیو آقایان',
+    'فیکساتور آرایش ریوولی',
+    'قرص اسپرولینا افتریو',
+    'قرص ال کارنتین',
+    'قرص الفامن 240 عددی',
+    'قرص بن بیس',
+    'قرص تفویت چشم افتریو',
+    'قرص تقویت قلب افتریو',
+    'قرص تقویت مردان افتریو',
+    'قرص تقویت کبد افتریو',
+    'قرص دانه پسیلیوم افتریو',
+    'قرص زنان افتریو',
+    'قرص فروزن',
+    'قرص فیتو انگلیس',
+    'قرص گرویولا افتریو',
+    'قرص مولتی فرست افترایو',
+    'قرص ویت مث افترایو',
+    'قرص کلاژن افتریو',
+    'قرص کوکونات کلاژن',
+    'لوسیون آبرسان سراوی',
+    'لوسیون انتی پیمپل',
+    'لوسیون اینگون',
+    'لوسیون تاناكا',
+    'لوسیون صورت سراوی',
+    'لوسیون کلینسر ریوولی',
+    'ماسک استیک',
+    'ماسک خاک دریا',
+    'ماسک صورت ورقه ای',
+    'ماسک موی کلاژن نایس',
+    'ماسک موی ریوولی',
+    'ماسک موی یک کیلویی',
+    'ماسک نیاسینامید ریوولی',
+    'ماسک هیدراتراپی ریوولی',
+    'مرطوب کننده لب ریوولی',
+    'مولتی اکتیو (شب / روز)',
+    'نمک بدن بیوومن',
+    'کرم MED لاروشه',
+    'کرم آبرسان سرامید ریوولی',
+    'کرم آبرسان هیالورونیک ریوولی',
+    'کرم آبرسان کاسه ای سراوی',
+    'کرم پنتنول',
+    'کرم پودر بورژوا',
+    'کرم دست سراوی',
+    'کرم دست لاروشه',
+    'کرم دور چشم کلاژن ریوولی',
+    'کرم رفع تیرگی YC',
+    'کرم روز YC',
+    'کرم روز انتی پیگمنت',
+    'کرم سه چهره YC',
+    'کرم شب انتی پیمپل',
+    'کرم شب سراوی',
+    'کرم شب / روز ضد قرمزی',
+    'کرم شترمرغ اسکین',
+    'کرم گردن ریوولی',
+    'کرم لیزر ریوولی',
+    'کرم هایدرم',
+    'کرم هیدراتراپی ریوولی',
+    'کرم هیدرو اسکین ریوولی',
+    'کرم واريس',
+    'کرم وایت KA',
+    'کرم وایت YC',
+    'کرم ویتامین ای KA',
+    'کرم کلاژن حلزون',
+    'کرم کلاژن زرد YC',
+    'کره بدن'
+];
 
-// تبدیل تاریخ به شمسی
-function gregorian_to_jalali_format($gregorian_date)
-{
-    list($gy, $gm, $gd) = explode('-', $gregorian_date);
-    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
+// گرفتن فروش‌ها برای ماه جاری
+$sales_query = "
+    SELECT 
+        oi.product_name,
+        SUM(oi.quantity) as total_quantity,
+        SUM(oi.total_price) as total_price,
+        p.unit_price as current_price
+    FROM Order_Items oi
+    JOIN Orders o ON oi.order_id = o.order_id
+    JOIN Work_Details wd ON o.work_details_id = wd.id
+    JOIN Partners p ON wd.partner_id = p.partner_id
+    JOIN Products p2 ON oi.product_name = p2.product_name
+    WHERE wd.work_month_id = ? AND p.user_id1 = ?
+    GROUP BY oi.product_name
+";
+$sales_stmt = $pdo->prepare($sales_query);
+$sales_stmt->execute([$work_month_id, $selected_user_id]);
+$sales_data = $sales_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// تبدیل به نقشه برای دسترسی سریع
+$sales_map = [];
+foreach ($sales_data as $sale) {
+    $sales_map[$sale['product_name']] = $sale;
 }
 
-function get_jalali_month_name($month)
-{
-    $month_names = [
-        1 => 'فروردین',
-        2 => 'اردیبهشت',
-        3 => 'خرداد',
-        4 => 'تیر',
-        5 => 'مرداد',
-        6 => 'شهریور',
-        7 => 'مهر',
-        8 => 'آبان',
-        9 => 'آذر',
-        10 => 'دی',
-        11 => 'بهمن',
-        12 => 'اسفند'
+// تولید گزارش با ترتیب ثابت
+$report = [];
+foreach ($fixed_products as $product_name) {
+    $sale = $sales_map[$product_name] ?? null;
+    if (!$sale) {
+        // فقط محصولاتی که فروش یا تخصیص دارن
+        continue;
+    }
+
+    $report[] = [
+        'product_name' => $product_name,
+        'unit_price' => $sale['current_price'] ?? 0,
+        'quantity' => $sale['total_quantity'] ?? 0,
+        'total_price' => $sale['total_price'] ?? 0
     ];
-    return $month_names[$month] ?? '';
 }
 ?>
 
@@ -139,73 +294,17 @@ function get_jalali_month_name($month)
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Thin.woff2') format('woff2');
-            font-weight: 100;
+            font-family: 'BNaznnBd';
+            src: url('./assets/fonts/BNaznnBd.ttf') format('truetype');
+            font-weight: normal;
             font-style: normal;
             font-display: swap;
         }
 
         @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraLight.woff2') format('woff2');
-            font-weight: 200;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Light.woff2') format('woff2');
-            font-weight: 300;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Regular.woff2') format('woff2');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Medium.woff2') format('woff2');
-            font-weight: 500;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-SemiBold.woff2') format('woff2');
-            font-weight: 600;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Bold.woff2') format('woff2');
-            font-weight: 700;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-ExtraBold.woff2') format('woff2');
-            font-weight: 800;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: Vazirmatn RD FD NL;
-            src: url('assets/fonts/Vazirmatn-RD-FD-NL-Black.woff2') format('woff2');
-            font-weight: 900;
+            font-family: 'BTitrBd';
+            src: url('./assets/fonts/BTitrBd.ttf') format('truetype');
+            font-weight: bold;
             font-style: normal;
             font-display: swap;
         }
@@ -218,8 +317,7 @@ function get_jalali_month_name($month)
         body {
             margin: 0;
             padding: 0;
-            font-family: "Vazirmatn RD FD NL";
-            unicode-range: U+06F0-06F9;
+            font-family: "BNaznnBd";
             direction: rtl;
             text-align: right;
         }
@@ -263,14 +361,16 @@ function get_jalali_month_name($month)
             margin-top: 3mm;
         }
 
+        .products-table th {
+            font-family: 'BTitrBd';
+            background-color: #f0f0f0;
+        }
+
         .products-table th,
         .products-table td {
             border: 1px solid #000;
             text-align: center;
-        }
-
-        .products-table th {
-            background-color: #f0f0f0;
+            font-family: 'BNaznnBd';
         }
 
         .total-row {
@@ -287,6 +387,7 @@ function get_jalali_month_name($month)
         .page-header {
             text-align: center;
             margin-bottom: 1mm;
+            font-family: 'BTitrBd';
         }
 
         .save-png-btn {
@@ -299,7 +400,7 @@ function get_jalali_month_name($month)
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-family: "Vazirmatn RD FD NL";
+            font-family: "BTitrBd";
             font-size: 12pt;
             z-index: 1000;
         }
@@ -342,11 +443,11 @@ function get_jalali_month_name($month)
             <table>
                 <tr>
                     <td>جمع کل فروش</td>
-                    <td><?= number_format($total_sales, 0) ?> تومان</td>
+                    <td><?= number_format($total_sales) ?> تومان</td>
                 </tr>
                 <tr>
                     <td>تخفیف</td>
-                    <td><?= number_format($total_discount, 0) ?> تومان</td>
+                    <td><?= number_format($total_discount) ?> تومان</td>
                 </tr>
                 <tr>
                     <td>آژانس</td>
@@ -356,20 +457,20 @@ function get_jalali_month_name($month)
         </div>
     </div>
 
-    <!-- صفحه دوم به بعد: لیست محصولات -->
+    <!-- صفحات لیست محصولات -->
     <?php
-    $items_per_page = 32;
-    $total_items = count($products);
+    $items_per_page = 30; // تغییر به 30 ردیف
+    $total_items = count($report);
     $total_pages = ceil($total_items / $items_per_page);
 
     for ($page = 0; $page < $total_pages; $page++) {
         echo '<div class="page-container" id="page-' . ($page + 2) . '">';
         $start = $page * $items_per_page;
         $end = min(($page + 1) * $items_per_page, $total_items);
-        $page_items = array_slice($products, $start, $items_per_page);
+        $page_items = array_slice($report, $start, $end - $start);
 
         echo '<div class="page-header">';
-        echo '<h4>گزارش کاری  - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
+        echo '<h4>گزارش کاری - ' . $partner_name . ' - از ' . $start_date . ' تا ' . $end_date . '</h4>';
         echo '</div>';
 
         echo '<table class="products-table">';
@@ -377,36 +478,39 @@ function get_jalali_month_name($month)
         echo '<tbody>';
 
         $page_total = 0;
-        for ($i = 0; $i < count($page_items); $i++) {
-            $item = $page_items[$i];
+        foreach ($page_items as $i => $item) {
             $row_number = $start + $i + 1;
+            $unit_price = $item['unit_price'];
+            $quantity = $item['quantity'];
             $total_price = $item['total_price'];
             $page_total += $total_price;
+
+            // حذف 000 آخر
+            $unit_price_display = rtrim(number_format($unit_price, 0, '.', ','), '0');
+            $unit_price_display = rtrim($unit_price_display, ',');
+            $total_price_display = rtrim(number_format($total_price, 0, '.', ','), '0');
+            $total_price_display = rtrim($total_price_display, ',');
 
             echo '<tr>';
             echo '<td>' . $row_number . '</td>';
             echo '<td>' . htmlspecialchars($item['product_name']) . '</td>';
-            echo '<td>' . number_format($item['unit_price'], 0) . ' </td>';
-            echo '<td>' . $item['total_quantity'] . '</td>';
-            echo '<td>' . number_format($total_price, 0) . ' </td>';
-            echo '<td></td>'; // ستون سود (فعلاً خالی)
-            echo '<td></td>'; // ستون اضافه فروش-توضیحات (خالی)
+            echo '<td>' . $unit_price_display . '</td>';
+            echo '<td>' . $quantity . '</td>';
+            echo '<td>' . $total_price_display . '</td>';
+            echo '<td></td>'; // سود کلی
+            echo '<td></td>'; // اضافه فروش-توضیحات
             echo '</tr>';
         }
 
-        echo '<tr class="total-row">';
-        echo '<td colspan="4">جمع کل</td>';
-        echo '<td>' . number_format($page_total, 0) . ' تومان</td>';
-        echo '<td></td>'; // ستون سود برای جمع کل
-        echo '<td></td>'; // ستون اضافه فروش-توضیحات برای جمع کل
-        echo '</tr>';
-
+        // حذف جمع کل در هر صفحه
+        // فقط در آخرین صفحه جمع کل فروش نمایش داده میشه
         if ($page == $total_pages - 1) {
+            $total_sales_display = rtrim(number_format($total_sales, 0, '.', ','), '0');
+            $total_sales_display = rtrim($total_sales_display, ',');
             echo '<tr class="grand-total-row">';
             echo '<td colspan="4"><strong>جمع کل فروش</strong></td>';
-            echo '<td>' . number_format($total_sales, 0) . ' تومان</td>';
-            echo '<td></td>'; // ستون سود برای جمع کل فروش
-            echo '<td></td>'; // ستون اضافه فروش-توضیحات برای جمع کل فروش
+            echo '<td>' . $total_sales_display . ' تومان</td>';
+            echo '<td></td><td></td>';
             echo '</tr>';
         }
 
@@ -416,48 +520,18 @@ function get_jalali_month_name($month)
     ?>
 
     <script>
-        console.log('Script loaded');
-
         function saveReportAsPNG() {
-            if (typeof html2canvas === 'undefined') {
-                console.error('html2canvas is not loaded');
-                alert('خطا: کتابخانه html2canvas لود نشده است. لطفاً اتصال اینترنت را بررسی کنید.');
-                return;
-            }
-
-            const totalPages = <?= ceil(count($products) / 32 + 1) ?>;
-            const workMonthId = <?= $work_month_id ?>;
-            const userId = <?= $selected_user_id ?>;
-
+            const totalPages = <?= $total_pages + 1 ?>;
             for (let page = 1; page <= totalPages; page++) {
-                const pageContainer = document.getElementById(`page-${page}`);
-                if (!pageContainer) {
-                    console.error(`Page container for page ${page} not found`);
-                    continue;
-                }
-
-                html2canvas(pageContainer, {
-                    scale: 4,
-                    useCORS: true,
-                    backgroundColor: '#ffffff',
-                    logging: true
-                }).then(canvas => {
+                const element = document.getElementById('page-' + page);
+                html2canvas(element, { scale: 4, useCORS: true }).then(canvas => {
                     const link = document.createElement('a');
-                    link.href = canvas.toDataURL('image/png', 1.0);
-                    link.download = `گزارش فروش ماه ${<?= json_encode($month_name) ?>} ${<?= json_encode($partner_name) ?>} صفحه_${page}.png`;
+                    link.download = 'گزارش فروش ماه <?= $month_name ?> صفحه ' + page + '.png';
+                    link.href = canvas.toDataURL();
                     link.click();
-                }).catch(error => {
-                    console.error('Error saving PNG:', error);
-                    alert('خطا در ذخیره تصویر گزارش. لطفاً دوباره تلاش کنید.');
                 });
             }
         }
-
-        document.fonts.ready.then(function () {
-            console.log('Fonts loaded');
-        }).catch(error => {
-            console.error('Error loading fonts:', error);
-        });
     </script>
 </body>
 
