@@ -266,19 +266,28 @@ $fixed_products = [
     'کرم کلاژن زرد YC'
 ];
 
-// گرفتن فروش‌ها برای ماه جاری
+// گرفتن لیست محصولات با قیمت بروز از تاریخچه
 $sales_query = "
-    SELECT oi.product_name, SUM(oi.quantity) as total_quantity, SUM(oi.total_price) as total_price
-    FROM Order_Items oi
-    JOIN Orders o ON oi.order_id = o.order_id
-    JOIN Work_Details wd ON o.work_details_id = wd.id
-    JOIN Partners p ON wd.partner_id = p.partner_id
-    WHERE wd.work_month_id = ? AND p.user_id1 = ?
-    GROUP BY oi.product_name
+    SELECT 
+        p.product_name,
+        COALESCE(h.unit_price, p.unit_price) AS unit_price,
+        SUM(oi.quantity) AS total_quantity,
+        SUM(oi.total_price) AS total_price
+    FROM Products p
+    LEFT JOIN Order_Items oi ON p.product_name = oi.product_name
+    LEFT JOIN Orders o ON oi.order_id = o.order_id
+    LEFT JOIN Work_Details wd ON o.work_details_id = wd.id
+    LEFT JOIN Partners p2 ON wd.partner_id = p2.partner_id
+    LEFT JOIN Product_Price_History h ON p.product_id = h.product_id 
+        AND wd.work_date >= h.start_date 
+        AND (h.end_date IS NULL OR wd.work_date <= h.end_date)
+    WHERE wd.work_month_id = ? AND p2.user_id1 = ?
+    GROUP BY p.product_name, h.unit_price, p.unit_price
+    ORDER BY p.product_name COLLATE utf8mb4_persian_ci
 ";
 $stmt_sales = $pdo->prepare($sales_query);
 $stmt_sales->execute([$work_month_id, $selected_user_id]);
-$sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
+$products = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 
 // تبدیل به نقشه
 $sales_map = [];
