@@ -8,28 +8,17 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'db.php';
 require_once 'jdf.php';
 
-// تابع تبدیل تاریخ میلادی به شمسی (فرمت YYYY/MM/DD)
+// توابع تبدیل تاریخ (برای جلوگیری از خطای undefined)
 function gregorian_to_jalali_format($gregorian_date) {
     list($gy, $gm, $gd) = explode('-', $gregorian_date);
     list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
     return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
 }
 
-// تابع نام ماه شمسی
 function get_jalali_month_name($month) {
     $month_names = [
-        1 => 'فروردین',
-        2 => 'اردیبهشت',
-        3 => 'خرداد',
-        4 => 'تیر',
-        5 => 'مرداد',
-        6 => 'شهریور',
-        7 => 'مهر',
-        8 => 'آبان',
-        9 => 'آذر',
-        10 => 'دی',
-        11 => 'بهمن',
-        12 => 'اسفند'
+        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد', 4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
+        7 => 'مهر', 8 => 'آبان', 9 => 'آذر', 10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
     ];
     return $month_names[$month] ?? '';
 }
@@ -57,26 +46,22 @@ if (!$month) {
 $start_date = gregorian_to_jalali_format($month['start_date']);
 $end_date = gregorian_to_jalali_format($month['end_date']);
 list($jy, $jm, $jd) = explode('/', $start_date);
-$month_name = get_jalali_month_name((int) $jm);
+$month_name = get_jalali_month_name((int)$jm);
 
-// دریافت نام کاربر گزارش‌گیرنده
+// نام کاربر و همکار
 $stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
 $stmt->execute([$current_user_id]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
-$user_name = $user['full_name'] ?? 'نامشخص';
+$user_name = $stmt->fetchColumn() ?: 'نامشخص';
 
-// دریافت نام همکار (یا "همه همکاران")
 $partner_name = 'همه همکاران';
 if ($selected_user_id !== 'all' && $user_role === 'admin') {
-    $stmt = $pdo->prepare("SELECT full_name FROM Users WHERE user_id = ?");
     $stmt->execute([$selected_user_id]);
-    $partner = $stmt->fetch(PDO::FETCH_ASSOC);
-    $partner_name = $partner['full_name'] ?? 'نامشخص';
+    $partner_name = $stmt->fetchColumn() ?: 'نامشخص';
 } elseif ($user_role !== 'admin') {
     $partner_name = $user_name;
 }
 
-// جمع کل فروش و تخفیف (فقط برای user_id1)
+// جمع کل فروش و تخفیف
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(o.total_amount), 0) AS total_sales,
            COALESCE(SUM(o.discount), 0) AS total_discount
@@ -92,20 +77,18 @@ $total_discount = $summary['total_discount'] ?? 0;
 
 // تعداد جلسات آژانس
 $stmt = $pdo->prepare("
-    SELECT COUNT(*) AS session_count
+    SELECT COUNT(*) 
     FROM Work_Details wd
     JOIN Partners p ON wd.partner_id = p.partner_id
     WHERE wd.work_month_id = ? 
-    AND (
-        (p.user_id1 = ? AND wd.agency_owner_id = p.user_id1) 
-        OR (p.user_id2 = ? AND wd.agency_owner_id = p.user_id2)
-    )
+    AND ((p.user_id1 = ? AND wd.agency_owner_id = p.user_id1) 
+      OR (p.user_id2 = ? AND wd.agency_owner_id = p.user_id2))
 ");
 $stmt->execute([$work_month_id, $selected_user_id, $selected_user_id]);
 $total_sessions = $stmt->fetchColumn() ?: 0;
-$total_sessions = $total_sessions > 0 ? "$total_sessions جلسه" : "";
+$total_sessions = $total_sessions ? "$total_sessions جلسه" : "";
 
-// لیست ثابت 157 محصول (دقیقاً طبق لیست شما)
+// لیست ثابت 157 محصول
 $fixed_products = [
     'آبرسان نیتروژنار',
     'آکواژل لاروشه',
@@ -229,7 +212,7 @@ $fixed_products = [
     'ماسک صورت ورقه ای',
     'ماسک موی کلاژن نایس',
     'ماسک موی ریوولی',
-    'ماسک موی یک کیلویی',
+    'ماس flashbackک موی یک کیلویی',
     'ماسک نیاسینامید ریوولی',
     'ماسک هیدراتراپی ریوولی',
     'مرطوب کننده لب ریوولی',
@@ -266,11 +249,11 @@ $fixed_products = [
     'کرم کلاژن زرد YC'
 ];
 
-// گرفتن لیست محصولات با قیمت بروز از تاریخچه
+// گرفتن فروش‌ها + قیمت بروز
 $sales_query = "
     SELECT 
         p.product_name,
-        COALESCE(h.unit_price, p.unit_price) AS unit_price,
+        COALESCE(h.unit_price, p.unit_price) AS current_unit_price,
         SUM(oi.quantity) AS total_quantity,
         SUM(oi.total_price) AS total_price
     FROM Products p
@@ -287,27 +270,18 @@ $sales_query = "
 ";
 $stmt_sales = $pdo->prepare($sales_query);
 $stmt_sales->execute([$work_month_id, $selected_user_id]);
-$products = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
+$sales_data = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 
-// تبدیل به نقشه
 $sales_map = [];
 foreach ($sales_data as $sale) {
     $sales_map[$sale['product_name']] = $sale;
 }
 
-// گرفتن قیمت بروز از جدول Products
-$products_map = [];
-$stmt = $pdo->query("SELECT product_name, unit_price FROM Products");
-$all_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-foreach ($all_products as $prod) {
-    $products_map[$prod['product_name']] = $prod['unit_price'];
-}
-
-// گزارش نهایی با ترتیب ثابت
+// گزارش نهایی با ترتیب ثابت و قیمت بروز
 $report = [];
 foreach ($fixed_products as $product_name) {
     $sale = $sales_map[$product_name] ?? null;
-    $unit_price = $products_map[$product_name] ?? 0;
+    $unit_price = $sale['current_unit_price'] ?? 0;
 
     $report[] = [
         'product_name' => $product_name,
@@ -327,7 +301,6 @@ foreach ($fixed_products as $product_name) {
     <style>
         @font-face {font-family: 'BNaznnBd';src: url('./assets/fonts/BNaznnBd.ttf') format('truetype');}
         @font-face {font-family: 'BTitrBd';src: url('./assets/fonts/BTitrBd.ttf') format('truetype');font-weight: bold;}
-
         body {font-family: 'BNaznnBd';margin:0;padding:0;}
         th {font-family: 'BTitrBd';}
         .page-container {width:210mm;height:297mm;margin:0 auto;padding:0 5mm;box-sizing:border-box;border:1px solid #ccc;position:relative;overflow:hidden;page-break-after:always;}
