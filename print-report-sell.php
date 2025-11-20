@@ -306,7 +306,7 @@ foreach ($fixed_products as $product_name) {
         .page-container {width:210mm;height:297mm;margin:0 auto;padding:0 5mm;box-sizing:border-box;border:1px solid #ccc;position:relative;overflow:hidden;page-break-after:always;}
         .page-container:last-child {page-break-after:auto;}
         table {width:100%;border-collapse:collapse;}
-        th, td {border:1px solid #000;padding:5px;text-align:center;}
+        th, td {border:1px solid #000;padding:3px;text-align:center;}
         th {background-color:#f0f0f0;}
         .print-btn {position:fixed;top:10px;right:10px;padding:10px 20px;background:#28a745;color:#fff;border:none;border-radius:5px;cursor:pointer;z-index:1000;}
         @media print {.page-container{border:none;}.print-btn{display:none;}@page{size:A4 portrait;margin:0;}body{margin:0;padding:0;}}
@@ -317,8 +317,8 @@ foreach ($fixed_products as $product_name) {
 
     <!-- صفحه اول: جمع کل‌ها -->
     <div class="page-container" id="page-1">
-        <h4 style="text-align:center;">گزارش کاری - <?= htmlspecialchars($partner_name) ?> - از <?= $start_date ?> تا <?= $end_date ?></h4>
-        <table style="width:50%;margin:20px auto;">
+        <h4 style="text-align:center;font-size: 24px;">گزارش کاری - <?= htmlspecialchars($partner_name) ?> - از <?= $start_date ?> تا <?= $end_date ?></h4>
+        <table style="width:50%;margin:20px auto;font-size: 24px;">
             <tr><td>جمع کل فروش</td><td><?= number_format($total_sales) ?> تومان</td></tr>
             <tr><td>تخفیف</td><td><?= number_format($total_discount) ?> تومان</td></tr>
             <tr><td>آژانس</td><td><?= $total_sessions ?></td></tr>
