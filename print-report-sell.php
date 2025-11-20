@@ -8,6 +8,32 @@ if (!isset($_SESSION['user_id'])) {
 require_once 'db.php';
 require_once 'jdf.php';
 
+// تابع تبدیل تاریخ میلادی به شمسی (فرمت YYYY/MM/DD)
+function gregorian_to_jalali_format($gregorian_date) {
+    list($gy, $gm, $gd) = explode('-', $gregorian_date);
+    list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+    return sprintf("%04d/%02d/%02d", $jy, $jm, $jd);
+}
+
+// تابع نام ماه شمسی
+function get_jalali_month_name($month) {
+    $month_names = [
+        1 => 'فروردین',
+        2 => 'اردیبهشت',
+        3 => 'خرداد',
+        4 => 'تیر',
+        5 => 'مرداد',
+        6 => 'شهریور',
+        7 => 'مهر',
+        8 => 'آبان',
+        9 => 'آذر',
+        10 => 'دی',
+        11 => 'بهمن',
+        12 => 'اسفند'
+    ];
+    return $month_names[$month] ?? '';
+}
+
 // دریافت پارامترها
 $work_month_id = $_GET['work_month_id'] ?? '';
 $selected_user_id = $_GET['user_id'] ?? $_SESSION['user_id'];
