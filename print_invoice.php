@@ -85,7 +85,7 @@ $pages = array_chunk($items, $items_per_page);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاکتور فروش</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="assets/js/html2canvas.min.js"></script>
     <style>
         @font-face {
             font-family: Vazirmatn RD FD NL;

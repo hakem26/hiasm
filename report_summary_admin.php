@@ -144,8 +144,8 @@ if ($selected_year_jalali && isset($year_mapping[$selected_year_jalali])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>گزارش خلاصه (ادمین)</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/js/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+    <link href="assets/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
         @media print {
@@ -229,8 +229,8 @@ if ($selected_year_jalali && isset($year_mapping[$selected_year_jalali])) {
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/jquery-3.6.0.min.js"></script>
+    <script src="assets/js/bootstrap.bundle.min.js"></script>
     <script>
         $(document).ready(function() {
             // تابع برای بارگذاری ماه‌ها بر اساس سال

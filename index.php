@@ -55,9 +55,9 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="96x96" href="/assets/icons/favicon-96x96.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16x16.png">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="assets/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="assets/fontawesome/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <style>
         body {
             font-family: 'Vazirmatn', sans-serif;
@@ -93,7 +93,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
 </head>
 <body style="background: linear-gradient(to bottom right, lightgreen, lightcyan);">
     <div class="login-box">
-        <h6 class="text-center mb-4">سیستم مدیریت فروش محصولات پوست و مو تست</h6>
+        <h6 class="text-center mb-4">سیستم مدیریت فروش محصولات پوست و مو</h6>
         <?php
         if (isset($_SESSION['error'])) {
             echo '<div class="alert alert-danger">' . $_SESSION['error'] . '</div>';
@@ -123,7 +123,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
         </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/bootstrap.bundle.min.js"></script>
     <script>
         const togglePassword = document.getElementById('togglePassword');
         const passwordInput = document.getElementById('password');

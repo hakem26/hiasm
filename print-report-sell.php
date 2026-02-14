@@ -298,7 +298,7 @@ foreach ($fixed_products as $product_name) {
 <head>
     <meta charset="UTF-8">
     <title>چاپ گزارش فروش</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="assets/js/html2canvas.min.js"></script>
     <style>
         @font-face {font-family: 'BNaznnBd';src: url('./assets/fonts/BNaznnBd.ttf') format('truetype');}
         @font-face {font-family: 'BTitrBd';src: url('./assets/fonts/BTitrBd.ttf') format('truetype');font-weight: bold;}
